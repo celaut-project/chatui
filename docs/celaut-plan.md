@@ -14,7 +14,7 @@ Updated on 2026-10-11, master at `160d24c`.
 | M0: build from source, CI on master, debug APK in CI | Done. Merged in `5c3b2b3` (PR #1). CI run 38156157458 on master passed (rust, flutter, android) |
 | `celaut-proto` and the design notes (`docs/celaut/`) | Done. Merged from `celaut-crates` in `160d24c`. Make new PRs into master. Do not use `celaut-crates` again |
 | M0b: trimmed wallet and new identity | Not started on master. Start from master (see M0b in section 5) |
-| `bee-rpc-over-grpc-rs` | Skeleton only (`98ec487`): types of `buffer.proto`, CI, `PORTING.md` |
+| `bee-rpc-over-grpc-rs` | Specification ready (`68d6f0e`): public API with `todo!()`, tests and vectors from the Python reference, agent guide and prompt. Port not started |
 | M1a, M1 to M5 | Not started |
 
 Do the next tasks in this order. Each task is one PR into master.
@@ -167,9 +167,11 @@ Items that are not done yet (master at `160d24c`):
 Also check that `scripts/release_check.sh` and the CI APK check still pass with the
 new applicationId.
 
-**M1a: bee-rpc in Rust** (repo `bee-rpc-over-grpc-rs`). Port steps 2 to 5 and 7 of its
-`PORTING.md`. Check: its tests pass with the vectors of the Python v0.0.2 tests, and
-an interop test with a Python peer passes in both directions.
+**M1a: bee-rpc in Rust** (repo `bee-rpc-over-grpc-rs`). Steps 2 to 7 of its
+`PORTING.md`, one PR per step. An AI agent can do them: give it `PROMPT.md`; its
+rules are in `AGENT_GUIDE.md`. Check: the tests of each step pass in CI (vectors
+generated from the Python v0.0.2 reference), and the interop tests with a Python
+peer pass.
 
 **M1: connect to a node and show its advertisement.** Uses the `bee-rpc` crate (git
 dependency, then a release). `celaut-wire` and the first part of `celaut-client`: TLS with the identity check, GenerateClient (with PoW),
