@@ -1,12 +1,43 @@
 # Celaut client plan
 
 This plan puts the Celaut part of chatui into milestones. The design is in the notes
-on the `celaut-crates` branch (`docs/celaut/`: decisions, wire, balancer, catalog).
-This plan follows those decisions and does not change them. Each milestone ends with
-a check that a reviewer can run.
+in `docs/celaut/` (decisions, wire, balancer, catalog). This plan follows those
+decisions and does not change them. Each milestone ends with a check that a reviewer
+can run.
 
-Status on 2026-10-11, master at `802dd55`, macOS arm64, Rust 1.99.0,
-Flutter 3.41.2, NDK 28.2.13676358:
+## 0. Status and next tasks
+
+Updated on 2026-10-11, master at `160d24c`.
+
+| Item | Status |
+|---|---|
+| M0: build from source, CI on master, debug APK in CI | Done. Merged in `5c3b2b3` (PR #1). CI run 38156157458 on master passed (rust, flutter, android) |
+| `celaut-proto` and the design notes (`docs/celaut/`) | Done. Merged from `celaut-crates` in `160d24c`. Make new PRs into master. Do not use `celaut-crates` again |
+| M0b: trimmed wallet and new identity | Started, not on master (see M0b in section 5) |
+| M1 to M5 | Not started |
+
+Do the next tasks in this order. Each task is one PR into master.
+
+1. **M0b**, see section 5. It changes many files, so do it before the Celaut code.
+2. **wire.md corrections:** apply section 8 to `docs/celaut/wire.md`. This is a
+   small PR, and it can go in parallel with M0b.
+3. **M1**, then **M2**. The protocol crates do not depend on M0b. You can start
+   `celaut-wire` before M0b is merged, but make the PR after M0b.
+4. **M3**, **M4**, then **M5** if Josemi agrees.
+
+Some open questions in section 7 block a milestone. Get an answer before you start
+that milestone:
+
+| Question | Blocks |
+|---|---|
+| 3. First text service | M4 |
+| 4. Delegation | Nothing now; M2 uses `remaining_hops: 1` |
+| 5. Test node, credit and testnet | The end-to-end checks of M2 and M3 |
+| 7. Tor | M5 |
+| 9. Release key | The first release APK (M0b updater check) |
+
+Measured by the author of PR #1 on 2026-10-11, master at `802dd55`, macOS arm64,
+Rust 1.99.0, Flutter 3.41.2, NDK 28.2.13676358:
 
 | Check | Result |
 |---|---|
@@ -97,7 +128,7 @@ and keeps the gRPC and bee-rpc code in Rust.
 Each milestone is one or more PRs into master. Feature code waits for the review of
 this plan.
 
-**M0: build is green** (this PR). The Gradle build makes `libwallet_ffi.so` from
+**M0: build is green** (done, PR #1). The Gradle build makes `libwallet_ffi.so` from
 source. CI runs on master and builds the debug APK. Check: the CI `android` job.
 
 **M0b: trimmed wallet and new identity** (decisions.md). Remove the DeFi crates and
@@ -105,6 +136,35 @@ screens, the dApp browser, the CoinGecko prices and the app fee. Label "Celaut",
 applicationId `org.celaut.chatui`, flutter_zxing scanner, updater on the
 celaut-project/chatui releases. Check: the APK runs on GrapheneOS without Play
 Services; `flutter test` and `cargo test` pass.
+
+A partial trim exists on the machine of Josemi and is not pushed yet. It removes the
+DeFi crates (AMM, SigmaUSD, Dexy, DuckPools, Rosen, SigmaFi, stake recovery, stealth,
+ZeroJoin), the arbitrage and pricing APIs and the dApp browser, renames the Dart
+package to `celaut_chatui` and puts `flutter_zxing` in `pubspec.yaml`. Josemi tells
+you if you continue from that branch or start from master.
+
+Items that are not done yet (master at `160d24c`):
+
+- `namespace` and `applicationId` are `com.argus.argus_wallet`
+  (`app/android/app/build.gradle.kts`). Change both to `org.celaut.chatui`, and move
+  `MainActivity` to the new package.
+- `android:label` is "Argus" (`app/android/app/src/main/AndroidManifest.xml`).
+- The updater reads `arkadianet/Argus` (`app/lib/build_info.dart`,
+  `app/lib/services/update_service.dart`).
+- `mobile_scanner` is still used in `app/lib/ui/scan_screen.dart`. Replace it with
+  `flutter_zxing`.
+- CoinGecko is still used in `app/lib/ui/home/erg_price_feed.dart`,
+  `home_models.dart` and `settings/display_settings_page.dart`. Use only the oracle
+  pool price.
+- The app fee is still in `rust/crates/vendor/ergo-tx/src/dev_fee.rs` and its callers
+  (`send.rs`, `tx_helpers.rs`, `utxo_management.rs`, `wallet-ffi/src/api.rs`,
+  `api_ergopay_impl.rs`). Remove it, and remove the tests that expect a fee output.
+- Spanish: decisions.md asks for English and Spanish. The app has no localization
+  now (no `flutter_localizations`, no ARB files). Add it in a separate PR after M0b,
+  before M1 adds new screens.
+
+Also check that `scripts/release_check.sh` and the CI APK check still pass with the
+new applicationId.
 
 **M1: connect to a node and show its advertisement.** `celaut-wire` and the first
 part of `celaut-client`: TLS with the identity check, GenerateClient (with PoW),
@@ -178,9 +238,8 @@ onion addresses for nodes are nodo work (open question 7).
 1. **"Celaut node implementation" in the description:** is the app a light client
    only (decisions.md says so), or is a later "light node" role intended (for example
    to relay requests or announce itself)? Should the description change?
-2. **Order of work:** M0b (trim and rename) first, or M1 (protocol) first with the
-   trim in parallel? Is a remote branch such as `celaut-crates` the place for the
-   protocol crates, or PRs into master?
+2. **Order of work:** answered. `celaut-crates` is merged into master, and all new
+   work comes as PRs into master. The order is in section 0.
 3. **First service for M4:** which text service do we use (an LLM service, or a
    simple echo or translation service for the first test)? Which protocol does it
    speak on its slot: plain HTTP with JSON, an OpenAI-compatible API, or gRPC?
