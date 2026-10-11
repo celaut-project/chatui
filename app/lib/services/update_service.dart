@@ -13,7 +13,7 @@ import '../build_info.dart';
 import 'apk_signature.dart';
 import 'update_channel.dart';
 
-// Opt-in update check against Argus's GitHub releases, and a download that is
+// Opt-in update check against the GitHub releases of celaut-project/chatui, and a download that is
 // checked before Android is asked to install it.
 //
 // What leaves the phone, and when:
@@ -27,12 +27,12 @@ import 'update_channel.dart';
 // Nothing is sent at any other time, and nothing about the wallet is ever
 // part of either request.
 
-/// GitHub's "latest release" for Argus: the newest release that is neither a
-/// draft nor a prerelease, which is how Argus publishes.
-final latestReleaseUri = Uri.https('api.github.com', '/repos/arkadianet/Argus/releases/latest');
+/// GitHub's "latest release" for chatui: the newest release that is neither a
+/// draft nor a prerelease.
+final latestReleaseUri = Uri.https('api.github.com', '/repos/celaut-project/chatui/releases/latest');
 
 /// GitHub rejects a request with no User-Agent. This is the whole identity.
-const updateUserAgent = 'Argus';
+const updateUserAgent = 'Celaut';
 
 /// How often the start-up check may contact GitHub.
 const updateCheckInterval = Duration(hours: 24);
@@ -294,7 +294,7 @@ ReleaseAsset? pickAsset(List<ReleaseAsset> assets, List<String> supportedAbis) {
   ReleaseAsset? named(String variant) {
     for (final a in assets) {
       final name = a.name.toLowerCase();
-      if (name.startsWith('argus-') && name.endsWith('-$variant.apk')) return a;
+      if (name.startsWith('chatui-') && name.endsWith('-$variant.apk')) return a;
     }
     return null;
   }

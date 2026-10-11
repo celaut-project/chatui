@@ -5,4 +5,4 @@
 -dontwarn javax.annotation.**
 
 # Keep flutter_rust_bridge generated classes
--keep class com.argus.argus_wallet.** { *; }
+-keep class org.celaut.chatui.** { *; }

@@ -2,4 +2,4 @@
 /// each release (see the release steps in the repo memory / plan).
 const appVersion = '1.0.0-beta.5';
 const appBuildNumber = 4065;
-const releasesUrl = 'https://github.com/arkadianet/Argus/releases';
+const releasesUrl = 'https://github.com/celaut-project/chatui/releases';

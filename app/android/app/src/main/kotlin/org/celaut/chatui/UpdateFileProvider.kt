@@ -1,4 +1,4 @@
-package com.argus.argus_wallet
+package org.celaut.chatui
 
 import androidx.core.content.FileProvider
 

@@ -10,7 +10,7 @@
          Argus, and nothing is installed without the installer's own prompt. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <application
-        android:label="Argus"
+        android:label="Celaut"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"

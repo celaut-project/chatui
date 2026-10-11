@@ -10,7 +10,7 @@ plugins {
 val releaseStore: String? = System.getenv("ARGUS_KEYSTORE")
 
 android {
-    namespace = "com.argus.argus_wallet"
+    namespace = "org.celaut.chatui"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -26,8 +26,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.argus.argus_wallet"
+        applicationId = "org.celaut.chatui"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
