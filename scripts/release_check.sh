@@ -4,7 +4,7 @@
 # hand at least once.
 #
 #   version          build_info.dart and pubspec.yaml agree
-#   libs             the tracked jniLibs match a fresh build of this source
+#   libs             the built jniLibs match a fresh build of this source
 #   apks <dir>       the built APKs carry the right versionCode, ABI and cert
 #   all <dir>        all three
 #
@@ -77,7 +77,7 @@ check_version() { head_ "version"; read_version; }
 check_libs() {
   head_ "native libraries"
   for abi in "${ABIS[@]}"; do
-    [ -f "$JNI/$abi/libwallet_ffi.so" ] || { fail "$abi: no tracked library at $JNI/$abi"; return; }
+    [ -f "$JNI/$abi/libwallet_ffi.so" ] || { fail "$abi: no library at $JNI/$abi; run scripts/build_android.sh"; return; }
   done
   local scratch; scratch="$(mktemp -d)"
   trap 'rm -rf "$scratch"' RETURN
@@ -86,13 +86,13 @@ check_libs() {
     fail "the rebuild failed; see $scratch/build.log"; trap - RETURN; return
   fi
   for abi in "${ABIS[@]}"; do
-    local fresh="$scratch/$abi/libwallet_ffi.so" tracked="$JNI/$abi/libwallet_ffi.so"
+    local fresh="$scratch/$abi/libwallet_ffi.so" built="$JNI/$abi/libwallet_ffi.so"
     if [ ! -s "$fresh" ]; then
       fail "$abi: the rebuild produced no library — cannot conclude anything"
-    elif cmp -s "$fresh" "$tracked"; then
-      pass "$abi: tracked library matches a fresh build"
+    elif cmp -s "$fresh" "$built"; then
+      pass "$abi: built library matches a fresh build"
     else
-      fail "$abi: tracked library is STALE — run scripts/build_android.sh and commit"
+      fail "$abi: built library is STALE — run scripts/build_android.sh"
     fi
   done
 }
