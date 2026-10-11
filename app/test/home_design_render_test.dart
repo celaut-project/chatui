@@ -515,7 +515,7 @@ void main() {
         loading: true,
         notLoaded: 1,
         network: NetworkStatus(state: SyncState.syncing, blockHeight: 1888681),
-        price: ErgPriceView(fiatPerErg: null, source: 'CoinGecko'),
+        price: ErgPriceView(fiatPerErg: null, source: 'SigmaUSD oracle'),
       )),
       palette: ledgerPalette,
     );
@@ -523,7 +523,7 @@ void main() {
     expect(find.bySemanticsLabel('Total balance loading'), findsOneWidget);
     expect(find.bySemanticsLabel(RegExp(r'^Fresh restore, loading…')), findsOneWidget);
     expect(find.bySemanticsLabel('Syncing…, Block 1,888,681'), findsOneWidget);
-    expect(find.bySemanticsLabel('ERG price unavailable, CoinGecko'), findsOneWidget);
+    expect(find.bySemanticsLabel('ERG price unavailable, SigmaUSD oracle'), findsOneWidget);
   });
 
   testWidgets('a wallet with no activity offers its address', (tester) async {

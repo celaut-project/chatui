@@ -79,7 +79,7 @@ class ErgPriceView {
   /// source could price it.
   final double? fiatPerErg;
 
-  /// Where the price comes from, e.g. `SigmaUSD oracle`, `CoinGecko`.
+  /// Where the price comes from, e.g. `SigmaUSD oracle`.
   final String source;
 
   /// Prices over [window], oldest first. Fewer than two points means no
