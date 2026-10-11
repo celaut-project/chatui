@@ -15,7 +15,7 @@ struct ReplayNode {
 impl ReplayNode {
     fn start(fail_boxes: bool, fail_mempool: bool) -> Self {
         let fixture: serde_json::Value = serde_json::from_str(include_str!(
-            "../../vendor/protocols/zerojoin/test/fixtures/half_mix_boxes.json"
+            "sync_fixtures/unspent_boxes.json"
         ))
         .unwrap();
         let tree = address_to_ergo_tree(ARGUS_FEE_ADDRESS).unwrap();
@@ -112,7 +112,7 @@ async fn sync_reads_once_concurrently_and_shares_pending_valuation() {
     );
     assert_eq!(result["utxo_count"], 2);
     let fixture: serde_json::Value = serde_json::from_str(include_str!(
-        "../../vendor/protocols/zerojoin/test/fixtures/half_mix_boxes.json"
+        "sync_fixtures/unspent_boxes.json"
     ))
     .unwrap();
     let first = fixture["items"][0]["value"].as_i64().unwrap();

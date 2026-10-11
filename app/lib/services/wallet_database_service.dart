@@ -25,8 +25,6 @@ class LastKnownBalance {
     this.tokens = const [],
     this.tokensKnown = true,
     this.addresses = const [],
-    this.stealthNano = 0,
-    this.stealthScannedAt,
     this.addressHoldings = const [],
   });
   final int balanceNano;
@@ -38,14 +36,6 @@ class LastKnownBalance {
   /// A locked wallet cannot derive new ones (that needs the seed), but its
   /// known addresses can still be queried live.
   final List<String> addresses;
-
-  /// Stealth ERG at the last sync. A locked wallet cannot rescan for it,
-  /// because detection needs its seed.
-  final int stealthNano;
-
-  /// When [stealthNano] was last confirmed by a successful scan. Null means
-  /// it was never scanned, so the figure is not to be trusted as current.
-  final DateTime? stealthScannedAt;
 
   /// Token holdings from the same snapshot, for portfolio valuation.
   final List<({String id, int amount, int decimals})> tokens;
@@ -134,8 +124,6 @@ class WalletDatabaseService {
     bool publicOnly = false,
     String? syncPhase,
     int? lastSuccessfulSyncAt,
-    int stealthNano = 0,
-    DateTime? stealthScannedAt,
     List<Map<String, dynamic>> addressHoldings = const [],
     Map<String, dynamic>? pending,
   }) async {
@@ -150,11 +138,6 @@ class WalletDatabaseService {
       'discovery_pinned_index': discoveryPinnedIndex,
       'discovery_unused_change': discoveryUnusedChange,
       'change_address': changeAddress,
-      // A locked wallet cannot rescan for stealth funds: detection needs
-      // its seed. The last successful figure is kept with the time it was
-      // taken, so the row can say how old it is rather than imply it is now.
-      'stealth_nano_erg': stealthNano,
-      'stealth_scanned_at': stealthScannedAt?.millisecondsSinceEpoch,
       'balance_nano_erg': balanceNano,
       // Confirmed and pending figures behind balance_nano_erg, as the sync
       // valued them (see PendingBalance). Public chain data, like the rest.
@@ -195,11 +178,6 @@ class WalletDatabaseService {
     return LastKnownBalance(
       balanceNano: (map['balance_nano_erg'] as num?)?.toInt() ?? 0,
       age: at == null ? Duration.zero : DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(at)),
-      stealthNano: (map['stealth_nano_erg'] as num?)?.toInt() ?? 0,
-      stealthScannedAt: (map['stealth_scanned_at'] as num?) == null
-          ? null
-          : DateTime.fromMillisecondsSinceEpoch(
-              (map['stealth_scanned_at'] as num).toInt()),
       addresses: [
         for (final a in (map['used_addresses'] as List? ?? const []))
           if (a is Map && a['address'] != null) a['address'].toString()

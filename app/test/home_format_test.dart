@@ -103,21 +103,6 @@ void main() {
       expect(pendingText(const PendingBalance(confirmedNano: 7000000000), hidden: false), isNull);
       expect(pendingText(null, hidden: false), isNull);
     });
-
-    test('say what is not on public addresses, and how old it is', () {
-      const stealth = PocketBalance(pocket: Pocket.stealth, nanoErg: 1000000000);
-      const mixing = PocketBalance(pocket: Pocket.inMix, nanoErg: 3000000000);
-      const public = PocketBalance(pocket: Pocket.public, nanoErg: 5000000000);
-      expect(pocketsLine(const [public], hidden: false), isNull);
-      expect(spoken(pocketsLine(const [public, stealth, mixing], hidden: false)!), 'incl. 1 ERG stealth · 3 ERG in mix');
-      expect(spoken(pocketsLine(const [stealth], hidden: false, asOf: '3h ago')!), 'incl. 1 ERG stealth, as of 3h ago');
-      expect(spoken(pocketsLine(const [stealth], hidden: true)!), 'incl. •••• ERG stealth');
-      expect(
-        spoken(pocketsLine(const [PocketBalance(pocket: Pocket.stealth, nanoErg: 0, unknown: true)], hidden: false)!),
-        'incl. stealth unknown',
-        reason: 'an unread pocket is said to be unknown, never zero',
-      );
-    });
   });
 
   group('activity rows', () {
@@ -157,12 +142,12 @@ void main() {
     );
     expect(
       const WalletPageData(wallet: seed, currency: _aud).actions,
-      [WalletAction.send, WalletAction.receive, WalletAction.swap, WalletAction.more],
+      [WalletAction.send, WalletAction.receive, WalletAction.more],
     );
     final tools = const WalletPageData(wallet: seed, currency: _aud, fragmented: true).tools;
-    expect(tools.map((t) => t.tool), [WalletTool.mix, WalletTool.tokens, WalletTool.utxos, WalletTool.addresses, WalletTool.lock]);
-    expect(tools[2].status, 'Fragmented');
-    expect(tools[2].warn, isTrue);
+    expect(tools.map((t) => t.tool), [WalletTool.tokens, WalletTool.utxos, WalletTool.addresses, WalletTool.lock]);
+    expect(tools[1].status, 'Fragmented');
+    expect(tools[1].warn, isTrue);
     // An account before its first scan can neither vouch for an address to
     // receive at nor build a send.
     const unscanned = WalletPageData(

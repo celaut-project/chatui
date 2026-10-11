@@ -20,17 +20,10 @@ class TokenDetailSheet extends StatefulWidget {
     required this.token,
     required this.explorerUrl,
     this.onSend,
-    this.onSwap,
-    this.swappable,
   });
   final TokenBalance token;
   final String explorerUrl;
   final ValueChanged<TokenBalance>? onSend;
-
-  /// Opens the swap paying with this token. Only a signing wallet passes
-  /// it; the button shows only once [swappable] resolves true.
-  final ValueChanged<TokenBalance>? onSwap;
-  final Future<bool>? swappable;
   @override
   State<TokenDetailSheet> createState() => _TokenDetailSheetState();
 }
@@ -92,7 +85,6 @@ class _TokenDetailSheetState extends State<TokenDetailSheet>
         title: Text('Load metadata from $host'),
         content: Text(
           'This provider can see your IP address and the token ID requested. '
-          '${widget.token.hasStealth ? 'Loading may link this private holding to this connection. ' : ''}'
           'Issuer text may be misleading. No artwork will be downloaded.',
         ),
         actions: [
@@ -164,8 +156,6 @@ class _TokenDetailSheetState extends State<TokenDetailSheet>
               token: token,
               explorerUrl: widget.explorerUrl,
               onSend: widget.onSend,
-              onSwap: widget.onSwap,
-              swappable: widget.swappable,
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
@@ -220,15 +210,11 @@ class _TokenDetailBody extends StatelessWidget {
     required this.token,
     required this.explorerUrl,
     this.onSend,
-    this.onSwap,
-    this.swappable,
   });
 
   final TokenBalance token;
   final String explorerUrl;
   final ValueChanged<TokenBalance>? onSend;
-  final ValueChanged<TokenBalance>? onSwap;
-  final Future<bool>? swappable;
 
   @override
   Widget build(BuildContext context) {
@@ -309,24 +295,6 @@ class _TokenDetailBody extends StatelessWidget {
             if (!token.isCollectible) ...[
               const SizedBox(height: 12),
               _PriceLine(token: token),
-            ],
-            if (token.hasStealth) ...[
-              const SizedBox(height: 12),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.visibility_off_outlined, size: 16, color: muted),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '${holdingAmountText(token, units: token.stealthAmount)} '
-                      'of this sits in stealth boxes. Sweep it from Receive '
-                      'before spending it.',
-                      style: TextStyle(fontSize: 12.5, color: muted),
-                    ),
-                  ),
-                ],
-              ),
             ],
             if (caution != null) ...[
               const SizedBox(height: 14),
@@ -561,9 +529,14 @@ class _TokenDetailBody extends StatelessWidget {
                   ),
               ],
             ),
-            if (onSend != null || onSwap != null) ...[
+            if (onSend case final send?) ...[
               const SizedBox(height: 16),
-              _TokenActions(token: token, onSend: onSend, onSwap: onSwap, swappable: swappable),
+              FilledButton.icon(
+                key: const Key('token-send'),
+                onPressed: () => send(token),
+                icon: const Icon(Icons.north_east, size: 17),
+                label: Text('Send ${token.label}'),
+              ),
             ],
           ],
         ),
@@ -572,60 +545,13 @@ class _TokenDetailBody extends StatelessWidget {
   }
 }
 
-/// Send, and beside it Swap once the pool list says the token trades: the
-/// sheet opens at once and the button joins it when the answer lands.
-class _TokenActions extends StatelessWidget {
-  const _TokenActions({required this.token, this.onSend, this.onSwap, this.swappable});
-
-  final TokenBalance token;
-  final ValueChanged<TokenBalance>? onSend;
-  final ValueChanged<TokenBalance>? onSwap;
-  final Future<bool>? swappable;
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: onSwap == null ? null : swappable,
-      builder: (context, snap) {
-        final send = onSend == null
-            ? null
-            : FilledButton.icon(
-                key: const Key('token-send'),
-                onPressed: () => onSend!(token),
-                icon: const Icon(Icons.north_east, size: 17),
-                label: Text('Send ${token.label}'),
-              );
-        final swap = onSwap == null || snap.data != true
-            ? null
-            : OutlinedButton.icon(
-                key: const Key('token-swap'),
-                onPressed: () => onSwap!(token),
-                icon: const Icon(Icons.swap_horiz, size: 18),
-                label: const Text('Swap'),
-              );
-        if (send == null || swap == null) return send ?? swap ?? const SizedBox.shrink();
-        return Row(
-          children: [
-            Expanded(flex: 3, child: send),
-            const SizedBox(width: 8),
-            Expanded(flex: 2, child: swap),
-          ],
-        );
-      },
-    );
-  }
-}
-
-/// Opens [token]'s sheet. [onSwap] is offered only for a wallet that can
-/// sign, and only when [swappable] resolves true: the caller says whether
-/// the token has a pool (`ammService.hasPool`).
+/// Opens [token]'s sheet. [onSend] is offered only for a wallet that can
+/// sign.
 Future<void> showTokenDetailSheet(
   BuildContext context, {
   required TokenBalance token,
   required String explorerUrl,
   ValueChanged<TokenBalance>? onSend,
-  ValueChanged<TokenBalance>? onSwap,
-  Future<bool>? swappable,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -647,19 +573,11 @@ Future<void> showTokenDetailSheet(
               Navigator.pop(ctx);
               onSend(t);
             },
-      onSwap: onSwap == null
-          ? null
-          : (t) {
-              Navigator.pop(ctx);
-              onSwap(t);
-            },
-      swappable: swappable,
     ),
   );
 }
 
-/// "≈ $0.0125 each · ≈ $2.50 held · Spectrum pool, 500 ERG deep", or why
-/// there is no price.
+/// "≈ $0.0125 each · ≈ $2.50 held · AVL oracle", or why there is no price.
 class _PriceLine extends StatelessWidget {
   const _PriceLine({required this.token});
   final TokenBalance token;
@@ -677,17 +595,14 @@ class _PriceLine extends StatelessWidget {
     final String text;
     if (price == null || unit == null) {
       text = tokenPricer.result.ergUsd == null
-          ? 'No price yet · ${tokenPricer.source.label} has not answered'
-          : 'No price · no ERG pool at least ${poolDepthFloorErg.toStringAsFixed(0)} ERG deep';
+          ? 'No price yet · $priceSourceLabel have not answered'
+          : 'No price · no oracle pool prices this token';
     } else {
-      final via = price.depthErg == null
-          ? price.via
-          : '${price.via}, ${price.depthErg!.toStringAsFixed(0)} ERG deep';
       text = [
         '$unit each',
         if (held != null) '$held held',
-        via,
-        if (!price.countsInTotal) 'not counted in totals (${price.excludedBecause})',
+        price.via,
+        if (!price.countsInTotal) 'not counted in totals (stale)',
       ].join(' · ');
     }
     return Text(text, style: TextStyle(fontSize: 12.5, color: muted));

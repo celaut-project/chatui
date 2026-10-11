@@ -70,7 +70,7 @@ class OverviewScreen extends StatelessWidget {
   final String? notice;
   final bool noticeIsError;
 
-  /// Send, Receive, Swap and More from the overview; without it the row is
+  /// Send, Receive and More from the overview; without it the row is
   /// not shown.
   final ValueChanged<WalletAction>? onAction;
 
@@ -337,7 +337,7 @@ class OverviewView extends StatelessWidget {
                   HomeActionCircles(
                     keyPrefix: 'overview-action',
                     gridMore: true,
-                    actions: const [WalletAction.send, WalletAction.receive, WalletAction.swap, WalletAction.more],
+                    actions: const [WalletAction.send, WalletAction.receive, WalletAction.more],
                     onAction: onAction!,
                   ),
                 ],

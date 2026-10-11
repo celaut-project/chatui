@@ -7,16 +7,13 @@ import 'oracle_feeds.dart';
 
 /// How far back an ERG price chart reaches.
 enum PriceWindow {
-  day('24h', Duration(hours: 24), 1),
-  week('7d', Duration(days: 7), 7),
-  month('30d', Duration(days: 30), 30);
+  day('24h', Duration(hours: 24)),
+  week('7d', Duration(days: 7)),
+  month('30d', Duration(days: 30));
 
-  const PriceWindow(this.label, this.span, this.coingeckoDays);
+  const PriceWindow(this.label, this.span);
   final String label;
   final Duration span;
-
-  /// The `days` CoinGecko's market chart takes for this window.
-  final int coingeckoDays;
 
   /// Blocks in this window at Ergo's two-minute target.
   int get blocks => span.inMinutes ~/ minutesPerBlock;
@@ -26,15 +23,11 @@ enum PriceWindow {
 /// heights become times at this rate.
 const minutesPerBlock = 2;
 
-/// The long-standing ERG/SigUSD Spectrum pool, used when the pool set has
-/// not told the pricer which SigUSD pool is deepest.
-const ergSigUsdPoolNft = '9916d75132593c8b07fe18bd8d583bda1652eed7565cf41a4738ddd90fc992ec';
-
 class PricePoint {
   const PricePoint(this.at, this.price);
   final DateTime at;
 
-  /// Display currency per ERG.
+  /// USD per ERG.
   final double price;
 }
 
@@ -106,41 +99,11 @@ List<HeightPrice> oracleRateHistory(List<Map<String, dynamic>> boxes) {
   return out;
 }
 
-/// ERG/USD at each historical state of an ERG/SigUSD pool box: SigUSD
-/// cents over nanoERG. Boxes that are not that pool's layout are skipped.
-List<HeightPrice> poolHistoryFromBoxes(List<Map<String, dynamic>> boxes, {required String sigUsdId}) {
-  final out = <HeightPrice>[];
-  for (final b in boxes) {
-    final assets = (b['assets'] as List?) ?? const [];
-    final height = _height(b);
-    final erg = (b['value'] as num?)?.toDouble() ?? 0;
-    if (assets.length < 3 || height == null || erg <= 0) continue;
-    final y = (assets[2] as Map).cast<String, dynamic>();
-    if (y['tokenId'] != sigUsdId) continue;
-    final cents = (y['amount'] as num?)?.toDouble() ?? 0;
-    if (cents <= 0) continue;
-    out.add((height, (cents / 100) / (erg / 1e9)));
-  }
-  out.sort((a, b) => a.$1.compareTo(b.$1));
-  return out;
-}
-
 /// Heights as times, counting back from [tip] at [now].
 List<PricePoint> pointsFromHeights(List<HeightPrice> prices, {required int tip, required DateTime now, double scale = 1}) => [
       for (final (h, usd) in prices)
         PricePoint(now.subtract(Duration(minutes: (tip - h) * minutesPerBlock)), usd * scale),
     ];
-
-/// CoinGecko's market chart (`{"prices": [[ms, price], …]}`) as points.
-List<PricePoint> coingeckoChartPoints(Map<String, dynamic> json) {
-  final out = <PricePoint>[];
-  for (final p in (json['prices'] as List?) ?? const []) {
-    if (p is! List || p.length < 2 || p[0] is! num || p[1] is! num) continue;
-    out.add(PricePoint(DateTime.fromMillisecondsSinceEpoch((p[0] as num).toInt(), isUtc: true), (p[1] as num).toDouble()));
-  }
-  out.sort((a, b) => a.at.compareTo(b.at));
-  return out;
-}
 
 /// The price in force at [at]: the last point at or before it. Null when
 /// the history does not reach back that far.
@@ -249,14 +212,4 @@ Future<List<Map<String, dynamic>>> fetchBoxPage(
   final body = jsonDecode(res.body);
   final items = body is List ? body : (body as Map)['items'] as List? ?? const [];
   return items.map((e) => (e as Map).cast<String, dynamic>()).toList();
-}
-
-/// CoinGecko's ERG market chart in [fiat] over [days].
-Future<Map<String, dynamic>> fetchCoingeckoChart(String fiat, int days, {http.Client? client}) async {
-  final c = client ?? http.Client();
-  final res = await c
-      .get(Uri.parse('https://api.coingecko.com/api/v3/coins/ergo/market_chart?vs_currency=$fiat&days=$days'))
-      .timeout(const Duration(seconds: 10));
-  if (res.statusCode != 200) throw HistoryUnavailable('CoinGecko answered ${res.statusCode}.');
-  return (jsonDecode(res.body) as Map).cast<String, dynamic>();
 }

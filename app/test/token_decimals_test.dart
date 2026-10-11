@@ -1,15 +1,10 @@
 import 'dart:convert';
 
 import 'package:argus_wallet/bridge/frb_generated.dart';
-import 'package:argus_wallet/services/amm_service.dart';
 import 'package:argus_wallet/services/network_controller.dart';
-import 'package:argus_wallet/services/oracle_feeds.dart';
-import 'package:argus_wallet/services/token_catalog.dart';
 import 'package:argus_wallet/services/token_decimals.dart';
 import 'package:argus_wallet/services/token_descriptor_store.dart';
 import 'package:argus_wallet/services/token_metadata.dart';
-import 'package:argus_wallet/services/token_pricer.dart';
-import 'package:argus_wallet/services/token_pricing.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -303,7 +298,6 @@ void main() {
   group('a seed wallet', () {
     setUp(() async {
       SharedPreferences.setMockInitialValues({});
-      publicTokenCatalog.debugReset();
       networkController.activeUrl = _node;
       await walletService.restoreWallet('mock', walletId: _wallet);
       await walletService.prefetchTokenMeta(
@@ -365,48 +359,5 @@ void main() {
       await pass();
       expect(many.where((id) => tokenName(id) == null), isEmpty);
     });
-
-    test('prices only what it can scale', () async {
-      final pricer = TokenPricer(PricerDeps(
-        nodeUrl: () => _node,
-        tipHeight: () => 1000,
-        fiatCode: () => 'usd',
-        oracle: (_) async => null,
-        coingecko: (_, _) async => const {},
-        pools: () async => const AmmPoolSet(truncated: false, pools: [], tokens: {}),
-        poolPrices: (_) async => PoolPriceBook(tokens: {
-          for (final id in [_bare, _unread, _odd])
-            id: PoolQuote(nanoErgPerUnit: 4, depthNano: 1000000000000, trusted: true, poolId: 'p-$id'),
-        }),
-        sigRsvPriceNano: () async => null,
-        oracleReading: (_, feed) async =>
-            feed == OracleFeed.sigmaUsd ? OracleReading(rate: 2000000000, height: 999) : null,
-        onRate: (_, _) {},
-      ));
-      addTearDown(pricer.dispose);
-      await pricer.refresh();
-      expect(pricer.priceOf(_bare), isNotNull, reason: 'a known zero is a scale');
-      expect(pricer.priceOf(_unread), isNull, reason: 'no guessed zero');
-      expect(pricer.priceOf(_odd), isNull);
-    });
-  });
-
-  test('pool lists carry only the scales the public layers know', () {
-    publicTokenCatalog.debugReset();
-    publicTokenCatalog.debugSeed([
-      CachedDescriptor.fromInspection(_answers[_bare]!, source: _node),
-      CachedDescriptor.fromInspection(_answers[_unread]!, source: _node),
-      CachedDescriptor.fromInspection(_answers[_odd]!, source: _node),
-    ]);
-    Map<String, dynamic> pool(String id) => {
-      'pool_id': 'p-$id',
-      'pool_type': 'N2T',
-      'erg_reserves': '1',
-      'token_y': {'token_id': id, 'amount': '1'},
-    };
-    final meta = publicPoolTokenMeta([pool(_bare), pool(_unread), pool(_odd)]);
-    expect(meta.keys, [_bare]);
-    expect(meta[_bare]!.decimals, 0);
-    publicTokenCatalog.debugReset();
   });
 }

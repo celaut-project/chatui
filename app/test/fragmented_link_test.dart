@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:argus_wallet/bridge/frb_generated.dart';
 import 'package:argus_wallet/services/public_wallet_sync.dart';
-import 'package:argus_wallet/services/stealth_service.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
 import 'package:argus_wallet/services/watch_account_service.dart';
 import 'package:argus_wallet/services/watch_only_service.dart';
@@ -46,11 +45,9 @@ void main() {
     });
     await watchOnlyService.load();
     watchAccountService.accounts.clear();
-    stealthService.scanEnabled = false;
     publicWalletSync.setForeground(false);
   });
   tearDown(() async {
-    stealthService.scanEnabled = true;
     publicWalletSync.setForeground(true);
     if (walletService.isUnlocked) await walletService.lock();
   });

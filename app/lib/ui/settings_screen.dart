@@ -170,7 +170,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SettingsRow(
             icon: Icons.lock_outline,
             title: 'Security',
-            subtitle: 'Auto-lock, screenshots, stealth scan, mixing',
+            subtitle: 'Auto-lock, screenshots, unconfirmed funds',
             onTap: () => _open(const SecuritySettingsPage()),
           ),
         SettingsRow(

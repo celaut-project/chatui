@@ -44,7 +44,7 @@ class WalletsOverviewScreen extends StatelessWidget {
 
   final WalletsOverviewModel model;
 
-  /// Send, Receive, Swap and More from the overview's own row.
+  /// Send, Receive and More from the overview's own row.
   final ValueChanged<WalletAction>? onAction;
   final ValueChanged<WalletRef> onOpen;
   final VoidCallback onCreate;
@@ -123,7 +123,7 @@ class WalletsOverviewScreen extends StatelessWidget {
 /// unknown is left out of it and counted as not loaded, never added as
 /// zero. What is pending is split against each figure it sits under
 /// ([PendingBalance.under]), so the total's line counts every other
-/// wallet's funds, and every stealth and mixing pocket, as confirmed.
+/// wallet's funds as confirmed.
 OverviewData overviewData(WalletsOverviewModel model, {required bool hidden, ErgPriceHistory? history}) {
   final entries = model.entries();
   final totals = overviewTotals(entries);
@@ -138,11 +138,6 @@ OverviewData overviewData(WalletsOverviewModel model, {required bool hidden, Erg
       unavailable: e.unavailable,
       fiatValue: value.fiat,
       tokenCount: e.tokensKnown ? e.tokens.where((t) => t.amount > 0).map((t) => t.id).toSet().length : null,
-      publicTokensOnly: e.publicTokensOnly && !e.watched,
-      pockets: [if (e.stealthNano > 0) PocketBalance(pocket: Pocket.stealth, nanoErg: e.stealthNano)],
-      // A locked wallet cannot rescan for stealth funds, so that figure is
-      // as old as its last scan.
-      pocketsAsOf: e.state == OverviewRowState.locked && e.stealthAsOf != null ? formatSyncAge(e.stealthAsOf) : null,
       pending: e.pending,
       otherAddresses: e.elsewhere,
       unlocked: e.state == OverviewRowState.unlocked,

@@ -37,7 +37,6 @@ final _main = WalletSummary(
   nanoErg: _nano(203.16),
   fiatValue: 90.84,
   tokenCount: null,
-  pockets: [PocketBalance(pocket: Pocket.stealth, nanoErg: _nano(0.001))],
   otherAddresses: FundsElsewhere(nanoErg: _nano(0.6101), tokenCount: 0, addressCount: 1),
   unlocked: true,
   address: _pinned,
@@ -50,7 +49,6 @@ final _evoke = WalletSummary(
   nanoErg: _nano(10),
   fiatValue: 4.47,
   tokenCount: 44,
-  publicTokensOnly: true,
   asOf: 'just now',
 );
 
@@ -83,7 +81,6 @@ WalletPageData _walletData() => WalletPageData(
         name: 'Main Wallet',
         nanoErg: _nano(203.16),
         fiatValue: 90.77,
-        pockets: [PocketBalance(pocket: Pocket.stealth, nanoErg: _nano(0.001))],
         otherAddresses: FundsElsewhere(nanoErg: _nano(0.6101), tokenCount: 0, addressCount: 1),
         unlocked: true,
         address: _pinned,
@@ -218,7 +215,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.bySemanticsLabel('Connected, Block 1,889,207'), findsOneWidget);
-      for (final action in ['send', 'receive', 'swap', 'more']) {
+      for (final action in ['send', 'receive', 'more']) {
         expect(find.byKey(Key('overview-action-$action')), findsOneWidget);
       }
       await _accessible(tester);

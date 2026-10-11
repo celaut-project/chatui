@@ -2,16 +2,10 @@ import '../widgets/error_sheet.dart';
 import 'package:flutter/material.dart';
 
 import '../../bridge/argus_error.dart';
-import '../../format.dart';
 import '../../services/privacy_service.dart';
 import '../../services/secure_storage.dart';
 import '../../services/session_lock.dart';
 import '../../services/spend_policy.dart';
-import '../../services/battery_service.dart';
-import '../../services/mix_service.dart';
-import '../widgets/battery_note.dart';
-import '../../services/stealth_identities.dart';
-import '../../services/stealth_service.dart';
 import '../../services/wallet_service.dart';
 import 'settings_shared.dart';
 import '../widgets/entry_dialogs.dart';
@@ -23,31 +17,6 @@ class SecuritySettingsPage extends StatefulWidget {
 
   @override
   State<SecuritySettingsPage> createState() => _SecuritySettingsPageState();
-}
-
-/// The trade, stated before the switch flips: a key per mix in flight,
-/// spendable by anyone with full access to the unlocked phone, and
-/// nothing else.
-Future<bool> _confirmBackgroundMixing(BuildContext context) async {
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text('Mix with Argus closed?'),
-      content: const Text(
-        'Argus will keep, in the phone\'s keystore, one key for each mix that '
-        'is in the pool. That key can spend that mix\'s money and nothing '
-        'else: not your other funds, not your seed. Someone with full '
-        'access to this unlocked phone could use it. A lost or wiped phone '
-        'loses nothing, because every mix can be rebuilt from your seed. '
-        'Keys are deleted when a mix ends or when you turn this off.',
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Not now')),
-        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Turn on')),
-      ],
-    ),
-  );
-  return ok == true;
 }
 
 class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
@@ -86,69 +55,6 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
   void _snack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-  }
-
-  /// What one stealth identity holds, or why we cannot say.
-  String _stealthIdentitySubtitle(int index) {
-    final address = stealthService.addressOf(index);
-    final where = address == null
-        ? 'Unlock to see this address'
-        : shortStealth(address);
-    if (!stealthService.scanEnabled) return '$where · scanning off';
-    final scan = stealthService.lastScan;
-    if (scan == null) return '$where · balance unknown';
-    final balance = scan.balanceOf(index);
-    return balance.ownedCount == 0
-        ? '$where · no payments'
-        : '$where · ${formatErg(balance.totalNanoErg)} in '
-            '${balance.ownedCount} box${balance.ownedCount == 1 ? '' : 'es'}';
-  }
-
-  Future<void> _renameStealthIdentity(StealthIdentity id) async {
-    final label = await showDialog<String>(
-      context: context,
-      builder: (_) => TextEntryDialog(
-        title: 'Rename stealth address',
-        initial: id.label,
-        label: 'Label',
-        helper: 'The address itself does not change.',
-        maxLength: 40,
-        textCapitalization: TextCapitalization.sentences,
-        submitOnEnter: true,
-      ),
-    );
-    if (label == null) return;
-    try {
-      await stealthService.renameIdentity(id.index, label);
-    } catch (_) {
-      _snack('Could not save the label');
-    }
-  }
-
-  /// Adopt stealth identities that hold funds but are missing from this
-  /// device's list — the restore case, where the labels were lost with the
-  /// old device but the money is still findable.
-  Future<void> _discoverStealthIdentities() async {
-    setState(() => _busy = true);
-    try {
-      final result = await stealthService.discoverIdentities();
-      if (result.superseded) return;
-      // "Could not look" must never be shown as "looked and found nothing":
-      // the user is asking whether a restore recovered their money.
-      if (result.error != null) {
-        _snack(result.error!);
-        return;
-      }
-      final found = result.adopted;
-      _snack(
-        found.isEmpty
-            ? 'No stealth addresses with funds beyond the ones already listed'
-            : 'Found ${found.length} stealth '
-                'address${found.length == 1 ? '' : 'es'} with funds',
-      );
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
   }
 
   Future<void> _disableBiometric() async {
@@ -439,137 +345,6 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
           ),
         ),
         const SettingsNote(spendUnconfirmedNote),
-        ListenableBuilder(
-          listenable: stealthService,
-          builder: (context, _) => SettingsGroup(
-            title: 'Stealth',
-            scope: 'App-wide',
-            children: [
-              SettingsRow(
-                icon: Icons.visibility_off_outlined,
-                title: 'Scan for stealth payments',
-                subtitle: stealthService.scanEnabled
-                    ? 'Each sync asks the explorer for stealth boxes'
-                    : 'Off: stealth payments stay invisible, with no balance and no notification',
-                trailing: Switch(
-                  key: const Key('stealth-scan-switch'),
-                  value: stealthService.scanEnabled,
-                  onChanged: (v) async {
-                    try {
-                      await stealthService.setScanEnabled(v);
-                    } catch (_) {
-                      _snack('Could not save the stealth scan setting');
-                    }
-                  },
-                ),
-              ),
-              for (final id in stealthService.identities)
-                SettingsRow(
-                  icon: Icons.alternate_email,
-                  title: id.displayLabel,
-                  subtitle: _stealthIdentitySubtitle(id.index),
-                  onTap: () => _renameStealthIdentity(id),
-                ),
-              SettingsRow(
-                icon: Icons.travel_explore_outlined,
-                title: 'Find stealth addresses with funds',
-                subtitle:
-                    'After restoring, looks for paid stealth addresses this '
-                    'device does not know about yet',
-                onTap: _discoverStealthIdentities,
-              ),
-            ],
-          ),
-        ),
-        const SettingsNote(
-          'The scan fetches the public list of stealth boxes from the '
-          'explorer and tests it on your phone. The explorer learns that '
-          'someone asked for the list, never which boxes are yours.',
-        ),
-        const SettingsNote(
-          'Every stealth address comes back from your recovery phrase, so '
-          'none of them needs its own backup. Labels are the exception: they '
-          'live on this device only, and a restore finds an address by its '
-          'payments, so one that was never paid comes back unnamed.',
-        ),
-        ListenableBuilder(
-          listenable: mixService,
-          builder: (context, _) => SettingsGroup(
-            title: 'Mixing',
-            scope: 'App-wide',
-            children: [
-              SettingsRow(
-                icon: Icons.blender_outlined,
-                title: 'Enable mixing',
-                subtitle: mixService.enabled
-                    ? 'Mixes advance on their own while Argus is open and unlocked'
-                    : 'Off: no mix is started or advanced',
-                trailing: Switch(
-                  key: const Key('mixing-switch'),
-                  value: mixService.enabled,
-                  onChanged: (v) async {
-                    try {
-                      await mixService.setEnabled(v);
-                    } catch (_) {
-                      _snack('Could not save the mixing setting');
-                    }
-                  },
-                ),
-              ),
-              SettingsRow(
-                icon: Icons.nightlight_outlined,
-                title: 'Keep mixing in the background',
-                subtitle: !mixService.enabled
-                    ? 'Turn on mixing first'
-                    : mixService.backgroundEnabled
-                        ? 'Mixes move about every fifteen minutes with Argus closed, from '
-                            'per-mix keys in the phone\'s keystore'
-                        : 'Off: mixes move only while Argus is open and unlocked',
-                trailing: Switch(
-                  key: const Key('mixing-background-switch'),
-                  value: mixService.backgroundEnabled,
-                  onChanged: !mixService.enabled
-                      ? null
-                      : (v) async {
-                          if (v && !await _confirmBackgroundMixing(context)) return;
-                          try {
-                            await mixService.setBackgroundEnabled(v);
-                          } catch (e) {
-                            _snack('Could not change background mixing: $e');
-                            return;
-                          }
-                          // Android will delay the job unless the app is exempt
-                          // from battery optimisation; offer that now.
-                          if (v && await BatteryService.isUnrestricted() == false) {
-                            final shown = await BatteryService.requestUnrestricted();
-                            if (!shown) await BatteryService.openBatterySettings();
-                          }
-                        },
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SettingsNote(
-          'Mixing uses the public ErgoMixer pool and its contracts. Entering '
-          'costs an operator fee; each round needs a stranger to pair with, '
-          'so a mix can take hours or days. Not every app store allows a '
-          'wallet with a built-in mixer; it stays off until you turn it on.',
-        ),
-        const SettingsNote(
-          'The node Argus uses learns which boxes are yours. A mix is only '
-          'as private as that node: use your own node where you can '
-          '(Settings → Network).',
-        ),
-        ListenableBuilder(
-          listenable: mixService,
-          builder: (context, _) => mixService.backgroundEnabled
-              ? const Padding(
-                  padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
-                  child: BatteryNote(),
-                )
-              : const SizedBox.shrink(),
-        ),
       ],
     );
   }

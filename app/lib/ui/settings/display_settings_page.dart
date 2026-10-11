@@ -22,74 +22,6 @@ class DisplaySettingsPage extends StatelessWidget {
         ),
       );
 
-  Future<void> _pickFiatCurrency(BuildContext context) async {
-    final current = networkController.fiatCode;
-    final picked = await showDialog<String>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('Display currency'),
-        children: [
-          for (final entry in NetworkController.fiatOptions.entries)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(ctx, entry.key),
-              child: Row(
-                children: [
-                  Expanded(child: Text('${entry.key.toUpperCase()} (${entry.value})')),
-                  if (entry.key == current) const Icon(Icons.check, size: 18),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-    if (picked == null || picked == current) return;
-    await networkController.setFiatCurrency(picked);
-  }
-
-  Future<void> _pickPriceSource(BuildContext context) async {
-    final current = tokenPricer.source;
-    final picked = await showDialog<PriceSource>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('Price source'),
-        children: [
-          for (final s in PriceSource.values)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(ctx, s),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(s.label, style: Theme.of(ctx).textTheme.titleSmall),
-                        const SizedBox(height: 2),
-                        Text(s.blurb, style: TextStyle(fontSize: 12.5, color: ArgusColors.of(ctx).muted)),
-                      ],
-                    ),
-                  ),
-                  if (s == current) ...[
-                    const SizedBox(width: 8),
-                    const Icon(Icons.check, size: 18),
-                  ],
-                ],
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 4),
-            child: Text(
-              'SigUSD and USE are always \$1; SigRSV and DexyGold follow their protocol oracles. Pool prices count towards totals only for verified tokens. A non-USD display currency converts through one CoinGecko rate.',
-              style: TextStyle(fontSize: 12, color: ArgusColors.of(ctx).muted),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (picked == null || picked == current) return;
-    await tokenPricer.setSource(picked);
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -144,18 +76,9 @@ class DisplaySettingsPage extends StatelessWidget {
             scope: 'App-wide',
             children: [
               SettingsRow(
-                icon: Icons.payments_outlined,
-                title: 'Display currency',
-                subtitle: 'ERG price shown in ${networkController.fiatCode.toUpperCase()}',
-                trailing: Text(networkController.fiatSymbol, style: Theme.of(context).textTheme.titleMedium),
-                onTap: () => _pickFiatCurrency(context),
-              ),
-              SettingsRow(
                 icon: Icons.price_change_outlined,
-                title: 'Price source',
+                title: 'Prices in USD',
                 subtitle: tokenPricer.sourceLine,
-                trailing: const Icon(Icons.chevron_right, size: 20),
-                onTap: () => _pickPriceSource(context),
               ),
               SettingsRow(
                 icon: Icons.visibility_off_outlined,
@@ -168,6 +91,7 @@ class DisplaySettingsPage extends StatelessWidget {
               ),
             ],
           ),
+          const SettingsNote(priceSourceBlurb),
         ],
       ),
     );

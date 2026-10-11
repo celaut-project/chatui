@@ -15,15 +15,6 @@ pub struct UnlockedWallet {
     pub(crate) wallet: Wallet,
     pub(crate) ext_secret_key: ExtSecretKey,
     pub(crate) max_index: u32,
-    /// How many stealth identities this session scans and spends with:
-    /// indices `0..stealth_frontier`.
-    ///
-    /// Starts at 1 — the identity every wallet has — and is raised by the
-    /// Dart layer from its persisted identity list right after unlock. A
-    /// session that never raises it behaves exactly as it did before extra
-    /// identities existed, which is the safe direction to fail: funds paid
-    /// to a higher identity stay unseen rather than a wrong key being used.
-    stealth_frontier: u32,
     addresses_by_index: HashMap<u32, String>,
     index_by_address: HashMap<String, u32>,
 }
@@ -72,7 +63,6 @@ impl WalletHandle {
             wallet: Wallet::from_secrets(Vec::new()),
             ext_secret_key,
             max_index: PRELOAD_INDICES,
-            stealth_frontier: 1,
             addresses_by_index: HashMap::new(),
             index_by_address: HashMap::new(),
         };
@@ -158,123 +148,6 @@ impl WalletHandle {
             .sign_reduced_transaction(reduced_tx, None)
             .map_err(|e| CoreError::Signing(e.to_string()))
     }
-
-    /// Sign with the wallet's own keys plus extra one-off secrets.
-    ///
-    /// Used for stealth inputs, whose DH-tuple secret is not a P2PK key and
-    /// must not be added to the long-lived wallet: a throwaway `Wallet` is
-    /// built for this signature and dropped with the extras inside it.
-    pub fn sign_reduced_with_secrets(
-        &self,
-        reduced_tx: ergo_lib::chain::transaction::reduced::ReducedTransaction,
-        extra_secrets: Vec<ergo_lib::wallet::secret_key::SecretKey>,
-    ) -> Result<ergo_lib::chain::transaction::Transaction, CoreError> {
-        if extra_secrets.is_empty() {
-            return self.sign_reduced(reduced_tx);
-        }
-        let guard = recover(self.inner.lock());
-        let unlocked = guard.as_ref().ok_or(CoreError::WalletLocked)?;
-        let mut secrets = Vec::with_capacity(unlocked.max_index as usize + 1);
-        for i in 0..=unlocked.max_index {
-            secrets.push(derivation::derive_child(&unlocked.ext_secret_key, i)?.secret_key());
-        }
-        secrets.extend(extra_secrets);
-        Wallet::from_secrets(secrets)
-            .sign_reduced_transaction(reduced_tx, None)
-            .map_err(|e| CoreError::Signing(e.to_string()))
-    }
-
-    /// This wallet's default stealth identity, derived on demand from the seed.
-    ///
-    /// Never cached: the secret lives only as long as the caller's binding.
-    pub fn stealth_secret(&self) -> Result<stealth::StealthSecret, CoreError> {
-        self.stealth_secret_at(0)
-    }
-
-    /// Stealth identity `index`, derived on demand from the seed.
-    ///
-    /// Index 0 is the identity this wallet has always had; higher indices are
-    /// the ones the user has since published. Like every other secret here it
-    /// is derived per call and dropped with the value it produced.
-    pub fn stealth_secret_at(&self, index: u32) -> Result<stealth::StealthSecret, CoreError> {
-        let guard = recover(self.inner.lock());
-        let unlocked = guard.as_ref().ok_or(CoreError::WalletLocked)?;
-        stealth::StealthSecret::derive_at(&unlocked.ext_secret_key, index)
-            .map_err(|e| CoreError::Stealth(e.to_string()))
-    }
-
-    /// Identities `0..count`, for scanning and spending across all of them.
-    ///
-    /// The lock is taken once rather than per identity, so a scan cannot see
-    /// half a wallet if it locks mid-derivation.
-    pub fn stealth_secrets(&self, count: u32) -> Result<Vec<stealth::StealthSecret>, CoreError> {
-        let guard = recover(self.inner.lock());
-        let unlocked = guard.as_ref().ok_or(CoreError::WalletLocked)?;
-        stealth::StealthSecret::derive_range(&unlocked.ext_secret_key, count.max(1))
-            .map_err(|e| CoreError::Stealth(e.to_string()))
-    }
-
-    /// How many stealth identities this session is using: indices
-    /// `0..stealth_frontier`.
-    pub fn stealth_frontier(&self) -> Result<u32, CoreError> {
-        let guard = recover(self.inner.lock());
-        Ok(guard.as_ref().ok_or(CoreError::WalletLocked)?.stealth_frontier)
-    }
-
-    /// Raise the frontier so this session scans and spends identity `index`.
-    ///
-    /// Only ever raises: a stale caller must not be able to shrink the set
-    /// and strand funds sitting on a higher identity. Returns the frontier
-    /// in force afterwards.
-    pub fn ensure_stealth_identity(&self, index: u32) -> Result<u32, CoreError> {
-        if index > stealth::MAX_STEALTH_IDENTITY {
-            return Err(CoreError::Stealth(format!(
-                "stealth identity {index} is above the maximum {}",
-                stealth::MAX_STEALTH_IDENTITY
-            )));
-        }
-        let mut guard = recover(self.inner.lock());
-        let unlocked = guard.as_mut().ok_or(CoreError::WalletLocked)?;
-        unlocked.stealth_frontier = unlocked.stealth_frontier.max(index + 1);
-        Ok(unlocked.stealth_frontier)
-    }
-
-    /// Every stealth identity this session knows about.
-    pub fn stealth_secrets_in_use(&self) -> Result<Vec<stealth::StealthSecret>, CoreError> {
-        self.stealth_secrets(self.stealth_frontier()?)
-    }
-
-    /// The secret for one mix round, derived on demand from the seed.
-    ///
-    /// Never cached: a mix secret that reached a log line or a database
-    /// row would let its holder spend the box it guards.
-    pub fn mix_secret(&self, mix_id: u32, round: u32) -> Result<zerojoin::MixSecret, CoreError> {
-        let guard = recover(self.inner.lock());
-        let unlocked = guard.as_ref().ok_or(CoreError::WalletLocked)?;
-        zerojoin::MixSecret::derive(&unlocked.ext_secret_key, mix_id, round)
-            .map_err(|e| CoreError::Stealth(e.to_string()))
-    }
-
-    /// The key for every round of one mix, derived on demand. Handed to
-    /// the background job's keystore only when the user opts in.
-    pub fn mix_key(&self, mix_id: u32) -> Result<zerojoin::MixKey, CoreError> {
-        let guard = recover(self.inner.lock());
-        let unlocked = guard.as_ref().ok_or(CoreError::WalletLocked)?;
-        zerojoin::MixKey::derive(&unlocked.ext_secret_key, mix_id)
-            .map_err(|e| CoreError::Stealth(e.to_string()))
-    }
-
-    /// The published `stealth…` string for this wallet's default identity.
-    pub fn stealth_address(&self) -> Result<String, CoreError> {
-        self.stealth_address_at(0)
-    }
-
-    /// The published `stealth…` string for identity `index`.
-    pub fn stealth_address_at(&self, index: u32) -> Result<String, CoreError> {
-        self.stealth_secret_at(index)?
-            .stealth_address()
-            .map_err(|e| CoreError::Stealth(e.to_string()))
-    }
 }
 
 #[cfg(test)]
@@ -295,83 +168,6 @@ mod tests {
             .owns_address("9eatpGQdYNjTi5ZZLK7Bo7C3ms6oECPnxbQTRn6sDcBNLMYSCa8")
             .unwrap());
         assert!(!handle.owns_address("not-a-wallet-address").unwrap());
-    }
-
-    #[test]
-    fn stealth_identity_is_stable_and_locked_with_the_wallet() {
-        let phrase = MnemonicPhrase::parse(APPKIT).unwrap();
-        let handle = WalletHandle::create(phrase, "").unwrap();
-        let addr = handle.stealth_address().unwrap();
-        assert!(addr.starts_with("stealth"));
-        assert_eq!(handle.stealth_address().unwrap(), addr);
-
-        // It is a stealth string, not one of the wallet's own P2PK addresses.
-        assert!(!handle.owns_address(&addr).unwrap());
-        let u = stealth::decode_stealth_address(&addr).unwrap();
-        assert_eq!(handle.stealth_secret().unwrap().public_key(), &u);
-
-        handle.lock();
-        assert!(matches!(
-            handle.stealth_address(),
-            Err(CoreError::WalletLocked)
-        ));
-    }
-
-    /// Identity 0 reached through the indexed API must be the identity the
-    /// wallet has always published, and the higher ones must be distinct,
-    /// stable and locked with the wallet like every other secret.
-    #[test]
-    fn extra_stealth_identities_are_distinct_and_lock_with_the_wallet() {
-        let handle =
-            WalletHandle::create(MnemonicPhrase::parse(APPKIT).unwrap(), "").unwrap();
-        assert_eq!(
-            handle.stealth_address_at(0).unwrap(),
-            handle.stealth_address().unwrap()
-        );
-
-        let addrs: Vec<String> = (0..4)
-            .map(|i| handle.stealth_address_at(i).unwrap())
-            .collect();
-        assert_eq!(
-            addrs.iter().collect::<std::collections::BTreeSet<_>>().len(),
-            4
-        );
-        assert!(addrs.iter().all(|a| a.starts_with("stealth")));
-        // None of them is an address this wallet would show as its own.
-        assert!(addrs.iter().all(|a| !handle.owns_address(a).unwrap()));
-
-        let secrets = handle.stealth_secrets(4).unwrap();
-        assert_eq!(secrets.len(), 4);
-        for (i, s) in secrets.iter().enumerate() {
-            assert_eq!(s.index(), i as u32);
-            assert_eq!(s.stealth_address().unwrap(), addrs[i]);
-        }
-        // A count of 0 still yields the always-present identity 0.
-        assert_eq!(handle.stealth_secrets(0).unwrap().len(), 1);
-
-        handle.lock();
-        assert!(matches!(
-            handle.stealth_address_at(2),
-            Err(CoreError::WalletLocked)
-        ));
-        assert!(matches!(
-            handle.stealth_secrets(4),
-            Err(CoreError::WalletLocked)
-        ));
-    }
-
-    #[test]
-    fn a_second_wallet_gets_a_different_stealth_address() {
-        let a = WalletHandle::create(MnemonicPhrase::parse(APPKIT).unwrap(), "").unwrap();
-        let b = WalletHandle::create(
-            MnemonicPhrase::parse(
-                "race relax argue hair sorry riot there spirit ready fetch food hedgehog hybrid mobile pretty",
-            )
-            .unwrap(),
-            "",
-        )
-        .unwrap();
-        assert_ne!(a.stealth_address().unwrap(), b.stealth_address().unwrap());
     }
 
     #[test]

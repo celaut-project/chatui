@@ -28,8 +28,6 @@ final deepLinkController = DeepLinkController();
 /// as a deep link so a tap parks like an ErgoPay link until the wallet is
 /// unlocked; the home screen then opens the route.
 String? argusLinkRoute(String link) => switch (link.trim().toLowerCase()) {
-      'argus://mix' => '/mix',
-      'argus://loans' => '/duckpools',
       'argus://activity' => '/transactions',
       _ => null,
     };

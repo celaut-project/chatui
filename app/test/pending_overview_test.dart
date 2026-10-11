@@ -4,7 +4,6 @@ import 'package:argus_wallet/bridge/frb_generated.dart';
 import 'package:argus_wallet/services/pending_balance.dart';
 import 'package:argus_wallet/services/privacy_service.dart';
 import 'package:argus_wallet/services/public_wallet_sync.dart';
-import 'package:argus_wallet/services/stealth_service.dart';
 import 'package:argus_wallet/services/wallet_database_service.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
 import 'package:argus_wallet/services/watch_account_service.dart';
@@ -76,7 +75,6 @@ void main() {
     });
     await watchOnlyService.load();
     await privacyService.load();
-    stealthService.scanEnabled = false;
     // Snapshot figures stay as saved: no public refresh in these tests.
     publicWalletSync.setForeground(false);
     api.balances.clear();
@@ -86,7 +84,6 @@ void main() {
   });
   tearDown(() async {
     watchAccountService.accounts.clear();
-    stealthService.scanEnabled = true;
     publicWalletSync.setForeground(true);
     if (walletService.isUnlocked) await walletService.lock();
   });
@@ -123,7 +120,6 @@ void main() {
       lastKnown: {
         'locked': LastKnownBalance(
           balanceNano: 5 * erg,
-          stealthNano: erg,
           age: const Duration(minutes: 3),
         ),
       },
@@ -135,14 +131,11 @@ void main() {
         ),
       },
       unlockedWalletId: 'live',
-      // 10 public (2.5 of it arriving), 2 stealth, 3 in the mixing pool.
+      // 10 ERG, 2.5 of it arriving.
       active: const ActiveWalletFigures(
         walletId: 'live',
         balanceNano: 10 * erg,
         syncing: false,
-        stealthNano: 2 * erg,
-        stealthUnknown: false,
-        mixNano: 3 * erg,
         tokens: [],
         holdings: [],
         pending: PendingBalance(
@@ -165,24 +158,23 @@ void main() {
     );
     final byId = {for (final r in rows) r.ref.id: r};
 
-    // The unlocked wallet's headline holds its stealth and mixing pockets,
-    // which are in blocks: 15 ERG, 2.5 of it pending.
+    // The unlocked wallet's headline: 10 ERG, 2.5 of it pending.
     final active = byId['live']!;
-    expect(active.balanceNano, 15 * erg);
+    expect(active.balanceNano, 10 * erg);
     expect(active.pending!.pendingDeltaNano, 2500000000);
-    expect(active.pending!.confirmedNano, 12500000000);
+    expect(active.pending!.confirmedNano, 7500000000);
     expect(active.pending!.netNano, active.balanceNano);
     expect(
       pendingBalanceText(active.pending),
-      '+2.5 ERG pending · 12.5 confirmed',
+      '+2.5 ERG pending · 7.5 confirmed',
     );
 
     // A locked wallet's split is read back from its snapshot and shown
-    // against the figure saved with it, stealth included.
+    // against the figure saved with it.
     final lockedRow = byId['locked']!;
-    expect(lockedRow.balanceNano, 6 * erg);
-    expect(lockedRow.pending!.confirmedNano, 5 * erg);
-    expect(lockedRow.pending!.netNano, 6 * erg);
+    expect(lockedRow.balanceNano, 5 * erg);
+    expect(lockedRow.pending!.confirmedNano, 4 * erg);
+    expect(lockedRow.pending!.netNano, 5 * erg);
 
     // A watched address with nothing pending says nothing.
     expect(byId[watched]!.pending!.hasPending, isFalse);
@@ -195,7 +187,7 @@ void main() {
 
     // The total: every row's movement, against the sum of the rows.
     final totals = overviewTotals(rows);
-    expect(totals.total.totalNano, (15 + 6 + 2 + 3) * erg);
+    expect(totals.total.totalNano, (10 + 5 + 2 + 3) * erg);
     expect(totals.pending!.pendingDeltaNano, 2500000000 + erg - erg);
     expect(totals.pending!.netNano, totals.total.totalNano);
     expect(totals.pending!.transactions, 3);

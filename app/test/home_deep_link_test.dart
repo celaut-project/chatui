@@ -1,7 +1,6 @@
 import 'package:argus_wallet/bridge/frb_generated.dart';
 import 'package:argus_wallet/services/deep_link_controller.dart';
 import 'package:argus_wallet/services/public_wallet_sync.dart';
-import 'package:argus_wallet/services/stealth_service.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
 import 'package:argus_wallet/services/watch_account_service.dart';
 import 'package:argus_wallet/services/watch_only_service.dart';
@@ -23,14 +22,12 @@ void main() {
     SharedPreferences.setMockInitialValues({'argus_watch_only_addresses': '[]'});
     await watchOnlyService.load();
     watchAccountService.accounts.clear();
-    stealthService.scanEnabled = false;
     publicWalletSync.setForeground(false);
     deepLinkController.take();
   });
   tearDown(() async {
     deepLinkController.take();
     publicWalletSync.setForeground(true);
-    stealthService.scanEnabled = true;
     if (walletService.isUnlocked) await walletService.lock();
   });
 

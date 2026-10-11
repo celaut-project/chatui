@@ -41,8 +41,6 @@ dependencies:
   cupertino_icons: ^1.0.8
   uuid: ^4.0.0
   flutter_local_notifications: ^22.3.0
-  workmanager: ^0.10.9
-  flutter_inappwebview: ^6.1.5
 
 dev_dependencies:
   flutter_test:

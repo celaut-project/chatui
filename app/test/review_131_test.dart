@@ -1,10 +1,7 @@
-// Fixes from the review of #131: stealth self-change read as the wallet's
-// own, the network pill's hint when it retries, the overview's actions only
-// with a wallet that holds keys, and the Addresses tab when nothing is
-// known yet.
+// Fixes from the review of #131: the network pill's hint when it retries,
+// the overview's actions only with a wallet that holds keys, and the
+// Addresses tab when nothing is known yet.
 
-import 'package:argus_wallet/services/activity_classifier.dart';
-import 'package:argus_wallet/services/stealth_change_book.dart';
 import 'package:argus_wallet/theme/argus_theme.dart';
 import 'package:argus_wallet/ui/home/home_glass.dart';
 import 'package:argus_wallet/ui/home/home_hero.dart';
@@ -13,121 +10,14 @@ import 'package:argus_wallet/ui/home/overview_screen.dart';
 import 'package:argus_wallet/ui/home/wallet_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/render_harness.dart';
 
 const _aud = FiatCurrency(symbol: r'A$', code: 'AUD');
-/// P2PK addresses: 51 characters starting with 9.
-final _mine = '9i${'M' * 49}';
-final _payee = '9h${'P' * 49}';
-const _change = 'StealthChangeP2SAddressOfOurOwn';
-const _foreignStealth = 'StealthPaymentP2SAddressOfSomeoneElse';
 
 int _nano(num erg) => (erg * 1e9).round();
 
-/// A send of 2 ERG from the wallet, its change paid to [changeTo], which
-/// is tagged a stealth script.
-Map<String, dynamic> _send({required String changeTo}) => {
-      'tx_id': 'tx',
-      'io': {
-        'inputs': [
-          {'address': _mine, 'value': _nano(10), 'assets': <Object>[], 'mine': true},
-        ],
-        'outputs': [
-          {'address': _payee, 'value': _nano(2), 'assets': <Object>[]},
-          {'address': changeTo, 'value': _nano(7.99), 'assets': <Object>[], 'tag': 'stealth'},
-        ],
-        'miner_fee': _nano(0.01),
-        'first_input': 'box',
-        'complete': true,
-      },
-    };
-
 void main() {
-  group('stealth self-change', () {
-    test('read as foreign it is a stealth payment out; read as ours it is change', () {
-      final tx = _send(changeTo: _change);
-      expect(walletActivity(tx)!.category, ActivityCategory.stealth, reason: 'the misreading the book corrects');
-
-      final read = reownActivity(tx, {_change});
-      final a = walletActivity(read)!;
-      expect(a.category, ActivityCategory.sent);
-      expect(a.erg, BigInt.from(-_nano(2.01)), reason: 'only the payment and the fee left');
-      expect(read['value_nano_erg'], -_nano(2.01));
-      expect(read['counterparty'], _payee);
-    });
-
-    test('a genuine stealth payment out stays one', () {
-      final tx = _send(changeTo: _foreignStealth);
-      final read = reownActivity(tx, {_change});
-      expect(identical(read, tx), isTrue, reason: 'nothing to mark: the row comes back as it was');
-      expect(walletActivity(read)!.category, ActivityCategory.stealth);
-    });
-
-    test('the book keeps what it is told across a restart, newest last, up to its limit', () async {
-      SharedPreferences.setMockInitialValues({});
-      final book = StealthChangeBook(limit: 2);
-      await book.remember('w1', 'a');
-      await book.remember('w1', 'b');
-      await book.remember('w1', 'c');
-      expect(book.addressesFor('w1'), {'b', 'c'});
-      final again = StealthChangeBook(limit: 2);
-      await again.load('w1');
-      expect(again.addressesFor('w1'), {'b', 'c'});
-    });
-
-    test('each wallet has its own list, under its own key, and nothing links them', () async {
-      SharedPreferences.setMockInitialValues({});
-      final book = StealthChangeBook();
-      await book.remember('w1', 'change-of-w1');
-      await book.remember('w2', 'change-of-w2');
-      expect(book.addressesFor('w1'), {'change-of-w1'});
-      expect(book.addressesFor('w2'), {'change-of-w2'});
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getStringList(StealthChangeBook.keyFor('w1')), ['change-of-w1']);
-      expect(prefs.getStringList(StealthChangeBook.keyFor('w2')), ['change-of-w2']);
-      expect(prefs.getKeys().where((k) => k.startsWith('argus_stealth_self_change')), hasLength(2));
-      // w1's change paid out to w2 is a payment to w2, not w2's own.
-      final tx = _send(changeTo: 'change-of-w1');
-      expect(walletActivity(reownActivity(tx, book.addressesFor('w2')))!.category, ActivityCategory.stealth);
-    });
-
-    test('a wallet\'s list goes with the wallet', () async {
-      SharedPreferences.setMockInitialValues({});
-      final book = StealthChangeBook();
-      await book.remember('w1', 'a');
-      await book.forget('w1');
-      expect(book.addressesFor('w1'), isEmpty);
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.containsKey(StealthChangeBook.keyFor('w1')), isFalse);
-    });
-
-    test('the phone-wide list of beta.4 becomes the only wallet\'s, and is deleted', () async {
-      SharedPreferences.setMockInitialValues({
-        StealthChangeBook.legacyKey: ['a', 'b'],
-      });
-      final book = StealthChangeBook();
-      await book.migrateLegacy(['w1']);
-      expect(book.addressesFor('w1'), {'a', 'b'});
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.containsKey(StealthChangeBook.legacyKey), isFalse);
-    });
-
-    test('with several wallets the phone-wide list cannot be split, so it is dropped', () async {
-      SharedPreferences.setMockInitialValues({
-        StealthChangeBook.legacyKey: ['a', 'b'],
-      });
-      final book = StealthChangeBook();
-      await book.migrateLegacy(['w1', 'w2']);
-      expect(book.addressesFor('w1'), isEmpty);
-      expect(book.addressesFor('w2'), isEmpty);
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.containsKey(StealthChangeBook.legacyKey), isFalse);
-      expect(prefs.getKeys().where((k) => k.startsWith('argus_stealth_self_change')), isEmpty);
-    });
-  });
-
   group('screens', () {
     setUpAll(loadRenderFonts);
 

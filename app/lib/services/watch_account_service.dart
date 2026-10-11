@@ -9,7 +9,7 @@ import 'network_controller.dart';
 import 'pending_balance.dart';
 
 const watchAccountLimitations =
-    'Public payment addresses only. Cannot see stealth identities or stealth funds: the /3\' branch is hardened. This balance excludes stealth funds. Cannot sign locally; sending requires an offline signer.';
+    'Public payment addresses only. Cannot sign locally; sending requires an offline signer.';
 const watchAccountDisclosure =
     'An extended public key lets anyone holding it derive and link every public payment address in this account forever. Only import a key you intend to share with this device. $watchAccountLimitations';
 const watchAccountExpected =

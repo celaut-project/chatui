@@ -14,8 +14,8 @@ import 'home_style.dart';
 import 'home_widgets.dart';
 
 /// One wallet on the overview: name and balance, then a line of facts and
-/// the balance's value. What it keeps on other addresses, what is pending
-/// and what is stealth follow as quiet footnotes when there is any.
+/// the balance's value. What it keeps on other addresses and what is
+/// pending follow as quiet footnotes when there is any.
 class OverviewWalletRow extends StatelessWidget {
   const OverviewWalletRow({
     super.key,
@@ -63,7 +63,7 @@ class OverviewWalletRow extends StatelessWidget {
     } else if (!hidden && empty) {
       holds = 'Empty';
     } else if (!hidden && tokens != null && tokens > 0) {
-      holds = countLabel(tokens, w.publicTokensOnly ? 'public token' : 'token');
+      holds = countLabel(tokens, 'token');
     } else {
       holds = null;
     }
@@ -93,9 +93,6 @@ class OverviewWalletRow extends StatelessWidget {
         : (hidden ? '≈$nbsp$maskedFigure' : fiatFigure(fiatValue, currency));
     final other = w.otherAddresses == null ? null : otherAddressLine(w.otherAddresses!, hidden: hidden, compact: true);
     final pending = nano == null ? null : pendingText(w.pending, hidden: hidden);
-    // A row hides its stealth note outright: the panel above it already
-    // says the total holds what it holds.
-    final pockets = hidden || nano == null ? null : pocketsLine(w.pockets, hidden: false, asOf: w.pocketsAsOf);
 
     Widget note(IconData icon, Widget text) => Padding(
           padding: const EdgeInsets.only(top: 2),
@@ -112,7 +109,6 @@ class OverviewWalletRow extends StatelessWidget {
     final footnotes = [
       if (other != null) note(Icons.subdirectory_arrow_right, Text(other, style: t.secondary)),
       if (pending != null) HomePendingLine(pending: w.pending, hidden: hidden),
-      if (pockets != null) note(Icons.shield_moon_outlined, Text(pockets, style: t.secondary)),
     ];
 
     return HomeRow(
@@ -132,7 +128,6 @@ class OverviewWalletRow extends StatelessWidget {
         ?asOf,
         if (pending != null) hidden ? 'something pending' : pending,
         if (other != null) 'incl. $other',
-        ?pockets,
       ].join(', ')),
       leading: WalletMark(name: w.name, kind: w.kind),
       // Each wallet's name in the serif, as its own page's title is.
@@ -190,7 +185,6 @@ class HomeAssetRow extends StatelessWidget {
     final unit = asset.unitFiat;
     final change = asset.changePercent;
     final stale = asset.priceNote;
-    final lp = asset.kind == AssetKind.lpShare;
 
     final InlineSpan? detail;
     if (!hidden && unit != null) {
@@ -226,7 +220,6 @@ class HomeAssetRow extends StatelessWidget {
               ticker,
               if (asset.verified && !isErg) 'verified',
               if (asset.caution) 'caution, named like a verified token',
-              if (lp) 'liquidity pool share',
               if (unit != null)
                 'price ${fiatFigure(unit, currency, approximate: false)}'
                     '${stale != null ? ', $stale' : change == null ? '' : ', ${change >= 0 ? 'up' : 'down'} ${change.abs().toStringAsFixed(1)}% over 24h'}'
@@ -256,10 +249,6 @@ class HomeAssetRow extends StatelessWidget {
             const SizedBox(width: 4),
             const Icon(Icons.warning_amber_rounded, size: 14, color: rust),
           ],
-          if (!hidden && lp) ...[
-            const SizedBox(width: 6),
-            Text('LP', style: t.label.copyWith(letterSpacing: 1)),
-          ],
         ],
       ),
       subtitle: detail,
@@ -284,12 +273,10 @@ class HomeActivityRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = HomeText.of(context);
     // Same marks and tints as the Activity tab's rows; only direction is
-    // coloured, so a swap or a mix stays neutral.
+    // coloured.
     final (IconData icon, Color tint) = switch (item.kind) {
       ActivityKind.received => (Icons.arrow_downward, mossFor(context)),
       ActivityKind.sent => (Icons.arrow_upward, rustFor(context)),
-      ActivityKind.swap => (Icons.swap_horiz, t.muted),
-      ActivityKind.mix => (Icons.blender_outlined, t.muted),
       ActivityKind.selfTransfer => (Icons.sync_alt, t.muted),
       ActivityKind.contract => (Icons.code, t.muted),
     };

@@ -26,7 +26,6 @@ class MainActivity : FlutterFragmentActivity() {
         super.configureFlutterEngine(flutterEngine)
         SecureStorageHandler.registerWith(flutterEngine, this)
         DeepLinkHandler.registerWith(flutterEngine, intent)
-        BatteryHandler.registerWith(flutterEngine, this)
         UpdateHandler.registerWith(flutterEngine, this)
     }
 

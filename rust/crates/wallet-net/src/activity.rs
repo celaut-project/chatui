@@ -10,10 +10,10 @@
 //! Besides the summary fields the activity list has always read
 //! (`value_nano_erg`, `tokens_*`, `counterparty`, now all wallet-wide), each
 //! transaction carries a compact [`TxIo`]: its inputs and outputs grouped by
-//! owner, with assets and any protocol a box belongs to. The app classifies
-//! from that (swap, burn, mint, LP, …) and can re-read it against a larger
-//! set of its own scripts (stealth boxes, a watched account's later
-//! addresses) without another request.
+//! owner, with assets and any tag the wallet knows the box by. The app
+//! classifies from that (send, burn, mint, …) and can re-read it against a
+//! larger set of its own addresses (a watched account's later addresses)
+//! without another request.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
@@ -30,8 +30,8 @@ use crate::client::{TokenReceived, TxSummary};
 /// is still one row).
 pub const MAX_PARTIES_PER_SIDE: usize = 24;
 
-/// Names a protocol box: `"spectrum_pool"`, `"sigmausd_bank"`, … `None`
-/// for an ordinary box. Gets the node's box JSON (`ergoTree`, `assets`,
+/// Names a box the wallet knows: `"babel"`, `"oracle"`, … `None` for an
+/// ordinary box. Gets the node's box JSON (`ergoTree`, `assets`,
 /// `additionalRegisters`, `value`).
 pub type Tagger<'a> = &'a (dyn Fn(&serde_json::Value) -> Option<String> + Sync);
 
@@ -51,8 +51,8 @@ pub struct Party {
     pub assets: Vec<TokenReceived>,
     /// How many boxes were summed.
     pub boxes: u32,
-    /// The protocol these boxes belong to, when one is recognised:
-    /// `"spectrum:pool"`, `"sigmausd:bank"`, `"argus_fee"`, …
+    /// What the wallet knows these boxes as, when it knows them:
+    /// `"babel"`, `"oracle"`, `"argus_fee"`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tag: Option<String>,
     /// The address is one of the wallet's own.

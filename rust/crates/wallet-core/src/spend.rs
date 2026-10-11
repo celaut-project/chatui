@@ -5,7 +5,7 @@ use ergo_tx::{Eip12InputBox, SelectedInputs};
 /// eligible if they contain the token being sent. Builders return all unsent
 /// tokens to the wallet as change. ERG-only filtering remains unchanged.
 /// Automatic selection spends older boxes first within this eligibility
-/// policy. Manual choices and the one-pocket privacy rule still take priority.
+/// policy. Manual choices still take priority.
 pub fn filter_spendable(utxos: &[Eip12InputBox], send_token: Option<&str>) -> Vec<Eip12InputBox> {
     utxos
         .iter()
@@ -40,43 +40,8 @@ pub fn select_for_send(
     }
 }
 
-/// Selection that avoids linking pockets unless it must.
-///
-/// A send allowed to draw on both ordinary and stealth boxes should still
-/// prefer to satisfy the amount from one of them alone: two pockets in one
-/// input list tells an observer they share an owner. Ordinary boxes are
-/// tried first, then stealth alone, and only when neither suffices are the
-/// two combined — the one case where linking is unavoidable.
-///
-/// Returns the selection and whether it mixes the two pockets.
-pub fn select_preferring_one_pocket(
-    utxos: &[Eip12InputBox],
-    stealth_box_ids: &[String],
-    required_erg: u64,
-    send_token: Option<(&str, u64)>,
-) -> Result<(SelectedInputs, bool), ergo_tx::BoxSelectorError> {
-    if stealth_box_ids.is_empty() {
-        return select_for_send(utxos, required_erg, send_token).map(|s| (s, false));
-    }
-    let is_stealth = |b: &Eip12InputBox| stealth_box_ids.iter().any(|id| id == &b.box_id);
-    let ordinary: Vec<Eip12InputBox> = utxos.iter().filter(|b| !is_stealth(b)).cloned().collect();
-    let stealth: Vec<Eip12InputBox> = utxos.iter().filter(|b| is_stealth(b)).cloned().collect();
-
-    if !ordinary.is_empty() {
-        if let Ok(s) = select_for_send(&ordinary, required_erg, send_token) {
-            return Ok((s, false));
-        }
-    }
-    if !stealth.is_empty() {
-        if let Ok(s) = select_for_send(&stealth, required_erg, send_token) {
-            return Ok((s, false));
-        }
-    }
-    select_for_send(utxos, required_erg, send_token).map(|s| (s, true))
-}
-
 #[cfg(test)]
-mod pocket_preference_tests {
+mod selection_tests {
     use super::*;
     use ergo_tx::Eip12Asset;
 
@@ -94,71 +59,17 @@ mod pocket_preference_tests {
         }
     }
 
-    /// At equal ages the stealth box is larger, but pocket privacy still
-    /// takes priority over the automatic input ranking.
     #[test]
-    fn prefers_ordinary_boxes_even_when_a_stealth_box_is_larger() {
-        let utxos = vec![boxx("pub", 2_000_000_000), boxx("ste", 9_000_000_000)];
-        let (s, mixed) =
-            select_preferring_one_pocket(&utxos, &["ste".into()], 1_000_000_000, None).unwrap();
-        assert_eq!(
-            s.boxes
-                .iter()
-                .map(|b| b.box_id.as_str())
-                .collect::<Vec<_>>(),
-            vec!["pub"]
-        );
-        assert!(!mixed);
-    }
-
-    #[test]
-    fn falls_back_to_stealth_alone_rather_than_mixing() {
-        let utxos = vec![boxx("pub", 100), boxx("ste", 9_000_000_000)];
-        let (s, mixed) =
-            select_preferring_one_pocket(&utxos, &["ste".into()], 1_000_000_000, None).unwrap();
-        assert_eq!(
-            s.boxes
-                .iter()
-                .map(|b| b.box_id.as_str())
-                .collect::<Vec<_>>(),
-            vec!["ste"]
-        );
-        assert!(!mixed, "one pocket only, so nothing is linked");
-    }
-
-    /// Only when neither pocket can pay alone are they combined, and the
-    /// caller is told so it can say as much.
-    #[test]
-    fn combines_only_when_neither_pocket_can_pay_alone() {
-        let utxos = vec![boxx("pub", 600_000_000), boxx("ste", 600_000_000)];
-        let (s, mixed) =
-            select_preferring_one_pocket(&utxos, &["ste".into()], 1_000_000_000, None).unwrap();
-        assert_eq!(s.boxes.len(), 2);
-        assert!(mixed);
-    }
-
-    #[test]
-    fn without_stealth_boxes_it_is_the_ordinary_selector() {
-        let utxos = vec![boxx("a", 2_000_000_000)];
-        let (s, mixed) = select_preferring_one_pocket(&utxos, &[], 1_000_000_000, None).unwrap();
-        assert_eq!(s.boxes.len(), 1);
-        assert!(!mixed);
-    }
-
-    #[test]
-    fn oldest_first_stays_within_one_pocket_and_manual_selection() {
-        let mut public_old = boxx("public-old", 2_000_000);
-        public_old.creation_height = 20;
-        let mut public_new = boxx("public-new", 50_000_000);
-        public_new.creation_height = 30;
-        let mut stealth_old = boxx("stealth-old", 100_000_000);
-        stealth_old.creation_height = 10;
-        let inputs = vec![public_new, stealth_old, public_old];
-        let (selected, mixed) = select_preferring_one_pocket(&inputs, &["stealth-old".into()], 1_000_000, None).unwrap();
-        assert_eq!(selected.boxes[0].box_id, "public-old");
-        assert!(!mixed, "an older stealth box does not force pocket linking");
-        let manual = select_exact(&inputs, &["public-new".into()], 1_000_000, None).unwrap();
-        assert_eq!(manual.boxes[0].box_id, "public-new", "manual choices override age ranking");
+    fn oldest_first_unless_the_user_chose_the_boxes() {
+        let mut old = boxx("old", 2_000_000);
+        old.creation_height = 20;
+        let mut new = boxx("new", 50_000_000);
+        new.creation_height = 30;
+        let inputs = vec![new, old];
+        let selected = select_for_send(&inputs, 1_000_000, None).unwrap();
+        assert_eq!(selected.boxes[0].box_id, "old");
+        let manual = select_exact(&inputs, &["new".into()], 1_000_000, None).unwrap();
+        assert_eq!(manual.boxes[0].box_id, "new", "manual choices override age ranking");
     }
 }
 

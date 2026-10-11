@@ -9,11 +9,10 @@ import '../../services/token_pricer.dart';
 /// ERG's price over the last day, for the overview's price strip and the
 /// ERG row's 24h change.
 ///
-/// Read from [TokenPricer.ergPriceHistory] (the source picked in Display
-/// settings: the SigmaUSD oracle pool, the ERG/SigUSD pool, or CoinGecko)
-/// when the home screen first shows, and again whenever what it depends on
-/// changes — the source, the currency, the node, whether the chain height
-/// or the currency's rate is known — or the answer has aged out. The
+/// Read from [TokenPricer.ergPriceHistory] (the SigmaUSD oracle pool) when
+/// the home screen first shows, and again whenever what it depends on
+/// changes — the node, or whether the chain height is known — or the
+/// answer has aged out. The
 /// pricer keeps answers for five minutes (half a minute when history was
 /// unavailable), so asking again often costs nothing; nothing polls.
 class ErgPriceFeed extends ChangeNotifier {
@@ -64,11 +63,8 @@ class ErgPriceFeed extends ChangeNotifier {
 
   void _check() {
     final key = [
-      _pricer.source.name,
-      _network.fiatCode,
       _network.activeUrl,
       _network.height != null,
-      _pricer.displayRateKnown,
     ].join('|');
     final readAt = _readAt;
     final keep = history?.available == true ? _availableFor : _unavailableFor;

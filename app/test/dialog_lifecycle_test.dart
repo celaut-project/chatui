@@ -2,7 +2,6 @@ import 'package:argus_wallet/bridge/frb_generated.dart';
 import 'package:argus_wallet/format.dart';
 import 'package:argus_wallet/services/address_label_service.dart';
 import 'package:argus_wallet/services/contacts_service.dart';
-import 'package:argus_wallet/services/stealth_service.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
 import 'package:argus_wallet/theme/argus_theme.dart';
 import 'package:argus_wallet/ui/contacts_screen.dart';
@@ -36,18 +35,14 @@ void main() {
     });
     await contactsService.load();
     await addressLabelService.load();
-    stealthService.reset();
-    stealthService.scanEnabled = false;
     api.wrappedUnder.clear();
   });
 
   tearDown(() async {
-    stealthService.scanEnabled = true;
-    stealthService.reset();
     if (walletService.isUnlocked) await walletService.lock();
   });
 
-  /// The wallet unlocked, as Settings and adding a stealth address need.
+  /// The wallet unlocked, as Settings needs.
   Future<DialogKeystore> unlocked(WidgetTester tester) async {
     final keystore = DialogKeystore()..install(tester);
     await walletService.restoreWallet('', walletId: dialogWallet);
@@ -136,26 +131,6 @@ void main() {
       expect(keystore.writes, ['savePinWrap']);
       expect(find.text('PIN changed'), findsOneWidget);
     });
-
-    testWidgets('Rename stealth address: Cancel, then Save', (tester) async {
-      tallView(tester);
-      await unlocked(tester);
-      await open(tester);
-      final row = find.widgetWithIcon(SettingsRow, Icons.alternate_email);
-
-      await tester.tap(row);
-      await tester.pumpAndSettle();
-      await tester.enterText(dialogField(), 'Tips');
-      await answer(tester, 'Cancel');
-      expect(stealthService.identities.single.label, '');
-
-      await tester.tap(row);
-      await tester.pumpAndSettle();
-      await tester.enterText(dialogField(), 'Tips');
-      await answer(tester, 'Save');
-      expect(stealthService.identities.single.label, 'Tips');
-      expect(find.widgetWithText(SettingsRow, 'Tips'), findsOneWidget);
-    });
   });
 
   group('Receive', () {
@@ -191,29 +166,6 @@ void main() {
       await answer(tester, 'Save');
       expect(addressLabelService.labelFor(_ergoOld), 'Cold storage');
       expect(find.text('Cold storage'), findsOneWidget);
-    });
-
-    testWidgets('Add stealth address: Cancel, then Add', (tester) async {
-      tallView(tester);
-      await unlocked(tester);
-      stealthService.address = stealthAddress0;
-      await tester.pumpWidget(receive());
-      await tester.pumpAndSettle();
-      final add = find.byKey(const Key('stealth-identity-add'));
-      final field = find.byKey(const Key('stealth-identity-label-field'));
-
-      await tester.tap(add);
-      await tester.pumpAndSettle();
-      await tester.enterText(field, 'Donations');
-      await answer(tester, 'Cancel');
-      expect(stealthService.identities, hasLength(1));
-
-      await tester.tap(add);
-      await tester.pumpAndSettle();
-      await tester.enterText(field, 'Donations');
-      await answer(tester, 'Add');
-      expect(stealthService.identities.map((i) => i.label), ['', 'Donations']);
-      expect(find.text(stealthAddress1), findsOneWidget);
     });
   });
 

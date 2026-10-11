@@ -11,7 +11,6 @@ import 'services/privacy_service.dart';
 import 'services/token_pricer.dart';
 import 'services/session_lock.dart';
 import 'services/spend_policy.dart';
-import 'services/stealth_service.dart';
 import 'services/update_service.dart';
 import 'services/watch_only_service.dart';
 import 'services/watched_token_meta.dart';
@@ -19,28 +18,15 @@ import 'services/wallet_service.dart';
 import 'services/wallet_sync_controller.dart';
 import 'theme/argus_theme.dart';
 import 'theme/theme_controller.dart';
-import 'ui/ageusd_screen.dart';
-import 'ui/arbitrage_screen.dart';
 import 'ui/contacts_screen.dart';
 import 'ui/create_wallet_screen.dart';
 import 'ui/dashboard_screen.dart';
-import 'ui/dexy_screen.dart';
 import 'ui/receive_screen.dart';
 import 'ui/restore_wallet_screen.dart';
 import 'ui/send_screen.dart';
 import 'ui/settings_screen.dart';
-import 'ui/swap_hub_screen.dart';
 import 'ui/transaction_detail_screen.dart';
 import 'ui/transactions_screen.dart';
-import 'services/mix_background.dart';
-import 'services/stealth_change_book.dart';
-import 'ui/dapp_browser_screen.dart';
-import 'ui/duckpools_screen.dart';
-import 'ui/sigmafi_screen.dart';
-import 'ui/stake_recovery_screen.dart';
-import 'ui/liquidity_screen.dart';
-import 'ui/rosen_screen.dart';
-import 'ui/mix_screen.dart';
 import 'ui/token_tools_screen.dart';
 import 'ui/utxo_management_screen.dart';
 
@@ -59,18 +45,7 @@ Widget? appPage(String? name) => switch (name) {
       '/tx' => const TransactionDetailScreen(),
       '/utxos' => const UtxoManagementScreen(),
       UtxoManagementScreen.cleanupRoute => const UtxoManagementScreen(openCleanup: true),
-      '/stakes' => const StakeRecoveryScreen(),
       '/tokens' => const TokenToolsScreen(),
-      '/mix' => const MixScreen(),
-      '/duckpools' => const DuckpoolsScreen(),
-      '/dapps' => const DappBrowserScreen(),
-      '/sigmafi' => const SigmaFiScreen(),
-      '/liquidity' => const LiquidityScreen(),
-      '/rosen' => const RosenScreen(),
-      '/dexy' => const DexyScreen(),
-      '/ageusd' => const AgeUsdScreen(),
-      '/swap' => const SwapHubScreen(),
-      '/arbitrage' => const ArbitrageScreen(),
       _ => null,
     };
 
@@ -88,19 +63,10 @@ Future<void> main() async {
     privacyService.load().catchError((_) {}),
     spendPolicy.load().catchError((_) {}),
     previewSettings.load().catchError((_) {}),
-    stealthService.load().catchError((_) {}),
-    tokenPricer.load().catchError((_) {}),
   ]);
   networkController.priceRefresher = tokenPricer.refresh;
-  // The stealth change list of 1.0.0-beta.4 was one for the whole phone;
-  // it becomes the wallet's own, or goes (see migrateLegacy).
-  walletService
-      .listWallets()
-      .then((wallets) => stealthChangeBook.migrateLegacy([for (final w in wallets) w.walletId]))
-      .catchError((_) {});
   // Watched addresses and accounts name their holdings as seed wallets do.
   watchedTokenMeta.attach();
-  await MixBackground.init();
   runApp(const ArgusApp());
   // Off until the user turns it on in About; then at most one request a day.
   updateService.checkOnStart().catchError((_) {});

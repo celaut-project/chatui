@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:argus_wallet/bridge/frb_generated.dart';
 import 'package:argus_wallet/services/session_lock.dart';
-import 'package:argus_wallet/services/stealth_service.dart';
 import 'package:argus_wallet/services/wallet_database_service.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
 import 'package:argus_wallet/services/wallet_sync_controller.dart';
@@ -63,8 +62,6 @@ class SharedReadGateway extends LiveWalletSyncGateway {
   @override
   String get activeWalletId => 'w1';
   @override
-  bool get stealthScanEnabled => false;
-  @override
   Future<void> saveCachedState(Map<String, dynamic> snapshot) async {}
 }
 
@@ -86,7 +83,6 @@ void seed(WalletSyncController c, int value) {
   c.utxoCount = value;
   c.lastSyncedAt = DateTime(2026);
   c.phase = SyncPhase.synced;
-  c.stealthNano = value;
 }
 
 void main() {
@@ -110,7 +106,6 @@ void main() {
           expect(c.usedAddresses.single['address'], 'used$value');
           expect(c.frontierAddresses.single, 'frontier$value');
           expect(c.utxoCount, value);
-          expect(c.stealthNano, value);
         }
       });
       gw.walletId = 'w2';
@@ -349,31 +344,6 @@ void main() {
   });
 
   test(
-    'BATCH B: remembered stealth box IDs belong to the restored wallet',
-    () async {
-      final gw = GatedGateway()
-        ..balances['addr0'] = {'balance_nano_erg': 1, 'tokens': []};
-      final c = WalletSyncController(gw);
-      await c.hydrateAfterUnlock();
-      gw.stealthResult = const StealthScanResult(
-        scanned: 1,
-        ownedCount: 1,
-        totalNanoErg: 11,
-        tokens: [],
-        boxIds: ['A-box'],
-      );
-      await c.refresh(discover: false);
-      expect(c.stealthRowBoxIds, ['A-box']);
-      gw.walletId = 'w2';
-      c.activateWallet('w2');
-      expect(c.stealthRowBoxIds, isEmpty);
-      gw.walletId = 'w1';
-      c.activateWallet('w1');
-      expect(c.stealthRowBoxIds, ['A-box']);
-    },
-  );
-
-  test(
     'BATCH B: live gateway shares inputs and starts history concurrently',
     () async {
       final c = WalletSyncController(const SharedReadGateway())
@@ -423,15 +393,7 @@ void main() {
       );
       expect(find.text('A:11'), findsOneWidget);
       await walletService.lockForSwitch();
-      stealthService.lastScan = const StealthScanResult(
-        scanned: 1,
-        ownedCount: 1,
-        totalNanoErg: 11,
-        tokens: [],
-        boxIds: ['foreign'],
-      );
       await walletService.restoreWallet('', walletId: 'B');
-      expect(stealthService.lastScan, isNull);
       await tester.pump();
       expect(find.text('B:null'), findsOneWidget);
       expect(c.ownsWallet('A'), isFalse); // Old dashboard name cannot render B.

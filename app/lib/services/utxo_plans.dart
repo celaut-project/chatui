@@ -212,8 +212,7 @@ UtxoHealth utxoHealth(int boxCount) {
 ///
 /// Boxes come from one address only: they are already publicly tied to each
 /// other, so the cleanup links nothing new (merging across addresses would).
-/// Mixed boxes and boxes set aside for a pending mix never take part. Boxes
-/// that rent puts at risk or that fall due within [rentSoonDays] go first,
+/// Boxes that rent puts at risk or that fall due within [rentSoonDays] go first,
 /// then dust, then the oldest; moving a box into the new one also restarts
 /// its four-year rent clock.
 class CleanupSuggestion {
@@ -280,8 +279,8 @@ class CleanupSuggestion {
 /// moves its flagged boxes. Either way the address's largest ERG-only box
 /// (failing that, its largest box) joins, so the new box can pay its own
 /// rent. The address with the most flagged boxes wins, then the one with
-/// the most boxes. [exclude] removes boxes that must not move (mixed,
-/// reserved for a mix, or already being spent). [viable] lets the caller,
+/// the most boxes. [exclude] removes boxes that must not move (already
+/// being spent, or still confirming). [viable] lets the caller,
 /// which can measure the new box, turn down a candidate that could not be
 /// built or would not cover its rent; the next address is tried instead.
 CleanupSuggestion? suggestCleanup({

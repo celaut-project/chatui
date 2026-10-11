@@ -52,7 +52,6 @@ final mainWallet = WalletSummary(
   nanoErg: _nano(107.7134),
   fiatValue: 50.43,
   tokenCount: 50,
-  pockets: [PocketBalance(pocket: Pocket.stealth, nanoErg: _nano(0.001))],
   pending: mainPending,
   otherAddresses: FundsElsewhere(nanoErg: _nano(3.2), tokenCount: 4, addressCount: 1),
   unlocked: true,
@@ -104,11 +103,10 @@ final _mainAssets = [
   ),
   AssetRowData(
     id: 'b4f5a8c2e96d1f0374a2c6e8d9b0517f3e2a4c6d8f0b1e3a5c7d9f1b3e5a7c9d',
-    ticker: 'ERG_SigRSV_LP',
-    name: 'ERG / SigRSV pool share',
+    ticker: 'XIXA',
+    name: 'XIXA token',
     amount: BigInt.from(86),
     fiatValue: 4.18,
-    kind: AssetKind.lpShare,
   ),
   AssetRowData(
     id: 'e023c5f382b6e96fbd878f6811aac73345489032157ad5affb84aefd4956c297',
@@ -121,11 +119,10 @@ final _mainAssets = [
   ),
   AssetRowData(
     id: '6de6f46e0c2b8a4f1d3e5a7b9c0d2e4f6a8b0c1d3e5f7a9b0c2d4e6f8a0b1c3d',
-    ticker: 'Ergo_6de6f46e_LP',
-    name: 'Spectrum pool share',
+    ticker: 'Kushti',
+    name: 'Kushti token',
     amount: BigInt.from(18252893012),
     fiatValue: 0.87,
-    kind: AssetKind.lpShare,
   ),
   AssetRowData(
     id: '0cd8c9f416e5b1ca9f986a7f10a84191dfb85941619e49e53c0dc30ebf83324b',
@@ -176,7 +173,7 @@ final _mainActivity = [
   ),
   ActivityRowData(
     id: 'a3',
-    kind: ActivityKind.swap,
+    kind: ActivityKind.contract,
     time: 'Yesterday',
     legs: [
       AmountLeg(amount: BigInt.from(79), decimals: 0, unit: 'SigRSV'),
@@ -187,7 +184,7 @@ final _mainActivity = [
     id: 'a4',
     kind: ActivityKind.received,
     time: 'Sep 30',
-    counterparty: 'stealth payment',
+    counterparty: 'from 9gF3uX…Wq7z',
     legs: [AmountLeg(amount: BigInt.from(_nano(0.001)), decimals: 9, unit: 'ERG')],
   ),
 ];

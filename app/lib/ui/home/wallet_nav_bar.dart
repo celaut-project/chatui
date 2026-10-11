@@ -17,11 +17,9 @@ import 'home_models.dart';
 
 /// The open wallet's tabs: Wallet, Activity, Discover, Settings.
 ///
-/// Discover takes the old Swap tab's place and gathers every protocol
-/// (DEX, AgeUSD, Duckpools, SigmaFi, Mix, Rosen, dApps), so Swap is no
-/// longer offered three times. Settings lives here and nowhere in a
-/// header. A watched wallet has no keys to use a protocol with, so it
-/// has no Discover tab. Activity carries a badge while anything is
+/// Discover gathers the tools that act on the wallet's coins. Settings
+/// lives here and nowhere in a header. A watched wallet has no keys to use
+/// a tool with, so it has no Discover tab. Activity carries a badge while anything is
 /// unconfirmed. The current tab sits on a pill of the accent, its icon and
 /// name in the accent; the rest are quiet line icons.
 class WalletNavBar extends StatelessWidget {

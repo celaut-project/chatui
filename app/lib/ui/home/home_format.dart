@@ -121,29 +121,12 @@ String otherAddressLine(FundsElsewhere funds, {required bool hidden, bool compac
   return compact ? '${parts.join(' · ')} $where' : 'incl.$nbsp${parts.join(' · ')} $where';
 }
 
-/// "incl. 2 ERG stealth · 3 ERG in mix": the parts of a balance that are
-/// not on its public addresses, or null when there are none. A pocket
-/// whose amount could not be read says so rather than show a zero. [asOf]
-/// dates figures older than the balance, as a locked wallet's stealth
-/// scan is.
-String? pocketsLine(List<PocketBalance> pockets, {required bool hidden, String? asOf}) {
-  final shown = pockets.where((p) => p.pocket != Pocket.public && (p.nanoErg > 0 || p.unknown)).toList();
-  if (shown.isEmpty) return null;
-  final parts = [
-    for (final p in shown)
-      p.unknown
-          ? '${p.pocket.label.toLowerCase()} unknown'
-          : '${hidden ? maskedFigure : summaryErg(p.nanoErg)}${nbsp}ERG ${p.pocket.label.toLowerCase()}',
-  ];
-  return 'incl.$nbsp${parts.join(' · ')}${asOf == null ? '' : ', as of $asOf'}';
-}
-
 /// What the mempool does to the balance above it: "+2.5 ERG pending ·
 /// 105.21 confirmed"; "Pending · 105.21 confirmed" while a broadcast's
 /// value is not known yet; "•••• ERG pending" with balances hidden; null
 /// when nothing is pending. The split is the one [pendingBalanceText]
 /// words, so the confirmed side is the figure above less what is pending,
-/// and other wallets' funds, stealth and mixes count as confirmed. Only the
+/// and other wallets' funds count as confirmed. Only the
 /// figures are set as every summary figure here is.
 String? pendingText(PendingBalance? pending, {required bool hidden}) {
   if (pending == null || !pending.hasPending) return null;

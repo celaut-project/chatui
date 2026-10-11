@@ -7,9 +7,6 @@ import 'address_holdings.dart';
 import 'network_controller.dart';
 import 'pending_balance.dart';
 import 'privacy_service.dart';
-import 'mix_activity.dart';
-import 'mix_service.dart';
-import 'stealth_service.dart';
 import 'wallet_database_service.dart';
 import 'wallet_service.dart';
 
@@ -50,9 +47,8 @@ abstract class WalletSyncGateway {
   Future<Map<String, dynamic>> getBalance(String address);
   Future<List<TokenBalance>> hydrateTokens(dynamic raw);
 
-  /// Resolves names for ordinary public holdings, after balances publish.
-  /// Never called with stealth-only ids. Returns what it resolved, so the
-  /// caller can apply it to holdings already on screen.
+  /// Resolves names for holdings, after balances publish. Returns what it
+  /// resolved, so the caller can apply it to holdings already on screen.
   Future<Map<String, TokenBalance>> resolveTokenNames(
     Iterable<String> ids, {
     required String walletId,
@@ -66,14 +62,6 @@ abstract class WalletSyncGateway {
   Future<Map<String, dynamic>?> loadCachedState(String walletKey);
   Future<void> saveCachedState(Map<String, dynamic> snapshot);
   void probeNetwork();
-
-  /// Whether the user has left the stealth scan on.
-  bool get stealthScanEnabled;
-
-  /// Queries the explorer for stealth boxes and tests them against this
-  /// wallet's key. Returns null when the explorer could not be reached,
-  /// which must degrade the view rather than fail the sync.
-  Future<StealthScanResult?> scanStealth();
 }
 
 /// One refresh owns this read; it is never reused by a later refresh.
@@ -253,12 +241,6 @@ class LiveWalletSyncGateway
         primaryAddress: snapshot['primary_address'] as String?,
         usedAddresses: (snapshot['used_addresses'] as List)
             .cast<Map<String, dynamic>>(),
-        stealthNano: (snapshot['stealth_nano_erg'] as num?)?.toInt() ?? 0,
-        stealthScannedAt: (snapshot['stealth_scanned_at'] as num?) == null
-            ? null
-            : DateTime.fromMillisecondsSinceEpoch(
-                (snapshot['stealth_scanned_at'] as num).toInt(),
-              ),
         balanceNano: snapshot['balance_nano_erg'] as int?,
         pending: (snapshot['pending'] as Map?)?.cast<String, dynamic>(),
         tokens: (snapshot['tokens'] as List).cast<Map<String, dynamic>>(),
@@ -278,12 +260,6 @@ class LiveWalletSyncGateway
   void probeNetwork() {
     networkController.probe();
   }
-
-  @override
-  bool get stealthScanEnabled => stealthService.scanEnabled;
-
-  @override
-  Future<StealthScanResult?> scanStealth() => stealthService.scan();
 }
 
 /// Owns the unlocked wallet's synced view: addresses, balances, activity and
@@ -437,56 +413,8 @@ class WalletSyncController extends ChangeNotifier {
   int utxoCount = 0;
   DateTime? lastSyncedAt;
 
-  /// ERG sitting in stealth boxes this wallet can spend. Zero when the scan
-  /// found none; see [stealthBalanceUnknown] for "we could not look".
-  int stealthNano = 0;
-
-  /// Activity rows for stealth receipts, which the address-derived history
-  /// cannot see: a stealth box sits on a one-time script, not on any
-  /// address this wallet queries.
-  List<Map<String, dynamic>> stealthRows = const [];
-  List<String> _stealthBoxIds = const [];
-
-  /// Tokens held in stealth boxes, with [TokenBalance.stealthAmount] equal
-  /// to the whole amount.
-  List<TokenBalance> stealthTokens = const [];
-
-  /// True when the scan is on but has never succeeded, so the stealth
-  /// balance shown is unknown rather than zero. Also true right after a
-  /// failed explorer call.
-  bool stealthBalanceUnknown = true;
-
-  /// When [stealthNano] was last confirmed. Untouched by a failed scan.
-  DateTime? stealthScannedAt;
-
-  /// True when the user has the scan on, so an unknown stealth balance is
-  /// worth reporting rather than simply "not in use".
-  bool get stealthScanning => _gw.stealthScanEnabled;
-
-  /// True when the stealth scan is switched off in Settings.
-  bool get stealthScanEnabled => _gw.stealthScanEnabled;
-
-  /// Balance including stealth funds — what the wallet is worth. Distinct
-  /// from [balanceNano], which is what ordinary coin selection can spend.
-  int? get totalNanoWithStealth =>
-      balanceNano == null ? null : balanceNano! + stealthNano;
-
-  /// The asset list as the user should see it: spendable holdings merged
-  /// with stealth ones, each carrying how much of it is in stealth boxes.
-  List<TokenBalance> get displayTokens =>
-      mergeStealthTokens(tokens, stealthTokens);
-
-  /// Box ids of the stealth funds this wallet can spend. Empty while the
-  /// balance is unknown: the last scan's boxes may be stale.
-  List<String> get stealthRowBoxIds =>
-      stealthBalanceUnknown ? const [] : _stealthBoxIds;
-
-  /// Activity as the user should see it: address history plus stealth
-  /// receipts, newest first.
-  List<Map<String, dynamic>> get displayActivity => mergeStealthActivity(
-    mergeMixActivity(recentTxs, mixService.mixActivityRows()),
-    stealthRows,
-  );
+  /// Activity as the user should see it, newest first.
+  List<Map<String, dynamic>> get displayActivity => recentTxs;
 
   /// Non-null when the stored pinned address index can't be derived.
   String? pinIssue;
@@ -527,11 +455,6 @@ class WalletSyncController extends ChangeNotifier {
   /// node's view. Mempool propagation takes seconds; a transaction still
   /// unseen after this was most likely dropped, and the node's view wins.
   static const broadcastGrace = Duration(seconds: 90);
-
-  /// Quiet polls between two stealth scans: the explorer read is the slow
-  /// leg of a refresh and stealth funds move rarely.
-  static const stealthScanEvery = 3;
-  int _quietPollsSinceStealth = 0;
 
   /// True while something is unconfirmed: a Pending row in the activity, or
   /// a broadcast still inside its grace. The home screen polls faster then.
@@ -683,13 +606,6 @@ class WalletSyncController extends ChangeNotifier {
     pinIssue = null;
     lastSyncedAt = null;
     _broadcasts.clear();
-    _quietPollsSinceStealth = 0;
-    stealthNano = 0;
-    stealthTokens = const [];
-    stealthRows = const [];
-    _stealthBoxIds = const [];
-    stealthBalanceUnknown = true;
-    stealthScannedAt = null;
     notifyListeners();
   }
 
@@ -860,7 +776,6 @@ class WalletSyncController extends ChangeNotifier {
         generation,
         walletId,
         quiet: true,
-        includeStealth: false,
       );
     } else {
       await _saveSnapshot(walletId);
@@ -873,7 +788,6 @@ class WalletSyncController extends ChangeNotifier {
     int generation,
     String? walletId, {
     bool quiet = false,
-    bool includeStealth = true,
   }) async {
     // A first load has nothing to show yet, so it always announces itself.
     if (!quiet || phase == SyncPhase.idle) {
@@ -894,15 +808,9 @@ class WalletSyncController extends ChangeNotifier {
       return;
     }
 
-    // Balances, activity, UTXO count and the stealth scan don't depend on
-    // each other. The stealth leg never throws: an unreachable explorer
-    // leaves the stealth balance unknown and the rest of the sync intact.
-    // The balance is the fast leg and is shown as soon as it lands; the
+    // Balances, activity and UTXO count don't depend on each other. The
+    // balance is the fast leg and is shown as soon as it lands; the
     // history, which can take ten seconds on a public node, follows.
-    // A quiet poll asks the explorer only every few ticks.
-    final scanStealth =
-        includeStealth &&
-        (!quiet || discover || ++_quietPollsSinceStealth >= stealthScanEvery);
     final gateway = _gw;
     final read = gateway is WalletSyncBatchGateway
         ? (gateway as WalletSyncBatchGateway).startRead(addresses)
@@ -921,10 +829,6 @@ class WalletSyncController extends ChangeNotifier {
     final historyFuture = _fetchHistory(addresses, read);
     final countFuture = (read?.count() ?? _gw.countUnspentBoxes(addresses))
         .catchError((_) => utxoCount);
-    final stealthFuture = scanStealth
-        ? _scanStealth(generation, walletId)
-        : Future<void>.value();
-    if (scanStealth) _quietPollsSinceStealth = 0;
 
     final balances = await balancesFuture;
     final summary = await pendingFuture;
@@ -963,7 +867,6 @@ class WalletSyncController extends ChangeNotifier {
     final results = await Future.wait<Object?>([
       historyFuture,
       countFuture,
-      stealthFuture,
     ]);
     if (!_current(generation, walletId)) return;
     final history = results[0] as HistoryResult?;
@@ -1003,13 +906,6 @@ class WalletSyncController extends ChangeNotifier {
     // Ids seen moving in recent activity are deliberately excluded: history
     // is fetched through a separate client that can resolve to a different
     // node, so those ids were not necessarily served by `servedBy`.
-    //
-    // Stealth containment is structural, not a filter: candidates are the
-    // ids the node itself just returned in `balances.tokens`, so a holding
-    // that exists only in stealth boxes cannot be among them. A token held
-    // in BOTH stays resolvable — its id is already in the node's own boxes.
-    // Widening this set is what would need a filter; narrowing it here
-    // would only be decoration.
     final ordinaryIds = <String>{
       if (failed < addresses.length) for (final t in balances.tokens) t.id,
     };
@@ -1069,11 +965,10 @@ class WalletSyncController extends ChangeNotifier {
   void _applyResolved(Map<String, TokenBalance> resolved) {
     List<TokenBalance> apply(List<TokenBalance> current) => [
       for (final t in current)
-        resolved[t.id]?.withHolding(t.amount, stealthAmount: t.stealthAmount) ??
+        resolved[t.id]?.withHolding(t.amount) ??
             t,
     ];
     tokens = apply(tokens);
-    stealthTokens = apply(stealthTokens);
   }
 
   Future<void> _saveSnapshot(String? walletId) async {
@@ -1092,13 +987,6 @@ class WalletSyncController extends ChangeNotifier {
         'discovery_pinned_index': _discoveryPinnedIndex,
         'discovery_unused_change': _discoveryUnusedChange,
         'change_address': changeAddress,
-        // A locked wallet cannot derive its stealth key, so it can never
-        // rescan; the last known figure is the only thing it can honestly
-        // show, and it is labelled as of a time.
-        'stealth_nano_erg': stealthNano,
-        // Only a successful scan moves this on, so a failed one preserves
-        // both the figure and how old it is.
-        'stealth_scanned_at': stealthScannedAt?.millisecondsSinceEpoch,
         'balance_nano_erg': balanceNano,
         // The split behind balance_nano_erg, so the two always agree.
         'pending': pending?.toJson(),
@@ -1230,70 +1118,6 @@ class WalletSyncController extends ChangeNotifier {
         t.withHolding(summary.token(t.id)?.amount ?? t.amount),
   ];
 
-  /// Folds a stealth scan into [stealthNano] and [stealthTokens].
-  ///
-  /// Off means "no stealth funds to show"; on but unreachable means
-  /// "unknown", which the UI says out loud instead of showing a wrong zero.
-  Future<void> _scanStealth(int generation, String? walletId) async {
-    if (!_gw.stealthScanEnabled) {
-      stealthNano = 0;
-      stealthTokens = const [];
-      stealthRows = const [];
-      _stealthBoxIds = const [];
-      stealthBalanceUnknown = false;
-      stealthScannedAt = null;
-      return;
-    }
-    StealthScanResult? result;
-    try {
-      result = await _gw.scanStealth();
-    } catch (_) {
-      result = null;
-    }
-    if (!_current(generation, walletId)) return;
-    if (result == null) {
-      stealthBalanceUnknown = true;
-      return;
-    }
-    // Names and decimals, so a token held only in stealth boxes is not
-    // rendered in base units and priced as if it had none. Hydration is
-    // best effort: on failure the raw amounts still show.
-    final raw = [
-      for (final t in result.tokens) {'id': t.id, 'amount': t.amount.toInt()},
-    ];
-    List<TokenBalance> hydrated;
-    try {
-      hydrated = await _gw.hydrateTokens(raw);
-    } catch (_) {
-      hydrated = const [];
-    }
-    if (!_current(generation, walletId)) return;
-    stealthNano = result.totalNanoErg;
-    final meta = {for (final t in hydrated) t.id: t};
-    stealthTokens = [
-      for (final t in result.tokens)
-        // withHolding rather than a hand-copied subset: rebuilding by field
-        // dropped supplyEvidence, decimalsEvidence, declaredAssetKind,
-        // metadataState and provenance, so a resolved collectible held only
-        // in stealth boxes vanished from the Collectibles filter — and
-        // stealth-only ids are excluded from resolution, so nothing could
-        // repair it afterwards.
-        meta[t.id]?.withHolding(
-              t.amount.toInt(),
-              stealthAmount: t.amount.toInt(),
-            ) ??
-            TokenBalance(
-              id: t.id,
-              amount: t.amount.toInt(),
-              stealthAmount: t.amount.toInt(),
-            ),
-    ];
-    _stealthBoxIds = List.of(result.boxIds);
-    stealthRows = stealthActivityRows(result.boxes);
-    stealthBalanceUnknown = false;
-    stealthScannedAt = DateTime.now();
-  }
-
   /// Null when the history call itself failed.
   Future<HistoryResult?> _fetchHistory(
     List<String> addresses,
@@ -1373,12 +1197,6 @@ class _WalletView {
         addressHoldings: c.addressHoldings,
         utxoCount: c.utxoCount,
         lastSyncedAt: c.lastSyncedAt,
-        stealthNano: c.stealthNano,
-        stealthRows: c.stealthRows,
-        stealthBoxIds: c._stealthBoxIds,
-        stealthTokens: c.stealthTokens,
-        stealthBalanceUnknown: c.stealthBalanceUnknown,
-        stealthScannedAt: c.stealthScannedAt,
         pinIssue: c.pinIssue,
         discoveredAt: c.discoveredAt,
         discoveryPinnedIndex: c._discoveryPinnedIndex,
@@ -1400,12 +1218,6 @@ class _WalletView {
     List<AddressHolding> addressHoldings,
     int utxoCount,
     DateTime? lastSyncedAt,
-    int stealthNano,
-    List<Map<String, dynamic>> stealthRows,
-    List<String> stealthBoxIds,
-    List<TokenBalance> stealthTokens,
-    bool stealthBalanceUnknown,
-    DateTime? stealthScannedAt,
     String? pinIssue,
     DateTime? discoveredAt,
     int? discoveryPinnedIndex,
@@ -1428,12 +1240,6 @@ class _WalletView {
     c.addressHoldings = data.addressHoldings;
     c.utxoCount = data.utxoCount;
     c.lastSyncedAt = data.lastSyncedAt;
-    c.stealthNano = data.stealthNano;
-    c.stealthRows = data.stealthRows;
-    c._stealthBoxIds = data.stealthBoxIds;
-    c.stealthTokens = data.stealthTokens;
-    c.stealthBalanceUnknown = data.stealthBalanceUnknown;
-    c.stealthScannedAt = data.stealthScannedAt;
     c.pinIssue = data.pinIssue;
     c.discoveredAt = data.discoveredAt;
     c._discoveryPinnedIndex = data.discoveryPinnedIndex;

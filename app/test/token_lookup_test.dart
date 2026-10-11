@@ -2,11 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:argus_wallet/bridge/frb_generated.dart';
-import 'package:argus_wallet/services/amm_service.dart';
 import 'package:argus_wallet/services/network_controller.dart';
-import 'package:argus_wallet/services/sigmausd_service.dart';
-import 'package:argus_wallet/services/token_catalog.dart';
-import 'package:argus_wallet/services/token_descriptor_store.dart';
 import 'package:argus_wallet/services/token_metadata.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
 import 'package:argus_wallet/services/wallet_sync_controller.dart';
@@ -20,10 +16,9 @@ import 'wallet_sync_controller_test.dart' show FakeGateway;
 const _node = 'https://node.example';
 String _id(String seed) => seed * (64 ~/ seed.length);
 
-/// A held token, a deep pool's token and a shallow pool's token.
+/// A held token, and a token the wallet's table knows.
 final _held = _id('ab');
 final _deep = _id('d1');
-final _shallow = _id('5a');
 
 class LookupApi extends RustLibApi {
   final List<({String id, String provider, bool node})> asked = [];
@@ -84,34 +79,6 @@ class LookupApi extends RustLibApi {
   }
 
   @override
-  Future<String> crateApiAmmPools({
-    String? nodeUrl,
-    required bool forceRefresh,
-    String? knownTokensJson,
-  }) async => jsonEncode({
-    'truncated': false,
-    'pools': [
-      {
-        'pool_id': 'shallow',
-        'pool_type': 'N2T',
-        'erg_reserves': 10,
-        'token_y': {'token_id': _shallow, 'amount': 5},
-      },
-      {
-        'pool_id': 'deep',
-        'pool_type': 'N2T',
-        'erg_reserves': 1000000,
-        'token_y': {'token_id': _deep, 'amount': 5},
-      },
-    ],
-    // What Rust pads an unseeded set with.
-    'tokens': {
-      _deep: {'name': '${_deep.substring(0, 8)}…', 'decimals': 0},
-      _shallow: {'name': '${_shallow.substring(0, 8)}…', 'decimals': 0},
-    },
-  });
-
-  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
@@ -136,7 +103,6 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
-    publicTokenCatalog.debugReset();
     api.asked.clear();
     api.gate = null;
     api.gateOnCall = 1;
@@ -163,7 +129,7 @@ void main() {
       );
 
   test('one lookup, best layer first', () async {
-    final sigUsd = SigmaUsdTokens.sigUsd;
+    const sigUsd = '03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04';
     final legacyOnly = _id('1e');
     SharedPreferences.setMockInitialValues({
       'argus_token_meta_v2': jsonEncode({
@@ -175,14 +141,9 @@ void main() {
     await svc.loadTokenMeta();
     await svc.restoreWallet('mock', walletId: 'layers');
     await resolveForWallet(svc, 'layers');
-    publicTokenCatalog.debugSeed([
-      CachedDescriptor(id: _held, name: 'Catalog name', decimals: 9, decimalsEvidence: DecimalsEvidence.valid),
-      CachedDescriptor(id: _deep, name: 'Pooled', decimals: 4, decimalsEvidence: DecimalsEvidence.valid),
-    ]);
 
     expect(svc.cachedTokenMeta(_held)?.name, 'Name ab',
         reason: "the wallet's own descriptor comes first");
-    expect(svc.cachedTokenMeta(_deep)?.name, 'Pooled');
     expect(svc.cachedTokenMeta(sigUsd)?.name, 'SigUSD',
         reason: 'the curated registry outranks a table with no provenance');
     expect(svc.cachedTokenMeta(sigUsd)?.decimals, 2);
@@ -251,16 +212,13 @@ void main() {
 
   test('a holding published without a record is filled from the lookup',
       () async {
-    publicTokenCatalog.debugSeed([
-      CachedDescriptor(id: _deep, name: 'Pooled', decimals: 4, decimalsEvidence: DecimalsEvidence.valid),
-    ]);
+    walletService.rememberTokenMeta(TokenBalance(id: _deep, amount: 0, name: 'Pooled', decimals: 4, decimalsEvidence: DecimalsEvidence.valid));
     final shown = walletService.displayMetadata(
-      TokenBalance(id: _deep, amount: 12345, stealthAmount: 5),
+      TokenBalance(id: _deep, amount: 12345),
     );
     expect(shown.name, 'Pooled');
     expect(shown.decimals, 4);
     expect(shown.amount, 12345);
-    expect(shown.stealthAmount, 5);
 
     // Restored from a snapshot: a name, but none of the evidence behind it.
     final restored = TokenBalance(id: _deep, amount: 1, name: 'Snapshot');
@@ -270,153 +228,6 @@ void main() {
     final unknown = TokenBalance(id: _id('77'), amount: 1, name: 'Published');
     expect(walletService.displayMetadata(unknown).name, 'Published',
         reason: 'with nothing known, a holding keeps its published name');
-  });
-
-  test("a wallet's own names never reach the public catalog or a pool set",
-      () async {
-    await walletService.restoreWallet('mock', walletId: 'private');
-    await resolveForWallet(walletService, 'private');
-    expect(walletService.cachedTokenMeta(_held)?.name, 'Name ab',
-        reason: 'control: the wallet knows it');
-
-    expect(publicTokenCatalog.lookup(_held), isNull);
-    final pool = {
-      'pool_id': 'p',
-      'pool_type': 'N2T',
-      'erg_reserves': 1,
-      'token_y': {'token_id': _held, 'amount': 1},
-    };
-    expect(publicPoolTokenMeta([pool]), isEmpty,
-        reason: 'a pool set is cached and shared; it must not carry this');
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString(PublicTokenCatalog.storageKey), isNull);
-  });
-
-  test('pool tokens are named only from the node that served the pools',
-      () async {
-    await walletService.restoreWallet('mock', walletId: 'pools');
-    final set = await ammService.pools();
-    expect(set.tokens, isEmpty,
-        reason: 'the placeholders Rust pads the set with are not names');
-    expect(set.tokenIds, {_deep, _shallow});
-
-    await _until(() => publicTokenCatalog.lookup(_shallow) != null);
-    expect(api.asked.map((a) => a.id), [_deep, _shallow],
-        reason: 'deepest pool first, and nothing but pool tokens');
-    expect(api.asked.every((a) => a.provider == _node && a.node), isTrue,
-        reason: 'the node that served the list, never the explorer');
-
-    final again = await ammService.pools();
-    expect(again.tokens[_deep]?.name, 'Name d1');
-    expect(again.tokens[_deep]?.decimals, 2);
-    expect(tokenLabel(_shallow), 'Name 5a');
-  });
-
-  test('with no node configured nothing is resolved', () async {
-    await walletService.restoreWallet('mock', walletId: 'nonode');
-    networkController.activeUrl = null;
-    await ammService.pools();
-    await Future<void>.delayed(Duration.zero);
-    expect(api.asked, isEmpty,
-        reason: 'Rust would pick its own node, and Argus cannot tell which');
-  });
-
-  test('a locked wallet makes no catalog requests', () async {
-    await publicTokenCatalog.resolve([_deep], servedBy: _node);
-    expect(api.asked, isEmpty);
-  });
-
-  test("a wallet pass waits out a catalog lookup and the catalog stops",
-      () async {
-    await walletService.restoreWallet('mock', walletId: 'shared');
-    final gate = Completer<void>();
-    api.gate = gate;
-    final catalogPass = publicTokenCatalog.resolve(
-      [_deep, _shallow],
-      servedBy: _node,
-    );
-    await _until(() => api.asked.isNotEmpty);
-
-    final walletPass = resolveForWallet(walletService, 'shared');
-    await Future<void>.delayed(Duration.zero);
-    gate.complete();
-    await walletPass;
-    await catalogPass;
-
-    expect(api.asked.map((a) => a.id), [_deep, _held],
-        reason: 'the wallet is served next, and the catalog gives way');
-    expect(walletService.cachedTokenMeta(_held)?.name, 'Name ab',
-        reason: 'the pass must not end early because the catalog was busy');
-    expect(api.maxInFlight, 1, reason: 'one metadata job at a time, always');
-
-    // Given way, not stopped for good: the next pool load carries on.
-    await publicTokenCatalog.resolve([_deep, _shallow], servedBy: _node);
-    expect(api.asked.last.id, _shallow);
-  });
-
-  test('a catalog pass and a wallet pass started together never overlap',
-      () async {
-    await walletService.restoreWallet('mock', walletId: 'together');
-    final both = await Future.wait([
-      publicTokenCatalog.resolve([_deep, _shallow], servedBy: _node),
-      resolveForWallet(walletService, 'together'),
-    ]);
-    expect(both, hasLength(2));
-    expect(api.maxInFlight, 1);
-    expect(walletService.cachedTokenMeta(_held)?.name, 'Name ab',
-        reason: 'the wallet resolves whichever pass reaches the job first');
-  });
-
-  test('an explicit request cancelled while it waits is never sent',
-      () async {
-    await walletService.restoreWallet('mock', walletId: 'cancelled');
-    final gate = Completer<void>();
-    api.gate = gate;
-    final catalogPass = publicTokenCatalog.resolve([_deep], servedBy: _node);
-    await _until(() => api.asked.isNotEmpty);
-
-    final load = walletService.loadMetadata(
-      TokenBalance(id: _held, amount: 1),
-      provider: _node,
-      providerIsNode: true,
-    );
-    final outcome = expectLater(load, throwsStateError);
-    await Future<void>.delayed(Duration.zero);
-    // "Cancel metadata request", closing the sheet or backgrounding.
-    walletService.clearSessionMetadata();
-    gate.complete();
-    await outcome;
-    await catalogPass;
-
-    expect(api.asked.map((a) => a.id), [_deep],
-        reason: 'a request the person cancelled must never reach a provider');
-  });
-
-  test('backgrounding cancels a catalog lookup in flight', () async {
-    // A service that has made no explicit request, so only the catalog's
-    // own lookup can have asked to hear about backgrounding.
-    final svc = WalletService();
-    await svc.restoreWallet('mock', walletId: 'background');
-    addTearDown(() {
-      TestWidgetsFlutterBinding.instance.removeObserver(svc);
-      return svc.lock('background');
-    });
-    final catalog = PublicTokenCatalog(inspect: svc.inspectForCatalog);
-    final gate = Completer<void>();
-    api.gate = gate;
-    final before = api.cancels;
-    final pass = catalog.resolve([_deep, _shallow], servedBy: _node);
-    await _until(() => api.asked.isNotEmpty);
-
-    TestWidgetsFlutterBinding.instance.handleAppLifecycleStateChanged(
-      AppLifecycleState.paused,
-    );
-    expect(api.cancels, before + 1,
-        reason: 'not left to finish out of sight');
-    gate.complete();
-    await pass;
-    expect(api.asked.map((a) => a.id), [_deep],
-        reason: 'and nothing further is asked in the background');
   });
 
   test('a name only an explicit load supplied is never stored', () async {
@@ -432,27 +243,6 @@ void main() {
         reason: 'memory-only by design, so never written into a record');
   });
 
-  test('an explicit request waits out a catalog lookup', () async {
-    await walletService.restoreWallet('mock', walletId: 'explicit');
-    final gate = Completer<void>();
-    api.gate = gate;
-    final catalogPass = publicTokenCatalog.resolve([_deep], servedBy: _node);
-    await _until(() => api.asked.isNotEmpty);
-
-    final load = walletService.loadMetadata(
-      TokenBalance(id: _held, amount: 1),
-      provider: _node,
-      providerIsNode: true,
-    );
-    await Future<void>.delayed(Duration.zero);
-    gate.complete();
-    final loaded = await load;
-    await catalogPass;
-    expect(loaded.name, 'Name ab',
-        reason: 'a background lookup must not make a tap fail as busy');
-    expect(api.maxInFlight, 1);
-  });
-
   group('display helpers', () {
     test('an amount nothing can scale is said to be raw units', () {
       expect(
@@ -463,32 +253,18 @@ void main() {
     });
 
     test('a known scale is applied', () {
-      publicTokenCatalog.debugSeed([
-        CachedDescriptor(id: _deep, name: 'Pooled', decimals: 4, decimalsEvidence: DecimalsEvidence.valid),
-      ]);
+      walletService.rememberTokenMeta(TokenBalance(id: _deep, amount: 0, name: 'Pooled', decimals: 4, decimalsEvidence: DecimalsEvidence.valid));
       expect(tokenAmountText(BigInt.from(12345678), _deep), '1,234.5678 Pooled');
       expect(tokenDecimals(_deep), 4);
     });
 
     test('a token issued with no decimals has a known zero', () {
-      publicTokenCatalog.debugSeed([
-        CachedDescriptor(
-          id: _deep,
-          name: 'Whole',
-          decimalsEvidence: DecimalsEvidence.valid,
-        ),
-      ]);
+      walletService.rememberTokenMeta(TokenBalance(id: _deep, amount: 0, name: 'Whole', decimalsEvidence: DecimalsEvidence.valid));
       expect(tokenAmountText(BigInt.from(69), _deep), '69 Whole');
     });
 
     test('a malformed decimals declaration is not trusted', () {
-      publicTokenCatalog.debugSeed([
-        CachedDescriptor(
-          id: _deep,
-          name: 'Odd',
-          decimalsEvidence: DecimalsEvidence.invalid,
-        ),
-      ]);
+      walletService.rememberTokenMeta(TokenBalance(id: _deep, amount: 0, name: 'Odd', decimalsEvidence: DecimalsEvidence.invalid));
       expect(tokenAmountText(BigInt.from(69), _deep), '69 raw units of Odd');
     });
 
@@ -503,9 +279,7 @@ void main() {
     });
 
     test('issuer text is sanitised before it is shown', () {
-      publicTokenCatalog.debugSeed([
-        CachedDescriptor(id: _deep, name: 'Ev\u202eil\u0001', decimals: 0, decimalsEvidence: DecimalsEvidence.valid),
-      ]);
+      walletService.rememberTokenMeta(TokenBalance(id: _deep, amount: 0, name: 'Ev\u202eil\u0001', decimals: 0, decimalsEvidence: DecimalsEvidence.valid));
       expect(tokenLabel(_deep), 'Evil');
     });
 

@@ -11,8 +11,6 @@ ergo-lib = { workspace = true }
 ergo-chain-types = { workspace = true }
 citadel-core = { workspace = true }
 ergo-tx = { workspace = true, features = ["ergo-lib"] }
-stealth = { workspace = true }
-zerojoin = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 base64 = "0.23"

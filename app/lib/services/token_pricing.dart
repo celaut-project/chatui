@@ -1,59 +1,33 @@
 import 'oracle_feeds.dart';
 import 'oracle_pool.dart';
-import 'sigmausd_service.dart';
-import 'verified_tokens.dart';
 
-/// Where fiat prices come from. The user picks one in Display settings.
-enum PriceSource {
-  oracle('Oracle pools', 'On-chain: ERG from the SigmaUSD oracle pool (the price SigmaUSD settles at), gold from the Dexy gold oracle, wrapped majors from the AVL multi-oracle while it is current, everything else from Spectrum pools. An old price is shown with its age, never as current. Reads only your node.'),
-  spectrum('Spectrum pools', 'On-chain: ERG priced from the ERG/SigUSD pool, tokens and LP shares from Spectrum pools. Reads only your node.'),
-  coingecko('CoinGecko', 'ERG and wrapped majors from api.coingecko.com, tokens from Spectrum pools. One request naming ERG and a few majors.');
+/// The label of the only price source: on-chain oracle pools, read from the
+/// user's node.
+const priceSourceLabel = 'Oracle pools';
 
-  const PriceSource(this.label, this.blurb);
-  final String label;
-  final String blurb;
+/// What [priceSourceLabel] prices, for the settings page.
+const priceSourceBlurb =
+    'On-chain: ERG from the SigmaUSD oracle pool (the ERG/USD oracle pool), gold from the Dexy gold oracle, '
+    'wrapped majors from the AVL multi-oracle. An old price is shown with its age, never as current. '
+    'Reads only your node. Other tokens have no price.';
 
-  static PriceSource fromId(String? id) =>
-      PriceSource.values.firstWhere((s) => s.name == id, orElse: () => PriceSource.oracle);
-}
+/// DexyGold: one milligram of gold, priced from the gold oracles.
+const dexyGoldTokenId = '6122f7289e7bb2df2de273e09d4b2756cda6aeb0f40438dc9d257688f45183ad';
 
-class DexyIds {
-  static const gold = '6122f7289e7bb2df2de273e09d4b2756cda6aeb0f40438dc9d257688f45183ad';
-  static const use = 'a55b8735ed1a99e46c2c89f8994aacdf4b1109bdcf682f1e5b34479c6e392669';
-}
-
-/// Rosen-wrapped majors and the external price that tracks them 1:1.
-class WrappedOrigin {
-  const WrappedOrigin(this.feed, this.coingeckoId, this.ticker);
-  final String feed;
-  final String coingeckoId;
-  final String ticker;
-}
-
-const wrappedOrigins = <String, WrappedOrigin>{
-  '7a51950e5f548549ec1aa63ffdc38279505b11e7e803d01bcf8347e0123c88b0': WrappedOrigin('BTC_USD', 'bitcoin', 'BTC'),
-  '203ef3066a912f35c488487cc2cb94bdb0d30680dab22551c7e6fdbc70dfcc8e': WrappedOrigin('ETH_USD', 'ethereum', 'ETH'),
-  '050322548722d36f094e341f59ed93eb22118b363eb4efe8c461a52c4d93e2c3': WrappedOrigin('BNB_USD', 'binancecoin', 'BNB'),
-  '48132396ebd00831e603c73cf01e01f248dd1966d2cc976caf52ef76f7ac6e36': WrappedOrigin('DOGE_USD', 'dogecoin', 'DOGE'),
-  'e023c5f382b6e96fbd878f6811aac73345489032157ad5affb84aefd4956c297': WrappedOrigin('ADA_USD', 'cardano', 'ADA'),
-  '581d7df25808881b2b8b9b4e03e2f637c46a94f74a69a5da36434125bacb4e08': WrappedOrigin('FIRO_USD', 'firo', 'FIRO'),
+/// Rosen-wrapped majors and the AVL oracle feed that tracks them 1:1.
+const wrappedOrigins = <String, String>{
+  '7a51950e5f548549ec1aa63ffdc38279505b11e7e803d01bcf8347e0123c88b0': 'BTC_USD',
+  '203ef3066a912f35c488487cc2cb94bdb0d30680dab22551c7e6fdbc70dfcc8e': 'ETH_USD',
+  '050322548722d36f094e341f59ed93eb22118b363eb4efe8c461a52c4d93e2c3': 'BNB_USD',
+  '48132396ebd00831e603c73cf01e01f248dd1966d2cc976caf52ef76f7ac6e36': 'DOGE_USD',
+  'e023c5f382b6e96fbd878f6811aac73345489032157ad5affb84aefd4956c297': 'ADA_USD',
+  '581d7df25808881b2b8b9b4e03e2f637c46a94f74a69a5da36434125bacb4e08': 'FIRO_USD',
 };
-
-/// CoinGecko ids one request must cover for [source] to price everything it can.
-List<String> coingeckoIdsFor(PriceSource source) => [
-      'ergo',
-      if (source == PriceSource.coingecko) ...wrappedOrigins.values.map((o) => o.coingeckoId),
-    ];
-
-/// Pools shallower than this are ignored: a price nobody can trade at is
-/// not a price. A token-to-token pool's depth is its ERG-equivalent side.
-const poolDepthFloorErg = 50.0;
 
 class TokenPrice {
   const TokenPrice({
     required this.usd,
     required this.via,
-    this.depthErg,
     this.countsInTotal = true,
     this.staleAge,
     this.decimals,
@@ -63,7 +37,6 @@ class TokenPrice {
   /// on the row, never counted in totals.
   const TokenPrice.stale({required this.usd, required String source, required String age, this.decimals})
       : via = '$source, $age old',
-        depthErg = null,
         countsInTotal = false,
         staleAge = age;
 
@@ -78,105 +51,27 @@ class TokenPrice {
   /// falls back to its own decimals.
   final int? decimals;
 
-  /// Human label of the source, e.g. "SigmaUSD oracle", "Spectrum pool",
-  /// "peg"; a stale price says its age here too.
+  /// Human label of the source, e.g. "SigmaUSD oracle", "AVL oracle"; a
+  /// stale price says its age here too.
   final String via;
 
-  /// ERG side of the pool the price came from, when pool-derived.
-  final double? depthErg;
-
-  /// False for pool-priced tokens that are not on the verified list and for
-  /// stale prices: shown on the row, excluded from portfolio totals.
+  /// False for stale prices: shown on the row, excluded from portfolio
+  /// totals.
   final bool countsInTotal;
 
   /// How old a stale price is ("22 days"); null when current.
   final String? staleAge;
-
-  /// Why the price is left out of totals, when it is.
-  String get excludedBecause => staleAge != null ? 'stale' : 'unverified';
 }
-
-/// One pool-derived price from the Rust pricing core (`wallet-amm`).
-class PoolQuote {
-  const PoolQuote({
-    required this.nanoErgPerUnit,
-    required this.depthNano,
-    required this.trusted,
-    this.poolId,
-    this.viaTokenId,
-  });
-
-  /// nanoERG per base unit, no decimals applied.
-  final double nanoErgPerUnit;
-
-  /// ERG-side depth of the shallowest pool the price rests on.
-  final int depthNano;
-
-  /// Every token the price rests on is on the verified list.
-  final bool trusted;
-  final String? poolId;
-
-  /// Set when the token has no ERG pool deep enough of its own and was
-  /// priced through its pool with this token.
-  final String? viaTokenId;
-
-  factory PoolQuote.fromJson(Map<String, dynamic> j) => PoolQuote(
-        nanoErgPerUnit: (j['nano_erg_per_unit'] as num).toDouble(),
-        depthNano: (j['depth_nano'] as num).toInt(),
-        trusted: j['trusted'] == true,
-        poolId: j['pool_id'] as String?,
-        viaTokenId: j['via_token_id'] as String?,
-      );
-}
-
-/// Every price the Spectrum pool set supports, from `pricingPoolPrices`.
-class PoolPriceBook {
-  const PoolPriceBook({this.tokens = const {}, this.lpTokens = const {}});
-
-  /// Token id → price.
-  final Map<String, PoolQuote> tokens;
-
-  /// LP token id → one unit's share of both reserves.
-  final Map<String, PoolQuote> lpTokens;
-
-  static const empty = PoolPriceBook();
-
-  factory PoolPriceBook.fromJson(Map<String, dynamic> j) {
-    Map<String, PoolQuote> quotes(Object? m) => {
-          for (final e in ((m as Map?) ?? const {}).entries)
-            e.key as String: PoolQuote.fromJson((e.value as Map).cast<String, dynamic>()),
-        };
-    return PoolPriceBook(tokens: quotes(j['tokens']), lpTokens: quotes(j['lp_tokens']));
-  }
-}
-
-/// What the Rust pricing core needs besides the pools: the depth floor and
-/// which tokens may count towards totals.
-Map<String, Object> poolPricingOptions() => {
-      'min_depth_nano': (poolDepthFloorErg * 1e9).round(),
-      'trusted_token_ids': [
-        for (final t in verifiedTokens)
-          if (t.isVerified) t.id,
-      ],
-    };
 
 class PricingInputs {
   const PricingInputs({
-    required this.source,
     this.oracle,
     this.oracles = const {},
     this.tipHeight,
-    this.coingeckoUsd = const {},
-    this.poolPrices = PoolPriceBook.empty,
-    this.sigRsvPriceNano,
     required this.decimalsOf,
-    this.nameOf,
   });
 
-  final PriceSource source;
-
-  /// The AVL multi-oracle: gold and the wrapped majors, used only while
-  /// [OracleSnapshot.isStale] says it is current.
+  /// The AVL multi-oracle: gold, ERG and the wrapped majors.
   final OracleSnapshot? oracle;
 
   /// The single-rate oracle pools read this refresh: SigmaUSD and Dexy USD
@@ -187,23 +82,9 @@ class PricingInputs {
   /// judged stale.
   final int? tipHeight;
 
-  /// coingecko id → USD.
-  final Map<String, double> coingeckoUsd;
-
-  /// Pool prices in ERG, computed in Rust from the Spectrum pool set.
-  final PoolPriceBook poolPrices;
-
-  /// nanoERG per SigRSV from the AgeUSD bank state.
-  final int? sigRsvPriceNano;
-
   /// A token's decimals from the one token lookup, or null when nothing
-  /// knows its scale. A pool quote is per base unit: such a token is left
-  /// unpriced, and so out of totals, rather than priced per base unit as if
-  /// that were a whole token.
+  /// knows its scale.
   final int? Function(String tokenId) decimalsOf;
-
-  /// A token's display name for "via" labels; null falls back to its id.
-  final String? Function(String tokenId)? nameOf;
 }
 
 class PricingResult {
@@ -230,9 +111,6 @@ double _pow10(int n) {
   return r;
 }
 
-/// USD per whole token for a pool quote.
-double _quoteUsd(PoolQuote q, int decimals, double ergUsd) => q.nanoErgPerUnit * _pow10(decimals) / 1e9 * ergUsd;
-
 /// One source's value for a feed, with how old it is.
 class _Quote {
   const _Quote(this.usd, this.via, this.ageBlocks, {required this.fresh});
@@ -254,9 +132,8 @@ _Quote? _pick(List<_Quote> quotes) {
   return quotes.reduce((a, b) => (b.ageBlocks ?? 0) < (a.ageBlocks ?? 0) ? b : a);
 }
 
-/// The whole pricing policy, pure so every branch is testable. Pool
-/// arithmetic and pool choice happen in Rust (`wallet-amm`); this decides
-/// which source wins for each token and converts to USD.
+/// The whole pricing policy, pure so every branch is testable: which oracle
+/// wins for each price, converted to USD.
 ///
 /// No price is presented as current when its source has stopped: a stale
 /// quote is used only when nothing current exists, says its age, and never
@@ -286,131 +163,42 @@ PricingResult priceTokens(PricingInputs inp) {
     return _Quote(v * scale, 'AVL oracle', avlAge, fresh: avlFresh);
   }
 
-  double? ergUsd;
-  String? ergVia;
-  String? ergStaleAge;
-  switch (inp.source) {
-    case PriceSource.oracle:
-      // The SigmaUSD pool first: it is the rate SigmaUSD itself settles at.
-      final pick = _pick([
-        if (fromFeed(OracleFeed.sigmaUsd, usdPerErg) case final q?) q,
-        if (fromFeed(OracleFeed.dexyUsd, usdPerErg) case final q?) q,
-        if (fromAvl('ERG_USD') case final q?) q,
-      ]);
-      if (pick != null) {
-        ergUsd = pick.usd;
-        if (pick.fresh) {
-          ergVia = pick.via;
-        } else {
-          ergStaleAge = ageText(pick.ageBlocks ?? 0);
-          ergVia = '${pick.via}, $ergStaleAge old';
-        }
-      }
-    case PriceSource.spectrum:
-      final sig = inp.poolPrices.tokens[SigmaUsdTokens.sigUsd];
-      if (sig != null && sig.nanoErgPerUnit > 0) {
-        // nanoERG per SigUSD cent → USD per ERG.
-        ergUsd = 1e9 / (sig.nanoErgPerUnit * 100);
-        ergVia = 'Spectrum ERG/SigUSD';
-      }
-    case PriceSource.coingecko:
-      ergUsd = inp.coingeckoUsd['ergo'];
-      ergVia = 'CoinGecko';
-  }
-  if (ergUsd == null || ergUsd <= 0) {
+  // The SigmaUSD pool first: it is the ERG/USD oracle pool.
+  final ergPick = _pick([
+    if (fromFeed(OracleFeed.sigmaUsd, usdPerErg) case final q?) q,
+    if (fromFeed(OracleFeed.dexyUsd, usdPerErg) case final q?) q,
+    if (fromAvl('ERG_USD') case final q?) q,
+  ]);
+  if (ergPick == null || ergPick.usd <= 0) {
     return const PricingResult(ergUsd: null, ergVia: null, prices: {});
   }
-  final usdPerErgNow = ergUsd;
+  final usdPerErgNow = ergPick.usd;
+  String? ergStaleAge;
+  var ergVia = ergPick.via;
+  if (!ergPick.fresh) {
+    ergStaleAge = ageText(ergPick.ageBlocks ?? 0);
+    ergVia = '${ergPick.via}, $ergStaleAge old';
+  }
 
   final prices = <String, TokenPrice>{};
-  // Prices from a feed or a peg are per whole token by definition; their
-  // scale still comes from the lookup, for valuing holdings at it.
+  // Prices from a feed are per whole token by definition; their scale
+  // still comes from the lookup, for valuing holdings at it.
   TokenPrice priced(String id, _Quote q) => q.fresh
       ? TokenPrice(usd: q.usd, via: q.via, decimals: inp.decimalsOf(id))
       : TokenPrice.stale(usd: q.usd, source: q.via, age: ageText(q.ageBlocks ?? 0), decimals: inp.decimalsOf(id));
-
-  prices[SigmaUsdTokens.sigUsd] = TokenPrice(usd: 1, via: 'USD peg', decimals: inp.decimalsOf(SigmaUsdTokens.sigUsd));
-  prices[DexyIds.use] = TokenPrice(usd: 1, via: 'USD peg', decimals: inp.decimalsOf(DexyIds.use));
-  final rsv = inp.sigRsvPriceNano;
-  if (rsv != null && rsv > 0) {
-    prices[SigmaUsdTokens.sigRsv] = TokenPrice(
-      usd: rsv / 1e9 * usdPerErgNow,
-      via: 'AgeUSD bank',
-      decimals: inp.decimalsOf(SigmaUsdTokens.sigRsv),
-    );
-  }
 
   // DexyGold is one milligram of gold: the Dexy oracle quotes nanoERG per
   // kilogram, the AVL oracle USD per troy ounce. The fresher current one
   // wins.
   final gold = [
     if (fromFeed(OracleFeed.dexyGold, (r) => r.rate / 1e6 / 1e9 * usdPerErgNow) case final q?) q,
-    if (inp.source == PriceSource.oracle)
-      if (fromAvl('XAU_USD', scale: 1 / mgPerTroyOunce) case final q?) q,
+    if (fromAvl('XAU_USD', scale: 1 / mgPerTroyOunce) case final q?) q,
   ]..sort((a, b) => (a.ageBlocks ?? 0).compareTo(b.ageBlocks ?? 0));
-  if (_pick(gold) case final q?) prices[DexyIds.gold] = priced(DexyIds.gold, q);
+  if (_pick(gold) case final q?) prices[dexyGoldTokenId] = priced(dexyGoldTokenId, q);
 
-  // Wrapped majors: the AVL oracle only while it is current; otherwise
-  // their Spectrum pools below, and a stale oracle price only as a last
-  // resort, with its age.
-  final staleMajors = <String, _Quote>{};
+  // Wrapped majors: the AVL oracle, with its age when it is stale.
   for (final entry in wrappedOrigins.entries) {
-    switch (inp.source) {
-      case PriceSource.oracle:
-        final q = fromAvl(entry.value.feed);
-        if (q == null) continue;
-        if (q.fresh) {
-          prices[entry.key] = priced(entry.key, q);
-        } else {
-          staleMajors[entry.key] = q;
-        }
-      case PriceSource.coingecko:
-        final usd = inp.coingeckoUsd[entry.value.coingeckoId];
-        if (usd != null && usd > 0) {
-          prices[entry.key] = TokenPrice(usd: usd, via: 'CoinGecko', decimals: inp.decimalsOf(entry.key));
-        }
-      case PriceSource.spectrum:
-        break;
-    }
-  }
-
-  // An LP token is worth its share of both reserves, which beats the price
-  // of any pool that happens to trade the LP token itself.
-  for (final e in inp.poolPrices.lpTokens.entries) {
-    if (prices.containsKey(e.key)) continue;
-    final decimals = inp.decimalsOf(e.key);
-    if (decimals == null) continue;
-    prices[e.key] = TokenPrice(
-      usd: _quoteUsd(e.value, decimals, usdPerErgNow),
-      via: 'Spectrum LP share',
-      depthErg: e.value.depthNano / 1e9,
-      countsInTotal: e.value.trusted,
-      decimals: decimals,
-    );
-  }
-
-  for (final e in inp.poolPrices.tokens.entries) {
-    if (prices.containsKey(e.key)) continue;
-    // Pool quotes are per base unit: without the token's scale there is no
-    // price per token, only a guess.
-    final decimals = inp.decimalsOf(e.key);
-    if (decimals == null) continue;
-    final q = e.value;
-    final viaId = q.viaTokenId;
-    final via = viaId == null
-        ? 'Spectrum pool'
-        : 'Spectrum pools via ${inp.nameOf?.call(viaId) ?? '${viaId.substring(0, 8)}…'}';
-    prices[e.key] = TokenPrice(
-      usd: _quoteUsd(q, decimals, usdPerErgNow),
-      via: via,
-      depthErg: q.depthNano / 1e9,
-      countsInTotal: q.trusted,
-      decimals: decimals,
-    );
-  }
-
-  for (final e in staleMajors.entries) {
-    prices.putIfAbsent(e.key, () => priced(e.key, e.value));
+    if (fromAvl(entry.value) case final q?) prices[entry.key] = priced(entry.key, q);
   }
   return PricingResult(ergUsd: usdPerErgNow, ergVia: ergVia, prices: prices, ergStaleAge: ergStaleAge);
 }
@@ -427,7 +215,7 @@ class HoldingsValue {
   /// their scale.
   final int unpriced;
 
-  /// Tokens with a pool price that is not counted (unverified).
+  /// Tokens with a price that is not counted (stale).
   final int excluded;
 }
 

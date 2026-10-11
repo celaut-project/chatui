@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:argus_wallet/services/activity_classifier.dart';
-import 'package:argus_wallet/services/stealth_service.dart';
 import 'package:argus_wallet/services/token_metadata.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
 import 'package:argus_wallet/ui/home/home_data.dart';
@@ -133,70 +132,6 @@ void main() {
     });
   });
 
-  group('swaps net both legs over every address', () {
-    test('a token sold for ERG on Spectrum', () {
-      final h = home(row('swap_token_for_erg'));
-      // Before: "Sent · contract 5vSUZR…SCqM · −0.0001 ERG · −2,000 …".
-      expect(h.title, 'Swapped');
-      expect(h.who, 'Spectrum');
-      expect(h.figure, '+0.0349 ERG');
-      expect(h.subfigure, '−2,000 raw units of 185e217d…');
-      expect(
-        spoken(activityLine(row('swap_token_for_erg'), name: _name, decimals: _decimals)),
-        '2,000 raw units of 185e217d… → 0.0349 ERG',
-      );
-    });
-
-    test('Flux sold for ERG', () {
-      // Before: "−0.1087 ERG · −57.32 Flux", the view of one address.
-      final h = home(row('swap_flux_for_erg'));
-      expect(h.title, 'Swapped');
-      expect(h.figure, '+0.316 ERG');
-      expect(h.subfigure, '−57.32 Flux');
-    });
-
-    test('ERG spent on Flux', () {
-      final h = home(row('swap_erg_for_flux'));
-      expect(h.title, 'Swapped');
-      expect(h.figure, '+33.92 Flux');
-      expect(h.subfigure, '−0.8254 ERG');
-    });
-
-    test('an order a bot filled shows what the order paid in', () {
-      final h = home(row('swap_order_filled'));
-      expect(legacyKind(row('swap_order_filled')), ActivityKind.received);
-      expect(h.title, 'Swapped');
-      expect(h.who, 'Spectrum');
-      expect(h.figure, '+23.95 ERG');
-      expect(h.subfigure, '−3,312.36 Flux');
-    });
-
-    test('Dexy LP swap', () {
-      final h = home(row('dexy_lp_swap'));
-      expect(h.title, 'Swapped');
-      expect(h.who, 'Dexy');
-      expect(h.figure, '+1 DexyGold');
-      expect(h.subfigure, '−0.542 ERG');
-    });
-  });
-
-  group('liquidity', () {
-    test('Dexy LP deposit', () {
-      final h = home(row('dexy_lp_add'));
-      expect(legacyKind(row('dexy_lp_add')), ActivityKind.swap);
-      expect(h.title, 'Added liquidity');
-      expect(h.figure, '+470 DexyLP');
-      expect(h.subfigure, '−2 DexyGold + 1 more');
-    });
-
-    test('Spectrum redeem order filled', () {
-      final h = home(row('lp_remove_order_filled'));
-      expect(h.title, 'Removed liquidity');
-      expect(h.who, 'Spectrum');
-      expect(h.figure, startsWith('+131.03 Flux'));
-    });
-  });
-
   group('moves inside the wallet change only the fee', () {
     test('a self-transfer from #275 to index 0', () {
       final h = home(row('self_transfer'));
@@ -249,64 +184,6 @@ void main() {
     expect(h.title, 'Issued token');
     expect(h.figure, startsWith('+100,000,000'));
     expect(h.subfigure, 'Fee 0.0011 ERG');
-  });
-
-  group('stablecoins', () {
-    test('SigmaUSD bank mints SigRSV', () {
-      final h = home(row('sigmausd_mint'));
-      expect(h.title, 'Minted SigRSV');
-      expect(h.who, 'SigmaUSD');
-      expect(h.figure, '+160,119 SigRSV');
-      expect(h.subfigure, '−33.67 ERG');
-    });
-
-    test('Dexy bank mints DexyGold', () {
-      final h = home(row('dexy_mint'));
-      expect(h.title, 'Minted DexyGold');
-      expect(h.who, 'Dexy');
-      expect(h.figure, '+59 DexyGold');
-    });
-  });
-
-  group('staking', () {
-    test('a Paideia unstake request', () {
-      final h = home(row('stake_unstake_request'));
-      expect(legacyKind(row('stake_unstake_request')), ActivityKind.sent);
-      expect(h.title, 'Unstake requested');
-      expect(h.who, 'Paideia');
-    });
-
-    test('the unstake filled', () {
-      final h = home(row('stake_unstake_filled'));
-      expect(h.title, 'Unstaked');
-      expect(h.figure, '+356.04 Paideia');
-    });
-  });
-
-  group('stealth', () {
-    test('paying a stealth address', () {
-      final h = home(row('stealth_send'));
-      expect(legacyKind(row('stealth_send')), ActivityKind.contract);
-      expect(h.title, 'Stealth payment');
-      expect(h.who, 'to stealth address');
-      expect(h.figure, startsWith('−286.4'));
-    });
-
-    test('a stealth receipt from the scan', () {
-      // The box d957a1f2 paid to a stealth script, as the scan reports it.
-      final rows = stealthActivityRows([
-        const StealthOwnedBox(
-          boxId: 'b',
-          transactionId: 'd957a1f2b5944a59465d69729cb3844a94182b61a845434e60c8e2b3553b7e14',
-          valueNanoErg: 286403783656,
-          creationHeight: 1888800,
-          tokens: [],
-        ),
-      ]);
-      final h = home(rows.single);
-      expect(h.title, 'Stealth payment');
-      expect(h.who, 'to your stealth address');
-    });
   });
 
   testWidgets('the transaction screen breaks the burn down', (tester) async {

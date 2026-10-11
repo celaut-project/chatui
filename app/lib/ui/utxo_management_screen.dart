@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../format.dart';
-import '../services/mix_service.dart';
 import '../services/network_controller.dart';
 import '../services/storage_rent.dart';
 import '../services/utxo_plans.dart';
@@ -161,30 +160,16 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
     _maybeOpenCleanup();
   }
 
-  /// Boxes a cleanup must leave where they are: [mixed] coins, funding
-  /// set aside for a pending mix ([reservedJson]), boxes already spent
-  /// from this screen, and boxes still confirming. The listing offers
-  /// those only while Settings allows spending unconfirmed funds, and a
-  /// housekeeping move the app proposes on its own should not hang on a
-  /// transaction that may yet be dropped.
-  Set<String> _heldBack(List<String> mixed, String reservedJson) {
-    final ids = <String>{
-      ...mixed,
-      ..._movingIds,
-      for (final b in _boxes)
-        if (!b.confirmed) b.boxId,
-    };
-    try {
-      for (final r in jsonDecode(reservedJson) as List) {
-        for (final id in (r as Map)['box_ids'] as List? ?? const []) {
-          ids.add(id.toString());
-        }
-      }
-    } catch (_) {
-      // No pending mix records to honour.
-    }
-    return ids;
-  }
+  /// Boxes a cleanup must leave where they are: boxes already spent from
+  /// this screen, and boxes still confirming. The listing offers those only
+  /// while Settings allows spending unconfirmed funds, and a housekeeping
+  /// move the app proposes on its own should not hang on a transaction that
+  /// may yet be dropped.
+  Set<String> _heldBack() => {
+        ..._movingIds,
+        for (final b in _boxes)
+          if (!b.confirmed) b.boxId,
+      };
 
   ({CleanupSuggestion? suggestion, OutputRentEstimate? estimate})? _cleanupMemo;
   Object? _cleanupMemoKey;
@@ -193,14 +178,10 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
   /// change to the boxes, their rent or what is held back, not per build:
   /// a selection tap must not regroup 2,000 boxes and call the core.
   ({CleanupSuggestion? suggestion, OutputRentEstimate? estimate}) get _cleanup {
-    final mixed = mixService.mixedBoxIds;
-    final reserved = mixService.reservedFundingJson();
     final parameters = _rentParameters;
     final key = (
       _tools.boxes,
       _tools.rent,
-      mixed.join(','),
-      reserved,
       (_movingIds.toList()..sort()).join(','),
       parameters?.height,
       parameters?.storageFeeFactor,
@@ -214,7 +195,7 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
     final suggestion = suggestCleanup(
       boxes: _boxes,
       rent: _tools.rent,
-      exclude: _heldBack(mixed, reserved),
+      exclude: _heldBack(),
       viable: (s) => cleanupIsViable(s, measure(s)),
     );
     final next = (

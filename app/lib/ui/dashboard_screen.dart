@@ -7,18 +7,14 @@ import '../bridge/argus_error.dart';
 import '../format.dart';
 import '../services/address_label_service.dart';
 import '../services/deep_link_controller.dart';
-import '../services/duckpools_service.dart';
 import '../services/ergopay_service.dart';
 import '../services/incoming_payment_watcher.dart';
-import '../services/mix_service.dart';
 import '../services/network_controller.dart';
 import '../services/notification_service.dart';
 import '../services/privacy_service.dart';
 import '../services/public_wallet_sync.dart';
 import '../services/secure_storage.dart';
 import '../services/session_lock.dart';
-import '../services/sigmafi_service.dart';
-import '../services/stealth_service.dart';
 import '../services/wallet_service.dart';
 import '../services/wallet_sync_controller.dart';
 import '../services/watch_account_service.dart';
@@ -42,8 +38,6 @@ import 'scan_screen.dart';
 import 'send_screen.dart';
 import 'settings/network_settings_page.dart';
 import 'settings_screen.dart';
-import 'swap_hub_screen.dart';
-import '../services/amm_service.dart';
 import 'transaction_detail_screen.dart';
 import 'transactions_screen.dart';
 import 'wallets_overview_screen.dart';
@@ -67,8 +61,7 @@ import 'widgets/watch_account_list.dart';
 /// equivalent ([WatchedWalletPage]).
 ///
 /// An unlocked seed wallet's page has four tabs: Wallet ([WalletLedger]),
-/// Activity, Discover (every protocol and tool, which replaced the Swap
-/// tab: Swap is one of the wallet's actions) and Settings.
+/// Activity, Discover (the tools that act on its coins) and Settings.
 ///
 /// This state also owns what must run whichever page shows: the poll of
 /// the unlocked wallet, the overview's public refresh, the ERG price
@@ -158,11 +151,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     watchOnlyService.addListener(_onWatchedListChanged);
     watchAccountService.addListener(_onWatchedListChanged);
     _sync.addListener(_onSyncChanged);
-    mixService.addListener(_onSyncChanged);
-    duckpoolsService.addListener(_onDuckpoolsChanged);
-    // The SigmaFi card reads its subtitle from the service, so it has to
-    // hear about a loan posted or repaid the way the Duckpools card does.
-    sigmafiService.addListener(_onDuckpoolsChanged);
     deepLinkController.addListener(_onDeepLink);
     _pollTimer = Timer.periodic(_fastPollInterval, (_) => _pollTick());
     _probeTimer = Timer.periodic(_probeInterval, (_) => _probeTick());
@@ -178,9 +166,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     watchOnlyService.removeListener(_onWatchedListChanged);
     watchAccountService.removeListener(_onWatchedListChanged);
     _sync.removeListener(_onSyncChanged);
-    mixService.removeListener(_onSyncChanged);
-    duckpoolsService.removeListener(_onDuckpoolsChanged);
-    sigmafiService.removeListener(_onDuckpoolsChanged);
     deepLinkController.removeListener(_onDeepLink);
     _overview.dispose();
     _price.dispose();
@@ -214,11 +199,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (mounted) setState(() {});
     _openPendingDeepLink();
     _announceIncoming();
-    _refreshDuckpoolsIfDue();
-  }
-
-  void _onDuckpoolsChanged() {
-    if (mounted) setState(() {});
   }
 
   /// A watched wallet that stopped being watched cannot stay open.
@@ -238,25 +218,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     });
   }
 
-  /// Value the wallet's lend tokens once per sync, at most every few
-  /// minutes: the pools change slowly and the read is eight requests.
-  void _refreshDuckpoolsIfDue() {
-    if (!_walletUnlocked || _sync.isSyncing) return;
-    final last = duckpoolsService.lastRefreshedAt;
-    if (last != null && DateTime.now().difference(last) < const Duration(minutes: 5)) return;
-    final holdings = {for (final t in _sync.tokens) t.id: t.amount};
-    unawaited(duckpoolsService.refresh(holdings));
-    // Loans are read less often: a borrowing pool is five requests, and
-    // the read also announces any loan that crossed a line.
-    unawaited(duckpoolsService.refreshLoansIfDue(_sync.historyAddresses));
-  }
-
   /// Announces payments that appeared since the last refresh. Only fires
   /// while the app is not in front, so the home screen itself stays quiet.
   void _announceIncoming() {
     if (!_walletUnlocked) return;
-    // The merged list, so a stealth receipt is announced too: it never
-    // appears in the address history the node returns.
     final fresh = _incoming.observe(_sync.displayActivity);
     if (fresh.isEmpty || !_pollBackgrounded) return;
     for (final tx in fresh) {
@@ -264,7 +229,6 @@ class _DashboardScreenState extends State<DashboardScreen>
         nanoErg: (tx['value_nano_erg'] as num?)?.toInt() ?? 0,
         walletName: _walletName(_walletId),
         pending: ((tx['height'] as num?)?.toInt() ?? 0) == 0,
-        stealth: tx['stealth'] == true,
       );
     }
   }
@@ -386,10 +350,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     _lastPollAt = now;
     // Routine poll: refresh without flipping the strip to "Syncing…".
     _sync.refresh(discover: false, quiet: true);
-    // Mixes move on the same cadence; the service drops a tick that
-    // arrives while one is running.
-    unawaited(mixService.tick());
-    unawaited(duckpoolsService.tickOrders());
   }
 
   void _probeTick() {
@@ -405,10 +365,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         state == AppLifecycleState.paused || state == AppLifecycleState.hidden;
     if (backgrounded && !_pollBackgrounded) _backgroundedAt = DateTime.now();
     _pollBackgrounded = backgrounded;
-    if (backgrounded) unawaited(mixService.setForeground(false));
     if (state != AppLifecycleState.resumed) return;
     _backgroundedAt = null;
-    unawaited(mixService.setForeground(true));
     // Whatever happened while away shows now, not at the next tick.
     if (_walletUnlocked && !_sync.busy) {
       _lastPollAt = DateTime.now();
@@ -592,10 +550,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       ..clear()
       ..add(0);
     _sync.deactivate();
-    stealthService.reset();
-    mixService.reset();
-    duckpoolsService.reset();
-    sigmafiService.clearIfForeign();
     _usePin = false;
   }
 
@@ -642,10 +596,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     final walletId = walletService.activeWalletId;
     if (walletId == null || walletId != _walletId) return;
     _incoming.reset();
-    stealthService.reset();
-    mixService.reset();
-    duckpoolsService.reset();
-    sigmafiService.clearIfForeign();
     _sync.activateWallet(walletId);
     if (_sync.receiveAddress != null) {
       setState(() {
@@ -685,15 +635,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       _snack('Unlocked, but no address could be derived');
       return;
     }
-    // The published stealth string comes straight from the seed, so it can
-    // be shown before any network call. Restoring a wallet lands here too,
-    // and the refresh below runs the first stealth scan.
-    unawaited(stealthService.loadAddress());
-    // Reads the persisted identity list and tells the handle about it, so
-    // the refresh below scans with every identity the user has published.
-    unawaited(stealthService.loadIdentities());
-    unawaited(mixService.load());
-    unawaited(duckpoolsService.load());
     notificationService.requestPermission();
     // 2. Refresh known addresses; rescan only when discovery is due.
     await _sync.refresh(discover: true, forceDiscovery: false);
@@ -882,20 +823,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (mounted) setState(() {});
   }
 
-  /// Route args for read-only asset views: totals include stealth holdings.
-  /// Send, Swap and the UTXO tools keep [_args], whose amounts are spendable.
-  WalletRouteArgs _displayArgs() {
-    final a = _args();
-    return WalletRouteArgs(
-      senderAddress: a.senderAddress,
-      receiveAddress: a.receiveAddress,
-      changeAddress: a.changeAddress,
-      historyAddresses: a.historyAddresses,
-      tokens: _sync.displayTokens,
-      spendableNano: _sync.totalNanoWithStealth,
-    );
-  }
-
   WalletRouteArgs _args({Map<String, dynamic>? transaction}) {
     final receive = _sync.receiveAddress ?? '';
     return WalletRouteArgs(
@@ -942,17 +869,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
-  /// The swap screen on [venue]: the DEX from the Swap action, AgeUSD and
-  /// Dexy from their Discover rows. It reads live balances from the app's
-  /// wallet scope, as every pushed screen does.
-  void _openSwap(SwapVenue venue) {
-    if (!_guardUnlocked()) return;
-    Navigator.push(
-      context,
-      fadeRoute(SwapHubScreen(initialTab: coerceVenue(venue)), settings: RouteSettings(arguments: _args())),
-    );
-  }
-
   void _openTx(Map<String, dynamic> tx) {
     Navigator.push(
       context,
@@ -978,40 +894,14 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         );
       },
-      // This is the signing wallet's page; a watched one opens its tokens
-      // from watched_wallet.dart, which offers no swap.
-      onSwap: (token) => _swapFrom(token.id),
-      swappable: ammService.hasPool(t.id),
-    );
-  }
-
-  /// Spectrum's swap, paying with [tokenId] (null: ERG).
-  void _swapFrom(String? tokenId) {
-    if (!_guardUnlocked()) return;
-    Navigator.push(
-      context,
-      fadeRoute(
-        SwapHubScreen(initialTab: coerceVenue(SwapVenue.spectrum), initialFrom: tokenId),
-        settings: RouteSettings(arguments: _args()),
-      ),
     );
   }
 
   void _openSettings() => _selectTab(3);
 
-  /// Where a feature lives: a venue of the swap screen, or a route.
-  void _openFeature(DiscoverFeature feature) {
-    final e = discoverExplainers[feature]!;
-    if (e.venue != null) {
-      _openSwap(e.venue!);
-    } else {
-      _go(e.route!);
-    }
-  }
-
   /// A Discover row: the feature's explainer, whose button opens it.
   void _openDiscover(DiscoverFeature feature) {
-    showDiscoverSheet(context, feature: feature, onGo: () => _openFeature(feature));
+    showDiscoverSheet(context, feature: feature, onGo: () => _go(discoverExplainers[feature]!.route));
   }
 
   String _walletName(String? walletId) =>
@@ -1082,7 +972,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  /// The overview's own Send, Receive, Swap and More act on a wallet: the
+  /// The overview's own Send, Receive and More act on a wallet: the
   /// unlocked one, else the first with keys here. It opens; when it is
   /// already unlocked the action follows at once, else its gate asks for
   /// the key first and the wallet's own buttons are a tap away.
@@ -1097,8 +987,6 @@ class _DashboardScreenState extends State<DashboardScreen>
         _go('/send');
       case WalletAction.receive:
         _go('/receive');
-      case WalletAction.swap:
-        _openSwap(SwapVenue.spectrum);
       case WalletAction.sendOffline:
       case WalletAction.more:
         break;
@@ -1188,7 +1076,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       name: info?.name ?? 'Wallet',
       address: info?.displayAddress,
       pinnedIndex: info?.pinnedAddressIndex,
-      lastKnownNano: known == null ? null : known.balanceNano + known.stealthNano,
+      lastKnownNano: known?.balanceNano,
       lastKnownAge: known?.age,
       hidden: _balanceHidden,
       // Until this wallet's methods are read, offer nothing that would act
@@ -1226,12 +1114,11 @@ class _DashboardScreenState extends State<DashboardScreen>
             priceFeed: _price,
             actions: WalletLedgerActions(
               go: _go,
-              swap: _openSwap,
               showActivity: () => _selectTab(1),
               showSettings: _openSettings,
               viewAssets: () => Navigator.push(
                 context,
-                fadeRoute(AssetsScreen(args: _displayArgs())),
+                fadeRoute(AssetsScreen(args: _args())),
               ),
               openTx: _openTx,
               openToken: _openToken,
@@ -1247,7 +1134,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               args: args,
             ),
           ),
-          lazy(2, () => WalletDiscover(sync: _sync, onExplain: _openDiscover)),
+          lazy(2, () => WalletDiscover(onExplain: _openDiscover)),
           lazy(
             3,
             () => SettingsScreen(

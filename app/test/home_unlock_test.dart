@@ -1,7 +1,6 @@
 import 'package:argus_wallet/bridge/frb_generated.dart';
 import 'package:argus_wallet/services/public_wallet_sync.dart';
 import 'package:argus_wallet/services/session_lock.dart';
-import 'package:argus_wallet/services/stealth_service.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
 import 'package:argus_wallet/services/watch_account_service.dart';
 import 'package:argus_wallet/services/watch_only_service.dart';
@@ -27,13 +26,11 @@ void main() {
     SharedPreferences.setMockInitialValues({'argus_watch_only_addresses': '[]'});
     await watchOnlyService.load();
     watchAccountService.accounts.clear();
-    stealthService.scanEnabled = false;
     // Snapshot figures stay as they are: no public refresh in these tests.
     publicWalletSync.setForeground(false);
   });
   tearDown(() async {
     publicWalletSync.setForeground(true);
-    stealthService.scanEnabled = true;
     // A failed test must not hand its unlocked wallet to the next one.
     if (walletService.isUnlocked) await walletService.lock();
   });

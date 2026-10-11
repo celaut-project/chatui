@@ -77,7 +77,7 @@ void main() {
       final coldFresh = <int>[];
       final refreshes = <int>[];
       for (var trial = 0; trial < 3; trial++) {
-        final gw = TimingGateway()..stealthEnabled = false;
+        final gw = TimingGateway();
         final c = WalletSyncController(gw);
         final timer = Stopwatch()..start();
         await c.hydrateAfterUnlock();

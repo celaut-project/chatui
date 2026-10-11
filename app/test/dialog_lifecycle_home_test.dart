@@ -1,7 +1,6 @@
 import 'package:argus_wallet/bridge/frb_generated.dart';
 import 'package:argus_wallet/services/address_label_service.dart';
 import 'package:argus_wallet/services/public_wallet_sync.dart';
-import 'package:argus_wallet/services/stealth_service.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
 import 'package:argus_wallet/services/watch_account_service.dart';
 import 'package:argus_wallet/services/watch_only_service.dart';
@@ -39,7 +38,6 @@ void main() {
     await watchOnlyService.load();
     watchAccountService.accounts.clear();
     await addressLabelService.load();
-    stealthService.scanEnabled = false;
     // Snapshot figures stay as they are: no public refresh in these tests.
     publicWalletSync.setForeground(false);
     api.wrappedUnder.clear();
@@ -47,7 +45,6 @@ void main() {
 
   tearDown(() async {
     publicWalletSync.setForeground(true);
-    stealthService.scanEnabled = true;
     if (walletService.isUnlocked) await walletService.lock();
   });
 

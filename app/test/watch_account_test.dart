@@ -149,7 +149,7 @@ void main() {
     expect(result.receiveAddress, '20');
   });
   testWidgets(
-    'import discloses stealth exclusion, spending and permanent linkage',
+    'import discloses its limits, spending and permanent linkage',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -166,7 +166,7 @@ void main() {
       await tester.tap(find.text('Watch xpub'));
       await tester.pumpAndSettle();
       expect(find.text(watchAccountDisclosure), findsOneWidget);
-      expect(watchAccountDisclosure, contains('Cannot see stealth identities'));
+      expect(watchAccountDisclosure, contains('Public payment addresses only'));
       expect(watchAccountDisclosure, contains('Cannot sign locally'));
       expect(watchAccountDisclosure, contains('forever'));
       await tester.tap(find.text('Cancel'));

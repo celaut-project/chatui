@@ -115,8 +115,8 @@ class PendingBalance {
   }
 
   /// The same pending movements under a figure that also counts funds this
-  /// split never valued — a wallet's stealth and mixing pockets, the other
-  /// wallets in a total — all of which are in blocks. [confirmedNano]
+  /// split never valued — the other wallets in a total — all of which are
+  /// in blocks. [confirmedNano]
   /// becomes [shownNano] less the pending delta, so "+2.5 ERG pending ·
   /// X confirmed" adds up to the figure the line sits under. Unchanged when
   /// [shownNano] is this split's own [netNano].

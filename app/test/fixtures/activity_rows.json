@@ -231,7 +231,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "spectrum:pool",
               "value": 1381307421
             },
             {
@@ -274,7 +273,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "spectrum:pool",
               "value": 1345271586
             },
             {
@@ -344,7 +342,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "spectrum:pool",
               "value": 80964443533
             },
             {
@@ -379,7 +376,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "spectrum:pool",
               "value": 80647309310
             },
             {
@@ -448,7 +444,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "spectrum:pool",
               "value": 168263511396
             },
             {
@@ -507,7 +502,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "spectrum:pool",
               "value": 169088002396
             },
             {
@@ -603,7 +597,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "spectrum:pool",
               "value": 105099748109
             },
             {
@@ -637,7 +630,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "spectrum:pool",
               "value": 81147194611
             },
             {
@@ -699,7 +691,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "spectrum:pool",
               "value": 564042069974
             },
             {
@@ -711,7 +702,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "spectrum:redeem_order",
               "value": 6060000
             }
           ],
@@ -734,7 +724,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "spectrum:pool",
               "value": 532127923533
             },
             {
@@ -1899,7 +1888,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "spectrum:pool",
               "value": 351410297266
             },
             {
@@ -1977,7 +1965,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "spectrum:pool",
               "value": 351406332000
             },
             {
@@ -2167,7 +2154,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "sigmausd:bank",
               "value": 1627815966696847
             },
             {
@@ -2197,7 +2183,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "sigmausd:bank",
               "value": 1627849644545331
             },
             {
@@ -2255,7 +2240,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "dexy:mint",
               "value": 1000000000
             },
             {
@@ -2271,7 +2255,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "dexy:bank",
               "value": 4728858365366
             },
             {
@@ -2287,7 +2270,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "dexy:buyback",
               "value": 22073315528
             },
             {
@@ -2309,7 +2291,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "dexy:mint",
               "value": 1000000000
             },
             {
@@ -2325,7 +2306,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "dexy:bank",
               "value": 4759912855944
             },
             {
@@ -2341,7 +2321,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "dexy:buyback",
               "value": 22135238739
             },
             {
@@ -2409,7 +2388,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "dexy:lp",
               "value": 3228996138623
             },
             {
@@ -2421,7 +2399,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "dexy:lp_mint",
               "value": 1000000000
             },
             {
@@ -2476,7 +2453,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "dexy:lp",
               "value": 3229996138623
             },
             {
@@ -2488,7 +2464,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "dexy:lp_mint",
               "value": 1000000000
             },
             {
@@ -2592,7 +2567,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "dexy:lp",
               "value": 3229996138623
             },
             {
@@ -2604,7 +2578,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "dexy:lp_swap",
               "value": 1000000000
             },
             {
@@ -2659,7 +2632,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "dexy:lp",
               "value": 3230536001194
             },
             {
@@ -2671,7 +2643,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "dexy:lp_swap",
               "value": 1000000000
             },
             {
@@ -2782,7 +2753,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "stake:proxy",
               "value": 113000000
             },
             {
@@ -2838,7 +2808,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "stake:paideia",
               "value": 1000000
             },
             {
@@ -2854,7 +2823,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "stake:paideia",
               "value": 1000000
             },
             {
@@ -2866,7 +2834,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "stake:proxy",
               "value": 113000000
             }
           ],
@@ -2885,7 +2852,6 @@
                 }
               ],
               "boxes": 1,
-              "tag": "stake:paideia",
               "value": 1000000
             },
             {
@@ -2904,7 +2870,6 @@
               "address": "Ujfv3QVGdnTjkkugQDB5qFowFpiq2uK32aa7efP7ptAA4dAsAamzWS1NS4kWKExYR2N781Cgi49dLmerGrH6hQZXg6xgxkyJRKJgPgq3MKrSjxECyPVtSyqmivuV5TDbsoNGQfA9yb4FLjtX9ovdYGZxz8TcESePcBHdTpUeXYRqsbkQkhNNDuF3HfWKmLFbTQTKUti4rFT4zKLKaoCr1Hq4AfEu91i5yTmxvZ14iyGkwduKrA2M54ynk5bryZqU7QiJJ1eQe4CPY8wnTgWUPniNDMzjUQLxrYZjSjJX1L8W7cVdWoMGqVdDuWv1APZokHypm2qtfoC4yFf8QWj9Phdnh3fzbUuQyk9nphXMnGKaNN6byTsZW63a1DZESwPQkY5hhhuYJuTYoGy9Gf2bdxfEgcXvppTnc4yi2AB2wo8XXsUtmH6L39nfrTfWtqiSuCZutvARjbahAjR9riZ6Xcb8JnpdUgz7ZmoRa2bwEj7pnMEd6HGdZRwDGCQn5Ezt1ZS5QEFqfTkfvz4wyiDUvDjM9knYSs2KGVim7CFvQdWtLPuiY8nkTmrrWgTyChAzFjexeYP5V9EaLDbkRRbSRinoAb9VfL9KCkSMNyA55fNkFnmzf94nF2HHfJNGvKvc2hHL73h5ERWoZ139jBH94ZFs99QnYA8zVqohtk8JYxVZfLg6KdR67DVHguNCtMwy98pdxdiHr6McFMZB7Br6RSQmnXa73bCdKZKydxxnf1vTo2MtkMRuq4QgNYgVLJxhdTL6QpR763jTpbjnVWWqe5PDQ7ghDfYC1AnqQvR7AwpVUj47ut4McE7iSUHruUxNr8jHKBUSv5xTNbqhQhGuhwgfte8otdaG8aYE8ezEHXoNiB1cbcAbuDyTjRAmmXqUw8rBxf3twUi7HqnZPGgoaTf4Qjx2nSonyQsRHJFUp2yE3donK9seHPGAHyjfG2FTCHJneEHNY2BTi4bf7E7Yw",
               "assets": [],
               "boxes": 1,
-              "tag": "stake:paideia",
               "value": 100000000
             }
           ]
@@ -2955,7 +2920,6 @@
               "address": "6QBPS6hDdYchDbvQtHZnYPaHLwGqVipkBJW3TafxF25Sv26rEr8WZg3Wt5rQrjUPuLZEkbFqvq232sf3QA6Ys5aLkfW3gGY7hKroU8j9Ytt7b4L3V8RihHJ3N2aHndTMPjKXfZTuqF3xEhGxch63edrxs1EbAHrvxqof7BrwY5GSz34Sh9mM3LhActJhwhVFLPQhGTPmcydq1zNKwXkbweHEn6",
               "assets": [],
               "boxes": 1,
-              "tag": "stealth",
               "value": 286403783656
             },
             {

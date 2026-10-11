@@ -11,17 +11,12 @@ import '../bridge/frb_generated.dart';
 import 'app_fee.dart';
 import 'network_controller.dart';
 import 'privacy_service.dart';
-import 'token_catalog.dart';
 import 'token_decimals.dart';
 import 'token_descriptor_store.dart';
 import 'token_evidence.dart';
 export 'token_evidence.dart';
 import 'verified_tokens.dart' show knownToken;
-import 'mix_service.dart';
 import 'spend_policy.dart';
-import 'activity_classifier.dart' show reownActivity;
-import 'stealth_change_book.dart';
-import 'stealth_service.dart';
 import 'wallet_sync_controller.dart';
 import 'secure_storage.dart';
 import 'wallet_database_service.dart';
@@ -128,11 +123,6 @@ class TokenBalance {
   final String? issuanceHash;
   final String? rawRegisters;
 
-  /// How much of [amount] sits in stealth boxes rather than in the wallet's
-  /// own P2PK boxes. Stealth funds are real but are not offered to ordinary
-  /// coin selection; they are swept first.
-  final int stealthAmount;
-
   TokenBalance({
     required this.id,
     required this.amount,
@@ -140,7 +130,6 @@ class TokenBalance {
     this.decimals = 0,
     this.emissionAmount,
     this.iconUrl,
-    this.stealthAmount = 0,
     this.description,
     this.supplyEvidence = SupplyEvidence.unknown,
     this.decimalsEvidence = DecimalsEvidence.unknown,
@@ -152,9 +141,6 @@ class TokenBalance {
     this.issuanceHash,
     this.rawRegisters,
   }) : originalName = name, name = name == null ? null : issuerText(name);
-
-  /// True when any part of this holding is in stealth boxes.
-  bool get hasStealth => stealthAmount > 0;
 
   bool get isCollectible =>
       metadataState != MetadataState.invalid &&
@@ -191,15 +177,10 @@ class TokenBalance {
         : 'Token · metadata unavailable';
   }
 
-  TokenBalance withHolding(int amount, {int? stealthAmount}) =>
-      TokenBalance._withHolding(
-        this,
-        amount,
-        stealthAmount ?? this.stealthAmount,
-      );
+  TokenBalance withHolding(int amount) => TokenBalance._withHolding(this, amount);
 
   // Copy both representations verbatim; only issuer input is sanitised.
-  TokenBalance._withHolding(TokenBalance token, this.amount, this.stealthAmount)
+  TokenBalance._withHolding(TokenBalance token, this.amount)
     : id = token.id,
       name = token.name,
       originalName = token.originalName,
@@ -803,10 +784,7 @@ class WalletService with WidgetsBindingObserver {
   TokenBalance displayMetadata(TokenBalance holding) {
     final session = _descriptors[_descriptorKey(holding.id)];
     if (session != null) {
-      return session.withHolding(
-        holding.amount,
-        stealthAmount: holding.stealthAmount,
-      );
+      return session.withHolding(holding.amount);
     }
     // A holding published before anything knew its token carries no record,
     // and one restored from a snapshot carries a name but none of the
@@ -816,10 +794,7 @@ class WalletService with WidgetsBindingObserver {
     if (holding.metadataState == MetadataState.unavailable) {
       final known = _displayLayers(holding.id);
       if (known != null) {
-        return known.withHolding(
-          holding.amount,
-          stealthAmount: holding.stealthAmount,
-        );
+        return known.withHolding(holding.amount);
       }
     }
     return holding;
@@ -951,8 +926,8 @@ class WalletService with WidgetsBindingObserver {
     return partial == null ? null : _asBalance(partial);
   }
 
-  /// A scale the wallet-independent layers (the pool catalog, the curated
-  /// registry, the legacy table) already give [id], so a watched wallet
+  /// A scale the wallet-independent layers (the curated registry, the
+  /// legacy table) already give [id], so a watched wallet
   /// has no need to ask about it.
   bool _publiclyScaled(String id) {
     final m = publicTokenMeta(id) ?? _legacyTokenMeta[id];
@@ -964,18 +939,14 @@ class WalletService with WidgetsBindingObserver {
   static const _watchedJobPatience = Duration(minutes: 2);
 
   /// The single metadata job for a watched wallet's request: taken at once
-  /// when free, from the catalog the moment its lookup ends, and otherwise
-  /// waited for, up to [_watchedJobPatience], while [keepGoing] holds.
+  /// when free, and otherwise waited for, up to [_watchedJobPatience], while
+  /// [keepGoing] holds.
   Future<bool> _takeJobForWatched(bool Function() keepGoing) async {
     final deadline = DateTime.now().add(_watchedJobPatience);
     while (keepGoing()) {
       if (!_metadataBusy) {
         _metadataBusy = true;
         return true;
-      }
-      if (_catalogJob != null) {
-        if (await _takeJobFromCatalog()) return true;
-        continue;
       }
       if (DateTime.now().isAfter(deadline)) return false;
       await Future<void>.delayed(const Duration(milliseconds: 250));
@@ -1210,7 +1181,6 @@ class WalletService with WidgetsBindingObserver {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_tokenMetaKey);
       await TokenDescriptorStore.clearAll();
-      await publicTokenCatalog.clear();
     } finally {
       _wipe = null;
       done.complete();
@@ -1228,18 +1198,11 @@ class WalletService with WidgetsBindingObserver {
     required String provider,
     bool providerIsNode = false,
   }) async {
-    // Captured before any wait. Cancelling, closing the sheet, backgrounding
-    // or switching wallet while this waits behind a catalog lookup bumps the
-    // epoch, and must stop the request before anything is sent.
+    // Captured before any check. Cancelling, closing the sheet,
+    // backgrounding or switching wallet bumps the epoch, and must stop the
+    // request before anything is sent.
     final epoch = _descriptorEpoch;
     final key = _descriptorKey(holding.id);
-    // A public-catalog lookup gives way to a person's request: wait out the
-    // one it has in flight and take the job before the catalog can start
-    // another. Everything below is then checked as of now. Handing the job
-    // back here leaves no gap: from this line to `_metadataBusy = true` the
-    // code runs without suspending, so nothing else can take it.
-    final fromCatalog = _catalogJob != null && await _takeJobFromCatalog();
-    if (fromCatalog) _metadataBusy = false;
     if (epoch != _descriptorEpoch || key != _descriptorKey(holding.id)) {
       throw StateError('Metadata request cancelled');
     }
@@ -1278,7 +1241,6 @@ class WalletService with WidgetsBindingObserver {
       final result = TokenBalance(
         id: holding.id,
         amount: holding.amount,
-        stealthAmount: holding.stealthAmount,
         name: m['name'] as String?,
         description: m['description'] as String?,
         decimals: declared.decimals,
@@ -1311,46 +1273,9 @@ class WalletService with WidgetsBindingObserver {
     }
   }
 
-  /// Set while a public-catalog lookup holds the metadata job. Wallet passes
-  /// and explicit requests wait for it rather than give up: it is a single
-  /// bounded request, and the catalog starts no other while they wait.
-  Future<void>? _catalogJob;
-  int _catalogWaiters = 0;
-
-  /// One node lookup for the public pool-token catalog, in the same single
-  /// metadata job as everything else, so its requests never overlap the
-  /// wallet's. Null when the job is wanted elsewhere — this never waits for
-  /// the wallet's work or competes with it — or while locked or in the
-  /// background, when nothing should be asking the network for this.
-  Future<String?> inspectForCatalog(String tokenId, String provider) async {
-    if (_metadataBusy ||
-        _catalogWaiters > 0 ||
-        !isUnlocked ||
-        !_inForeground) {
-      return null;
-    }
-    // Backgrounding cancels a request already in flight, as it does an
-    // explicit one, rather than letting it finish out of sight.
-    _observeLifecycle();
-    _metadataBusy = true;
-    final done = Completer<void>();
-    _catalogJob = done.future;
-    try {
-      return await RustLib.instance.api.crateApiInspectTokenMetadata(
-        tokenId: tokenId,
-        providerUrl: provider,
-        providerIsNode: true,
-      );
-    } finally {
-      _metadataBusy = false;
-      _catalogJob = null;
-      done.complete();
-    }
-  }
-
   /// Lifecycle changes clear session metadata and cancel the metadata job in
-  /// flight ([didChangeAppLifecycleState]). Registered by the first request
-  /// of either kind.
+  /// flight ([didChangeAppLifecycleState]). Registered by the first
+  /// request.
   void _observeLifecycle() {
     if (_observingMetadata) return;
     try {
@@ -1371,31 +1296,11 @@ class WalletService with WidgetsBindingObserver {
     }
   }
 
-  /// Waits out the catalog lookup that holds the metadata job and takes the
-  /// job in the same step, while still counted as waiting, so the catalog
-  /// cannot slip another request in between. False when the job is not the
-  /// catalog's, or another request took it first: the caller then yields as
-  /// it always has. On true the caller holds the job and must release it.
-  Future<bool> _takeJobFromCatalog() async {
-    final job = _catalogJob;
-    if (job == null) return false;
-    _catalogWaiters++;
-    try {
-      await job;
-      if (_metadataBusy) return false;
-      _metadataBusy = true;
-      return true;
-    } finally {
-      _catalogWaiters--;
-    }
-  }
-
   Future<void> init() async {
     if (_initialized) return;
     await Future.wait([
       RustLib.init(),
       loadTokenMeta(),
-      publicTokenCatalog.ensureLoaded(),
     ]);
     // Belt and braces with the frb(init) attribute: the app fee config must
     // be installed before any transaction is built.
@@ -1856,9 +1761,8 @@ class WalletService with WidgetsBindingObserver {
   /// screen and every published holding goes through, best layer first:
   ///
   ///  1. this wallet's own descriptors, resolved during its sync;
-  ///  2. the public catalog of pool tokens ([publicTokenMeta]);
-  ///  3. the curated registry built into the app;
-  ///  4. the legacy app-wide table from older builds, which has no
+  ///  2. the curated registry built into the app ([publicTokenMeta]);
+  ///  3. the legacy app-wide table from older builds, which has no
   ///     provenance and so ranks last.
   ///
   /// Explicitly loaded session descriptors are not here: holdings are built
@@ -1871,12 +1775,10 @@ class WalletService with WidgetsBindingObserver {
     return publicTokenMeta(id) ?? own;
   }
 
-  /// What the wallet-independent layers say about [id]: the pool-token
-  /// catalog, then the curated registry. For a context that is not this
-  /// wallet's own, and for anything that may be stored app-wide.
+  /// What the wallet-independent layer says about [id]: the curated
+  /// registry. For a context that is not this wallet's own, and for anything
+  /// that may be stored app-wide.
   TokenBalance? publicTokenMeta(String id) {
-    final d = publicTokenCatalog.lookup(id);
-    if (d != null) return _asBalance(d);
     final curated = knownToken(id);
     if (curated == null) return null;
     // The ticker is the on-chain name the registry was checked against.
@@ -1921,10 +1823,6 @@ class WalletService with WidgetsBindingObserver {
   /// while this runs, and reading them here would let a response for wallet
   /// A be written under wallet B, or send A's ids to a node that never saw
   /// them. [stillCurrent] is the caller's own generation check.
-  ///
-  /// Only ordinary public holdings are passed in. Stealth-only ids are never
-  /// given to this method: they are not derivable from the wallet's public
-  /// addresses, so [servedBy] has never seen them.
   ///
   /// This is the reversal of an earlier posture that held "receiving or
   /// displaying an ID is not consent to disclose it to a metadata provider".
@@ -2007,16 +1905,8 @@ class WalletService with WidgetsBindingObserver {
         if (!_metadataBusy) {
           _metadataBusy = true;
         } else {
-          // An explicit request owns the job. Yield rather than compete. A
-          // catalog lookup is one bounded request: wait it out and take the
-          // job before the catalog can start another.
-          if (_catalogJob == null || !await _takeJobFromCatalog()) {
-            return resolvedNow;
-          }
-          if (!owns() || _metadataUnsupported) {
-            _metadataBusy = false;
-            return resolvedNow;
-          }
+          // An explicit request owns the job. Yield rather than compete.
+          return resolvedNow;
         }
         attempted++;
         try {
@@ -2205,7 +2095,6 @@ class WalletService with WidgetsBindingObserver {
     // would write its table straight back.
     _pendingFlush.removeWhere((entry) => entry.$1 == walletId);
     await TokenDescriptorStore.clear(walletId).catchError((_) {});
-    await stealthChangeBook.forget(walletId);
     await SecureStorageService.deleteWallet(walletId);
     await _removeWalletMeta(walletId);
   }
@@ -2254,7 +2143,6 @@ class WalletService with WidgetsBindingObserver {
     String? nodeUrl,
     int? feeNanoErg,
     List<String>? inputBoxIds,
-    String? stealthBoxesJson,
     String? babelTokenId,
   }) async {
     _requireUnlocked();
@@ -2270,7 +2158,6 @@ class WalletService with WidgetsBindingObserver {
       nodeUrl: nodeUrl,
       feeNano: feeNanoErg,
       inputBoxIds: inputBoxIds,
-      stealthBoxesJson: stealthBoxesJson,
       babelTokenId: babelTokenId,
     );
     return SendPreview.fromJson(jsonDecode(raw) as Map<String, dynamic>);
@@ -2287,7 +2174,6 @@ class WalletService with WidgetsBindingObserver {
     String? nodeUrl,
     int? feeNanoErg,
     List<String>? inputBoxIds,
-    String? stealthBoxesJson,
     String? babelTokenId,
   }) async {
     _requireUnlocked();
@@ -2300,20 +2186,9 @@ class WalletService with WidgetsBindingObserver {
       nodeUrl: nodeUrl,
       feeNano: feeNanoErg,
       inputBoxIds: inputBoxIds,
-      stealthBoxesJson: stealthBoxesJson,
       babelTokenId: babelTokenId,
     );
     return SendPreview.fromJson(jsonDecode(raw) as Map<String, dynamic>);
-  }
-
-  /// A fresh one-time address for our own stealth change, with its script.
-  Future<Map<String, dynamic>> stealthSelfChangeTarget(
-    String stealthAddress,
-  ) async {
-    final raw = await RustLib.instance.api.crateApiStealthSelfChangeTarget(
-      stealthAddress: stealthAddress,
-    );
-    return jsonDecode(raw) as Map<String, dynamic>;
   }
 
   /// Prepare a UTXO consolidation transaction.
@@ -2450,185 +2325,6 @@ class WalletService with WidgetsBindingObserver {
   /// hooks this so the row and the figure show without waiting for a poll.
   void Function(String txId, int? walletDeltaNano)? onBroadcast;
 
-  // ── Stealth addresses ───────────────────────────────────────────────
-
-  /// This wallet's published `stealth…` string.
-  Future<String> stealthAddress() {
-    _requireUnlocked();
-    return RustLib.instance.api.crateApiStealthAddress(handleId: _handleId!);
-  }
-
-  /// The published `stealth…` string for stealth identity [index].
-  Future<String> stealthAddressAt(int index) {
-    _requireUnlocked();
-    return RustLib.instance.api.crateApiStealthAddressAt(
-      handleId: _handleId!,
-      index: index,
-    );
-  }
-
-  /// Tell the handle to scan and spend with identities `0..=index`.
-  /// Returns how many identities are in use afterwards.
-  Future<int> stealthUseIdentity(int index) {
-    _requireUnlocked();
-    return RustLib.instance.api.crateApiStealthUseIdentity(
-      handleId: _handleId!,
-      index: index,
-    );
-  }
-
-  /// Which stealth identities hold funds in [explorerBoxesJson], for a
-  /// restore that has no persisted identity list to go on.
-  Future<Map<String, dynamic>> stealthDiscoverIdentities(
-    String explorerBoxesJson,
-  ) async {
-    _requireUnlocked();
-    final raw = await RustLib.instance.api.crateApiStealthDiscoverIdentities(
-      handleId: _handleId!,
-      explorerBoxesJson: explorerBoxesJson,
-    );
-    return jsonDecode(raw) as Map<String, dynamic>;
-  }
-
-  /// Which of the explorer's stealth boxes this wallet can spend.
-  /// [explorerBoxesJson] is the raw body of the template-hash endpoint.
-  Future<Map<String, dynamic>> stealthScan(String explorerBoxesJson) async {
-    _requireUnlocked();
-    final raw = await RustLib.instance.api.crateApiStealthScan(
-      handleId: _handleId!,
-      explorerBoxesJson: explorerBoxesJson,
-    );
-    return jsonDecode(raw) as Map<String, dynamic>;
-  }
-
-  /// Prepare a sweep of owned stealth boxes to one of our own addresses.
-  /// Broadcast it with [sendErg], like any other preparation.
-  ///
-  /// [onlyIdentity] sweeps a single stealth identity; null sweeps them all,
-  /// which merges their funds into one output and so links them on chain.
-  Future<SendPreview> prepareStealthSweep({
-    required String explorerBoxesJson,
-    required String destinationAddress,
-    String? nodeUrl,
-    int? feeNanoErg,
-    int? onlyIdentity,
-  }) async {
-    _requireUnlocked();
-    final raw = await RustLib.instance.api.crateApiPrepareStealthSweep(
-      handleId: _handleId!,
-      explorerBoxesJson: explorerBoxesJson,
-      destinationAddress: destinationAddress,
-      nodeUrl: nodeUrl,
-      feeNano: feeNanoErg,
-      onlyIdentity: onlyIdentity,
-    );
-    return SendPreview.fromJson(jsonDecode(raw) as Map<String, dynamic>);
-  }
-
-  // ── ZeroJoin mixing ─────────────────────────────────────────────────
-  //
-  // Thin JSON pass-throughs; `MixService` owns the meaning of each. The
-  // secret for a mix round is derived inside the handle and never returned.
-
-  Future<String> mixObserve({
-    required String stateJson,
-    required String chainJson,
-    required int nowUnix,
-  }) {
-    _requireUnlocked();
-    return RustLib.instance.api.crateApiMixObserve(
-      handleId: _handleId!,
-      stateJson: stateJson,
-      chainJson: chainJson,
-      nowUnix: nowUnix,
-    );
-  }
-
-  Future<String> mixRecover({required String chainJson, required int nowUnix}) {
-    _requireUnlocked();
-    return RustLib.instance.api.crateApiMixRecover(
-      handleId: _handleId!,
-      chainJson: chainJson,
-      nowUnix: nowUnix,
-    );
-  }
-
-  /// Prepare a mix entry; confirm it with [sendErg] like any send.
-  Future<String> mixPrepareEntry({
-    required String stateJson,
-    required String chainJson,
-    required String fundingAddress,
-    required String fundingBoxId,
-    required List<String> ownHalfBoxIds,
-    String? nodeUrl,
-    int? feeNanoErg,
-    required int nowUnix,
-  }) {
-    _requireUnlocked();
-    return RustLib.instance.api.crateApiMixPrepareEntry(
-      handleId: _handleId!,
-      stateJson: stateJson,
-      chainJson: chainJson,
-      fundingAddress: fundingAddress,
-      fundingBoxId: fundingBoxId,
-      ownHalfBoxIds: ownHalfBoxIds,
-      nodeUrl: nodeUrl,
-      feeNano: feeNanoErg,
-      nowUnix: nowUnix,
-    );
-  }
-
-  /// Build, sign and broadcast one remix or withdrawal.
-  Future<String> mixAdvance({
-    required String stateJson,
-    required String chainJson,
-    required List<String> ownHalfBoxIds,
-    String? nodeUrl,
-    int? feeNanoErg,
-    required int nowUnix,
-  }) {
-    _requireUnlocked();
-    return RustLib.instance.api.crateApiMixAdvance(
-      handleId: _handleId!,
-      stateJson: stateJson,
-      chainJson: chainJson,
-      ownHalfBoxIds: ownHalfBoxIds,
-      nodeUrl: nodeUrl,
-      feeNano: feeNanoErg,
-      nowUnix: nowUnix,
-    );
-  }
-
-  /// Set aside the funding boxes of pending mixes so no other coin
-  /// selection spends them; an empty list frees everything.
-  void mixSetReservedFunding(String reservationsJson) {
-    if (!isUnlocked) return;
-    RustLib.instance.api.crateApiMixSetReservedFunding(
-      handleId: _handleId!,
-      reservationsJson: reservationsJson,
-    );
-  }
-
-  /// Boxes that came out of a mix: automatic coin selection leaves them
-  /// alone, and a hand-picked set may hold them only on their own.
-  void mixSetMixedBoxes(List<String> boxIds) {
-    if (!isUnlocked) return;
-    RustLib.instance.api.crateApiMixSetMixedBoxes(
-      handleId: _handleId!,
-      boxIds: boxIds,
-    );
-  }
-
-  /// The key for one mix, for the background job's keystore. It can spend
-  /// that mix's boxes and nothing else.
-  Future<Uint8List> mixExportKey(int mixId) {
-    _requireUnlocked();
-    return RustLib.instance.api.crateApiMixExportKey(
-      handleId: _handleId!,
-      mixId: mixId,
-    );
-  }
-
   /// Everything a preparation will do, for the confirm sheet's details.
   /// Does not consume the preparation.
   Future<Map<String, dynamic>> preparationDetails(int preparationId) async {
@@ -2697,270 +2393,6 @@ class WalletService with WidgetsBindingObserver {
       nodeUrl: nodeUrl,
     );
     return jsonDecode(raw) as Map<String, dynamic>;
-  }
-
-  // ── EIP-12 dApp connector ───────────────────────────────────────────
-
-  /// Check and summarise an unsigned EIP-12 transaction from a dApp page;
-  /// sign with [signPreparation].
-  Future<String> dappPrepareSign(String txJson, {String? nodeUrl}) {
-    _requireUnlocked();
-    return RustLib.instance.api.crateApiDappPrepareSign(
-      handleId: _handleId!,
-      txJson: txJson,
-      nodeUrl: nodeUrl,
-    );
-  }
-
-  /// The wallet's unspent boxes in the shape `ergo.get_utxos()` returns.
-  Future<String> dappUtxos(List<String> addresses, {String? nodeUrl}) {
-    _requireUnlocked();
-    return RustLib.instance.api.crateApiDappUtxos(
-      handleId: _handleId!,
-      addresses: addresses,
-      nodeUrl: nodeUrl,
-    );
-  }
-
-  // ── Duckpools ───────────────────────────────────────────────────────
-
-  /// Prepare a Duckpools order of any kind; confirm with [sendErg].
-  Future<String> duckpoolsPrepareOrder({
-    required String poolBoxesJson,
-    required String poolKey,
-    required String kind,
-    required int amount,
-    required int slippageBps,
-    required int refundAfterBlocks,
-    required String userAddress,
-    required List<String> spendAddresses,
-    required String changeAddress,
-    String? nodeUrl,
-    int? feeNanoErg,
-    String? loanBoxesJson,
-    String? collateralAsset,
-    int? collateralAmount,
-    String? collateralBoxId,
-  }) {
-    _requireUnlocked();
-    return RustLib.instance.api.crateApiDuckpoolsPrepareOrder(
-      handleId: _handleId!,
-      poolBoxesJson: poolBoxesJson,
-      poolKey: poolKey,
-      kind: kind,
-      amount: amount,
-      slippageBps: slippageBps,
-      refundAfterBlocks: refundAfterBlocks,
-      userAddress: userAddress,
-      spendAddresses: spendAddresses,
-      changeAddress: changeAddress,
-      nodeUrl: nodeUrl,
-      feeNano: feeNanoErg,
-      loanBoxesJson: loanBoxesJson,
-      collateralAsset: collateralAsset,
-      collateralAmount: collateralAmount,
-      collateralBoxId: collateralBoxId,
-    );
-  }
-
-  /// Prepare a Rosen bridge transfer out of Ergo; confirm with [sendErg].
-  Future<Map<String, dynamic>> rosenPrepareLock({
-    required String senderAddress,
-    required List<String> spendAddresses,
-    required String changeAddress,
-    required String tokenId,
-    required int amount,
-    required String toChain,
-    required String toAddress,
-    required int bridgeFee,
-    required int networkFee,
-    String? nodeUrl,
-    int? feeNanoErg,
-  }) async {
-    _requireUnlocked();
-    final raw = await RustLib.instance.api.crateApiRosenPrepareLock(
-      handleId: _handleId!,
-      senderAddress: senderAddress,
-      spendAddresses: spendAddresses,
-      changeAddress: changeAddress,
-      tokenId: tokenId,
-      amount: amount,
-      toChain: toChain,
-      toAddress: toAddress,
-      bridgeFee: bridgeFee,
-      networkFee: networkFee,
-      nodeUrl: nodeUrl,
-      feeNano: feeNanoErg,
-    );
-    return jsonDecode(raw) as Map<String, dynamic>;
-  }
-
-  /// Prepare a collateral adjustment on a Duckpools loan; confirm with
-  /// [sendErg].
-  Future<String> duckpoolsPrepareAdjust({
-    required String loanBoxesJson,
-    required String poolKey,
-    required String collateralBoxId,
-    required int newAmount,
-    required String userAddress,
-    required List<String> spendAddresses,
-    required String changeAddress,
-    String? nodeUrl,
-    int? feeNanoErg,
-  }) {
-    _requireUnlocked();
-    return RustLib.instance.api.crateApiDuckpoolsPrepareAdjust(
-      handleId: _handleId!,
-      loanBoxesJson: loanBoxesJson,
-      poolKey: poolKey,
-      collateralBoxId: collateralBoxId,
-      newAmount: newAmount,
-      userAddress: userAddress,
-      spendAddresses: spendAddresses,
-      changeAddress: changeAddress,
-      nodeUrl: nodeUrl,
-      feeNano: feeNanoErg,
-    );
-  }
-
-  // ── SigmaFi ───────────────────────────────────────────
-
-  /// Prepare a SigmaFi loan request; confirm with [sendErg].
-  Future<String> sigmafiPrepareOpen({
-    required String loanAsset,
-    required int principal,
-    required int repayment,
-    required int termBlocks,
-    required int collateralErg,
-    required String collateralTokensJson,
-    required String userAddress,
-    required List<String> spendAddresses,
-    required String changeAddress,
-    String? nodeUrl,
-    int? feeNanoErg,
-  }) {
-    _requireUnlocked();
-    return RustLib.instance.api.crateApiSigmafiPrepareOpen(
-      handleId: _handleId!,
-      loanAsset: loanAsset,
-      principal: principal,
-      repayment: repayment,
-      termBlocks: termBlocks,
-      collateralErg: collateralErg,
-      collateralTokensJson: collateralTokensJson,
-      userAddress: userAddress,
-      spendAddresses: spendAddresses,
-      changeAddress: changeAddress,
-      nodeUrl: nodeUrl,
-      feeNano: feeNanoErg,
-    );
-  }
-
-  Future<String> stakeRecoveryPrepareProxy({
-    String? refundBoxJson,
-    String? stateBoxJson,
-    String? stakeBoxJson,
-    required String userAddress,
-    required List<String> spendAddresses,
-    String? nodeUrl,
-  }) {
-    _requireUnlocked();
-    return RustLib.instance.api.crateApiStakeRecoveryPrepareProxy(
-      handleId: _handleId!,
-      refundBoxJson: refundBoxJson,
-      stateBoxJson: stateBoxJson,
-      stakeBoxJson: stakeBoxJson,
-      userAddress: userAddress,
-      spendAddresses: spendAddresses,
-      nodeUrl: nodeUrl,
-    );
-  }
-
-  String stakeRecoveryProxyRecord(String signed, String recipient) {
-    _requireUnlocked();
-    return RustLib.instance.api.crateApiStakeRecoveryProxyRecord(
-      handleId: _handleId!,
-      signedTxJson: signed,
-      recipientAddress: recipient,
-    );
-  }
-
-  Future<String> stakeRecoveryPrepareDirect({
-    required String stateBoxJson,
-    required String stakeBoxJson,
-    required String keyId,
-    required String userAddress,
-    required List<String> spendAddresses,
-    String? nodeUrl,
-  }) {
-    _requireUnlocked();
-    return RustLib.instance.api.crateApiStakeRecoveryPrepareDirect(
-      handleId: _handleId!,
-      stateBoxJson: stateBoxJson,
-      stakeBoxJson: stakeBoxJson,
-      keyId: keyId,
-      userAddress: userAddress,
-      spendAddresses: spendAddresses,
-      nodeUrl: nodeUrl,
-    );
-  }
-
-  /// Prepare a cancel, close, repay or liquidate of a SigmaFi box;
-  /// confirm with [sendErg].
-  Future<String> sigmafiPrepareSpend({
-    required String action,
-    required String boxJson,
-    required String userAddress,
-    required List<String> spendAddresses,
-    String? nodeUrl,
-    int? feeNanoErg,
-  }) {
-    _requireUnlocked();
-    return RustLib.instance.api.crateApiSigmafiPrepareSpend(
-      handleId: _handleId!,
-      action: action,
-      boxJson: boxJson,
-      userAddress: userAddress,
-      spendAddresses: spendAddresses,
-      nodeUrl: nodeUrl,
-      feeNano: feeNanoErg,
-    );
-  }
-
-  /// Prepare the refund of an unfilled order; confirm with [sendErg].
-  Future<String> duckpoolsPrepareRefund({
-    required String proxyBoxJson,
-    required String userAddress,
-    String? nodeUrl,
-  }) {
-    _requireUnlocked();
-    return RustLib.instance.api.crateApiDuckpoolsPrepareRefund(
-      handleId: _handleId!,
-      proxyBoxJson: proxyBoxJson,
-      userAddress: userAddress,
-      nodeUrl: nodeUrl,
-    );
-  }
-
-  /// Withdraw or reclaim a mix now.
-  Future<String> mixLeave({
-    required String stateJson,
-    required String chainJson,
-    String? destinationAddress,
-    String? nodeUrl,
-    int? feeNanoErg,
-    required int nowUnix,
-  }) {
-    _requireUnlocked();
-    return RustLib.instance.api.crateApiMixLeave(
-      handleId: _handleId!,
-      stateJson: stateJson,
-      chainJson: chainJson,
-      destinationAddress: destinationAddress,
-      nodeUrl: nodeUrl,
-      feeNano: feeNanoErg,
-      nowUnix: nowUnix,
-    );
   }
 
   // ── ErgoPay (EIP-20) ────────────────────────────────────────────────
@@ -3063,7 +2495,7 @@ class WalletService with WidgetsBindingObserver {
   /// through this interface.
   Future<List<TokenBalance>> hydrateTokens(dynamic raw) async {
     // The wallet's own table first. It used to load only inside the name
-    // pass, which runs after history and the stealth scan, so the first
+    // pass, which runs after history, so the first
     // balance after every unlock republished each holding without its name
     // and the pass put it back seconds later. Memoized: only the first call
     // waits, and only on local storage.
@@ -3134,16 +2566,10 @@ class WalletService with WidgetsBindingObserver {
     }
     final all = <Map<String, dynamic>>[];
     final seen = <String>{};
-    // Change this wallet sent to a one-time stealth address of its own is
-    // the wallet's, though no address of [addresses] names it. Only this
-    // wallet's list: another wallet's change paid to this one is a payment.
-    final walletId = _currentWalletId;
-    await stealthChangeBook.load(walletId);
-    final change = stealthChangeBook.addressesFor(walletId);
     for (final txs in results) {
       for (final tx in txs) {
         if (tx is! Map) continue;
-        final map = reownActivity(Map<String, dynamic>.from(tx), change);
+        final map = Map<String, dynamic>.from(tx);
         final id = map['tx_id']?.toString() ?? '';
         if (id.isEmpty || !seen.add(id)) continue;
         all.add(map);
@@ -3185,9 +2611,7 @@ class WalletService with WidgetsBindingObserver {
   /// transaction already spends are never listed, and unconfirmed ones —
   /// incoming payments and change, marked [InputBoxInput.confirmed] false —
   /// only while Settings allows spending them. [confirmedOnly] asks for
-  /// confirmed boxes whatever the setting (the mix funding finder waits for
-  /// its box to confirm). Mix reservations and mixed boxes are still listed;
-  /// the spend applies those rules.
+  /// confirmed boxes whatever the setting.
   ///
   /// Caps at [maxUnspentBoxesTotal] across all addresses; a node error is
   /// raised, never silently treated as an empty wallet.
@@ -3328,8 +2752,6 @@ class WalletService with WidgetsBindingObserver {
     clearSessionMetadata();
     // Drop overlays tied to the outgoing key before publishing the new view.
     walletSyncController.deactivate();
-    stealthService.reset();
-    mixService.reset();
     // Capture the outgoing wallet's unwritten table BEFORE
     // `_currentWalletId` moves — reading it afterwards would file the old
     // wallet's descriptors under the new wallet's key.

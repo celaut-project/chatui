@@ -56,7 +56,7 @@ class MetadataApi extends RustLibApi {
 
 void main() {
   final api = MetadataApi();
-  final holding = TokenBalance(id: 'a' * 64, amount: 1, stealthAmount: 1);
+  final holding = TokenBalance(id: 'a' * 64, amount: 1);
   setUpAll(() => RustLib.initMock(api: api));
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
@@ -71,7 +71,7 @@ void main() {
   tearDown(() async {
     await walletService.lock();
   });
-  testWidgets('stealth disclosure precedes the named-provider request', (
+  testWidgets('the provider is named before the request is sent', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -89,10 +89,7 @@ void main() {
     await tester.tap(action);
     await tester.pumpAndSettle();
     expect(api.calls, 0);
-    expect(
-      find.textContaining('Loading may link this private holding'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('This provider can see your IP address'), findsOneWidget);
     await tester.tap(find.text('Load metadata'));
     await tester.pumpAndSettle();
     expect(api.calls, 1);

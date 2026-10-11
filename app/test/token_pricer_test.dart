@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:argus_wallet/services/amm_service.dart';
 import 'package:argus_wallet/services/erg_price_history.dart';
 import 'package:argus_wallet/services/oracle_feeds.dart';
 import 'package:argus_wallet/services/oracle_pool.dart';
-import 'package:argus_wallet/services/sigmausd_service.dart';
 import 'package:argus_wallet/services/token_pricer.dart';
 import 'package:argus_wallet/services/token_pricing.dart';
 import 'package:argus_wallet/services/verified_tokens.dart';
@@ -13,39 +11,45 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const rsBtc = '7a51950e5f548549ec1aa63ffdc38279505b11e7e803d01bcf8347e0123c88b0';
-const lpToken = '303f39026572bcb4060b51fafc93787a236bb243744babaa99fceb833d61e198';
 
-/// A pool box of the ERG/SigUSD pool at [height] pricing ERG at [usd].
-Map<String, dynamic> _sigUsdPoolBox(int height, double usd) => {
+/// A positive value as a serialized sigma Long: type 05, then the zigzag
+/// VLQ of the value.
+String _sigmaLong(int v) {
+  var z = v * 2;
+  final out = StringBuffer('05');
+  do {
+    var byte = z & 0x7f;
+    z >>= 7;
+    if (z > 0) byte |= 0x80;
+    out.write(byte.toRadixString(16).padLeft(2, '0'));
+  } while (z > 0);
+  return out.toString();
+}
+
+/// A box of the SigmaUSD oracle pool at [height] pricing ERG at [usd]: R4 is
+/// nanoERG per dollar.
+Map<String, dynamic> _oracleBox(int height, double usd) => {
       'boxId': 'b$height',
-      'value': 100000 * 1000000000,
+      'value': 1000000000,
       'inclusionHeight': height,
       'assets': [
-        {'tokenId': 'nft', 'amount': 1},
-        {'tokenId': 'lp', 'amount': 9},
-        {'tokenId': SigmaUsdTokens.sigUsd, 'amount': (usd * 100000 * 100).round()},
+        {'tokenId': OracleFeed.sigmaUsd.nft, 'amount': 1},
       ],
+      'additionalRegisters': {'R4': _sigmaLong((1e9 / usd).round())},
     };
 
 class _Fakes {
-  String fiat = 'usd';
   int? tip = 1000;
   int oracleCalls = 0;
-  int geckoCalls = 0;
-  int poolPriceCalls = 0;
   int boxPageCalls = 0;
-  int chartCalls = 0;
   String? lastBoxToken;
-  List<String>? lastGeckoVs;
   double? rate;
-  double? usdRate;
   bool oracleFails = false;
   bool readingsFail = false;
   int readingCalls = 0;
-  Completer<void>? poolGate;
 
-  /// CoinGecko refusing, as its free API does a few calls in a row (429).
-  bool geckoFails = false;
+  /// Holds the single-rate oracle pools back until completed.
+  Completer<void>? readingsGate;
 
   /// Retries the pricer asked for, by delay; [runRetry] fires the last.
   final retryDelays = <Duration>[];
@@ -56,11 +60,6 @@ class _Fakes {
     run();
   }
 
-  /// The LP token's decimals as the token lookup knows them (from the
-  /// wallet's own descriptor when it holds the token); null when nothing
-  /// knows its scale.
-  int? lpDecimals = 0;
-
   /// Blocks behind the tip of each single-rate pool's newest box; a feed
   /// left out has no box. SigmaUSD quotes 0.50 USD (2 ERG per dollar).
   Map<OracleFeed, int> readingAges = {OracleFeed.sigmaUsd: 1};
@@ -69,16 +68,17 @@ class _Fakes {
   /// The node's box history, newest first; null makes it fail like a node
   /// without the extra index.
   List<Map<String, dynamic>>? boxHistory = [
-    _sigUsdPoolBox(990, 0.32),
-    _sigUsdPoolBox(700, 0.31),
-    _sigUsdPoolBox(100, 0.25), // 30 hours before the tip
+    _oracleBox(990, 0.32),
+    _oracleBox(700, 0.31),
+    _oracleBox(100, 0.25), // 30 hours before the tip
   ];
 
   late final PricerDeps deps = PricerDeps(
     clock: () => now,
-    decimalsOf: (id) => id == lpToken ? lpDecimals : knownToken(id)?.decimals,
+    decimalsOf: (id) => knownToken(id)?.decimals,
     oracleReading: (node, feed) async {
       readingCalls++;
+      if (readingsGate != null) await readingsGate!.future;
       if (readingsFail) throw Exception('pool box unreadable');
       final age = readingAges[feed];
       if (age == null) return null;
@@ -91,36 +91,8 @@ class _Fakes {
       if (h == null) throw const HistoryUnavailable('This node cannot serve price history: it needs the extra index.');
       return h.skip(offset).take(limit).toList();
     },
-    coingeckoChart: (fiat, days) async {
-      chartCalls++;
-      final at = now.millisecondsSinceEpoch;
-      return {
-        'prices': [
-          [at - 26 * 3600000, 0.40],
-          [at - 3600000, 0.44],
-        ],
-      };
-    },
-    poolPrices: (set) async {
-      poolPriceCalls++;
-      return PoolPriceBook(
-        tokens: {
-          // The fake pool set's 1000 ERG : 300 SigUSD.
-          SigmaUsdTokens.sigUsd: const PoolQuote(
-            nanoErgPerUnit: 1e12 / 30000,
-            depthNano: 1000000000000,
-            trusted: true,
-            poolId: 'sig-pool',
-          ),
-        },
-        lpTokens: {
-          lpToken: const PoolQuote(nanoErgPerUnit: 2e9, depthNano: 1000000000000, trusted: true),
-        },
-      );
-    },
     nodeUrl: () => 'http://node',
     tipHeight: () => tip,
-    fiatCode: () => fiat,
     oracle: (_) async {
       oracleCalls++;
       if (oracleFails) throw Exception('boom');
@@ -131,34 +103,7 @@ class _Fakes {
       _pendingRetry = run;
       return _FakeTimer(() => _pendingRetry = null);
     },
-    coingecko: (ids, vs) async {
-      geckoCalls++;
-      lastGeckoVs = vs;
-      if (geckoFails) throw Exception('CoinGecko 429');
-      return {
-        'ergo': {'usd': 0.4, 'eur': 0.36},
-        'bitcoin': {'usd': 81000},
-      };
-    },
-    pools: () async {
-      if (poolGate != null) await poolGate!.future;
-      return AmmPoolSet(
-        truncated: false,
-        pools: [
-          {
-            'pool_type': 'N2T',
-            'erg_reserves': 1000 * 1000000000,
-            'token_y': {'token_id': SigmaUsdTokens.sigUsd, 'amount': 30000},
-          },
-        ],
-        tokens: const {},
-      );
-    },
-    sigRsvPriceNano: () async => 4000000,
-    onRate: (f, u) {
-      rate = f;
-      usdRate = u;
-    },
+    onRate: (u) => rate = u,
   );
 }
 
@@ -180,86 +125,30 @@ class _FakeTimer implements Timer {
 }
 
 void main() {
-  test(
-    'REVIEW: changing source during a gated branch refreshes new prices',
-    () async {
-      final f = _Fakes()..poolGate = Completer<void>();
-      final p = TokenPricer(f.deps);
-      final old = p.refresh();
-      await Future<void>.delayed(Duration.zero);
-      final changed = p.setSource(PriceSource.coingecko);
-      await Future<void>.delayed(Duration.zero);
-      expect(p.result.ergUsd, isNull);
-      f.poolGate!.complete();
-      await Future.wait([old, changed]);
-      expect(f.geckoCalls, 1);
-      expect(p.result.ergUsd, 0.4);
-      expect(p.refreshing, isFalse);
-    },
-  );
-
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  test(
-    'BATCH A: oracle prices publish while pools are still pending',
-    () async {
-      final f = _Fakes()..poolGate = Completer<void>();
-      final p = TokenPricer(f.deps);
-      final op = p.refresh();
-      await Future<void>.delayed(Duration.zero);
-      expect(p.refreshing, isTrue);
-      expect(p.result.ergUsd, 0.5);
-      expect(f.rate, 0.5);
-      expect(p.priceOf(rsBtc)?.usd, 80000);
-      f.poolGate!.complete();
-      await op;
-      expect(p.refreshing, isFalse);
-    },
-  );
+  test('the AVL oracle prices publish while the oracle pools are still pending', () async {
+    final f = _Fakes()..readingsGate = Completer<void>();
+    final p = TokenPricer(f.deps);
+    final op = p.refresh();
+    await Future<void>.delayed(Duration.zero);
+    expect(p.refreshing, isTrue);
+    expect(p.result.ergUsd, 0.5);
+    expect(f.rate, 0.5);
+    expect(p.priceOf(rsBtc)?.usd, 80000);
+    f.readingsGate!.complete();
+    await op;
+    expect(p.refreshing, isFalse);
+  });
 
-  test('defaults to the oracle source and publishes the ERG rate', () async {
+  test('publishes the ERG rate in USD', () async {
     final f = _Fakes();
     final p = TokenPricer(f.deps);
-    await p.load();
-    expect(p.source, PriceSource.oracle);
     await p.refresh();
     expect(p.result.ergUsd, 0.5);
     expect(p.priceOf(rsBtc)!.usd, 80000);
     expect(f.rate, 0.5);
-    expect(f.geckoCalls, 0, reason: 'USD display needs no CoinGecko call');
     expect(p.stale, isFalse);
-  });
-
-  test('switching source persists and re-prices from the new source', () async {
-    final f = _Fakes();
-    final p = TokenPricer(f.deps);
-    await p.setSource(PriceSource.spectrum);
-    expect(p.result.ergUsd, closeTo(0.3, 1e-9));
-    expect(p.result.ergVia, 'Spectrum ERG/SigUSD');
-    expect(f.oracleCalls, 0);
-
-    final again = TokenPricer(f.deps);
-    await again.load();
-    expect(again.source, PriceSource.spectrum);
-  });
-
-  test('non-USD display converts through the CoinGecko cross rate', () async {
-    final f = _Fakes()..fiat = 'eur';
-    final p = TokenPricer(f.deps);
-    await p.refresh();
-    expect(f.lastGeckoVs, ['usd', 'eur']);
-    expect(p.fiatPerUsd, closeTo(0.9, 1e-9));
-    expect(f.rate, closeTo(0.45, 1e-9));
-    expect(f.usdRate, 0.5);
-  });
-
-  test('CoinGecko source prices ERG and majors from the API', () async {
-    final f = _Fakes();
-    final p = TokenPricer(f.deps);
-    await p.setSource(PriceSource.coingecko);
-    expect(p.result.ergUsd, 0.4);
-    expect(p.priceOf(rsBtc)!.usd, 81000);
-    expect(f.oracleCalls, 0);
   });
 
   test('the ERG rate comes from the SigmaUSD pool, and survives the AVL oracle failing', () async {
@@ -307,25 +196,19 @@ void main() {
     expect(p.sourceLine, 'Oracle pools · stale · ERG via SigmaUSD oracle, 5 h old');
   });
 
-  test('the Oracle source says what it reads', () {
-    final blurb = PriceSource.oracle.blurb;
-    expect(PriceSource.oracle.label, 'Oracle pools');
-    expect(blurb, contains('ERG from the SigmaUSD oracle pool'));
-    expect(blurb, contains('gold from the Dexy gold oracle'));
-    expect(blurb, contains('AVL multi-oracle while it is current'));
-    expect(blurb, contains('never as current'));
+  test('the price source says what it reads', () {
+    expect(priceSourceLabel, 'Oracle pools');
+    expect(priceSourceBlurb, contains('ERG from the SigmaUSD oracle pool'));
+    expect(priceSourceBlurb, contains('gold from the Dexy gold oracle'));
+    expect(priceSourceBlurb, contains('never as current'));
     final p = TokenPricer(_Fakes().deps);
     expect(p.sourceLine, 'Oracle pools', reason: 'no rate yet, no source details');
   });
 
-  test('gold is read under every source, the dollar pools only under the Oracle source', () async {
+  test('every oracle pool is read', () async {
     final f = _Fakes();
-    final p = TokenPricer(f.deps);
-    await p.refresh();
+    await TokenPricer(f.deps).refresh();
     expect(f.readingCalls, OracleFeed.values.length);
-    final g = _Fakes();
-    await TokenPricer(g.deps).setSource(PriceSource.spectrum);
-    expect(g.readingCalls, 1);
   });
 
   test('refresh is throttled unless forced', () async {
@@ -338,68 +221,21 @@ void main() {
     expect(f.oracleCalls, 2);
   });
 
-  test('the pool set is priced by the Rust core and LP tokens get a price', () async {
-    final f = _Fakes();
-    final p = TokenPricer(f.deps);
-    await p.refresh();
-    expect(f.poolPriceCalls, 1);
-    // 2 ERG per LP unit at the oracle's $0.50.
-    expect(p.priceOf(lpToken)!.usd, closeTo(1.0, 1e-12));
-    expect(p.priceOf(lpToken)!.via, 'Spectrum LP share');
-    expect(p.usdOf(lpToken, 10, 0), closeTo(10, 1e-9));
-  });
-
-  test('an LP token whose scale nothing knows is left unpriced, not guessed', () async {
-    // The pool quote is per base unit; without decimals there is no price
-    // per token, and a guessed zero could be off by any power of ten.
-    final f = _Fakes()..lpDecimals = null;
-    final p = TokenPricer(f.deps);
-    await p.refresh();
-    expect(p.result.ergUsd, 0.5);
-    expect(p.priceOf(lpToken), isNull);
-    final v = holdingsValue(ergNano: 0, tokens: [(id: lpToken, amount: 10, decimals: 0)], result: p.result);
-    expect(v.unpriced, 1);
-    expect(v.usd, 0);
-  });
-
-  test('a failed pool pricing keeps the other sources and says why', () async {
-    final f = _Fakes();
-    final deps = PricerDeps(
-      nodeUrl: f.deps.nodeUrl,
-      tipHeight: f.deps.tipHeight,
-      fiatCode: f.deps.fiatCode,
-      oracle: f.deps.oracle,
-      coingecko: f.deps.coingecko,
-      pools: f.deps.pools,
-      poolPrices: (_) async => throw Exception('bridge down'),
-      sigRsvPriceNano: f.deps.sigRsvPriceNano,
-      oracleReading: f.deps.oracleReading,
-      onRate: f.deps.onRate,
-    );
-    final p = TokenPricer(deps);
-    await p.refresh();
-    expect(p.result.ergUsd, 0.5);
-    expect(p.priceOf(lpToken), isNull);
-    expect(p.lastError, contains('pools'));
-  });
-
   group('ERG price history', () {
-    test('Spectrum source reads the pool the price book used, with a 24h change', () async {
+    test('reads the SigmaUSD pool past boxes, with a 24h change', () async {
       final f = _Fakes();
-      final p = TokenPricer(f.deps);
-      await p.setSource(PriceSource.spectrum);
-      final h = await p.ergPriceHistory(PriceWindow.day);
+      final h = await TokenPricer(f.deps).ergPriceHistory(PriceWindow.day);
       expect(h.available, isTrue);
-      expect(f.lastBoxToken, 'sig-pool', reason: 'the deepest SigUSD pool, not a hardcoded one');
-      expect(h.sourceLabel, 'Spectrum ERG/SigUSD');
+      expect(f.lastBoxToken, OracleFeed.sigmaUsd.nft);
+      expect(h.sourceLabel, 'SigmaUSD oracle');
       expect(h.approximateTimes, isTrue);
       // In force a day ago (720 blocks before the tip): 0.25; newest 0.32.
-      expect(h.change24hPct, closeTo(28, 1e-6));
+      expect(h.change24hPct, closeTo(28, 0.01));
       expect(h.points.first.at, f.now.subtract(const Duration(hours: 24)));
-      expect(h.points.last.price, closeTo(0.32, 1e-9));
+      expect(h.points.last.price, closeTo(0.32, 0.0001));
     });
 
-    test('Oracle source reads the SigmaUSD pool past boxes', () async {
+    test('reads the recorded SigmaUSD pool history', () async {
       final raw = jsonDecode(File('test/fixtures/sigmausd_oracle_pool_history.json').readAsStringSync()) as Map;
       final f = _Fakes()
         ..tip = 1888757
@@ -416,7 +252,6 @@ void main() {
     test('is cached for the refresh period, with no polling', () async {
       final f = _Fakes();
       final p = TokenPricer(f.deps);
-      await p.setSource(PriceSource.spectrum);
       await p.ergPriceHistory(PriceWindow.day);
       final calls = f.boxPageCalls;
       await p.ergPriceHistory(PriceWindow.day);
@@ -426,21 +261,9 @@ void main() {
       expect(f.boxPageCalls, greaterThan(calls));
     });
 
-    test('CoinGecko source uses its market chart in the display currency', () async {
-      final f = _Fakes();
-      final p = TokenPricer(f.deps);
-      await p.setSource(PriceSource.coingecko);
-      final h = await p.ergPriceHistory(PriceWindow.day);
-      expect(f.chartCalls, 1);
-      expect(f.boxPageCalls, 0, reason: 'the node is not asked under this source');
-      expect(h.change24hPct, closeTo(10, 1e-9));
-      expect(h.approximateTimes, isFalse);
-    });
-
     test('a node without the extra index degrades to a reason, briefly cached', () async {
       final f = _Fakes()..boxHistory = null;
       final p = TokenPricer(f.deps);
-      await p.setSource(PriceSource.spectrum);
       final h = await p.ergPriceHistory(PriceWindow.week);
       expect(h.available, isFalse);
       expect(h.points, isEmpty);
@@ -449,7 +272,7 @@ void main() {
       await p.ergPriceHistory(PriceWindow.week);
       expect(f.boxPageCalls, calls, reason: 'not hammered');
       f.now = f.now.add(const Duration(seconds: 31));
-      f.boxHistory = [_sigUsdPoolBox(990, 0.3)];
+      f.boxHistory = [_oracleBox(990, 0.3)];
       expect((await p.ergPriceHistory(PriceWindow.week)).available, isTrue, reason: 'asked again soon');
     });
 
@@ -458,12 +281,7 @@ void main() {
       final deps = PricerDeps(
         nodeUrl: () => null,
         tipHeight: f.deps.tipHeight,
-        fiatCode: f.deps.fiatCode,
         oracle: f.deps.oracle,
-        coingecko: f.deps.coingecko,
-        pools: f.deps.pools,
-        poolPrices: f.deps.poolPrices,
-        sigRsvPriceNano: f.deps.sigRsvPriceNano,
         oracleReading: f.deps.oracleReading,
         onRate: f.deps.onRate,
         clock: () => f.now,
@@ -476,55 +294,6 @@ void main() {
   });
 
   group('a failed refresh', () {
-    test('with no rate ever known for the currency, no value is shown', () async {
-      // The fake CoinGecko answers in EUR only.
-      final f = _Fakes()..fiat = 'aud';
-      final p = TokenPricer(f.deps);
-      await p.refresh();
-      expect(p.displayRateKnown, isFalse);
-      expect(f.rate, isNull);
-      expect(p.retrying, isTrue, reason: 'asked for again soon');
-    });
-
-    test('a refused CoinGecko call keeps the display rate it last had', () async {
-      final e = _Fakes()..fiat = 'eur';
-      final q = TokenPricer(e.deps);
-      await q.refresh();
-      expect(q.displayRateKnown, isTrue);
-      expect(e.rate, closeTo(0.45, 1e-9));
-      // An hour and a bit later CoinGecko refuses: the rate it gave stays.
-      e.now = e.now.add(const Duration(hours: 1, minutes: 5));
-      e.geckoFails = true;
-      await q.refresh(force: true);
-      expect(e.geckoCalls, 2, reason: 'asked again once the held rate was an hour old');
-      expect(q.displayRateKnown, isTrue);
-      expect(q.fiatPerUsd, closeTo(0.9, 1e-9));
-      expect(e.rate, closeTo(0.45, 1e-9), reason: 'the row keeps its value');
-    });
-
-    test('the cross rate is asked for once an hour, not on every refresh', () async {
-      final f = _Fakes()..fiat = 'eur';
-      final p = TokenPricer(f.deps);
-      await p.refresh();
-      f.now = f.now.add(const Duration(minutes: 6));
-      await p.refresh(force: true);
-      expect(f.geckoCalls, 1, reason: 'the Oracle source needs CoinGecko only for the cross rate');
-    });
-
-    test('the cross rate survives a restart', () async {
-      final f = _Fakes()..fiat = 'eur';
-      final p = TokenPricer(f.deps);
-      await p.refresh();
-      final g = _Fakes()
-        ..fiat = 'eur'
-        ..geckoFails = true;
-      final q = TokenPricer(g.deps);
-      await q.load();
-      await q.refresh();
-      expect(q.displayRateKnown, isTrue);
-      expect(g.rate, closeTo(0.45, 1e-9));
-    });
-
     test('prices from a moment ago are not called old; past the threshold they are', () async {
       final f = _Fakes();
       final p = TokenPricer(f.deps);
@@ -576,13 +345,13 @@ void main() {
       final f = _Fakes();
       final p = TokenPricer(f.deps);
       await p.refresh();
-      // The next refresh: the pools are held back, every other branch
-      // answers first. None of them alone has the whole picture.
-      f.poolGate = Completer<void>();
+      // The next refresh: the oracle pools are held back, the AVL oracle
+      // answers first. Neither alone has the whole picture.
+      f.readingsGate = Completer<void>();
       final run = p.refresh(force: true);
       await Future<void>.delayed(Duration.zero);
       expect(p.pricesAreOld, isFalse);
-      f.poolGate!.complete();
+      f.readingsGate!.complete();
       await run;
       expect(p.pricesAreOld, isFalse);
     });

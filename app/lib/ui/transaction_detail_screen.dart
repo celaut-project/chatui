@@ -66,7 +66,6 @@ class TransactionDetailScreen extends StatelessWidget {
     final left = [
       for (final t in a.sent) leg(t),
       if (ergOut > BigInt.zero) _ergLine(context, ergOut),
-      for (final t in a.counterLegs) leg(t),
     ];
     final arrived = [
       for (final t in a.received) leg(t),
@@ -76,14 +75,7 @@ class TransactionDetailScreen extends StatelessWidget {
       if (a.minerFee > BigInt.zero) _feeLine(context, 'Miner fee', a.minerFee),
       if (a.appFee > BigInt.zero) _feeLine(context, 'Argus fee', a.appFee),
     ];
-    final protocol = a.protocol == null || a.protocol == 'argus_fee'
-        ? null
-        : protocolName(a.protocol!, role: a.role?.split(':').first);
     return [
-      if (protocol != null) ..._section(context, 'With', [
-        Text(protocol, style: Theme.of(context).textTheme.bodyMedium),
-        const SizedBox(height: 4),
-      ]),
       if (left.isNotEmpty) ..._section(context, 'Left your wallet', left),
       if (a.burned.isNotEmpty)
         ..._section(context, 'Burned', [
@@ -104,8 +96,7 @@ class TransactionDetailScreen extends StatelessWidget {
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ]),
-      if (a.category == ActivityCategory.sent || a.category == ActivityCategory.stealth)
-        if (a.recipients.isNotEmpty)
+      if (a.category == ActivityCategory.sent && a.recipients.isNotEmpty)
           ..._section(context, 'To', [for (final r in a.recipients) _address(context, r)]),
       if (a.category == ActivityCategory.received && a.senders.isNotEmpty)
         ..._section(context, 'From', [for (final s in a.senders.take(5)) _address(context, s)]),
@@ -151,8 +142,6 @@ class TransactionDetailScreen extends StatelessWidget {
     final outgoing = activity != null
         ? view.kind == ActivityKind.sent || (activity.erg.isNegative && view.kind != ActivityKind.received)
         : nano != null && nano < 0;
-    // A mix round moves nothing in or out; it is a step, not a receipt.
-    final neutral = tx['mix'] == true && (nano ?? 0) == 0;
     final fee = (tx['fee_nano_erg'] as num?)?.toInt();
     final counterparty = tx['counterparty']?.toString();
     final sent = (tx['tokens_sent'] as List?)
@@ -167,28 +156,22 @@ class TransactionDetailScreen extends StatelessWidget {
     // cover a subset of the unique ids.
     final missingTokenIds =
         tokens.toSet().difference(received.map((r) => r.id).toSet());
-    final tint = neutral || (activity != null && view.kind != ActivityKind.sent && view.kind != ActivityKind.received)
+    final tint = activity != null && view.kind != ActivityKind.sent && view.kind != ActivityKind.received
         ? accentOf(context)
         : outgoing
             ? rust
             : moss;
-    final icon = neutral
-        ? Icons.blender_outlined
-        : switch (view.kind) {
-            ActivityKind.received => Icons.arrow_downward,
-            ActivityKind.sent => Icons.arrow_upward,
-            ActivityKind.swap => Icons.swap_horiz,
-            ActivityKind.selfTransfer => Icons.sync_alt,
-            ActivityKind.contract => Icons.code,
-            ActivityKind.mix => Icons.blender_outlined,
-          };
+    final icon = switch (view.kind) {
+      ActivityKind.received => Icons.arrow_downward,
+      ActivityKind.sent => Icons.arrow_upward,
+      ActivityKind.selfTransfer => Icons.sync_alt,
+      ActivityKind.contract => Icons.code,
+    };
     String figure(ActivityFigure f) =>
         figureText(f, name: (id) => tokenName(id), decimals: (id) => tokenDecimals(id));
-    final headline = neutral
-        ? (tx['mix_label']?.toString() ?? 'Mix round')
-        : activity != null
-            ? view.title
-            : '${outgoing ? 'Sent' : 'Received'} ${formatErg(nano?.abs())}';
+    final headline = activity != null
+        ? view.title
+        : '${outgoing ? 'Sent' : 'Received'} ${formatErg(nano?.abs())}';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Transaction')),
@@ -205,7 +188,7 @@ class TransactionDetailScreen extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  neutral || activity != null
+                  activity != null
                       ? icon
                       : outgoing
                           ? Icons.arrow_upward
@@ -230,7 +213,7 @@ class TransactionDetailScreen extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(who, style: Theme.of(context).textTheme.bodySmall),
               ),
-          ] else if (!neutral && networkController.fiatText(nano?.abs()) != null) ...[
+          ] else if (networkController.fiatText(nano?.abs()) != null) ...[
             const SizedBox(height: 4),
             Text(
               networkController.fiatText(nano?.abs())!,
@@ -251,17 +234,6 @@ class TransactionDetailScreen extends StatelessWidget {
             Text(formatTxTime(ts), style: Theme.of(context).textTheme.bodySmall),
           ],
           const SizedBox(height: 24),
-          if (tx['mix'] == true) ...[
-            const SectionLabel('Mix'),
-            const SizedBox(height: 8),
-            Text(
-              '${tx['mix_label'] ?? 'Mix transaction'}. Rounds move between mixing '
-              'contracts, not your addresses, so this is known from the mix record, '
-              'not from the address history.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 16),
-          ],
           if (activity != null)
             ..._breakdown(context, activity)
           else ...[

@@ -229,7 +229,7 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
             ),
             const SizedBox(height: 8),
             const SettingsNote(
-              'The data source for stealth scans, mixing, lending, bridging and token metadata when nodes lack it. ErgExplorer and Kadia use their own APIs, so they cannot be chosen here.',
+              'The data source for token metadata when nodes lack it. ErgExplorer and Kadia use their own APIs, so they cannot be chosen here.',
             ),
           ],
         );

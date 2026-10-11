@@ -42,9 +42,6 @@ Future<String> boxRentReport({required String boxesJson, String? nodeUrl}) =>
 /// follows their token layout (usually one box). `suggested_nano_erg` is the
 /// recipient amount that lets the first box pay one charge and keep the
 /// minimum box value, or null when the protocol cannot charge it.
-///
-/// A published stealth address is measured through a fresh one-time
-/// script, which every payment to it uses in the same length.
 String outputRentEstimate({
   required String address,
   required PlatformInt64 valueNano,

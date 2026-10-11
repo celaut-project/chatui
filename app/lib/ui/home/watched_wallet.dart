@@ -28,8 +28,8 @@ import 'watched_actions.dart';
 
 /// What a watched wallet's page shows, read from public data only: the
 /// node's balance and history for a watched address, the last scan for a
-/// watched account. No handle, no derivation beyond the account's public
-/// key, no stealth scan.
+/// watched account. No handle, and no derivation beyond the account's
+/// public key.
 class WatchedWalletSource extends ChangeNotifier {
   WatchedWalletSource.address(String this.address, {WatchedHoldings? cached})
     : account = null {
@@ -245,7 +245,7 @@ List<TokenBalance> orderTokensForWatched(List<TokenBalance> tokens) {
 
 /// The standard wallet page for a wallet with no key on this device. Same
 /// page as a seed wallet's; Send becomes "Send with offline signer", and
-/// whatever needs a key here (swap, mix, tools, Discover) is left out.
+/// whatever needs a key here (tools, Discover) is left out.
 class WatchedWalletPage extends StatefulWidget {
   const WatchedWalletPage({
     super.key,

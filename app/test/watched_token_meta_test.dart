@@ -1,13 +1,8 @@
 import 'dart:convert';
 
 import 'package:argus_wallet/bridge/frb_generated.dart';
-import 'package:argus_wallet/services/amm_service.dart';
 import 'package:argus_wallet/services/network_controller.dart';
-import 'package:argus_wallet/services/oracle_feeds.dart';
-import 'package:argus_wallet/services/token_catalog.dart';
 import 'package:argus_wallet/services/token_metadata.dart';
-import 'package:argus_wallet/services/token_pricer.dart';
-import 'package:argus_wallet/services/token_pricing.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
 import 'package:argus_wallet/services/watch_account_service.dart';
 import 'package:argus_wallet/services/watch_only_service.dart';
@@ -149,7 +144,6 @@ void main() {
     SharedPreferences.setMockInitialValues({
       'argus_watch_only_addresses': jsonEncode([_watched]),
     });
-    publicTokenCatalog.debugReset();
     networkController.activeUrl = _preferred;
     api
       ..balances.clear()
@@ -212,39 +206,6 @@ void main() {
     await walletService.getBalance(_watched, nodeUrl: _preferred);
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(api.asked, hasLength(1));
-  });
-
-  test('a watched address\'s tokens are priced at the scale they were resolved to', () async {
-    api.balances[_watched] = {
-      'balance_nano_erg': 0,
-      'tokens': [
-        {'id': _alpha, 'amount': 2500000},
-      ],
-    };
-    final pricer = TokenPricer(PricerDeps(
-      nodeUrl: () => _preferred,
-      tipHeight: () => 1000,
-      fiatCode: () => 'usd',
-      oracle: (_) async => null,
-      coingecko: (_, _) async => const {},
-      pools: () async => const AmmPoolSet(truncated: false, pools: [], tokens: {}),
-      poolPrices: (_) async => PoolPriceBook(tokens: {
-        _alpha: const PoolQuote(nanoErgPerUnit: 4, depthNano: 1000000000000, trusted: true, poolId: 'p'),
-      }),
-      sigRsvPriceNano: () async => null,
-      oracleReading: (_, feed) async =>
-          feed == OracleFeed.sigmaUsd ? OracleReading(rate: 2000000000, height: 999) : null,
-      onRate: (_, _) {},
-    ));
-    addTearDown(pricer.dispose);
-    await pricer.refresh();
-    expect(pricer.priceOf(_alpha), isNull, reason: 'its scale is not known yet');
-
-    await walletService.getBalance(_watched, nodeUrl: _preferred);
-    await _until(() => pricer.priceOf(_alpha) != null);
-    // 4 nanoERG a base unit at 6 decimals and $0.50: $0.002 a token.
-    expect(pricer.priceOf(_alpha)!.usd, closeTo(0.002, 1e-12));
-    expect(pricer.usdOf(_alpha, 2500000, 6), closeTo(0.005, 1e-12));
   });
 
   test('a watched account names its tokens after a scan, in its own table', () async {

@@ -1,13 +1,11 @@
 import '../../services/activity_classifier.dart';
 import '../../services/address_holdings.dart';
 import '../../services/pending_balance.dart';
-import '../../services/pockets.dart';
 import 'overview_model.dart';
 
 export '../../services/activity_classifier.dart' show ActivityKind;
 export '../../services/address_holdings.dart' show FundsElsewhere;
 export '../../services/pending_balance.dart' show PendingBalance;
-export '../../services/pockets.dart' show Pocket, PocketBalance;
 export 'overview_model.dart' show WalletKind, WalletRef;
 
 /// View models for the wallets overview and the wallet page.
@@ -119,9 +117,6 @@ class WalletSummary {
     this.unavailable,
     this.fiatValue,
     this.tokenCount,
-    this.publicTokensOnly = false,
-    this.pockets = const [],
-    this.pocketsAsOf,
     this.pending,
     this.otherAddresses,
     this.unlocked = false,
@@ -133,8 +128,8 @@ class WalletSummary {
   final WalletRef ref;
   final String name;
 
-  /// Display balance (public, stealth and mixing pockets, every known
-  /// address); null while unknown, which must never read as zero.
+  /// Display balance (every known address); null while unknown, which
+  /// must never read as zero.
   final int? nanoErg;
 
   /// No balance yet and one on its way.
@@ -150,18 +145,6 @@ class WalletSummary {
   /// Distinct token IDs held, NFTs included; null when the source cannot
   /// say, which is shown as no count rather than "0 tokens".
   final int? tokenCount;
-
-  /// The count covers public addresses only: a locked wallet cannot see
-  /// its stealth tokens.
-  final bool publicTokensOnly;
-
-  /// The parts of [nanoErg] that are not on public addresses: stealth,
-  /// mixed, in a mix. Empty when it is all public.
-  final List<PocketBalance> pockets;
-
-  /// Age of the pockets' figures when they are older than the balance: a
-  /// locked wallet cannot rescan for stealth funds.
-  final String? pocketsAsOf;
 
   /// What the mempool does to [nanoErg], already split against it
   /// ([PendingBalance.under]); null when nothing valued it.
@@ -238,7 +221,7 @@ class OverviewData {
 }
 
 /// What an asset row is, for its badge and its mark.
-enum AssetKind { erg, token, lpShare, collectible }
+enum AssetKind { erg, token, collectible }
 
 /// One holding on the wallet page.
 class AssetRowData {
@@ -261,7 +244,7 @@ class AssetRowData {
   final String id;
   final String ticker;
 
-  /// Full name or a short description ("Spectrum pool share").
+  /// Full name or a short description.
   final String? name;
 
   /// Base units (nanoERG for ERG).
@@ -337,8 +320,7 @@ class ActivityRowData {
   /// summarises the rest.
   final List<AmountLeg> legs;
 
-  /// Already phrased: "to 9fRx…3kQe", "contract 5vSU…SCqM", "stealth
-  /// payment".
+  /// Already phrased: "to 9fRx…3kQe", "contract 5vSU…SCqM".
   final String? counterparty;
   final bool pending;
 
@@ -346,10 +328,10 @@ class ActivityRowData {
 }
 
 /// The wallet page's primary actions.
-enum WalletAction { send, sendOffline, receive, swap, more }
+enum WalletAction { send, sendOffline, receive, more }
 
 /// What the More sheet offers.
-enum WalletTool { mix, tokens, utxos, addresses, lock }
+enum WalletTool { tokens, utxos, addresses, lock }
 
 /// A More sheet row with its live status, if any.
 class WalletToolEntry {
@@ -362,16 +344,6 @@ class WalletToolEntry {
 
   /// Draw [status] as something to deal with.
   final bool warn;
-}
-
-/// The one line about mixes, while any is running or has just finished.
-class MixLine {
-  const MixLine({required this.text, this.finished = false});
-
-  final String text;
-
-  /// A finished mix is announced until dismissed.
-  final bool finished;
 }
 
 /// What a watched wallet's page adds: how it is read, what it cannot do,
@@ -423,7 +395,6 @@ class WalletPageData {
     this.hidden = false,
     this.pendingCount = 0,
     this.pinIssue,
-    this.mix,
     this.watched,
     List<WalletAction>? actions,
     List<WalletToolEntry>? tools,
@@ -470,7 +441,6 @@ class WalletPageData {
 
   /// The pinned address cannot be derived; settings can fix it.
   final String? pinIssue;
-  final MixLine? mix;
 
   /// Set for a watched address or account.
   final WatchedDetails? watched;
@@ -484,7 +454,7 @@ class WalletPageData {
       _actions ??
       (wallet.watchOnly
           ? const [WalletAction.sendOffline, WalletAction.receive]
-          : const [WalletAction.send, WalletAction.receive, WalletAction.swap, WalletAction.more]);
+          : const [WalletAction.send, WalletAction.receive, WalletAction.more]);
 
   /// Actions drawn but not offered right now.
   Set<WalletAction> get disabled => {
@@ -499,7 +469,6 @@ class WalletPageData {
       (wallet.watchOnly
           ? const [WalletToolEntry(WalletTool.addresses)]
           : [
-              const WalletToolEntry(WalletTool.mix),
               const WalletToolEntry(WalletTool.tokens),
               WalletToolEntry(WalletTool.utxos, status: fragmented ? 'Fragmented' : null, warn: fragmented),
               const WalletToolEntry(WalletTool.addresses),

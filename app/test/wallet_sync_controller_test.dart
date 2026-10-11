@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:argus_wallet/services/stealth_service.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
 import 'package:argus_wallet/services/wallet_sync_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -191,22 +190,6 @@ class FakeGateway implements WalletSyncGateway, WalletSyncBatchGateway {
     probeCalls++;
   }
 
-  bool stealthEnabled = true;
-
-  /// Null models an unreachable explorer.
-  StealthScanResult? stealthResult;
-  bool stealthThrows = false;
-  int stealthCalls = 0;
-
-  @override
-  bool get stealthScanEnabled => stealthEnabled;
-
-  @override
-  Future<StealthScanResult?> scanStealth() async {
-    stealthCalls++;
-    if (stealthThrows) throw Exception('explorer down');
-    return stealthResult;
-  }
 }
 
 void main() {
@@ -220,7 +203,6 @@ void main() {
         reason: 'input order does not matter');
   });
 
-  _stealthSnapshotTests();
   _quietRefreshTests();
   _broadcastTests();
   late FakeGateway gw;
@@ -520,81 +502,12 @@ void main() {
     expect(a.historyAddresses, ['addr0']);
   });
 
-  group('stealth scan', () {
+  group('name resolution', () {
     setUp(() async {
       gw.balances = {
         'addr0': {'balance_nano_erg': 100, 'tokens': []},
       };
       await c.hydrateAfterUnlock();
-    });
-
-    test('folds stealth ERG and tokens into the wallet view', () async {
-      gw.stealthResult = StealthScanResult(
-        scanned: 20,
-        ownedCount: 2,
-        totalNanoErg: 750,
-        tokens: [StealthToken(id: 'aa', amount: BigInt.from(7))],
-        boxIds: const ['b1', 'b2'],
-      );
-
-      await c.refresh(discover: false);
-
-      expect(gw.stealthCalls, 1);
-      expect(c.stealthNano, 750);
-      expect(c.stealthBalanceUnknown, isFalse);
-      // Spendable stays what ordinary coin selection can reach.
-      expect(c.balanceNano, 100);
-      expect(c.routeArgs.spendableNano, 100);
-      expect(c.totalNanoWithStealth, 850);
-      final aa = c.displayTokens.singleWhere((t) => t.id == 'aa');
-      expect(aa.amount, 7);
-      expect(aa.stealthAmount, 7);
-      expect(c.phase, SyncPhase.synced);
-    });
-
-    test('stealth-only ids are never handed to name resolution', () async {
-      const ordinary = 'a1';
-      const stealthOnly = 's1';
-      const both = 'b1';
-      // A stealth-only holding is one the ordinary balance does not carry,
-      // so it is absent here. Deleting `removeWhere(stealthOnly.contains)`
-      // will NOT fail this test, and that is the point being asserted: the
-      // containment is structural — candidates are the ids the node itself
-      // returned — rather than a filter that could be removed by accident.
-      gw.balances = {
-        'addr0': {
-          'balance_nano_erg': 100,
-          'tokens': [
-            {'id': ordinary, 'amount': 5},
-            {'id': both, 'amount': 5},
-          ],
-        },
-      };
-      gw.stealthResult = StealthScanResult(
-        scanned: 20,
-        ownedCount: 2,
-        totalNanoErg: 750,
-        tokens: [
-          StealthToken(id: stealthOnly, amount: BigInt.from(3)),
-          StealthToken(id: both, amount: BigInt.from(2)),
-        ],
-        boxIds: const ['bx1', 'bx2'],
-      );
-      gw.resolved.clear();
-
-      await c.refresh(discover: false);
-      await c.pendingNameResolution;
-
-      expect(gw.resolved, contains(ordinary),
-          reason: 'positive control: ordinary holdings do resolve');
-      expect(gw.resolved, contains(both),
-          reason: 'held in ordinary boxes too, so the node already has it');
-      expect(gw.resolved, isNot(contains(stealthOnly)),
-          reason: 'entirely stealth-held, so the node that served these '
-              'addresses has never seen this id');
-      expect(c.stealthTokens.map((t) => t.id), contains(stealthOnly),
-          reason: 'positive control: the holding exists and is displayed, '
-              'so its absence above is containment and not a missing token');
     });
 
     test('a failed balance read resolves nothing from retained state',
@@ -743,110 +656,6 @@ void main() {
       gw.servedByUrl = 'https://served.example';
     });
 
-    test('a stealth-only collectible keeps its classification', () async {
-      // Rebuilding stealth holdings field-by-field dropped the evidence that
-      // makes isCollectible true, and stealth-only ids are never resolved,
-      // so nothing downstream could put it back.
-      gw.hydrated = {
-        'nft1': TokenBalance(
-          id: 'nft1',
-          amount: 0,
-          name: 'Art',
-          decimals: 0,
-          emissionAmount: 1,
-          supplyEvidence: SupplyEvidence.originalEmission,
-          decimalsEvidence: DecimalsEvidence.valid,
-          declaredAssetKind: DeclaredAssetKind.picture,
-          metadataState: MetadataState.complete,
-        ),
-      };
-      gw.stealthResult = StealthScanResult(
-        scanned: 1,
-        ownedCount: 1,
-        totalNanoErg: 0,
-        tokens: [StealthToken(id: 'nft1', amount: BigInt.one)],
-        boxIds: const ['bx'],
-      );
-
-      await c.refresh(discover: false);
-
-      final held = c.stealthTokens.singleWhere((t) => t.id == 'nft1');
-      expect(held.isCollectible, isTrue,
-          reason: 'a resolved collectible held only in stealth must not drop '
-              'out of the Collectibles filter');
-      expect(held.stealthAmount, 1);
-      gw.hydrated = null;
-    });
-
-    test('an unreachable explorer leaves the balance unknown, not the sync',
-        () async {
-      gw.stealthResult = null;
-
-      await c.refresh(discover: false);
-
-      expect(c.stealthBalanceUnknown, isTrue);
-      expect(c.stealthNano, 0);
-      expect(c.balanceNano, 100);
-      // A stealth failure must never degrade the sync phase.
-      expect(c.phase, SyncPhase.synced);
-    });
-
-    test('a throwing scan is caught and does not fail the refresh', () async {
-      gw.stealthThrows = true;
-
-      await c.refresh(discover: false);
-
-      expect(c.stealthBalanceUnknown, isTrue);
-      expect(c.phase, SyncPhase.synced);
-    });
-
-    test('a later failure keeps the last known stealth balance', () async {
-      gw.stealthResult = const StealthScanResult(
-        scanned: 20,
-        ownedCount: 1,
-        totalNanoErg: 500,
-        tokens: [],
-        boxIds: ['b1'],
-      );
-      await c.refresh(discover: false);
-      expect(c.stealthNano, 500);
-
-      gw.stealthResult = null;
-      await c.refresh(discover: false);
-
-      expect(c.stealthNano, 500, reason: 'stale is better than a wrong zero');
-      expect(c.stealthBalanceUnknown, isTrue);
-    });
-
-    test('with the scan off the explorer is never asked and zero is honest',
-        () async {
-      gw.stealthEnabled = false;
-
-      await c.refresh(discover: false);
-
-      expect(gw.stealthCalls, 0);
-      expect(c.stealthNano, 0);
-      expect(c.stealthBalanceUnknown, isFalse);
-      expect(c.displayTokens, isEmpty);
-    });
-
-    test('reset clears the stealth view', () async {
-      gw.stealthResult = StealthScanResult(
-        scanned: 1,
-        ownedCount: 1,
-        totalNanoErg: 42,
-        tokens: [StealthToken(id: 'aa', amount: BigInt.one)],
-        boxIds: const ['b1'],
-      );
-      await c.refresh(discover: false);
-      expect(c.stealthNano, 42);
-
-      c.reset();
-
-      expect(c.stealthNano, 0);
-      expect(c.stealthTokens, isEmpty);
-      expect(c.stealthBalanceUnknown, isTrue);
-    });
   });
 }
 
@@ -906,59 +715,6 @@ void _quietRefreshTests() {
     gw.balances.clear();
     await c.refresh(discover: false, quiet: true);
     expect(c.phase, SyncPhase.failed);
-  });
-}
-
-// The stealth figure a locked wallet inherits must not pretend to be fresh
-void _stealthSnapshotTests() {
-  FakeGateway gw() => FakeGateway()
-    ..discovered = [
-      {'index': 0, 'address': 'addr0', 'balance_nano_erg': 100, 'tokens': []},
-    ]
-    ..nextUnused = 1
-    ..balances = {
-      'addr0': {'balance_nano_erg': 100, 'tokens': []},
-      'addr1': {'balance_nano_erg': 0, 'tokens': []},
-    };
-
-  test('a successful scan is stamped with the time it happened', () async {
-    final g = gw()..stealthResult = const StealthScanResult(
-        scanned: 1, ownedCount: 1, totalNanoErg: 5000000000, tokens: [], boxIds: ['b']);
-    final c = WalletSyncController(g);
-    await c.refresh(discover: true);
-    expect(c.stealthNano, 5000000000);
-    expect(c.stealthScannedAt, isNotNull);
-    expect(g.savedCache?['stealth_nano_erg'], 5000000000);
-    expect(g.savedCache?['stealth_scanned_at'], isNotNull);
-  });
-
-  test('a failed scan keeps the old figure and its old timestamp', () async {
-    final g = gw()..stealthResult = const StealthScanResult(
-        scanned: 1, ownedCount: 1, totalNanoErg: 5000000000, tokens: [], boxIds: ['b']);
-    final c = WalletSyncController(g);
-    await c.refresh(discover: true);
-    final firstStamp = g.savedCache?['stealth_scanned_at'];
-
-    // Now the explorer stops answering.
-    g.stealthResult = null;
-    await c.refresh(discover: false);
-    expect(c.stealthBalanceUnknown, isTrue);
-    expect(g.savedCache?['stealth_nano_erg'], 5000000000,
-        reason: 'the last figure is still the best known');
-    expect(g.savedCache?['stealth_scanned_at'], firstStamp,
-        reason: 'but it must not claim to have been checked just now');
-  });
-
-  test('turning the scan off clears the figure and its timestamp', () async {
-    final g = gw()
-      ..stealthResult = const StealthScanResult(
-          scanned: 1, ownedCount: 1, totalNanoErg: 5000000000, tokens: [], boxIds: ['b']);
-    final c = WalletSyncController(g);
-    await c.refresh(discover: true);
-    g.stealthEnabled = false;
-    await c.refresh(discover: false);
-    expect(c.stealthNano, 0);
-    expect(c.stealthScannedAt, isNull);
   });
 }
 
@@ -1046,17 +802,6 @@ void _broadcastTests() {
       gw.historyGate!.complete();
       await op;
       expect(c.phase, SyncPhase.synced);
-    });
-
-    test('quiet polls ask the explorer for stealth boxes every third time', () async {
-      final before = gw.stealthCalls;
-      await c.refresh(discover: false, quiet: true);
-      await c.refresh(discover: false, quiet: true);
-      expect(gw.stealthCalls, before, reason: 'two quiet polls reuse the last scan');
-      await c.refresh(discover: false, quiet: true);
-      expect(gw.stealthCalls, before + 1);
-      await c.refresh(discover: false);
-      expect(gw.stealthCalls, before + 2, reason: 'a pull to refresh always scans');
     });
   });
 }

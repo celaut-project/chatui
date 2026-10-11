@@ -1,8 +1,6 @@
 import 'dart:convert';
 
 import 'package:argus_wallet/bridge/frb_generated.dart';
-import 'package:argus_wallet/services/token_router.dart';
-import 'package:argus_wallet/ui/widgets/asset_picker_sheet.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
     show PlatformInt64;
 import 'package:argus_wallet/services/wallet_service.dart';
@@ -41,7 +39,6 @@ class SendApi extends RustLibApi {
     String? nodeUrl,
     PlatformInt64? feeNano,
     List<String>? inputBoxIds,
-    String? stealthBoxesJson,
     String? babelTokenId,
   }) async {
     prepared = {
@@ -67,7 +64,6 @@ class SendApi extends RustLibApi {
     String? nodeUrl,
     PlatformInt64? feeNano,
     List<String>? inputBoxIds,
-    String? stealthBoxesJson,
     String? babelTokenId,
   }) async {
     prepared = {
@@ -622,49 +618,6 @@ void main() {
       await tester.pumpAndSettle();
       expect(amount(tester, 't0'), '7');
       expect(tester.takeException(), isNull);
-    },
-  );
-
-  testWidgets(
-    'buyable holdings are ordinary sends in the held picker; buying is separate',
-    (tester) async {
-      final buy = (await buyableTokens()).first;
-      await mount(
-        tester,
-        tokens: [
-          TokenBalance(
-            id: buy.id,
-            name: buy.name,
-            amount: 100,
-            decimals: buy.decimals,
-          ),
-        ],
-      );
-      await open(tester);
-      await toggle(tester, buy.id);
-      await done(tester);
-      expect(find.byKey(ValueKey('amount-${buy.id}')), findsOneWidget);
-      expect(find.text(buyAmountLabel(buy)), findsNothing);
-      await tester.tap(find.byTooltip('Remove ${buy.name}'));
-      await tester.pumpAndSettle();
-      await tester.tap(
-        find
-            .ancestor(
-              of: find.text('ERG or buy and send'),
-              matching: find.byType(InkWell),
-            )
-            .first,
-      );
-      await tester.pumpAndSettle();
-      expect(
-        tester.widget<AssetPickerSheet>(find.byType(AssetPickerSheet)).held,
-        isEmpty,
-      );
-      await tester.tap(find.text(buy.name).last);
-      await tester.pumpAndSettle();
-      expect(find.text(buyAmountLabel(buy)), findsOneWidget);
-      expect(find.widgetWithIcon(FilledButton, Icons.checklist), findsNothing);
-      expect(find.text('Add another recipient'), findsNothing);
     },
   );
 

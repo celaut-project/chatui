@@ -1,4 +1,3 @@
-import 'package:argus_wallet/services/stealth_service.dart';
 import 'package:argus_wallet/services/wallet_database_service.dart';
 import 'package:argus_wallet/ui/home/wallet_ledger.dart';
 import 'dart:async';
@@ -17,10 +16,6 @@ class GatedGateway extends FakeGateway {
   String walletId = 'w1';
   Completer<Map<String, dynamic>>? balanceGate;
   Completer<String>? discoveryGate;
-  Completer<StealthScanResult?>? stealthGate;
-  @override
-  Future<StealthScanResult?> scanStealth() =>
-      stealthGate?.future ?? super.scanStealth();
   Completer<Map<String, dynamic>?>? cacheGate;
   @override
   String get activeWalletId => walletId;
@@ -214,36 +209,6 @@ void main() {
     },
   );
 
-  test(
-    'BATCH A: late stealth scan cannot contaminate a reset of the same wallet',
-    () async {
-      final gw = GatedGateway()
-        ..balances = {
-          'addr': {'balance_nano_erg': 1, 'tokens': []},
-        };
-      final gate = Completer<StealthScanResult?>();
-      gw.stealthGate = gate;
-      final c = WalletSyncController(gw)..receiveAddress = 'addr';
-      final old = c.refresh(discover: false);
-      await Future<void>.delayed(Duration.zero);
-      c.reset();
-      gate.complete(
-        const StealthScanResult(
-          scanned: 1,
-          ownedCount: 1,
-          totalNanoErg: 999,
-          tokens: [],
-          boxIds: ['old'],
-        ),
-      );
-      await old;
-      expect(c.stealthNano, 0);
-      expect(c.stealthScannedAt, isNull);
-      expect(c.phase, SyncPhase.idle);
-      expect(gw.savedCache, isNull);
-    },
-  );
-
   test('BATCH A: cached NFT emission survives hydration', () async {
     final gw = GatedGateway()
       ..cached = {
@@ -342,7 +307,6 @@ void main() {
             wallet: null,
             actions: WalletLedgerActions(
               go: (_) {},
-              swap: (_) {},
               showActivity: () {},
               showSettings: () {},
               viewAssets: () {},

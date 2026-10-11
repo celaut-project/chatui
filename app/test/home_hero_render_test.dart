@@ -53,7 +53,6 @@ WalletSummary _mainWallet({num erg = 203.16}) => WalletSummary(
   nanoErg: _nano(erg),
   fiatValue: (erg * _rate * 100).round() / 100,
   tokenCount: 12,
-  pockets: [PocketBalance(pocket: Pocket.stealth, nanoErg: _nano(0.001))],
   otherAddresses: FundsElsewhere(nanoErg: _nano(2.7), tokenCount: 6, addressCount: 1),
   unlocked: true,
   address: _pinned,
@@ -66,7 +65,6 @@ final _savings = WalletSummary(
   nanoErg: _nano(51.3),
   fiatValue: 51.3 * _rate,
   tokenCount: 2,
-  publicTokensOnly: true,
   asOf: '3h ago',
 );
 
@@ -129,11 +127,10 @@ final _assets = [
   ),
   AssetRowData(
     id: 'b4f5a8c2e96d1f0374a2c6e8d9b0517f3e2a4c6d8f0b1e3a5c7d9f1b3e5a7c9d',
-    ticker: 'ERG_SigUSD_LP',
-    name: 'ERG / SigUSD pool share',
+    ticker: 'XIXA',
+    name: 'XIXA token',
     amount: BigInt.from(1830),
     fiatValue: 3.12,
-    kind: AssetKind.lpShare,
   ),
   AssetRowData(
     id: '1fd6e032e8476c4aa54c18c1a308dce83940e8f4a28f576440513ed7326ad489',
@@ -162,7 +159,7 @@ final _activity = [
   ),
   ActivityRowData(
     id: 'w1',
-    kind: ActivityKind.swap,
+    kind: ActivityKind.contract,
     time: 'Oct 2',
     legs: [
       AmountLeg(amount: _units(1.75, 2), decimals: 2, unit: 'SigUSD'),
@@ -304,8 +301,7 @@ void main() {
       }
       expect(find.byKey(const Key('home-scene')), findsOneWidget);
       expect(
-        find.bySemanticsLabel(RegExp(r'^Balance 203\.16 ERG, about A\$90\.54 AUD, 6 tokens unpriced, '
-            r'incl\. 0\.001 ERG stealth$')),
+        find.bySemanticsLabel(RegExp(r'^Balance 203\.16 ERG, about A\$90\.54 AUD, 6 tokens unpriced$')),
         findsOneWidget,
       );
       expect(find.bySemanticsLabel('Pinned address #275, 9iArkadi…WspUZA'), findsOneWidget);

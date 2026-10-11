@@ -171,7 +171,6 @@ void main() {
         'history:c',
       ]);
       expect(active.discoverCalls, 0);
-      expect(active.stealthCalls, 0);
       expect(
         walletService.isUnlocked,
         isFalse,

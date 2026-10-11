@@ -12,7 +12,6 @@ import 'home_widgets.dart';
       WalletAction.send => (icon: Icons.near_me_outlined, label: 'Send'),
       WalletAction.sendOffline => (icon: Icons.qr_code_2, label: 'Send with offline signer'),
       WalletAction.receive => (icon: Icons.arrow_downward_rounded, label: 'Receive'),
-      WalletAction.swap => (icon: Icons.swap_horiz, label: 'Swap'),
       WalletAction.more => (icon: Icons.more_horiz, label: 'More'),
     };
 

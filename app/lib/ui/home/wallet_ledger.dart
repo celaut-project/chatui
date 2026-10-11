@@ -3,19 +3,11 @@ import 'package:flutter/material.dart';
 import '../../format.dart';
 import '../../services/address_holdings.dart';
 import '../../services/address_label_service.dart';
-import '../../services/dexy_service.dart';
-import '../../services/duckpools_service.dart';
-import '../../services/mix_activity.dart';
-import '../../services/mix_service.dart';
 import '../../services/network_controller.dart';
-import '../../services/pockets.dart';
 import '../../services/privacy_service.dart';
-import '../../services/sigmafi_service.dart';
-import '../../services/sigmausd_service.dart';
 import '../../services/token_pricer.dart';
 import '../../services/wallet_service.dart';
 import '../../services/wallet_sync_controller.dart';
-import '../swap_hub_screen.dart';
 import '../utxo_management_screen.dart';
 import '../widgets/discover_sheet.dart';
 import 'address_breakdown.dart';
@@ -30,7 +22,6 @@ import 'wallet_page.dart';
 class WalletLedgerActions {
   const WalletLedgerActions({
     required this.go,
-    required this.swap,
     required this.showActivity,
     required this.showSettings,
     required this.viewAssets,
@@ -40,9 +31,8 @@ class WalletLedgerActions {
     required this.lock,
   });
 
-  /// Pushes a named route with this wallet's arguments ('/send', '/mix'...).
+  /// Pushes a named route with this wallet's arguments ('/send', '/utxos'...).
   final void Function(String route) go;
-  final void Function(SwapVenue venue) swap;
   final VoidCallback showActivity;
   final VoidCallback showSettings;
   final VoidCallback viewAssets;
@@ -81,7 +71,6 @@ class WalletLedger extends StatelessWidget {
     return ListenableBuilder(
       listenable: Listenable.merge([
         sync,
-        mixService,
         privacyService,
         addressLabelService,
         networkController,
@@ -92,9 +81,7 @@ class WalletLedger extends StatelessWidget {
       builder: (context, _) {
         final hidden = privacyService.hideBalances;
         final w = wallet;
-        // Stealth holdings are part of what the wallet owns, so they belong
-        // in the asset list; each holding knows how much of it is stealth.
-        final holdings = sync.displayTokens.map(walletService.displayMetadata).toList();
+        final holdings = sync.tokens.map(walletService.displayMetadata).toList();
         // The identity is the wallet's own record (the pinned address, else
         // index 0), not today's receive address, which moves in fresh mode.
         final identity = w?.displayAddress ?? sync.receiveAddress;
@@ -106,8 +93,7 @@ class WalletLedger extends StatelessWidget {
         );
         final activity = sync.displayActivity;
         final shown = activity.take(WalletPageView.activityLimit).toList();
-        final mix = mixStripSummary(mixService.records);
-        final data = _data(holdings: holdings, identity: identity, addresses: addresses, shown: shown, mix: mix, hidden: hidden);
+        final data = _data(holdings: holdings, identity: identity, addresses: addresses, shown: shown, hidden: hidden);
         void breakdown({required bool all}) => showAddressBreakdownSheet(
               context,
               walletName: w?.name ?? 'This wallet',
@@ -126,11 +112,9 @@ class WalletLedger extends StatelessWidget {
           onAction: (a) => switch (a) {
             WalletAction.send => actions.go('/send'),
             WalletAction.receive => actions.go('/receive'),
-            WalletAction.swap => actions.swap(SwapVenue.spectrum),
             WalletAction.sendOffline || WalletAction.more => null,
           },
           onTool: (tool) => switch (tool) {
-            WalletTool.mix => actions.go('/mix'),
             WalletTool.tokens => actions.go('/tokens'),
             WalletTool.utxos => actions.go('/utxos'),
             WalletTool.addresses => breakdown(all: true),
@@ -156,8 +140,6 @@ class WalletLedger extends StatelessWidget {
           onOtherAddresses: () => breakdown(all: false),
           onReceive: () => actions.go('/receive'),
           onPinIssue: actions.showSettings,
-          onMix: () => actions.go('/mix'),
-          onDismissMix: mix?.finished == null ? null : () => mixService.acknowledge(mix!.finished!),
           onRetry: networkController.probe,
         );
       },
@@ -169,16 +151,11 @@ class WalletLedger extends StatelessWidget {
     required String? identity,
     required List<AddressHolding> addresses,
     required List<Map<String, dynamic>> shown,
-    required ({String text, MixRecord? finished})? mix,
     required bool hidden,
   }) {
     final w = wallet;
     final price = ergPriceView(priceFeed?.history);
-    // Stealth ERG and money in the mixing pool are the wallet's too; only
-    // send and coin selection use the spendable figure. The headline must
-    // never be smaller than the pockets it is broken down into.
-    final withStealth = sync.totalNanoWithStealth;
-    final headline = withStealth == null ? null : withStealth + mixService.inMixNano + mixService.mixedNano;
+    final headline = sync.balanceNano;
     final value = holdingsFiat(headline, [
       for (final t in holdings) (id: t.id, amount: t.amount, decimals: t.decimals),
     ]);
@@ -203,15 +180,6 @@ class WalletLedger extends StatelessWidget {
         loading: sync.balanceNano == null && sync.isSyncing,
         fiatValue: value.fiat,
         tokenCount: holdings.length,
-        pockets: walletPockets(
-          publicNano: sync.balanceNano,
-          stealthNano: sync.stealthNano,
-          stealthUnknown: sync.stealthScanning && sync.stealthBalanceUnknown,
-          mixedNano: mixService.mixedNano,
-          inMixNano: mixService.inMixNano,
-        ),
-        // The stealth and mixing pockets in the headline are in blocks, so
-        // the split counts them as confirmed and adds up to the headline.
         pending: headline == null ? null : sync.pending?.under(headline),
         otherAddresses: fundsElsewhere(addresses, identity: identity),
         unlocked: true,
@@ -226,10 +194,8 @@ class WalletLedger extends StatelessWidget {
         label: label,
       ),
       offline: networkOffline(),
-      // ERG as held: public and stealth, which is what the asset list and
-      // a send can see; the mixing pool's share is in the headline above.
-      assets: withStealth == null ? const [] : assetRows(withStealth, holdings, price),
-      assetCount: (withStealth == null ? 0 : 1) + holdings.length,
+      assets: headline == null ? const [] : assetRows(headline, holdings, price),
+      assetCount: (headline == null ? 0 : 1) + holdings.length,
       activity: [for (final (i, tx) in shown.indexed) activityRow(tx, id: activityRowId(tx, i))],
       activityLoading: shown.isEmpty && sync.isSyncing && sync.lastSyncedAt == null,
       utxoCount: sync.utxoCount,
@@ -239,62 +205,21 @@ class WalletLedger extends StatelessWidget {
       hidden: hidden,
       pendingCount: sync.displayActivity.where(isPendingTx).length,
       pinIssue: sync.pinIssue,
-      mix: mix == null ? null : MixLine(text: mix.text, finished: mix.finished != null),
     );
   }
 }
 
-/// The unlocked wallet's Discover tab: every protocol and tool, with the
-/// wallet's own position in each where it has one.
+/// The unlocked wallet's Discover tab: every tool, one row each.
 class WalletDiscover extends StatelessWidget {
-  const WalletDiscover({super.key, required this.sync, required this.onExplain});
+  const WalletDiscover({super.key, required this.onExplain});
 
-  final WalletSyncController sync;
   final ValueChanged<DiscoverFeature> onExplain;
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: Listenable.merge([sync, mixService, duckpoolsService, sigmafiService, privacyService]),
-      builder: (context, _) {
-        final hidden = privacyService.hideBalances;
-        final duckpools = [
-          duckpoolsService.positionLine(formatTokenAmountGrouped),
-          duckpoolsService.loanLine(formatTokenAmountGrouped),
-        ].whereType<String>().join(' · ');
-        final active = mixService.active.length;
-        // The wallet's own position, where it has one; with balances hidden
-        // the blurb stands in, since a position is an amount.
-        String? position(DiscoverFeature f) => hidden && f != DiscoverFeature.mix
-            ? null
-            : switch (f) {
-                DiscoverFeature.dexy => _positionLine(ids: [
-                    for (final v in DexyVariant.values) ...[v.tokenId, v.lpTokenId],
-                  ]),
-                DiscoverFeature.ageusd => _positionLine(ids: const [SigmaUsdTokens.sigUsd, SigmaUsdTokens.sigRsv]),
-                DiscoverFeature.duckpools => duckpools.isEmpty ? null : duckpools,
-                DiscoverFeature.sigmafi => sigmafiService.positionLine(),
-                DiscoverFeature.mix =>
-                  mixService.enabled && active > 0 ? '$active ${active == 1 ? 'mix' : 'mixes'} in the pool.' : null,
-                _ => null,
-              };
-        List<DiscoverCardData> cards(List<DiscoverFeature> features) => [
-              for (final f in features)
-                if (discoverAvailable(f)) DiscoverCardData(f, subtitle: position(f)),
-            ];
-        return DiscoverView(onExplain: onExplain, protocols: cards(discoverProtocols), tools: cards(discoverTools));
-      },
+    return DiscoverView(
+      onExplain: onExplain,
+      tools: [for (final f in discoverTools) DiscoverCardData(f)],
     );
-  }
-
-  /// "You hold 12.5 SigUSD · 3 SigRSV" when the wallet has a position in
-  /// any of [ids]; null otherwise so the row keeps its blurb.
-  String? _positionLine({required List<String> ids}) {
-    final held = <String>[
-      for (final t in sync.tokens)
-        if (ids.contains(t.id) && t.amount > 0) '${formatTokenAmountGrouped(t.amount, t.decimals)} ${t.label}',
-    ];
-    if (held.isEmpty) return null;
-    return 'You hold ${held.take(2).join(' · ')}';
   }
 }

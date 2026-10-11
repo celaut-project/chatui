@@ -2,7 +2,6 @@ import 'package:argus_wallet/bridge/frb_generated.dart';
 import 'package:argus_wallet/format.dart';
 import 'package:argus_wallet/services/privacy_service.dart';
 import 'package:argus_wallet/services/public_wallet_sync.dart';
-import 'package:argus_wallet/services/stealth_service.dart';
 import 'package:argus_wallet/services/wallet_database_service.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
 import 'package:argus_wallet/services/watch_account_service.dart';
@@ -50,7 +49,6 @@ void main() {
     });
     await watchOnlyService.load();
     await privacyService.load();
-    stealthService.scanEnabled = false;
     // One scheduler for the whole test run: each launch starts due.
     publicWalletSync.resetSchedule();
     api.balances
@@ -66,7 +64,6 @@ void main() {
   });
   tearDown(() async {
     watchAccountService.accounts.clear();
-    stealthService.scanEnabled = true;
     publicWalletSync.setForeground(true);
     if (walletService.isUnlocked) await walletService.lock();
   });
@@ -217,7 +214,7 @@ void main() {
     expect(totals.tokens.single.id, 't');
   });
 
-  test("an unlocked wallet's row carries its live figures, stealth and mixes included", () {
+  test("an unlocked wallet's row carries its live figures", () {
     final w = WalletInfo(walletId: 'live', name: 'Live', createdAt: DateTime(2026), address0: 'z');
     final row = buildOverviewEntries(
       wallets: [w],
@@ -227,16 +224,12 @@ void main() {
         walletId: 'live',
         balanceNano: 10,
         syncing: false,
-        stealthNano: 2,
-        stealthUnknown: false,
-        mixNano: 3,
         tokens: [],
         holdings: [],
       ),
     ).single;
     expect(row.state, OverviewRowState.unlocked);
-    expect(row.balanceNano, 15);
-    expect(row.stealthNano, 2);
+    expect(row.balanceNano, 10);
   });
 
   testWidgets('the overview is the only wallet list: no wallet icon, no Manage', (tester) async {

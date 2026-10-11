@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 
 import '../../services/address_holdings.dart';
 import '../../services/address_label_service.dart';
-import '../../services/mix_service.dart';
 import '../../services/network_controller.dart';
 import '../../services/pending_balance.dart';
 import '../../services/portfolio.dart';
@@ -60,9 +59,8 @@ enum OverviewRowState {
 }
 
 /// One overview row with every figure already decided, so the row widget
-/// only lays it out. Balances are display figures: a seed wallet's include
-/// its stealth funds (and, while unlocked, its mixes), exactly as its own
-/// page shows them, and the overview total is the sum of these.
+/// only lays it out. Balances are display figures, exactly as each wallet's
+/// own page shows them, and the overview total is the sum of these.
 @immutable
 class OverviewEntry {
   const OverviewEntry({
@@ -74,10 +72,7 @@ class OverviewEntry {
     this.loading = false,
     this.tokens = const [],
     this.tokensKnown = false,
-    this.publicTokensOnly = true,
     this.asOf,
-    this.stealthNano = 0,
-    this.stealthAsOf,
     this.elsewhere,
     this.unavailable,
     this.pending,
@@ -99,17 +94,9 @@ class OverviewEntry {
   /// False when the source cannot say which tokens the wallet holds; the
   /// row then shows no count rather than "0 tokens".
   final bool tokensKnown;
-  final bool publicTokensOnly;
 
   /// Age of a snapshot figure. Null for live figures.
   final Duration? asOf;
-
-  /// Stealth ERG included in [balanceNano].
-  final int stealthNano;
-
-  /// When a locked wallet's stealth figure was last scanned; it cannot be
-  /// rescanned without the seed.
-  final DateTime? stealthAsOf;
 
   /// Funds on addresses other than [address].
   final FundsElsewhere? elsewhere;
@@ -199,32 +186,20 @@ class ActiveWalletFigures {
     required this.walletId,
     required this.balanceNano,
     required this.syncing,
-    required this.stealthNano,
-    required this.stealthUnknown,
-    required this.mixNano,
     required this.tokens,
     required this.holdings,
     this.pending,
   });
 
   /// The controller's view, when it owns [walletId]; null otherwise.
-  static ActiveWalletFigures? of(
-    WalletSyncController sync,
-    String? walletId, {
-    int mixNano = 0,
-  }) {
+  static ActiveWalletFigures? of(WalletSyncController sync, String? walletId) {
     if (walletId == null || !sync.ownsWallet(walletId)) return null;
     return ActiveWalletFigures(
       walletId: walletId,
       balanceNano: sync.balanceNano,
       syncing: sync.isSyncing,
-      stealthNano: sync.stealthNano,
-      stealthUnknown: sync.stealthBalanceUnknown,
-      mixNano: mixNano,
       tokens: [
-        for (final t
-            in (sync.stealthBalanceUnknown ? sync.tokens : sync.displayTokens))
-          (id: t.id, amount: t.amount, decimals: t.decimals),
+        for (final t in sync.tokens) (id: t.id, amount: t.amount, decimals: t.decimals),
       ],
       holdings: sync.addressHoldings,
       pending: sync.pending,
@@ -233,14 +208,9 @@ class ActiveWalletFigures {
 
   final String walletId;
 
-  /// Spendable public ERG; null before the first read.
+  /// ERG on the wallet's addresses; null before the first read.
   final int? balanceNano;
   final bool syncing;
-  final int stealthNano;
-  final bool stealthUnknown;
-
-  /// In the mixing pool, or mixed and waiting: the wallet's money too.
-  final int mixNano;
   final List<({String id, int amount, int decimals})> tokens;
   final List<AddressHolding> holdings;
 
@@ -249,8 +219,7 @@ class ActiveWalletFigures {
   final PendingBalance? pending;
 
   /// What the wallet is worth, as its page shows it.
-  int? get totalNano =>
-      balanceNano == null ? null : balanceNano! + stealthNano + mixNano;
+  int? get totalNano => balanceNano;
 }
 
 /// The overview rows, in display order: seed wallets in the user's order,
@@ -306,8 +275,6 @@ OverviewEntry _activeEntry(WalletInfo w, ActiveWalletFigures active) {
     loading: active.balanceNano == null && active.syncing,
     tokens: active.tokens,
     tokensKnown: active.balanceNano != null,
-    publicTokensOnly: active.stealthUnknown,
-    stealthNano: active.stealthNano,
     pending: switch (active.totalNano) {
       final shown? => active.pending?.under(shown),
       null => null,
@@ -336,19 +303,14 @@ OverviewEntry _lockedEntry(
     name: w.name,
     state: unlocked ? OverviewRowState.unlocked : OverviewRowState.locked,
     address: identity,
-    // A locked wallet cannot rescan for stealth funds, so its last scanned
-    // figure stays in, labelled with its age, as the row has always shown.
-    balanceNano: known == null ? null : known.balanceNano + known.stealthNano,
+    balanceNano: known?.balanceNano,
     tokens: known?.tokens ?? const [],
     tokensKnown: known != null && known.tokensKnown,
-    publicTokensOnly: true,
     asOf: known?.age,
-    stealthNano: known?.stealthNano ?? 0,
-    stealthAsOf: known?.stealthScannedAt,
     // Saved with the figure, so exactly as old as it is.
     pending: known == null
         ? null
-        : pending?.under(known.balanceNano + known.stealthNano),
+        : pending?.under(known.balanceNano),
     elsewhere: known == null
         ? null
         : fundsElsewhere(
@@ -488,7 +450,6 @@ class WalletsOverviewModel extends ChangeNotifier {
     watchAccountService.addListener(notifyListeners);
     addressLabelService.addListener(notifyListeners);
     walletSyncController.addListener(notifyListeners);
-    mixService.addListener(notifyListeners);
     _public.addListener(_onPublicChanged);
   }
 
@@ -499,7 +460,6 @@ class WalletsOverviewModel extends ChangeNotifier {
       watchAccountService.removeListener(notifyListeners);
       addressLabelService.removeListener(notifyListeners);
       walletSyncController.removeListener(notifyListeners);
-      mixService.removeListener(notifyListeners);
       _public.removeListener(_onPublicChanged);
     }
     _disposed = true;
@@ -524,11 +484,7 @@ class WalletsOverviewModel extends ChangeNotifier {
       lastKnown: _lastKnown,
       lastPending: _lastPending,
       unlockedWalletId: unlocked,
-      active: ActiveWalletFigures.of(
-        walletSyncController,
-        unlocked,
-        mixNano: mixService.inMixNano + mixService.mixedNano,
-      ),
+      active: ActiveWalletFigures.of(walletSyncController, unlocked),
       watchedAddresses: watchOnlyService.addresses,
       watchedHoldings: _watched,
       watchedAsOf: {

@@ -70,7 +70,6 @@ void main() {
     for (final label in ['Wallet', 'Activity', 'Settings']) {
       expect(find.widgetWithText(NavigationDestination, label), findsOneWidget);
     }
-    expect(find.widgetWithText(NavigationDestination, 'Swap'), findsNothing);
     expect(find.widgetWithText(NavigationDestination, 'Discover'), findsNothing);
     expect(find.text(watchAccountLimitations), findsOneWidget);
     await tester.scrollUntilVisible(
@@ -89,9 +88,8 @@ void main() {
       tester.widget<QrImageView>(find.byType(QrImageView)).semanticsLabel,
       watched,
     );
-    expect(find.byKey(const Key('stealth-qr')), findsNothing);
     expect(find.text('USED ADDRESSES'), findsNothing);
-    expect(find.textContaining('Cannot see stealth identities'), findsOneWidget);
+    expect(find.textContaining('Public payment addresses only'), findsOneWidget);
     await disposeHome(tester);
   });
 

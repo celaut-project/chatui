@@ -47,8 +47,7 @@ class _RemotePreviewState extends State<RemotePreview>
         old.iconUrl != token.iconUrl ||
         old.issuanceHash != token.issuanceHash ||
         old.declaredAssetKind != token.declaredAssetKind ||
-        old.metadataState != token.metadataState ||
-        old.hasStealth != token.hasStealth) {
+        old.metadataState != token.metadataState) {
       _clear();
     }
   }
@@ -150,7 +149,6 @@ class _RemotePreviewState extends State<RemotePreview>
       final yes = await _consent(
         'Load preview through ${Uri.parse(gateway).host}?',
         'This gateway can see your IP address and which artwork was requested. '
-            '${token.hasStealth ? 'Loading may link this private holding to this connection. ' : ''}'
             'Up to 5 MiB will be downloaded. Artwork may contain unsolicited or misleading content.',
         'Load preview',
       );

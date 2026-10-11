@@ -102,8 +102,6 @@ void main() {
       'lib/ui/send_screen.dart',
       'lib/ui/send_recipients.dart',
       'lib/ui/token_tools_screen.dart',
-      'lib/ui/liquidity_screen.dart',
-      'lib/services/token_router.dart',
     ]) {
       final source = File(path).readAsStringSync();
       for (final field in [

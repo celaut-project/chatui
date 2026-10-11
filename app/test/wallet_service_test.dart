@@ -11,14 +11,12 @@ void main() {
       id: 'token',
       amount: 1,
       name: raw,
-      stealthAmount: 1,
     );
     expect(token.name, isNot(raw));
-    final copy = token.withHolding(5, stealthAmount: 2).withHolding(7);
+    final copy = token.withHolding(5).withHolding(7);
     expect(copy.originalName, raw);
     expect(copy.name, token.name);
     expect(copy.amount, 7);
-    expect(copy.stealthAmount, 2);
   });
 
   _displayAddressTests();

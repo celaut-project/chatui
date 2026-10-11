@@ -1,5 +1,4 @@
 import '../services/watch_account_service.dart';
-import 'widgets/tx_result_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -7,14 +6,10 @@ import 'package:share_plus/share_plus.dart';
 
 import '../format.dart';
 import '../services/address_label_service.dart';
-import '../services/network_controller.dart';
 import '../services/session_lock.dart';
 import '../services/privacy_service.dart';
-import '../services/stealth_service.dart';
 import '../services/wallet_service.dart';
 import '../theme/argus_theme.dart';
-import 'confirm_transaction_sheet.dart';
-import 'widgets/error_sheet.dart';
 import 'widgets/soft_card.dart';
 import 'widgets/entry_dialogs.dart';
 
@@ -25,12 +20,10 @@ class ReceiveScreen extends StatefulWidget {
   State<ReceiveScreen> createState() => _ReceiveScreenState();
 }
 
-class _ReceiveScreenState extends State<ReceiveScreen> with TxReceiptOwner {
+class _ReceiveScreenState extends State<ReceiveScreen> {
   final _amountCtrl = TextEditingController();
   String _qrData = '';
   String? _amountError;
-
-  bool _sweeping = false;
 
   @override
   void initState() {
@@ -39,20 +32,9 @@ class _ReceiveScreenState extends State<ReceiveScreen> with TxReceiptOwner {
     privacyService.addListener(_privacyChanged);
   }
 
-  bool _loadedStealth = false;
-
-  /// Which stealth identity the section is showing. Identity 0 for a wallet
-  /// that has never added one, which is every wallet until it does.
-  int _identity = 0;
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!WalletRouteArgs.of(context).watchOnly && !_loadedStealth) {
-      _loadedStealth = true;
-      if (stealthService.address == null) stealthService.loadAddress();
-      stealthService.loadIdentities();
-    }
     _updateQr();
   }
 
@@ -124,248 +106,6 @@ class _ReceiveScreenState extends State<ReceiveScreen> with TxReceiptOwner {
           ],
         ),
       ),
-    );
-  }
-
-  /// Ask for a label and publish a new identity at the next index.
-  Future<void> _addIdentity() async {
-    final label = await showDialog<String>(
-      context: context,
-      builder: (_) => const TextEntryDialog(
-        title: 'Add stealth address',
-        intro: Text(
-          'A separate address you can publish in a different place. '
-          'Nothing links it to your other stealth addresses, and it '
-          'comes back from your recovery phrase like everything else.',
-        ),
-        stretch: true,
-        fieldKey: Key('stealth-identity-label-field'),
-        confirmKey: Key('stealth-identity-add-confirm'),
-        label: 'Label',
-        hint: 'Donations',
-        helper: 'Stored on this device only.',
-        maxLength: 40,
-        textCapitalization: TextCapitalization.sentences,
-        submitOnEnter: true,
-        confirmLabel: 'Add',
-      ),
-    );
-    if (label == null || !mounted) return;
-    try {
-      final created = await stealthService.addIdentity(label);
-      if (!mounted) return;
-      setState(() => _identity = created.index);
-    } catch (e) {
-      if (!mounted) return;
-      showTxFailureSheet(context, e);
-    }
-  }
-
-  Future<void> _sweepStealth(String destination, {int? onlyIdentity}) async {
-    setState(() => _sweeping = true);
-    try {
-      final preview = await stealthService.prepareSweep(
-        destinationAddress: destination,
-        nodeUrl: networkController.activeUrl,
-        onlyIdentity: onlyIdentity,
-      );
-      if (!mounted) return;
-      final ok = await showConfirmTransactionSheet(
-        context,
-        preparationId: preview.preparationId,
-        title: 'Sweep stealth funds',
-        rows: [
-          ConfirmTxRow('To', shorten(destination, head: 8, tail: 6)),
-          ConfirmTxRow('Amount', formatErg(preview.amountNanoErg), bold: true),
-          ConfirmTxRow('Stealth boxes', '${preview.inputCount}'),
-          ConfirmTxRow('Miner fee', formatErg(preview.minerFee)),
-        ],
-      );
-      if (!mounted) return;
-      if (!ok) {
-        setState(() => _sweeping = false);
-        return;
-      }
-      final txId =
-          await walletService.sendErg(preparationId: preview.preparationId);
-      if (mounted) setState(() => _sweeping = false);
-      final warning = await txBookkeeping(() async {
-        await stealthService.scan();
-        if (stealthService.lastScanFailed) {
-          throw StateError('Could not refresh stealth funds');
-        }
-      });
-      showTxResultSheet(
-        receiptContext,
-        txId: txId,
-        headline: 'Stealth sweep submitted',
-        warning: warning,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _sweeping = false);
-      showTxFailureSheet(context, e);
-    }
-  }
-
-  /// What the line under the QR says about the shown identity.
-  ///
-  /// A single-identity wallet reads exactly as it did before; once there are
-  /// several, the figure is that address's alone, said explicitly, so nobody
-  /// reads one pocket's balance as the whole stealth balance.
-  static String _stealthStatus(
-    StealthScanResult? scan,
-    StealthIdentityBalance? balance,
-    bool multiple,
-  ) {
-    if (!stealthService.scanEnabled) {
-      return 'Stealth scanning is off. Turn it on in Settings → Security '
-          'to see funds sent here.';
-    }
-    if (scan == null || balance == null) {
-      return 'Stealth balance unknown — the explorer could not be reached yet.';
-    }
-    if (balance.ownedCount == 0) {
-      return multiple
-          ? 'No payments to this stealth address.'
-          : 'No stealth payments found.';
-    }
-    final amount = '${formatErg(balance.totalNanoErg)} in '
-        '${balance.ownedCount} stealth '
-        'box${balance.ownedCount == 1 ? '' : 'es'}';
-    return multiple ? '$amount on this address.' : '$amount.';
-  }
-
-  Widget _stealthSection(BuildContext context, String sweepTo) {
-    final colors = ArgusColors.of(context);
-    return ListenableBuilder(
-      listenable: stealthService,
-      builder: (context, _) {
-        final identities = stealthService.identities;
-        // A wallet that never added one shows exactly what it always did.
-        final selected = identities.any((i) => i.index == _identity)
-            ? _identity
-            : 0;
-        final stealth = stealthService.addressOf(selected);
-        if (stealth == null) return const SizedBox.shrink();
-        final scan = stealthService.lastScan;
-        final balance = scan?.balanceOf(selected);
-        final multiple = identities.length > 1;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 32),
-            SectionLabel(multiple ? 'Stealth addresses' : 'Stealth address'),
-            const SizedBox(height: 8),
-            Text(
-              'An address you can publish anywhere. Each payment to it lands '
-              'on a different one-time script, so nothing on chain links two '
-              'payments to you or to this string. Amounts and timing are '
-              'still public. Finding incoming stealth payments needs the '
-              'explorer, so it works only while you are online.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            if (multiple) ...[
-              const SizedBox(height: 16),
-              // Labels, not indices: the derivation index is plumbing and
-              // choosing one by hand is how a user strands a published
-              // string on the wrong path.
-              DropdownButtonFormField<int>(
-                key: const Key('stealth-identity-picker'),
-                initialValue: selected,
-                decoration: const InputDecoration(labelText: 'Address'),
-                items: [
-                  for (final id in identities)
-                    DropdownMenuItem(
-                      value: id.index,
-                      child: Text(id.displayLabel),
-                    ),
-                ],
-                onChanged: (v) {
-                  if (v != null) setState(() => _identity = v);
-                },
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Two of your stealth addresses cannot be linked to each '
-                'other, so publishing one per context keeps them apart.',
-                style: TextStyle(fontSize: 12, color: colors.muted),
-              ),
-            ],
-            const SizedBox(height: 20),
-            Center(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: paper,
-                  borderRadius: BorderRadius.circular(cardRadius),
-                  border: Border.all(
-                      color: accentOf(context).withValues(alpha: 0.45)),
-                ),
-                padding: const EdgeInsets.all(18),
-                child: QrImageView(
-                  key: const Key('stealth-qr'),
-                  data: stealth,
-                  version: QrVersions.auto,
-                  size: 200,
-                  backgroundColor: paper,
-                  padding: EdgeInsets.zero,
-                  eyeStyle:
-                      const QrEyeStyle(eyeShape: QrEyeShape.square, color: ink),
-                  dataModuleStyle: const QrDataModuleStyle(
-                    dataModuleShape: QrDataModuleShape.square,
-                    color: ink,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SelectableText(
-              stealth,
-              key: const Key('stealth-address-text'),
-              style: monoStyle(context, size: 12),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            FilledButton(
-              key: const Key('stealth-copy'),
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: stealth));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Stealth address copied')),
-                );
-              },
-              child: const Text('Copy stealth address'),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              _stealthStatus(scan, balance, multiple),
-              style: TextStyle(fontSize: 12, color: colors.muted),
-              textAlign: TextAlign.center,
-            ),
-            if ((balance?.ownedCount ?? 0) > 0 && sweepTo.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              // Sweeping one identity at a time by default: pulling every
-              // identity into one output would spend them together and link
-              // the contexts the user separated.
-              OutlinedButton.icon(
-                key: const Key('stealth-sweep'),
-                onPressed: _sweeping
-                    ? null
-                    : () => _sweepStealth(sweepTo, onlyIdentity: selected),
-                icon: const Icon(Icons.move_down, size: 18),
-                label: Text(_sweeping ? 'Sweeping…' : 'Sweep stealth funds'),
-              ),
-            ],
-            const SizedBox(height: 12),
-            TextButton.icon(
-              key: const Key('stealth-identity-add'),
-              onPressed: _addIdentity,
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add stealth address'),
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -492,7 +232,6 @@ class _ReceiveScreenState extends State<ReceiveScreen> with TxReceiptOwner {
                     ),
             child: const Text('Share'),
           ),
-          if (!args.watchOnly) _stealthSection(context, address),
           if (!args.watchOnly && args.historyAddresses.where((a) => a != address).isNotEmpty) ...[
             const SizedBox(height: 28),
             const SectionLabel('Used addresses'),

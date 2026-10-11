@@ -8,11 +8,6 @@ import 'home_widgets.dart';
 /// Mark, name and one line for each tool behind More. The lines are short
 /// forms of the Discover explainers, which stay the full account.
 ({IconData icon, String title, String blurb}) walletToolLook(WalletTool tool) => switch (tool) {
-      WalletTool.mix => (
-          icon: Icons.blender_outlined,
-          title: 'Mix',
-          blurb: 'Private ERG through the ErgoMixer pool.',
-        ),
       WalletTool.tokens => (
           icon: Icons.token_outlined,
           title: 'Tokens',

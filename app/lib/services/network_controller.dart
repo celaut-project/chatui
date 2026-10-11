@@ -167,49 +167,23 @@ class NetworkController extends ChangeNotifier {
   String? lastGood;
   int? height;
   bool probing = false;
-  double? usdPerErg;
 
-  /// Display currency for fiat conversions (CoinGecko vs_currency code).
-  String fiatCode = 'usd';
+  /// The display currency. The oracle pool prices ERG in USD, and the app
+  /// uses no other price source, so this is always USD.
+  final String fiatCode = 'usd';
+
+  /// USD per ERG, from the token pricer; null while unknown.
   double? fiatPerErg;
 
-  static const fiatOptions = <String, String>{
-    'usd': r'$',
-    'eur': '€',
-    'gbp': '£',
-    'aud': 'A\$',
-    'cad': 'C\$',
-    'jpy': '¥',
-  };
-
-  String get fiatSymbol => fiatOptions[fiatCode] ?? '\$';
+  String get fiatSymbol => r'$';
 
   /// Formatted fiat line for a nanoERG balance, or null when the price is
   /// unknown.
   String? fiatText(int? nano) {
     final rate = fiatPerErg;
     if (rate == null || nano == null) return null;
-    final digits = fiatCode == 'jpy' ? 0 : 2;
-    return '≈ $fiatSymbol${(nano / 1e9 * rate).toStringAsFixed(digits)} '
+    return '≈ $fiatSymbol${(nano / 1e9 * rate).toStringAsFixed(2)} '
         '${fiatCode.toUpperCase()}';
-  }
-
-  Future<void> setFiatCurrency(String code) async {
-    if (!fiatOptions.containsKey(code) || code == fiatCode) return;
-    fiatCode = code;
-    fiatPerErg = null;
-    notifyListeners();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_fiatPrefKey, code);
-    await refreshPrice(force: true);
-  }
-
-  Future<void> _loadFiatCurrency() async {
-    final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getString(_fiatPrefKey);
-    if (saved != null && fiatOptions.containsKey(saved)) {
-      fiatCode = saved;
-    }
   }
 
   final Map<String, NodeProbe> probes = {};
@@ -270,7 +244,6 @@ class NetworkController extends ChangeNotifier {
         customExplorerSiteId;
     lastGood = prefs.getString(_lastGoodKey);
     preferredUrl = prefs.getString(_preferredKey);
-    await _loadFiatCurrency();
     try {
       await apply();
     } catch (_) {}
@@ -476,8 +449,6 @@ class NetworkController extends ChangeNotifier {
     }
   }
 
-  static const _fiatPrefKey = 'argus_fiat_currency';
-
   /// Installed by the token pricer; it owns every price fetch and reports
   /// the ERG rate back through [setErgRate].
   Future<void> Function({bool force})? priceRefresher;
@@ -490,19 +461,16 @@ class NetworkController extends ChangeNotifier {
     } catch (_) {}
   }
 
-  void setErgRate({required double? fiatPerErg, required double? usdPerErg}) {
-    this.fiatPerErg = fiatPerErg;
-    this.usdPerErg = usdPerErg;
+  void setErgRate(double? usdPerErg) {
+    fiatPerErg = usdPerErg;
     notifyListeners();
   }
 
-  /// Formatted display-currency text for a USD amount, or null when the
-  /// USD→display rate is unknown.
-  String? fiatFromUsd(double? usd, {required double fiatPerUsd, int maxFrac = 2}) {
+  /// Formatted display-currency text for a USD amount, or null.
+  String? fiatFromUsd(double? usd, {int maxFrac = 2}) {
     if (usd == null) return null;
-    final v = usd * fiatPerUsd;
-    final digits = fiatCode == 'jpy' ? 0 : (v != 0 && v.abs() < 0.01 ? maxFrac : 2);
-    return '≈ $fiatSymbol${v.toStringAsFixed(digits)}';
+    final digits = usd != 0 && usd.abs() < 0.01 ? maxFrac : 2;
+    return '≈ $fiatSymbol${usd.toStringAsFixed(digits)}';
   }
 
   Future<String?> addNode(String url) async {
