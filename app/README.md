@@ -37,13 +37,11 @@ rustup target add aarch64-linux-android x86_64-linux-android
 ./scripts/build_android.sh
 ```
 
-This produces `libwallet_ffi.so` in `app/android/app/src/main/jniLibs/`.
-
-### iOS (placeholder)
-
-```bash
-./scripts/build_ios.sh
-```
+This produces `libwallet_ffi.so` in `app/android/app/src/main/jniLibs/`. The
+library is not tracked. The Gradle build runs the script before it merges the
+native libraries, so `flutter build apk` and `flutter run` build it when a Rust
+input changed. Set `ANDROID_NDK_HOME` to choose the NDK; otherwise Gradle gives
+its own NDK (`flutter.ndkVersion`).
 
 ## Run
 
@@ -52,7 +50,7 @@ cd app
 flutter run
 ```
 
-Requires an Android emulator or device with the `.so` present in jniLibs.
+Requires an Android emulator or device, cargo-ndk and the Android Rust targets.
 
 ## Test Vectors
 

@@ -103,6 +103,36 @@ gradle.taskGraph.whenReady {
     }
 }
 
+// libwallet_ffi.so is not tracked. Build it from rust/ with
+// scripts/build_android.sh before the native libraries are merged, so a plain
+// `flutter build apk` cannot package an APK without the wallet library. Gradle
+// skips the task when no Rust input changed since the last build.
+val repoRoot: File = rootProject.projectDir.resolve("../..")
+val buildWalletFfi by tasks.registering(Exec::class) {
+    description = "Builds libwallet_ffi.so for arm64-v8a and x86_64 with cargo-ndk."
+    val rustDir = repoRoot.resolve("rust")
+    val script = repoRoot.resolve("scripts/build_android.sh")
+    inputs.files(fileTree(rustDir.resolve("crates")))
+    inputs.files(
+        rustDir.resolve("Cargo.toml"),
+        rustDir.resolve("Cargo.lock"),
+        rustDir.resolve("rust-toolchain.toml"),
+        script,
+    )
+    outputs.files(
+        listOf("arm64-v8a", "x86_64").map { file("src/main/jniLibs/$it/libwallet_ffi.so") }
+    )
+    commandLine("bash", script.path)
+    doFirst {
+        // Use the NDK that this Gradle build uses (flutter.ndkVersion), unless
+        // the caller chose one.
+        if (System.getenv("ANDROID_NDK_HOME").isNullOrBlank()) {
+            environment("ANDROID_NDK_HOME", android.ndkDirectory.path)
+        }
+    }
+}
+tasks.named("preBuild") { dependsOn(buildWalletFfi) }
+
 flutter {
     source = "../.."
 }
