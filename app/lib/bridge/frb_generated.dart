@@ -70,7 +70,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
-        stem: 'UNKNOWN',
+        stem: 'wallet_ffi',
         ioDirectory: '../rust/crates/wallet-ffi/target/release/',
         webPrefix: 'pkg/',
         wasmBindgenName: 'wasm_bindgen',
