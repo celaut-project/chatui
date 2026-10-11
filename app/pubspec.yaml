@@ -33,7 +33,6 @@ dependencies:
   flutter_rust_bridge: 2.13.0
   qr_flutter: ^4.1.0
   shared_preferences: ^2.5.3
-  mobile_scanner: ^7.0.1
   share_plus: ^11.0.0
   url_launcher: ^6.3.1
   http: ^1.4.0
@@ -41,6 +40,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   uuid: ^4.0.0
   flutter_local_notifications: ^22.3.0
+  flutter_zxing: ^3.1.0
 
 dev_dependencies:
   flutter_test:
