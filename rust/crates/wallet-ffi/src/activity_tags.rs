@@ -6,7 +6,11 @@
 //! Tags are the strings the app reads (`activity_classifier.dart` keeps the
 //! same list): `babel`, `oracle`, and `argus_fee`.
 
-use crate::api::{ARGUS_FEE_ADDRESS, ARGUS_FEE_NANO};
+/// The fee that the Argus wallet added to each transaction it built. This app
+/// adds no fee; the tag only labels these outputs in the history of a wallet
+/// that was used in Argus before.
+const ARGUS_FEE_ADDRESS: &str = "9iArkadiaZAPVxbUp2XQ8SVA1zGA29rCPhbpVuUaaKW6fWspUZA";
+const ARGUS_FEE_NANO: i64 = 1_100_000;
 
 /// The ERG/USD oracle pool NFT (ERGUSD-NFT).
 const ORACLE_POOL_NFT_ID: &str = "011d3364de07e5a26f0c4eef0852cddb387039a921b7154ef3cab22c6eda887f";

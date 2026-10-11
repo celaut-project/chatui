@@ -140,18 +140,7 @@ pub(super) fn review(id: String, handle: u64) -> Result<String, String> {
 fn review_value(
     review: &wallet_core::cold_signing::ColdReview,
 ) -> Result<serde_json::Value, String> {
-    let mut value = serde_json::to_value(review).map_err(fail)?;
-    for output in value["outputs"]
-        .as_array_mut()
-        .ok_or("Missing review outputs")?
-    {
-        output["application_fee"] = serde_json::json!(
-            output["address"].as_str() == Some(ARGUS_FEE_ADDRESS)
-                && output["nano_erg"].as_str() == Some(ARGUS_FEE_NANO.to_string().as_str())
-                && output["tokens"].as_array().is_some_and(Vec::is_empty)
-        );
-    }
-    Ok(value)
+    serde_json::to_value(review).map_err(fail)
 }
 pub(super) fn sign(id: String, handle: u64) -> Result<(), String> {
     let mut sessions = recover(SESSIONS.lock());
@@ -473,6 +462,9 @@ fn build_watch_session(
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// A mainnet P2PK address that no test wallet owns.
+    const FOREIGN_ADDRESS: &str = "9fRAWhdxEsTcdb8PhGNrZfwqa65zfkuYHAMmkQLcic1gdLSV5vA";
+
     #[test]
     fn public_watch_build_offline_review_sign_and_verified_return() {
         const KEY: &str = "0488b21e04220c2217000000009216e49a70865823eff5381d6fd33ac96743af1f3051dc4cc8edd66a29a740860326cfc301b0c8d4d815ac721e0551304417e6133c2c9137f9f22c33895a3e1650";
@@ -488,24 +480,19 @@ mod tests {
                 .unwrap()
             })
             .collect();
-        let recipient = address_to_ergo_tree(ARGUS_FEE_ADDRESS).unwrap();
+        let recipient = address_to_ergo_tree(FOREIGN_ADDRESS).unwrap();
         // Preparation has no handle or secrets, including input selection and fees.
         let result: serde_json::Value = serde_json::from_str(
-            &ergo_tx::dev_fee::with_test_dev_fee(
-                DevFeeConfig::custom(recipient.clone(), ARGUS_FEE_NANO),
-                || {
-                    build_watch_session(
-                        watch,
-                        1,
-                        recipient,
-                        25000000,
-                        HashMap::new(),
-                        "http://unused.invalid".into(),
-                        boxes,
-                        2000,
-                        &wallet_net::client::make_state_context(2000),
-                    )
-                },
+            &build_watch_session(
+                watch,
+                1,
+                recipient,
+                25000000,
+                HashMap::new(),
+                "http://unused.invalid".into(),
+                boxes,
+                2000,
+                &wallet_net::client::make_state_context(2000),
             )
             .unwrap(),
         )
@@ -534,18 +521,6 @@ mod tests {
             serde_json::from_str(&review(cold.clone(), handle).unwrap()).unwrap();
         assert_eq!(shown["network"], "Mainnet");
         assert_eq!(shown["fee_nano"], TX_FEE_NANO.to_string());
-        // A deliberate larger payment to the developer is still a recipient,
-        // not mislabeled as the fixed application fee.
-        assert_eq!(shown["outputs"][0]["application_fee"], false);
-        assert_eq!(
-            shown["outputs"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .filter(|o| o["application_fee"] == true)
-                .count(),
-            1
-        );
         sign(cold.clone(), handle).unwrap();
         for page in qr(cold.clone(), true).unwrap().into_iter().rev() {
             add(hot.clone(), page).unwrap();
@@ -603,24 +578,16 @@ mod tests {
                 HashMap::new()
             };
             let result: serde_json::Value = serde_json::from_str(
-                &ergo_tx::dev_fee::with_test_dev_fee(
-                    DevFeeConfig::custom(
-                        address_to_ergo_tree(ARGUS_FEE_ADDRESS).unwrap(),
-                        ARGUS_FEE_NANO,
-                    ),
-                    || {
-                        build_watch_session(
-                            watch,
-                            0,
-                            address_to_ergo_tree(&recipient).unwrap(),
-                            2000000,
-                            tokens,
-                            "http://unused.invalid".into(),
-                            boxes,
-                            2000,
-                            &wallet_net::client::make_state_context(2000),
-                        )
-                    },
+                &build_watch_session(
+                    watch,
+                    0,
+                    address_to_ergo_tree(&recipient).unwrap(),
+                    2000000,
+                    tokens,
+                    "http://unused.invalid".into(),
+                    boxes,
+                    2000,
+                    &wallet_net::client::make_state_context(2000),
                 )
                 .unwrap(),
             )
@@ -633,7 +600,7 @@ mod tests {
             assert_eq!(change["address"], address);
             assert_eq!(
                 change["nano_erg"],
-                (10000000 - 2000000 - TX_FEE_NANO - ARGUS_FEE_NANO).to_string()
+                (10000000 - 2000000 - TX_FEE_NANO).to_string()
             );
             if with_token {
                 assert_eq!(outputs[0]["tokens"][0]["amount"], "12");

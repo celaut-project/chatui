@@ -141,7 +141,6 @@ pub struct MultiSendSummary {
     pub change_erg: i64,
     pub miner_fee: i64,
     pub input_count: usize,
-    pub citadel_fee_nano: i64,
     /// Recipient outputs may span several boxes when delivering many tokens.
     pub recipient_output_count: usize,
     /// Change outputs occupy this range immediately after recipient outputs.
@@ -224,10 +223,7 @@ pub fn build_multi_send_tx_with_fee(
         }
     }
 
-    let fee_cfg = crate::dev_fee::resolved_config();
-    let app_fee = fee_cfg.budget();
     let required_erg = i64::checked_add(total_send_erg, fee_nano)
-        .and_then(|v| v.checked_add(app_fee))
         .ok_or(MultiSendError::InsufficientErg {
             have: total_erg,
             need: i64::MAX,
@@ -259,7 +255,7 @@ pub fn build_multi_send_tx_with_fee(
     }
 
     let has_token_change = !input_tokens.is_empty();
-    let raw_change = total_erg - total_send_erg - fee_nano - app_fee;
+    let raw_change = total_erg - total_send_erg - fee_nano;
     // Dust change folds into the miner fee instead of failing the send.
     let dust_to_fee = if !has_token_change && raw_change > 0 && raw_change < MIN_BOX_VALUE {
         raw_change
@@ -339,8 +335,6 @@ pub fn build_multi_send_tx_with_fee(
     }
 
     let change_output_count = outputs.len() - recipient_output_count;
-    // Cannot fail once enabled with a tree; budget was reserved above.
-    let _ = crate::dev_fee::append_dev_fee_output(&mut outputs, &fee_cfg, current_height);
     outputs.push(Eip12Output::fee(effective_fee, current_height));
 
     let unsigned_tx = Eip12UnsignedTx {
@@ -356,7 +350,6 @@ pub fn build_multi_send_tx_with_fee(
             change_erg,
             miner_fee: effective_fee,
             input_count: user_inputs.len(),
-            citadel_fee_nano: app_fee,
             recipient_output_count,
             change_output_count,
         },

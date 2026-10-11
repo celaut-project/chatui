@@ -5,7 +5,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../build_info.dart';
 import '../../format.dart';
 import '../../services/apk_signature.dart';
-import '../../services/app_fee.dart';
 import '../../services/update_service.dart';
 import '../../theme/argus_theme.dart';
 import 'settings_shared.dart';
@@ -112,11 +111,6 @@ class _AboutPageState extends State<AboutPage> {
                 icon: Icons.shield_outlined,
                 title: 'Unaudited prototype',
                 subtitle: 'Transactions on Ergo are irreversible. Use only funds you can afford to lose.',
-              ),
-              SettingsRow(
-                icon: Icons.toll_outlined,
-                title: 'App fee ${formatErg(argusFeeNano)} per transaction',
-                subtitle: 'Paid to ${argusFeeAddress.substring(0, 12)}… on every transaction Argus builds. ErgoPay requests from dApps are not charged.',
               ),
               _SigningKeyRow(fingerprints: _signingKey),
               SettingsRow(

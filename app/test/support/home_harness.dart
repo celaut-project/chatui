@@ -39,8 +39,6 @@ class HomeApi extends RustLibApi {
   Map<String, dynamic> _balance(String address) =>
       balances[address] ?? {'balance_nano_erg': 0, 'tokens': []};
 
-  @override
-  Future<void> crateApiInitApp() async {}
 
   @override
   Future<BigInt> crateApiWalletRestore({

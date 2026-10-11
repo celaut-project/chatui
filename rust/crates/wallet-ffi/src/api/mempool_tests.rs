@@ -504,16 +504,15 @@ async fn waiting_names_the_confirming_funds_and_allowing_chains_on_change() {
     let used: Vec<&str> = inputs.iter().map(|b| b["box_id"].as_str().unwrap()).collect();
     assert!(used.contains(&Sent::id(&w.change).as_str()), "{used:?}");
     assert!(!used.contains(&Sent::id(&w.spent).as_str()), "a spent box is never an input");
-    // Nothing is created or lost: inputs pay the recipient, the change, the
-    // miner and the app fee exactly.
+    // Nothing is created or lost: inputs pay the recipient, the change and
+    // the miner exactly.
     let total_in: u64 = inputs
         .iter()
         .map(|b| b["value_nano_erg"].as_str().unwrap().parse::<u64>().unwrap())
         .sum();
     let total_out = sent["amount_nano_erg"].as_u64().unwrap()
         + sent["change_nano_erg"].as_u64().unwrap()
-        + sent["miner_fee"].as_u64().unwrap()
-        + sent["citadel_fee_nano"].as_u64().unwrap();
+        + sent["miner_fee"].as_u64().unwrap();
     assert_eq!(total_in, total_out);
 }
 

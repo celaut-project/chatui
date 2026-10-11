@@ -7,7 +7,7 @@ use citadel_core::constants::{MIN_BOX_VALUE_NANO, TX_FEE_NANO};
 use ergo_lib::chain::transaction::reduced::ReducedTransaction;
 use ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox;
 use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
-use ergo_tx::{build_send_tx_with_fee, DevFeeConfig};
+use ergo_tx::build_send_tx;
 use ergopay_core::reduce_transaction_with_context;
 use once_cell::sync::Lazy;
 use rand::{rngs::SysRng, TryRng};
@@ -22,37 +22,6 @@ use crate::error::ArgusError;
 /// Pending transactions: the unconfirmed-spending policy, where every wallet
 /// spend gathers its inputs, and the pending summary the sync shows.
 pub mod mempool;
-
-/// Argus app fee: paid on every transaction the wallet builds (sends, UTXO
-/// tools, swaps, mints). ErgoPay transactions are built by the dApp and are
-/// not touched. Disclosed on every confirm sheet and in Settings → About.
-pub const ARGUS_FEE_ADDRESS: &str = "9iArkadiaZAPVxbUp2XQ8SVA1zGA29rCPhbpVuUaaKW6fWspUZA";
-pub const ARGUS_FEE_NANO: i64 = 1_100_000;
-
-/// Runs at bridge start (`frb(init)`) and is also called explicitly from
-/// Dart right after `RustLib.init`, so the fee config is installed before
-/// any builder resolves it. The attribute used to sit above the constants
-/// and never applied, which left the vendored default in force.
-#[flutter_rust_bridge::frb(init)]
-pub fn init_app() {
-    // Never the inherited Citadel fee; the Argus fee is installed instead.
-    std::env::set_var("CITADEL_DEV_FEE_ENABLED", "false");
-    if let Ok(tree) = address_to_ergo_tree(ARGUS_FEE_ADDRESS) {
-        ergo_tx::install_dev_fee_config(DevFeeConfig::custom(tree, ARGUS_FEE_NANO));
-    }
-}
-
-/// The app fee as the UI should display it.
-#[flutter_rust_bridge::frb(sync)]
-pub fn app_fee_info() -> String {
-    let cfg = ergo_tx::resolved_dev_fee_config();
-    serde_json::json!({
-        "address": ARGUS_FEE_ADDRESS,
-        "amount_nano": cfg.budget(),
-        "enabled": cfg.enabled,
-    })
-    .to_string()
-}
 
 fn err_str<E: Into<ArgusError>>(e: E) -> String {
     e.into().to_json_string()
@@ -1432,8 +1401,8 @@ async fn prepare(
         Some(t) => Some(find_babel(&client, t, fee_for_required).await?),
         None => None,
     };
-    // Use the same complete budget as multi-send: the builder also charges
-    // the app fee. Omitting it lets selection stop before MAX is funded.
+    // Use the same complete budget as multi-send: the miner fee and a change
+    // box. Omitting them lets selection stop before MAX is funded.
     let required = multi_send_required_erg(amount_nano_erg, fee_for_required, babel.is_some())?;
     let token_ref = send_token.as_ref().map(|(id, amt)| (id.as_str(), *amt));
     // Coin control: when the user chose boxes, spend exactly those. Falling
@@ -1468,14 +1437,13 @@ async fn prepare(
     let change_tree = address_to_ergo_tree(change_address)
         .map_err(|e| ArgusError::InvalidAddress(e).to_json_string())?;
 
-    let built = build_send_tx_with_fee(
+    let built = build_send_tx(
         &selected.boxes,
         &recipient_tree,
         &change_tree,
         amount_nano_erg,
         token_ref,
         height,
-        &ergo_tx::resolved_dev_fee_config(),
     )
     .map_err(|e| ArgusError::TxBuildFailed(e.to_string()).to_json_string())?;
 
@@ -1562,7 +1530,6 @@ pub async fn prepare_send(
     let miner_fee = built.summary.miner_fee;
     let change_erg = built.summary.change_erg;
     let input_count = built.summary.input_count;
-    let citadel_fee_nano = built.summary.citadel_fee_nano;
     let preview_token_id = built.summary.token_id.clone();
     let preview_token_amount = built.summary.token_amount;
     let preparation_id = store_preparation(CachedPreparation {
@@ -1583,7 +1550,6 @@ pub async fn prepare_send(
         "miner_fee": miner_fee,
         "change_nano_erg": change_erg,
         "input_count": input_count,
-        "citadel_fee_nano": citadel_fee_nano,
         "token_id": preview_token_id,
         "token_amount": preview_token_amount,
         "input_boxes": input_boxes,
@@ -1646,9 +1612,8 @@ pub async fn prepare_mint(
         .await
         .map_err(|e| ArgusError::NodeError(e).to_json_string())?;
     let (boxes, utxos) = gather_unspent(handle_id, &client, &spend).await?;
-    let fee_cfg = ergo_tx::resolved_dev_fee_config();
-    // The token box, the change box, both fees.
-    let required = (2 * MIN_BOX_VALUE_NANO + miner_fee + fee_cfg.budget()) as u64;
+    // The token box, the change box, the miner fee.
+    let required = (2 * MIN_BOX_VALUE_NANO + miner_fee) as u64;
     let selected = wallet_core::spend::select_for_send(&utxos, required, None)
         .map_err(|e| mempool::shortfall_error(handle_id, e))?;
     let built = ergo_tx::build_mint_tx(&selected.boxes, &spec, &user_tree, height as i32)
@@ -1675,7 +1640,6 @@ pub async fn prepare_mint(
         "amount": summary.amount,
         "box_value": summary.box_value,
         "miner_fee": summary.miner_fee,
-        "app_fee_nano": summary.citadel_fee_nano,
         "change_nano_erg": summary.change_erg,
         "input_boxes": input_boxes,
     }))
@@ -1728,15 +1692,14 @@ pub async fn prepare_burn(
     let (boxes, utxos) = gather_unspent(handle_id, &client, &spend).await?;
     // Every box carrying a token to burn must be spent (the builder burns
     // by omission, so the whole holding passes through it), plus ERG for
-    // the fees and a change box from wherever.
-    let fee_cfg = ergo_tx::resolved_dev_fee_config();
+    // the miner fee and a change box from wherever.
     let mut chosen: Vec<ergo_tx::Eip12InputBox> = utxos
         .iter()
         .filter(|b| b.assets.iter().any(|a| items.iter().any(|i| i.token_id.eq_ignore_ascii_case(&a.token_id))))
         .cloned()
         .collect();
     let have: i64 = chosen.iter().map(|b| b.value.parse::<i64>().unwrap_or(0)).sum();
-    let need = TX_FEE_NANO + fee_cfg.budget() + MIN_BOX_VALUE_NANO;
+    let need = TX_FEE_NANO + MIN_BOX_VALUE_NANO;
     if have < need {
         let more = wallet_core::spend::select_for_send(
             &utxos.iter().filter(|b| !chosen.iter().any(|c| c.box_id == b.box_id)).cloned().collect::<Vec<_>>(),
@@ -1768,7 +1731,6 @@ pub async fn prepare_burn(
         "preparation_id": preparation_id,
         "burned": summary.burned_tokens.iter().map(|b| serde_json::json!({"token_id": b.token_id, "amount": b.amount})).collect::<Vec<_>>(),
         "miner_fee": summary.miner_fee,
-        "app_fee_nano": summary.citadel_fee_nano,
         "change_nano_erg": summary.change_erg,
         "input_boxes": input_boxes,
     }))
@@ -2329,7 +2291,7 @@ pub async fn prepare_send_multi(
     // For input selection we need the total ERG + all token amounts
     let fee_for_required = fee_nano.unwrap_or(TX_FEE_NANO);
     // With a babel box paying the fee, the wallet's ERG covers only the
-    // recipients, app fee and a change box; the miner fee's worth of the token joins
+    // recipients and a change box; the miner fee's worth of the token joins
     // what the send needs.
     let babel = match babel_token_id.as_deref().filter(|t| !t.is_empty()) {
         Some(t) => Some(find_babel(&client, t, fee_for_required).await?),
@@ -2346,7 +2308,7 @@ pub async fn prepare_send_multi(
             })?;
     }
 
-    // Cover recipients, the wallet-paid miner fee, the app fee and minimum change.
+    // Cover recipients, the wallet-paid miner fee and minimum change.
     let required = multi_send_required_erg(total_send_erg, fee_for_required, babel.is_some())?;
     // Coin control, as in prepare_send: the chosen boxes are the whole
     // input set, never a starting point the selector may extend.
@@ -2463,7 +2425,6 @@ pub async fn prepare_send_multi(
         "miner_fee": miner_fee,
         "change_nano_erg": change_erg,
         "input_count": selected.len(),
-        "citadel_fee_nano": built.summary.citadel_fee_nano,
         "input_boxes": input_boxes,
         "babel": babel_summary.as_ref().map(babel_json),
     }))
@@ -2561,7 +2522,6 @@ fn add_change_shortfall(required: u64, have: i64, min: i64) -> Result<u64, Strin
 
 fn multi_send_required_erg(total_send_erg: i64, miner_fee: i64, babel: bool) -> Result<u64, String> {
     i64::checked_add(total_send_erg, if babel { 0 } else { miner_fee })
-        .and_then(|v| v.checked_add(ergo_tx::dev_fee::resolved_config().budget()))
         .and_then(|v| v.checked_add(MIN_BOX_VALUE_NANO))
         .filter(|v| *v > 0)
         .map(|v| v as u64)
@@ -2614,100 +2574,16 @@ mod tests {
     mod concurrent_gather;
     mod selected_lookup;
 
-    // Documents the mechanism and pins the arithmetic: with the old budget a
-    // MAX send selects one box short and the builder returns the exact error
-    // that was reported. It does NOT guard prepare()'s use of the shared
-    // budget — prepare() is async and needs a node client, so reverting it to
-    // an inline computation still passes this. Verified: the fix was reverted
-    // and this test stayed green.
     #[test]
-    fn single_send_max_selects_enough_for_the_reported_shortfall() {
-        let tree = address_to_ergo_tree(ARGUS_FEE_ADDRESS).unwrap();
-        ergo_tx::dev_fee::with_test_dev_fee(
-            DevFeeConfig::custom(tree.clone(), ARGUS_FEE_NANO),
-            || {
-                let make_box = |id: &str, value: i64| ergo_tx::Eip12InputBox {
-                    box_id: id.into(),
-                    transaction_id: "tx".into(),
-                    index: 0,
-                    value: value.to_string(),
-                    ergo_tree: tree.clone(),
-                    assets: vec![],
-                    creation_height: 1,
-                    additional_registers: Default::default(),
-                    extension: Default::default(),
-                };
-                let inputs = vec![make_box("large", 996_727_888), make_box("small", 1_072_065)];
-                let balance = 997_799_953;
-                let amount = balance - TX_FEE_NANO - ARGUS_FEE_NANO - MIN_BOX_VALUE_NANO;
-                let old_required = (amount + TX_FEE_NANO + MIN_BOX_VALUE_NANO) as u64;
-                let old = select_for_send(&inputs, old_required, None).unwrap();
-                let fee = ergo_tx::resolved_dev_fee_config();
-                assert!(matches!(
-                    build_send_tx_with_fee(&old.boxes, &tree, &tree, amount, None, 100, &fee),
-                    Err(ergo_tx::send::SendError::InsufficientErg { have: 996_727_888, need: 996_799_953 })
-                ));
-                for miner in [TX_FEE_NANO, TX_FEE_NANO + 500_000] {
-                    let amount = balance - miner - ARGUS_FEE_NANO - MIN_BOX_VALUE_NANO;
-                    let required = multi_send_required_erg(amount, miner, false).unwrap();
-                    assert_eq!(required, balance as u64);
-                    // Automatic selection receives this budget. Exact coin
-                    // control cannot top up.
-                    let selected = select_for_send(&inputs, required, None).unwrap();
-                    assert_eq!(selected.total_erg, balance as u64);
-                    let built = build_send_tx_with_fee(&selected.boxes, &tree, &tree, amount, None, 100, &fee).unwrap();
-                    assert_eq!(built.summary.change_erg, MIN_BOX_VALUE_NANO + miner - TX_FEE_NANO);
-                    assert!(select_exact(&inputs, &["large".into()], required, None).is_err());
-                }
-            },
+    fn multi_send_budget_is_the_amount_the_miner_fee_and_a_change_box() {
+        let amount = 2_000_000_000;
+        let required = multi_send_required_erg(amount, TX_FEE_NANO, false).unwrap();
+        assert_eq!(required, (amount + TX_FEE_NANO + MIN_BOX_VALUE_NANO) as u64);
+        assert_eq!(
+            multi_send_required_erg(amount, TX_FEE_NANO, true).unwrap(),
+            required - TX_FEE_NANO as u64,
         );
-    }
-
-    #[test]
-    fn multi_send_exact_selection_budget_covers_the_argus_fee() {
-        let tree = address_to_ergo_tree(ARGUS_FEE_ADDRESS).unwrap();
-        ergo_tx::dev_fee::with_test_dev_fee(
-            DevFeeConfig::custom(tree.clone(), ARGUS_FEE_NANO),
-            || {
-                let amount = 2_000_000_000;
-                let required = multi_send_required_erg(amount, TX_FEE_NANO, false).unwrap();
-                let make_box = |id: &str, value: i64| ergo_tx::Eip12InputBox {
-                    box_id: id.into(),
-                    transaction_id: "tx".into(),
-                    index: 0,
-                    value: value.to_string(),
-                    ergo_tree: tree.clone(),
-                    assets: vec![],
-                    creation_height: 1,
-                    additional_registers: Default::default(),
-                    extension: Default::default(),
-                };
-                // Selection visits the last box first. The old budget stops
-                // there, leaving the builder short of the app fee.
-                let inputs = vec![
-                    make_box("app-fee", ARGUS_FEE_NANO),
-                    make_box("send", amount + TX_FEE_NANO + MIN_BOX_VALUE_NANO),
-                ];
-                let selected = select_for_multi_send(&inputs, required, &HashMap::new()).unwrap();
-                assert_eq!(selected.len(), 2);
-                let recipients = vec![ergo_tx::RecipientSpec {
-                    ergo_tree: tree.clone(),
-                    amount_nano_erg: amount / 2,
-                    tokens: vec![],
-                }; 2];
-                let built = ergo_tx::build_multi_send_tx_with_fee(
-                    &selected, &recipients, &tree, TX_FEE_NANO, 100,
-                ).unwrap();
-                assert_eq!(built.summary.citadel_fee_nano, ARGUS_FEE_NANO);
-                assert_eq!(built.summary.change_erg, MIN_BOX_VALUE_NANO);
-                assert!(select_for_multi_send(&inputs[1..], required, &HashMap::new()).is_err());
-                assert_eq!(
-                    multi_send_required_erg(amount, TX_FEE_NANO, true).unwrap(),
-                    required - TX_FEE_NANO as u64,
-                );
-                assert!(multi_send_required_erg(i64::MAX, TX_FEE_NANO, false).is_err());
-            },
-        );
+        assert!(multi_send_required_erg(i64::MAX, TX_FEE_NANO, false).is_err());
     }
 
     #[test]

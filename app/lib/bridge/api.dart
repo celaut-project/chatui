@@ -9,9 +9,6 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 // These functions are ignored because they are not marked as `pub`: `add_change_shortfall`, `apply_custom_fee`, `babel_json`, `balance_from_inputs`, `build_funded_multi_send`, `checked_miner_fee`, `clear_node_clients`, `drop_preparations_for`, `ensure_token`, `err_str`, `filter_selected_inputs`, `find_babel`, `gather_unspent_ordered`, `gather_unspent`, `input_boxes_json`, `multi_send_required_erg`, `node_client`, `open_wallet`, `parse_recipient_tokens`, `pending_from_inputs`, `prepare_management`, `prepare`, `recover`, `register_handle`, `resolve_send_token`, `resolve_spend_addresses`, `select_for_multi_send`, `selected_ergo_boxes`, `session_json`, `sign_prepared_tx`, `store_preparation`, `take_preparation`, `tokens_json`, `wallet_delta_nano_erg`, `with_handle`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `BabelPick`, `CachedPreparation`, `ManagementBuild`, `ParsedRecipient`, `PreparedManagement`
 
-/// The app fee as the UI should display it.
-String appFeeInfo() => RustLib.instance.api.crateApiAppFeeInfo();
-
 Future<void> setNetwork({
   required List<String> nodeUrls,
   String? explorerUrl,

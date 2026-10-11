@@ -8,7 +8,6 @@ import 'package:uuid/uuid.dart';
 
 import '../bridge/argus_error.dart';
 import '../bridge/frb_generated.dart';
-import 'app_fee.dart';
 import 'network_controller.dart';
 import 'privacy_service.dart';
 import 'token_decimals.dart';
@@ -319,7 +318,6 @@ class SendPreview {
   final String? changeAddress;
   final int amountNanoErg;
   final int minerFee;
-  final int appFeeNano;
   final int changeNanoErg;
   final int inputCount;
   final String? tokenId;
@@ -338,7 +336,6 @@ class SendPreview {
     required this.recipient,
     required this.amountNanoErg,
     required this.minerFee,
-    this.appFeeNano = 0,
     required this.changeNanoErg,
     required this.inputCount,
     this.changeAddress,
@@ -370,7 +367,6 @@ class SendPreview {
       changeAddress: json['change_address'] as String?,
       amountNanoErg: _requireInt(json, 'amount_nano_erg'),
       minerFee: _requireInt(json, 'miner_fee'),
-      appFeeNano: (json['citadel_fee_nano'] as num?)?.toInt() ?? 0,
       changeNanoErg: _requireInt(json, 'change_nano_erg'),
       inputCount: _requireInt(json, 'input_count'),
       tokenId: json['token_id'] as String?,
@@ -1302,11 +1298,8 @@ class WalletService with WidgetsBindingObserver {
       RustLib.init(),
       loadTokenMeta(),
     ]);
-    // Belt and braces with the frb(init) attribute: the app fee config must
-    // be installed before any transaction is built.
-    await RustLib.instance.api.crateApiInitApp();
-    // Likewise the unconfirmed-spending setting, which every spend's input
-    // gathering in Rust follows.
+    // The unconfirmed-spending setting, which every spend's input gathering
+    // in Rust follows, must be applied before any transaction is built.
     await spendPolicy.apply();
     _initialized = true;
     await _migrateLegacyIfNeeded();
@@ -2665,7 +2658,7 @@ class WalletService with WidgetsBindingObserver {
     _requireUnlocked();
     if (addresses.isEmpty) return [];
 
-    final reserve = BigInt.from(minerFeeNano + argusFeeNano + minBoxNano);
+    final reserve = BigInt.from(minerFeeNano + minBoxNano);
     final txIds = <String>[];
 
     while (true) {

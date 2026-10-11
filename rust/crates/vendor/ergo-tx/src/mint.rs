@@ -5,11 +5,10 @@
 //! output carries the token's name, description and decimals in R4–R6
 //! as UTF-8 byte collections, and for an NFT its kind, content hash and
 //! link in R7–R9. Everything else in the inputs goes back to the wallet
-//! as change, with the app fee and the miner fee on top.
+//! as change, with the miner fee on top.
 
 use std::collections::HashMap;
 
-use crate::dev_fee::{append_dev_fee_output, resolved_config};
 use crate::eip12::{Eip12Asset, Eip12InputBox, Eip12Output, Eip12UnsignedTx};
 use citadel_core::constants::{MIN_BOX_VALUE_NANO as MIN_BOX_VALUE, TX_FEE_NANO as TX_FEE};
 
@@ -64,7 +63,6 @@ pub struct MintSummary {
     pub amount: u64,
     pub box_value: i64,
     pub miner_fee: i64,
-    pub citadel_fee_nano: i64,
     pub change_erg: i64,
 }
 
@@ -90,8 +88,6 @@ pub enum MintError {
     BadHash,
     #[error("Insufficient ERG: have {have}, need {need}")]
     InsufficientErg { have: i64, need: i64 },
-    #[error("Citadel fee config error: {0}")]
-    DevFee(String),
 }
 
 /// A `Coll[Byte]` constant: type code `0e`, the length as an unsigned
@@ -137,7 +133,7 @@ impl NftDetails {
 
 /// Build the issuance: the token box to `user_ergo_tree` first (its
 /// token id is `user_inputs[0].box_id`), then change with every input
-/// token, the app fee, the miner fee.
+/// token, the miner fee.
 pub fn build_mint_tx(
     user_inputs: &[Eip12InputBox],
     spec: &MintSpec,
@@ -160,8 +156,6 @@ pub fn build_mint_tx(
         return Err(MintError::NftShape);
     }
     let registers = issuance_registers(spec)?;
-    let fee_cfg = resolved_config();
-    let citadel_fee = fee_cfg.budget();
     let box_value = MIN_BOX_VALUE;
 
     let total_erg: i64 = user_inputs
@@ -181,11 +175,11 @@ pub fn build_mint_tx(
     }
     // The change box always exists: it carries the inputs' tokens and the
     // leftover ERG, and must itself be at least a box.
-    let need = box_value + TX_FEE + citadel_fee + MIN_BOX_VALUE;
+    let need = box_value + TX_FEE + MIN_BOX_VALUE;
     if total_erg < need {
         return Err(MintError::InsufficientErg { have: total_erg, need });
     }
-    let change_erg = total_erg - box_value - TX_FEE - citadel_fee;
+    let change_erg = total_erg - box_value - TX_FEE;
 
     let token_id = first.box_id.clone();
     let mut outputs = vec![
@@ -208,8 +202,6 @@ pub fn build_mint_tx(
             additional_registers: HashMap::new(),
         },
     ];
-    append_dev_fee_output(&mut outputs, &fee_cfg, current_height)
-        .map_err(|e| MintError::DevFee(e.to_string()))?;
     outputs.push(Eip12Output::fee(TX_FEE, current_height));
 
     Ok(MintBuildResult {
@@ -223,7 +215,6 @@ pub fn build_mint_tx(
             amount: spec.amount,
             box_value,
             miner_fee: TX_FEE,
-            citadel_fee_nano: citadel_fee,
             change_erg,
         },
     })
@@ -274,7 +265,7 @@ mod tests {
         assert_eq!(change.value, r.summary.change_erg.to_string());
         assert_eq!(
             r.summary.change_erg,
-            1_000_000_000 - MIN_BOX_VALUE - TX_FEE - r.summary.citadel_fee_nano
+            1_000_000_000 - MIN_BOX_VALUE - TX_FEE
         );
     }
 

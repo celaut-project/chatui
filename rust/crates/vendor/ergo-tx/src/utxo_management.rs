@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use crate::dev_fee::{append_dev_fee_output, resolved_config};
 use crate::eip12::{Eip12Asset, Eip12InputBox, Eip12Output, Eip12UnsignedTx};
 
 use citadel_core::constants::{MIN_BOX_VALUE_NANO as MIN_BOX_VALUE, TX_FEE_NANO as TX_FEE};
@@ -72,8 +71,6 @@ pub enum UtxoManagementError {
     #[error("Invalid or overflowing {0} amount")]
     InvalidAmount(&'static str),
 
-    #[error("Citadel fee config error: {0}")]
-    DevFee(String),
 }
 
 #[derive(Debug)]
@@ -83,7 +80,6 @@ pub struct ConsolidateSummary {
     pub change_erg: i64,
     pub token_count: usize,
     pub miner_fee: i64,
-    pub citadel_fee_nano: i64,
 }
 
 #[derive(Debug)]
@@ -109,10 +105,8 @@ pub fn build_consolidate_tx(
         .map(|b| b.value.parse::<i64>().unwrap_or(0))
         .sum();
 
-    let fee_cfg = resolved_config();
-    let citadel_fee = fee_cfg.budget();
 
-    let min_needed = TX_FEE + citadel_fee + MIN_BOX_VALUE;
+    let min_needed = TX_FEE + MIN_BOX_VALUE;
     if total_erg < min_needed {
         return Err(UtxoManagementError::InsufficientErg {
             have: total_erg,
@@ -128,7 +122,7 @@ pub fn build_consolidate_tx(
         }
     }
 
-    let change_erg = total_erg - TX_FEE - citadel_fee;
+    let change_erg = total_erg - TX_FEE;
     let token_count = token_totals.len();
 
     let mut change_assets: Vec<Eip12Asset> = token_totals
@@ -150,13 +144,11 @@ pub fn build_consolidate_tx(
         crate::ChangeOutputError::NotEnoughErg { min_value, .. } => {
             UtxoManagementError::InsufficientErg {
                 have: total_erg,
-                need: TX_FEE + citadel_fee + min_value as i64,
+                need: TX_FEE + min_value as i64,
             }
         }
         other => UtxoManagementError::ChangeBox(other.to_string()),
     })?;
-    append_dev_fee_output(&mut outputs, &fee_cfg, current_height)
-        .map_err(|e| UtxoManagementError::DevFee(e.to_string()))?;
     outputs.push(Eip12Output::fee(TX_FEE, current_height));
 
     let unsigned_tx = Eip12UnsignedTx {
@@ -173,7 +165,6 @@ pub fn build_consolidate_tx(
             change_erg,
             token_count,
             miner_fee: TX_FEE,
-            citadel_fee_nano: citadel_fee,
         },
     })
 }
@@ -197,7 +188,6 @@ pub struct SplitSummary {
     pub total_split: String,
     pub change_erg: i64,
     pub miner_fee: i64,
-    pub citadel_fee_nano: i64,
 }
 
 #[derive(Debug)]
@@ -243,11 +233,9 @@ pub fn build_split_tx(
                 });
             }
 
-            let fee_cfg = resolved_config();
-            let citadel_fee = fee_cfg.budget();
 
             let split_total = *amount_per_box * count as i64;
-            let min_without_change = split_total + TX_FEE + citadel_fee;
+            let min_without_change = split_total + TX_FEE;
             if total_erg < min_without_change {
                 return Err(UtxoManagementError::InsufficientErg {
                     have: total_erg,
@@ -255,7 +243,7 @@ pub fn build_split_tx(
                 });
             }
 
-            let remainder = total_erg - split_total - TX_FEE - citadel_fee;
+            let remainder = total_erg - split_total - TX_FEE;
 
             let mut token_totals: HashMap<String, u64> = HashMap::new();
             for input in user_inputs {
@@ -276,7 +264,7 @@ pub fn build_split_tx(
             if has_tokens && remainder < MIN_BOX_VALUE {
                 return Err(UtxoManagementError::InsufficientErg {
                     have: total_erg,
-                    need: split_total + TX_FEE + citadel_fee + MIN_BOX_VALUE,
+                    need: split_total + TX_FEE + MIN_BOX_VALUE,
                 });
             }
 
@@ -312,8 +300,6 @@ pub fn build_split_tx(
                 });
             }
 
-            append_dev_fee_output(&mut outputs, &fee_cfg, current_height)
-                .map_err(|e| UtxoManagementError::DevFee(e.to_string()))?;
             outputs.push(Eip12Output::fee(TX_FEE, current_height));
 
             let unsigned_tx = Eip12UnsignedTx {
@@ -330,7 +316,6 @@ pub fn build_split_tx(
                     total_split: split_total.to_string(),
                     change_erg: remainder,
                     miner_fee: TX_FEE,
-                    citadel_fee_nano: citadel_fee,
                 },
             })
         }
@@ -350,8 +335,6 @@ pub fn build_split_tx(
                 });
             }
 
-            let fee_cfg = resolved_config();
-            let citadel_fee = fee_cfg.budget();
 
             let total_token_needed = *amount_per_box * count as u64;
             let erg_for_splits = *erg_per_box * count as i64;
@@ -371,7 +354,7 @@ pub fn build_split_tx(
                 });
             }
 
-            let min_erg = erg_for_splits + TX_FEE + citadel_fee + MIN_BOX_VALUE;
+            let min_erg = erg_for_splits + TX_FEE + MIN_BOX_VALUE;
             if total_erg < min_erg {
                 return Err(UtxoManagementError::InsufficientErg {
                     have: total_erg,
@@ -379,7 +362,7 @@ pub fn build_split_tx(
                 });
             }
 
-            let change_erg = total_erg - erg_for_splits - TX_FEE - citadel_fee;
+            let change_erg = total_erg - erg_for_splits - TX_FEE;
 
             let mut token_totals: HashMap<String, u64> = HashMap::new();
             for input in user_inputs {
@@ -421,8 +404,6 @@ pub fn build_split_tx(
                 additional_registers: HashMap::new(),
             });
 
-            append_dev_fee_output(&mut outputs, &fee_cfg, current_height)
-                .map_err(|e| UtxoManagementError::DevFee(e.to_string()))?;
             outputs.push(Eip12Output::fee(TX_FEE, current_height));
 
             let unsigned_tx = Eip12UnsignedTx {
@@ -439,7 +420,6 @@ pub fn build_split_tx(
                     total_split: total_token_needed.to_string(),
                     change_erg,
                     miner_fee: TX_FEE,
-                    citadel_fee_nano: citadel_fee,
                 },
             })
         }
@@ -464,7 +444,6 @@ pub struct RestructureSummary {
     pub change_erg: i64,
     pub has_change: bool,
     pub miner_fee: i64,
-    pub citadel_fee_nano: i64,
 }
 
 #[derive(Debug)]
@@ -481,7 +460,7 @@ pub struct RestructureBuildResult {
 /// - Unassigned ERG (after fee) and any unassigned tokens form an automatic change
 ///   output when needed. If tokens remain unassigned but change ERG would be 0,
 ///   returns an error (need room for a change box).
-/// - Miner fee is always `TX_FEE`. Citadel app fee is appended before miner fee when enabled.
+/// - Miner fee is always `TX_FEE`.
 pub fn build_restructure_tx(
     user_inputs: &[Eip12InputBox],
     outputs: &[RestructureOutputSpec],
@@ -590,14 +569,12 @@ pub fn build_restructure_tx(
         }
     }
 
-    let fee_cfg = resolved_config();
-    let citadel_fee = fee_cfg.budget();
 
-    let available_after_fee = total_erg - TX_FEE - citadel_fee;
+    let available_after_fee = total_erg - TX_FEE;
     if available_after_fee < MIN_BOX_VALUE {
         return Err(UtxoManagementError::InsufficientErg {
             have: total_erg,
-            need: TX_FEE + citadel_fee + MIN_BOX_VALUE,
+            need: TX_FEE + MIN_BOX_VALUE,
         });
     }
     if allocated_erg > available_after_fee {
@@ -676,8 +653,6 @@ pub fn build_restructure_tx(
         });
     }
 
-    append_dev_fee_output(&mut tx_outputs, &fee_cfg, current_height)
-        .map_err(|e| UtxoManagementError::DevFee(e.to_string()))?;
     tx_outputs.push(Eip12Output::fee(TX_FEE, current_height));
 
     let unsigned_tx = Eip12UnsignedTx {
@@ -696,7 +671,6 @@ pub fn build_restructure_tx(
             change_erg,
             has_change,
             miner_fee: TX_FEE,
-            citadel_fee_nano: citadel_fee,
         },
     })
 }
