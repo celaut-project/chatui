@@ -10,7 +10,7 @@ const bool defaultSpendUnconfirmed = true;
 /// What the switch does, in plain words, for the note under it.
 const spendUnconfirmedNote =
     'Off: money you receive, and the change from your own sends, waits for '
-    'one confirmation (the next block, usually a few minutes) before Argus '
+    'one confirmation (the next block, usually a few minutes) before Celaut '
     'spends it. On: it can '
     'be spent at once, but if the transaction that brought it is dropped, '
     'the one spending it fails too. Either way, coins a pending transaction '

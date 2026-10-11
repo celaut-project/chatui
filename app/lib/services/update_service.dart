@@ -443,7 +443,7 @@ Future<DownloadedApk> downloadApk({
   Duration stallTimeout = _stallTimeout,
 }) async {
   if (!isTrustedReleaseUrl(asset.url)) throw const UpdateException('The download address is not on GitHub.');
-  if (asset.size > maxBytes) throw const UpdateException('The download is larger than Argus will accept.');
+  if (asset.size > maxBytes) throw const UpdateException('The download is larger than Celaut will accept.');
   final limit = asset.size;
 
   final http.StreamedResponse response;
@@ -467,7 +467,7 @@ Future<DownloadedApk> downloadApk({
   try {
     file = await into.open(mode: FileMode.write);
   } on FileSystemException {
-    throw const UpdateException('Argus could not save the download. Is the phone out of storage?');
+    throw const UpdateException('Celaut could not save the download. Is the phone out of storage?');
   }
   var received = 0;
   try {
@@ -493,7 +493,7 @@ Future<DownloadedApk> downloadApk({
   } catch (e) {
     await _discard(file, into);
     if (isCancelled()) throw const _Cancelled();
-    if (e is FileSystemException) throw const UpdateException('Argus could not save the download. Is the phone out of storage?');
+    if (e is FileSystemException) throw const UpdateException('Celaut could not save the download. Is the phone out of storage?');
     throw _networkFailure(e);
   }
   return DownloadedApk(sha256: digest.value.toString(), bytes: received);
@@ -602,7 +602,7 @@ String _rejection(ApkVerdict verdict) => switch (verdict) {
       ApkVerdict.unreadable =>
         'The signing key of this download could not be read, so it was not offered for install. It has been deleted.',
       ApkVerdict.appKeyUnknown =>
-        'Argus could not read its own signing key, so it cannot check this download. It has been deleted.',
+        'Celaut could not read its own signing key, so it cannot check this download. It has been deleted.',
       ApkVerdict.verified => '',
     };
 
@@ -982,7 +982,7 @@ class UpdateService extends ChangeNotifier {
       return;
     }
     if (!await _platform.canRequestInstall()) {
-      stageMessage = 'Android needs your permission first. Allow Argus to install apps on the next screen, then tap Install again.';
+      stageMessage = 'Android needs your permission first. Allow Celaut to install apps on the next screen, then tap Install again.';
       notifyListeners();
       await _platform.openInstallSettings();
       return;

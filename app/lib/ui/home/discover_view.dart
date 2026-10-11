@@ -35,7 +35,7 @@ class DiscoverView extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(homeGutter, 0, homeGutter, 8),
           child: Text(
-            'What Argus can do beyond sending and receiving. Each one says what it is, '
+            'What Celaut can do beyond sending and receiving. Each one says what it is, '
             'what you can do with it, and what to watch for before it opens.',
             style: t.secondary.copyWith(height: 1.4),
           ),

@@ -56,7 +56,7 @@ class _UpdateCardState extends State<UpdateCard> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Argus ${release.version}'
+                        'Celaut ${release.version}'
                         '${published == null ? '' : ' · ${_date(published.toLocal())}'}',
                         style: TextStyle(fontSize: 12.5, color: colors.muted),
                       ),
@@ -222,7 +222,7 @@ class _UpdateCardState extends State<UpdateCard> {
           ),
           const SizedBox(height: 8),
           Text(
-            '${asset.name} · ${formatDownloadSize(asset.size)}. Before anything is installed, Argus checks the file '
+            '${asset.name} · ${formatDownloadSize(asset.size)}. Before anything is installed, Celaut checks the file '
             'against the checksum GitHub lists and against the key this app is signed with.',
             style: small,
           ),

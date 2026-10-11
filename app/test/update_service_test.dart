@@ -644,7 +644,7 @@ void main() {
       expect(h.leftovers, isEmpty);
     });
 
-    test('a file larger than Argus will take is not even requested', () async {
+    test('a file larger than Celaut will take is not even requested', () async {
       h.publish('v1.0.0-beta.2');
       h.gh.releaseBody = releaseJson('v1.0.0-beta.2', assets: [
         {...assetJson(arm64, goodApk), 'size': maxApkBytes + 1},
@@ -653,7 +653,7 @@ void main() {
       await svc.checkNow();
       await svc.downloadAndVerify();
       expect(svc.stage, UpdateStage.failed);
-      expect(svc.stageMessage, contains('larger than Argus will accept'));
+      expect(svc.stageMessage, contains('larger than Celaut will accept'));
       expect(h.gh.fileRequests, isEmpty);
     });
 
@@ -991,7 +991,7 @@ void main() {
       await svc.install();
       expect(h.platform.settingsOpened, 1);
       expect(h.platform.installed, isEmpty);
-      expect(svc.stageMessage, contains('Allow Argus to install apps'));
+      expect(svc.stageMessage, contains('Allow Celaut to install apps'));
 
       h.platform.allowInstall = true;
       await svc.install();

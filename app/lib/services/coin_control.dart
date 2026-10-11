@@ -118,7 +118,7 @@ String? selectionConfirmationNote(CoinSelection selection) {
 
 /// Human summary of what the chosen boxes hold.
 String selectionSummary(CoinSelection selection) {
-  if (selection.isEmpty) return 'No boxes chosen — Argus will pick them.';
+  if (selection.isEmpty) return 'No boxes chosen — Celaut will pick them.';
   final parts = <String>[
     '${selection.count} box${selection.count == 1 ? '' : 'es'}',
     formatErg(selection.totalNanoErg, maxFrac: 4),

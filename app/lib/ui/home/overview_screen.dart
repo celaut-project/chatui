@@ -91,7 +91,7 @@ class OverviewScreen extends StatelessWidget {
         titleSpacing: homeGutter,
         title: Semantics(
           header: true,
-          label: 'Argus',
+          label: 'Celaut',
           excludeSemantics: true,
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -104,7 +104,7 @@ class OverviewScreen extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Argus',
+                      'Celaut',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 26, height: 1.1),
@@ -471,7 +471,7 @@ Future<void> showPrototypeNotice(BuildContext context) => showDialog<void>(
       builder: (ctx) => AlertDialog(
         title: const Text('Prototype software'),
         content: const Text(
-          'Argus is an unaudited prototype. Transactions on Ergo are '
+          'Celaut is an unaudited prototype. Transactions on Ergo are '
           'irreversible — use only funds you can afford to lose.',
         ),
         actions: [

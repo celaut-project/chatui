@@ -63,7 +63,7 @@ class _AboutPageState extends State<AboutPage> {
           const SizedBox(height: 16),
           const Center(child: IrisMark(size: 64)),
           const SizedBox(height: 14),
-          Text('Argus', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall),
+          Text('Celaut', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 6),
           Text(
             '$appVersion · build $appBuildNumber',
@@ -99,7 +99,7 @@ class _AboutPageState extends State<AboutPage> {
             ],
           ),
           const SettingsNote(
-            'Off by default. When on, Argus asks api.github.com for the latest release once a day as it starts. '
+            'Off by default. When on, Celaut asks api.github.com for the latest release once a day as it starts. '
             '"Check now" does the same on request, even with this off. Nothing else is sent: no account, token, '
             'app version or device identifier. A download comes from github.com and is checked against this '
             'app\'s signing key before Android is asked to install it.',
@@ -124,14 +124,14 @@ class _AboutPageState extends State<AboutPage> {
                 title: 'Open-source licenses',
                 onTap: () => showLicensePage(
                   context: context,
-                  applicationName: 'Argus',
+                  applicationName: 'Celaut',
                   applicationVersion: appVersion,
                 ),
               ),
             ],
           ),
           const SettingsNote(
-            'Argus is a light client: it talks to public Ergo nodes over HTTPS and never sends your keys anywhere.',
+            'Celaut is a light client: it talks to public Ergo nodes over HTTPS and never sends your keys anywhere.',
           ),
         ],
       ),

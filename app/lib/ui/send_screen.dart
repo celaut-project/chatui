@@ -1319,7 +1319,7 @@ class _InputPickerSheet extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               chosen.isEmpty
-                  ? 'Argus will pick boxes for you. Choose some to control exactly what this transaction spends.'
+                  ? 'Celaut will pick boxes for you. Choose some to control exactly what this transaction spends.'
                   : selectionSummary(selection),
               style: TextStyle(fontSize: 12.5, color: colors.muted),
             ),

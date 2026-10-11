@@ -940,7 +940,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           children: [
             const IrisMark(size: 72),
             const SizedBox(height: 20),
-            Text('Argus', style: Theme.of(context).textTheme.headlineSmall),
+            Text('Celaut', style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 8),
             const SizedBox(width: 48, child: Hairline(gold: true)),
             const SizedBox(height: 28),

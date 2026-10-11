@@ -116,7 +116,7 @@ class _ArgusAppState extends State<ArgusApp> with WidgetsBindingObserver {
       listenable: themeController,
       builder: (context, _) {
         return MaterialApp(
-          title: 'Argus',
+          title: 'Celaut',
           navigatorKey: navigatorKey,
           debugShowCheckedModeBanner: false,
           theme: themeController.lightTheme,

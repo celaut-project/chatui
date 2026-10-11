@@ -52,7 +52,7 @@ class _UpdateNoticeState extends State<UpdateNotice> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Argus ${release.version} is available.',
+                    'Celaut ${release.version} is available.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),

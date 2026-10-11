@@ -466,7 +466,7 @@ class _ColdWatchSendScreenState extends State<ColdWatchSendScreen> {
           ),
           SelectableText(widget.address!),
           const Text(
-            'The offline signer must own this mainnet P2PK address. Argus automatically searches EIP-3 account 0, external indices 0–512.',
+            'The offline signer must own this mainnet P2PK address. Celaut automatically searches EIP-3 account 0, external indices 0–512.',
           ),
         ],
         if (pendingColdSends.containsKey(sourceKey))

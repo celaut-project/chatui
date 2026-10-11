@@ -292,7 +292,7 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
           ],
         ),
         const SettingsNote(
-          'Five wrong PINs lock the gate for a while. Argus never stores the PIN; it only unwraps the key that decrypts the seed.',
+          'Five wrong PINs lock the gate for a while. Celaut never stores the PIN; it only unwraps the key that decrypts the seed.',
         ),
         ListenableBuilder(
           listenable: privacyService,

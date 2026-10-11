@@ -59,6 +59,6 @@ void main() {
   test('an empty selection means automatic selection', () {
     final s = summariseSelection(all, {});
     expect(s.isEmpty, isTrue);
-    expect(selectionSummary(s), contains('Argus will pick'));
+    expect(selectionSummary(s), contains('Celaut will pick'));
   });
 }

@@ -320,7 +320,7 @@ class _IssueTabState extends State<_IssueTab>
         if (problem != null && _name.text.isNotEmpty)
           Text(problem, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12)),
         const SizedBox(height: 16),
-        Text('Costs 0.001 ERG for the token box plus the Argus and miner fees.', style: TextStyle(color: muted, fontSize: 12)),
+        Text('Costs 0.001 ERG for the token box plus the miner fee.', style: TextStyle(color: muted, fontSize: 12)),
         const SizedBox(height: 12),
         FilledButton(
           key: const Key('issue-continue'),
@@ -411,7 +411,7 @@ class _BurnTabState extends State<_BurnTab>
         title: 'Burn tokens',
         confirmLabel: 'Burn for good',
         detail: 'These units are left out of every output of the transaction and stop '
-            'existing. Nobody, including Argus, can bring them back.',
+            'existing. Nobody, including Celaut, can bring them back.',
         rows: [
           for (final b in (prepared['burned'] as List).cast<Map>())
             ConfirmTxRow('Burn', label(b['token_id'] as String, (b['amount'] as num).toInt()), bold: true),

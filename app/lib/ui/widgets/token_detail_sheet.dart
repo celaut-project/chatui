@@ -434,7 +434,7 @@ class _TokenDetailBody extends StatelessWidget {
                     final yes = await showDialog<bool>(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        title: Text('Leave Argus for ${uri.host}?'),
+                        title: Text('Leave Celaut for ${uri.host}?'),
                         content: const Text(
                           'The explorer can see your IP address and this token ID.',
                         ),

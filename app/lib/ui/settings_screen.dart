@@ -116,7 +116,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       SettingsRow(
                         icon: Icons.info_outline,
-                        title: 'About Argus',
+                        title: 'About Celaut',
                         subtitle: 'Version, release notes, licenses',
                         onTap: () => _open(const AboutPage()),
                       ),
