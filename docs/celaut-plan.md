@@ -16,6 +16,7 @@ Updated on 2026-10-11, master at `160d24c`.
 | M0b: trimmed wallet and new identity | Not started on master. Start from master (see M0b in section 5) |
 | `bee-rpc-over-grpc-rs` | Specification ready (`68d6f0e`): public API with `todo!()`, tests and vectors from the Python reference, agent guide and prompt. Port not started |
 | M1a, M1 to M5 | Not started |
+| Open questions (section 7) | Answered on 2026-10-11 |
 
 Do the next tasks in this order. Each task is one PR into master.
 
@@ -27,18 +28,10 @@ Do the next tasks in this order. Each task is one PR into master.
    has the skeleton. Its `PORTING.md` lists the steps. This work does not depend on M0b.
 4. **M1**, then **M2**. The protocol crates do not depend on M0b. You can start
    `celaut-wire` before M0b is merged, but make the PR after M0b.
-5. **M3**, **M4**, then **M5** if Josemi agrees.
+5. **M3**, **M4**, then **M5**.
 
-Some open questions in section 7 block a milestone. Get an answer before you start
-that milestone:
-
-| Question | Blocks |
-|---|---|
-| 3. First text service | M4 |
-| 4. Delegation | Nothing now; M2 uses `remaining_hops: 1` |
-| 5. Test node, credit and testnet | The end-to-end checks of M2 and M3 |
-| 7. Tor | M5 |
-| 9. Release key | The first release APK (M0b updater check) |
+Josemi answered all the open questions on 2026-10-11 (section 7). One task is left
+from them: before M3, find out if nodo accepts deposits on the Ergo testnet.
 
 Measured by the author of PR #1 on 2026-10-11, master at `802dd55`, macOS arm64,
 Rust 1.99.0, Flutter 3.41.2, NDK 28.2.13676358:
@@ -194,7 +187,7 @@ GetMetrics, ServiceTunnel with the local port. Two rules from nodo dev:
   itself and does not delegate it. A delegated instance has no path for a phone:
   ServiceTunnel accepts only tokens of local instances
   (`nodo:src/tunneling/rpc_tunnel.py:346-351`), and the node gives an alias token
-  for a delegated one (open question 4).
+  for a delegated one (decision 4 in section 7).
 
 Each TCP connection through the local port is one ServiceTunnel stream and pays
 `TUNNEL_OPEN_MU`, so the Dart side keeps HTTP connections alive.
@@ -217,12 +210,12 @@ own node only after approval of the amount (see section 6).
 
 **M4: conversation screen.** Select a skill or a service hash, launch it, and talk to
 it through the tunnel. Show the cost so far, and stop the instance when the user
-leaves. Check: a conversation with the first text service that we choose (open
-question 3).
+leaves. First write the "chat" convention (HTTP with JSON, decision 3 in section 7).
+Check: a conversation with a simple echo service that follows it.
 
-**M5: privacy** (after M4, if Josemi agrees). Optional Tor for outbound connections,
+**M5: privacy** (after M4). Optional Tor (Arti, off by default) for outbound connections,
 so that a node does not see the IP address of the phone. It does not hide the node;
-onion addresses for nodes are nodo work (open question 7).
+onion addresses for nodes are nodo work (decision 7 in section 7).
 
 ## 6. Risks
 
@@ -240,35 +233,30 @@ onion addresses for nodes are nodo work (open question 7).
 | Protocol drift from nodo dev | `celaut-proto/protos/SOURCE` pins the commit; a CI job can compare it with nodo dev |
 | Real funds in tests | No transaction in automated tests. Manual tests on our own node only, with an amount that a maintainer approves first |
 
-## 7. Open questions for Josemi
+## 7. Decisions on the open questions (2026-10-11)
 
-1. **"Celaut node implementation" in the description:** is the app a light client
-   only (decisions.md says so), or is a later "light node" role intended (for example
-   to relay requests or announce itself)? Should the description change?
-2. **Order of work:** answered. `celaut-crates` is merged into master, and all new
-   work comes as PRs into master. The order is in section 0.
-3. **First service for M4:** which text service do we use (an LLM service, or a
-   simple echo or translation service for the first test)? Which protocol does it
-   speak on its slot: plain HTTP with JSON, an OpenAI-compatible API, or gRPC?
-   A small convention for "chat" services would let the app talk to any of them.
-4. **Delegation:** with `remaining_hops: 1` the app uses only the nodes that it calls
-   directly. Is that correct for the light client, or should nodo relay ServiceTunnel
-   to a delegated instance (for example, accept the alias token and forward)?
-5. **Test node and ledger:** can the M2 and M3 tests use our own node with a larger
-   `CREDIT_MU_PER_NEW_CLIENT`? `general_flags.SIMULATE_PAYMENTS` is payer-side only
-   (a node does not accept a simulated Payable). Does nodo accept deposits on the
-   Ergo testnet, so that M3 can be tested with no real ERG?
-6. **Package upload from the phone:** decisions.md says the user can upload a package.
-   Is that `.celaut.bee` import through StartService indices 5 and 6, for nodes that
-   do not have the service? Size limits on mobile data?
-7. **Tor:** is client-side Tor (hide the phone) wanted in the app, or only onion
-   addresses for nodes in nodo? If the app uses Tor, is a Rust Tor client (Arti)
-   acceptable, given the size of the APK?
-8. **Node directory:** few nodes publish their address on-chain
-   (`SUBMIT_NETWORK_ADDRESS_TO_REPUTATION_PROOF`). Is a list of bootstrap nodes in
-   the app acceptable, or only on-chain boxes and user input?
-9. **Releases:** which key signs the release APK, and who keeps it? Does CI sign, or
-   does a maintainer sign the CI build by hand?
+1. **Role:** the app is a light client only. It never acts as a peer. The repository
+   description is now "Android light client for Celaut, with an Ergo wallet".
+2. **Order of work:** `celaut-crates` is merged into master, and all new work comes
+   as PRs into master. The order is in section 0.
+3. **First service for M4:** a simple echo (or translation) service over HTTP with
+   JSON, with a small "chat" convention that a later LLM service also follows.
+   Write the convention down in M4 before the screen.
+4. **Delegation:** no delegation. The app sends `remaining_hops: 1`, so the node
+   that it calls runs the service. A nodo change to relay ServiceTunnel comes only if
+   delegation is wanted later.
+5. **Tests of M2 and M3:** our own node with a large `CREDIT_MU_PER_NEW_CLIENT` for
+   M2. For M3, find out if nodo accepts deposits on the Ergo testnet. If it does not,
+   use one small real deposit, with an amount that Josemi approves first.
+6. **Package upload:** import a `.celaut.bee` that already exists, through
+   StartService indices 5 and 6, for a node that does not have the service. Show the
+   size and warn on mobile data. This needs the send side of blocks in
+   `bee-rpc-over-grpc-rs`, which is not in its current plan.
+7. **Tor:** optional, with Arti (Rust), off by default, in M5 after M4.
+8. **Node directory:** no bootstrap list in the app. Only on-chain node boxes and
+   nodes that the user adds by address or QR code.
+9. **Release key:** CI builds the release APK unsigned. Josemi signs it by hand with
+   a local key and uploads it to the GitHub release. The key never goes to CI.
 
 ## 8. Notes for `docs/celaut/wire.md`
 
