@@ -14,16 +14,20 @@ Updated on 2026-10-11, master at `160d24c`.
 | M0: build from source, CI on master, debug APK in CI | Done. Merged in `5c3b2b3` (PR #1). CI run 38156157458 on master passed (rust, flutter, android) |
 | `celaut-proto` and the design notes (`docs/celaut/`) | Done. Merged from `celaut-crates` in `160d24c`. Make new PRs into master. Do not use `celaut-crates` again |
 | M0b: trimmed wallet and new identity | Not started on master. Start from master (see M0b in section 5) |
-| M1 to M5 | Not started |
+| `bee-rpc-over-grpc-rs` | Skeleton only (`98ec487`): types of `buffer.proto`, CI, `PORTING.md` |
+| M1a, M1 to M5 | Not started |
 
 Do the next tasks in this order. Each task is one PR into master.
 
 1. **M0b**, see section 5. It changes many files, so do it before the Celaut code.
 2. **wire.md corrections:** apply section 8 to `docs/celaut/wire.md`. This is a
    small PR, and it can go in parallel with M0b.
-3. **M1**, then **M2**. The protocol crates do not depend on M0b. You can start
+3. **bee-rpc in Rust** (M1a): the repo
+   [bee-rpc-protocol/bee-rpc-over-grpc-rs](https://github.com/bee-rpc-protocol/bee-rpc-over-grpc-rs)
+   has the skeleton. Its `PORTING.md` lists the steps. This work does not depend on M0b.
+4. **M1**, then **M2**. The protocol crates do not depend on M0b. You can start
    `celaut-wire` before M0b is merged, but make the PR after M0b.
-4. **M3**, **M4**, then **M5** if Josemi agrees.
+5. **M3**, **M4**, then **M5** if Josemi agrees.
 
 Some open questions in section 7 block a milestone. Get an answer before you start
 that milestone:
@@ -90,7 +94,7 @@ Flutter UI (app/lib/celaut/...)
   │  flutter_rust_bridge (wallet-ffi, new module api_celaut)
   ▼
 celaut-client   connect, client ids, quotes, start/stop, deposits, tunnels
-  ├─ celaut-wire      TLS identity check, gRPC, bee-rpc framing
+  ├─ celaut-wire      TLS identity check, gRPC; uses bee-rpc (external crate)
   │    └─ celaut-proto    prost types (exists on celaut-crates)
   ├─ celaut-balancer  port of the nodo execution balancer (balancer.md)
   ├─ celaut-catalog   node directory and skills catalog from the explorer (catalog.md)
@@ -102,7 +106,7 @@ Crates to add in `rust/crates/`:
 | Crate | Content | Dependencies |
 |---|---|---|
 | `celaut-proto` | Gateway types. Exists on `celaut-crates` | prost 0.14 |
-| `celaut-wire` | rustls `ServerCertVerifier` that checks the identity extension (wire.md section 1) and returns the peer_id; one generic bidi call `call(method, [(index, bytes)]) -> [(index, bytes)]` over `buffer.Buffer`; bee-rpc send and receive (wire.md section 2), including blocks and the signal | tonic 0.14 (no generated stubs, because each method is `stream Buffer -> stream Buffer`), tokio-rustls, rustls 0.23 with ring (already in the workspace) |
+| `celaut-wire` | rustls `ServerCertVerifier` that checks the identity extension (wire.md section 1) and returns the peer_id; the Celaut calls on top of the `bee-rpc` crate (repo `bee-rpc-over-grpc-rs`: framing, blocks, signal, generic bidi call; wire.md section 2). Not ported in this repo | tonic 0.14 (no generated stubs, because each method is `stream Buffer -> stream Buffer`), tokio-rustls, rustls 0.23 with ring (already in the workspace) |
 | `celaut-client` | Typed RPCs, PoW of GenerateClient (blake2b-512), a store for client ids and instance tokens per peer_id, a quote cache, a local TCP listener on 127.0.0.1 that sends each connection through `ServiceTunnel` | celaut-wire, blake2 |
 | `celaut-balancer` | Filter, score, MU conversion, event log (balancer.md) | celaut-proto |
 | `celaut-catalog` | Explorer queries for node boxes and skills; ranking (catalog.md) | wallet-net (explorer HTTP) |
@@ -163,8 +167,12 @@ Items that are not done yet (master at `160d24c`):
 Also check that `scripts/release_check.sh` and the CI APK check still pass with the
 new applicationId.
 
-**M1: connect to a node and show its advertisement.** `celaut-wire` and the first
-part of `celaut-client`: TLS with the identity check, GenerateClient (with PoW),
+**M1a: bee-rpc in Rust** (repo `bee-rpc-over-grpc-rs`). Port steps 2 to 5 and 7 of its
+`PORTING.md`. Check: its tests pass with the vectors of the Python v0.0.2 tests, and
+an interop test with a Python peer passes in both directions.
+
+**M1: connect to a node and show its advertisement.** Uses the `bee-rpc` crate (git
+dependency, then a release). `celaut-wire` and the first part of `celaut-client`: TLS with the identity check, GenerateClient (with PoW),
 GetPeerInfo. Verify the `Peer` signature: Ed25519 over
 `"<public_key>|<ts>|<content_digest>"` (`nodo:protos/celaut.proto:725-731`, digest in
 `nodo:src/identity/node_identity.py`), `public_key` equal to the peer_id of the
