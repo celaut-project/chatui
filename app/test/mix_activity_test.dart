@@ -1,0 +1,165 @@
+import 'dart:convert';
+import 'package:argus_wallet/services/mix_activity.dart';
+import 'package:argus_wallet/services/mix_service.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+MixRecord rec({
+  int mixId = 0,
+  String kind = 'full_owned',
+  int done = 1,
+  int target = 3,
+  List<Map<String, dynamic>> events = const [],
+  bool acknowledged = false,
+  DateTime? checked,
+  String? tokenId,
+  int? tokenAmount,
+}) =>
+    MixRecord(
+      acknowledged: acknowledged,
+      lastCheckedAt: checked,
+      state: {
+        'mix_id': mixId,
+        'ring': {'value': tokenId == null ? 1000000000 : 1000000, 'token_id': tokenId, 'token_amount': tokenAmount},
+        'level': 30,
+        'rounds_target': target,
+        'rounds_done': done,
+        'round': 0,
+        'phase': {'kind': kind, if (kind == 'half_posted' || kind == 'full_owned') 'box_id': 'b'},
+        'destination_ergo_tree': '00',
+        'created_at': 1,
+        'updated_at': 1,
+        'events': events,
+      },
+    );
+
+const rsbtc = 'bd1f2e3a4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f7';
+
+({String? name, int decimals})? _meta(String id) => id == rsbtc ? (name: 'rsBTC', decimals: 8) : null;
+
+void main() {
+  test('a mix amount is ERG, or the ring token with its name and decimals', () {
+    expect(mixAmountText(rec(), meta: _meta), '1 ERG');
+    expect(mixAmountText(rec(tokenId: rsbtc, tokenAmount: 5000000), meta: _meta), '0.05 rsBTC');
+    expect(
+      mixAmountText(rec(tokenId: 'ab' * 32, tokenAmount: 110), meta: _meta),
+      '110 abababab…',
+      reason: 'a token nobody has looked up yet is named by its id',
+    );
+  });
+
+  test('token mix rows carry the token, and the ERG the box holds', () {
+    final r = rec(tokenId: rsbtc, tokenAmount: 5000000, events: [
+      {'action': 'entered_as_alice', 'tx_id': 'e', 'at': 1, 'round': 0},
+      {'action': 'withdrawn', 'tx_id': 'w', 'at': 2, 'round': 1},
+    ]);
+    final rows = mixActivityRowsFor([r], meta: _meta);
+    final out = rows.firstWhere((x) => x['tx_id'] == 'e');
+    expect(out['value_nano_erg'], -1000000);
+    expect(out['tokens_sent'], [{'token_id': rsbtc, 'amount': 5000000}]);
+    expect(out['token_ids'], [rsbtc]);
+    final back = rows.firstWhere((x) => x['tx_id'] == 'w');
+    expect(back['value_nano_erg'], 1000000);
+    expect(back['tokens_received'], [{'token_id': rsbtc, 'amount': 5000000}]);
+    expect(back['mix_label'], 'Mix finished: 0.05 rsBTC delivered');
+  });
+
+  test('every mix event with a transaction becomes an activity row, newest first', () {
+    final rows = mixActivityRowsFor([
+      rec(kind: 'withdrawn', done: 3, events: [
+        {'at': 100, 'action': 'entered_as_alice', 'round': 0, 'tx_id': 'e', 'height': 10},
+        {'at': 200, 'action': 'joined', 'round': 0, 'tx_id': null},
+        {'at': 300, 'action': 'remixed_as_bob', 'round': 1, 'tx_id': 'r', 'height': 20},
+        {'at': 400, 'action': 'withdrawn', 'round': 1, 'tx_id': 'w'},
+      ]),
+    ]);
+    expect(rows.map((r) => r['tx_id']), ['w', 'r', 'e'], reason: 'unstamped newest by time, then by height');
+    expect(rows.first['value_nano_erg'], 1000000000, reason: 'withdrawal brings the money back');
+    expect(rows.last['value_nano_erg'], -1000000000, reason: 'entry sends it out');
+    expect(rows[1]['value_nano_erg'], 0);
+    expect(rows.first['mix_label'], 'Mix finished: 1 ERG delivered');
+    expect(rows[1]['mix_label'], 'Mix round 2');
+    expect(rows.last['mix_label'], 'Entered a mix with 1 ERG');
+    expect(rows.every((r) => r['mix'] == true), isTrue);
+    expect(rows.map((r) => r['confirmed']), [false, true, true],
+        reason: 'only an event with a seen height is confirmed');
+  });
+
+  test('ordering is total: pending rows first, then height, then time', () {
+    final rows = [
+      {'tx_id': 'a', 'height': 10, 'timestamp': 100},
+      {'tx_id': 'b', 'height': 5, 'timestamp': 300},
+      {'tx_id': 'c', 'height': 0, 'timestamp': 200},
+      {'tx_id': 'd', 'height': 0, 'timestamp': 250},
+      {'tx_id': 'e', 'height': 10, 'timestamp': 150},
+    ];
+    for (final perm in [rows, rows.reversed.toList(), [rows[2], rows[0], rows[4], rows[1], rows[3]]]) {
+      final sorted = [...perm]..sort(compareActivityRows);
+      expect(sorted.map((r) => r['tx_id']), ['d', 'c', 'e', 'a', 'b'], reason: 'same answer from any order');
+    }
+  });
+
+  test('mix rows replace the history\'s view of the same transaction and sort in', () {
+    final history = [
+      {'tx_id': 'e', 'height': 10, 'timestamp': 1000, 'value_nano_erg': -1122100000},
+      {'tx_id': 'x', 'height': 15, 'timestamp': 1500, 'value_nano_erg': 5},
+    ];
+    final mix = [
+      {'tx_id': 'e', 'height': 10, 'timestamp': 1000, 'value_nano_erg': -1000000000, 'mix': true},
+      {'tx_id': 'r', 'height': 20, 'timestamp': 2000, 'value_nano_erg': 0, 'mix': true},
+    ];
+    final out = mergeMixActivity(history, mix);
+    expect(out.map((r) => r['tx_id']), ['r', 'x', 'e']);
+    expect(out.last['mix'], isTrue, reason: 'the mix row wins over the plain send');
+    expect(mergeMixActivity(history, const []), same(history));
+  });
+
+  test('the home strip says one line, or nothing', () {
+    expect(mixStripSummary(const []), isNull);
+    expect(mixStripSummary([rec(kind: 'withdrawn', acknowledged: true)]), isNull, reason: 'seen and done');
+
+    final one = mixStripSummary([rec(kind: 'half_posted', done: 1, target: 3)]);
+    expect(one!.text, '1 ERG · round 1 of about 3 · waiting for a partner');
+    expect(one.finished, isNull);
+
+    final ready = mixStripSummary([rec(done: 3, target: 3, checked: DateTime.now())]);
+    expect(ready!.text, startsWith('1 ERG · round 3 of about 3 · ready to withdraw · checked'));
+
+    final many = mixStripSummary([
+      rec(mixId: 0, kind: 'half_posted'),
+      rec(mixId: 1, done: 3, target: 3),
+      rec(mixId: 2, kind: 'pending'),
+      rec(mixId: 3, done: 1),
+    ]);
+    expect(many!.text, '4 mixes · 1 mixing, 1 waiting, 1 ready to withdraw, 1 not entered');
+
+    final finished = mixStripSummary([rec(mixId: 5, kind: 'withdrawn'), rec(mixId: 6, kind: 'half_posted')]);
+    expect(finished!.text, 'Mix finished · 1 ERG delivered');
+    expect(finished.finished!.mixId, 5, reason: 'announced until dismissed, ahead of live mixes');
+  });
+
+  test('the mixing tokens on a box are read from the snapshot', () {
+    final snap = jsonEncode({
+      'half_boxes': [
+        {'boxId': 'h1', 'assets': [{'tokenId': 'mix', 'amount': 29}]},
+      ],
+      'full_boxes': [
+        {'boxId': 'f1', 'assets': [{'tokenId': 'mix', 'amount': 12}]},
+        {'boxId': 'f2', 'assets': <Map<String, Object>>[]},
+      ],
+    });
+    expect(mixingTokensOn('f1', snap, 'mix'), 12);
+    expect(mixingTokensOn('h1', snap, 'mix'), 29);
+    expect(mixingTokensOn('f2', snap, 'mix'), 0, reason: 'seen, holding none');
+    expect(mixingTokensOn('nope', snap, 'mix'), isNull, reason: 'not in the snapshot');
+    expect(mixingTokensOn(null, snap, 'mix'), isNull);
+  });
+
+  test('the mixed box is the withdrawal output paying the destination', () {
+    final outs = [
+      {'boxId': 'fee', 'ergoTree': '1005...'},
+      {'boxId': 'dest', 'ergoTree': '0008CDAA'},
+    ];
+    expect(mixedOutputId(outs, '0008cdaa'), 'dest');
+    expect(mixedOutputId(outs, '0008cdbb'), isNull);
+  });
+}

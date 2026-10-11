@@ -1,0 +1,122 @@
+import 'package:flutter/foundation.dart';
+
+import 'storage_rent.dart';
+import 'wallet_service.dart';
+
+/// `rent` keeps boxes rent puts at risk or that fall due within
+/// [rentSoonDays].
+enum UtxoFilter { all, ergOnly, withTokens, dust, rent }
+
+/// Boxes below this are "dust" for the UTXO tools filter.
+const dustThresholdNano = 100000000;
+
+/// Box list, filter, search and selection for the UTXO tools screen.
+/// Pure state: loading and transaction flows stay in the screen.
+class UtxoToolsController extends ChangeNotifier {
+  List<InputBoxInput> _boxes = const [];
+  Map<String, BoxRent> _rent = const {};
+  final Set<String> _selected = {};
+  UtxoFilter filter = UtxoFilter.all;
+  String _search = '';
+
+  List<InputBoxInput> get boxes => _boxes;
+
+  /// Rent per box id, once the report has arrived; empty until then.
+  Map<String, BoxRent> get rent => _rent;
+
+  /// Boxes rent puts at risk or that fall due soon.
+  int get rentFlaggedCount =>
+      _boxes.where((b) => _rent[b.boxId]?.flagged ?? false).length;
+
+  Set<String> get selectedIds => Set.unmodifiable(_selected);
+  String get search => _search;
+
+  void setBoxes(List<InputBoxInput> boxes) {
+    // Height zero has unknown age; keep it behind dated boxes. A stable
+    // box-ID tie break makes both the list and funding choices predictable.
+    final ordered = [...boxes]..sort(compareUtxoAge);
+    _boxes = List.unmodifiable(ordered);
+    _selected.retainAll(boxes.map((b) => b.boxId));
+    notifyListeners();
+  }
+
+  void setRent(Map<String, BoxRent> rent) {
+    _rent = Map.unmodifiable(rent);
+    // Without a report the Rent chip is gone, so its filter must not linger.
+    if (rent.isEmpty && filter == UtxoFilter.rent) filter = UtxoFilter.all;
+    notifyListeners();
+  }
+
+  void setFilter(UtxoFilter next) {
+    if (next == filter) return;
+    filter = next;
+    notifyListeners();
+  }
+
+  void setSearch(String query) {
+    final q = query.trim().toLowerCase();
+    if (q == _search) return;
+    _search = q;
+    notifyListeners();
+  }
+
+  List<InputBoxInput> get filtered => _boxes.where((box) {
+    switch (filter) {
+      case UtxoFilter.all:
+        break;
+      case UtxoFilter.ergOnly:
+        if (box.assets.isNotEmpty) return false;
+      case UtxoFilter.withTokens:
+        if (box.assets.isEmpty) return false;
+      case UtxoFilter.dust:
+        if (box.valueNanoErg >= BigInt.from(dustThresholdNano)) return false;
+      case UtxoFilter.rent:
+        if (!(_rent[box.boxId]?.flagged ?? false)) return false;
+    }
+    if (_search.isEmpty) return true;
+    return box.boxId.toLowerCase().contains(_search) ||
+        box.assets.any((a) => a.tokenId.toLowerCase().contains(_search));
+  }).toList();
+
+  bool isSelected(String boxId) => _selected.contains(boxId);
+
+  void toggle(String boxId) {
+    if (!_selected.remove(boxId)) _selected.add(boxId);
+    notifyListeners();
+  }
+
+  void selectAllFiltered() {
+    _selected.addAll(filtered.map((b) => b.boxId));
+    notifyListeners();
+  }
+
+  void clearSelection() {
+    if (_selected.isEmpty) return;
+    _selected.clear();
+    notifyListeners();
+  }
+
+  /// Selected boxes, or every box when nothing is selected.
+  List<InputBoxInput> get consolidateTargets => _selected.isEmpty
+      ? _boxes
+      : _boxes.where((b) => _selected.contains(b.boxId)).toList();
+
+  /// Selection as the wallet core expects it: null means "let the builder
+  /// choose".
+  List<String>? get selectedBoxIdsOrNull =>
+      _selected.isEmpty ? null : _selected.toList();
+
+  BigInt get selectedNano => _boxes
+      .where((b) => _selected.contains(b.boxId))
+      .fold(BigInt.zero, (sum, b) => sum + b.valueNanoErg);
+
+  BigInt get totalNano =>
+      _boxes.fold(BigInt.zero, (sum, b) => sum + b.valueNanoErg);
+}
+
+int compareUtxoAge(InputBoxInput a, InputBoxInput b) {
+  if (a.creationHeight <= 0 && b.creationHeight > 0) return 1;
+  if (b.creationHeight <= 0 && a.creationHeight > 0) return -1;
+  final byHeight = a.creationHeight.compareTo(b.creationHeight);
+  return byHeight == 0 ? a.boxId.compareTo(b.boxId) : byHeight;
+}

@@ -1,0 +1,53 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  # Bump deliberately after running flutter analyze and flutter test on that SDK.
+  FLUTTER_VERSION: '3.41.2'
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.99.0
+      - run: cargo test --workspace
+
+  flutter:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.99.0
+        with:
+          components: rustfmt
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter analyze
+      - run: flutter test
+      - name: FRB bindings match codegen
+        working-directory: .
+        run: |
+          cargo install cargo-expand --version 1.0.110 --locked
+          cargo install flutter_rust_bridge_codegen --version 2.13.0 --locked
+          flutter_rust_bridge_codegen generate
+          git diff --exit-code

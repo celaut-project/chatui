@@ -1,0 +1,987 @@
+import 'widgets/tx_explorer_link.dart';
+import 'widgets/tx_result_view.dart';
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../format.dart';
+import '../services/amm_service.dart';
+import '../services/liquidity_math.dart';
+import '../services/token_metadata.dart';
+import '../services/wallet_service.dart';
+import '../theme/argus_theme.dart';
+import 'confirm_transaction_sheet.dart';
+import 'widgets/empty_state.dart';
+import 'widgets/error_sheet.dart';
+import 'widgets/soft_card.dart';
+
+Future<bool> confirmForgetPool(BuildContext context) async =>
+    await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete saved pool progress?'),
+        content: const Text('This removes the Finish the pool action. It does not cancel or refund the first transaction. Keep this progress if you still need to finish the pool.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep progress')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete progress')),
+        ],
+      ),
+    ) ?? false;
+
+Future<bool> confirmDiscardLegacyPool(BuildContext context) async =>
+    await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Discard the older saved progress?'),
+        content: const Text(
+          'It was saved before progress recorded which wallet it belonged to, so it cannot be '
+          'finished here. Discarding it does not cancel or refund the first transaction, and it '
+          'lets you start a new pool again.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep it')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Discard')),
+        ],
+      ),
+    ) ?? false;
+
+class PoolCreationStore {
+  PoolCreationStore(this.walletId);
+  final String walletId;
+  String get _key => 'argus_pool_creation_v1_$walletId';
+
+  Future<Map<String, dynamic>?> load() async {
+    final raw = (await SharedPreferences.getInstance()).getString(_key);
+    return raw == null ? null : (jsonDecode(raw) as Map).cast<String, dynamic>();
+  }
+
+  Future<void> save(Map<String, dynamic>? record) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (record == null) {
+      await prefs.remove(_key);
+    } else {
+      await prefs.setString(_key, jsonEncode({...record, 'wallet_id': walletId}));
+    }
+  }
+
+  Future<bool> hasLegacy() async =>
+      (await SharedPreferences.getInstance()).containsKey(_legacyKey);
+
+  /// Throw away progress saved before records knew which wallet they
+  /// belonged to. It cannot be finished, and while it is here nobody on
+  /// this phone can start a pool.
+  Future<void> discardLegacy() async =>
+      (await SharedPreferences.getInstance()).remove(_legacyKey);
+
+  static const _legacyKey = 'argus_pool_creation_v1';
+}
+
+/// A Spectrum pool as the Liquidity screen sees it.
+///
+/// Names and decimals come from the one token lookup, the same as the asset
+/// list's, so a pool token the wallet holds or the catalog has resolved is
+/// named however it was learned. [tokens] — the pool set's own map, which
+/// holds only what the public layers know — is the fallback.
+class LiquidityPool {
+  LiquidityPool(this.raw, this.tokens);
+  final Map<String, dynamic> raw;
+  final Map<String, AmmTokenMeta> tokens;
+
+  String get id => raw['pool_id'] as String;
+  bool get isN2T => raw['pool_type'] == 'N2T';
+  String get lpTokenId => raw['lp_token_id'] as String;
+  BigInt get lpCirculating => BigInt.parse('${raw['lp_circulating']}');
+
+  /// X: ERG for an ERG pool, else the X token.
+  String? get xTokenId => isN2T ? null : (raw['token_x'] as Map)['token_id'] as String;
+  BigInt get xReserves => isN2T ? BigInt.parse('${raw['erg_reserves']}') : BigInt.parse('${(raw['token_x'] as Map)['amount']}');
+  String get yTokenId => (raw['token_y'] as Map)['token_id'] as String;
+  BigInt get yReserves => BigInt.parse('${(raw['token_y'] as Map)['amount']}');
+
+  String name(String? tokenId) {
+    if (tokenId == null) return 'ERG';
+    final pooled = tokens[tokenId];
+    if (tokenMetaFor(tokenId) == null && pooled != null) return pooled.name;
+    return tokenLabel(tokenId);
+  }
+
+  /// Null when nothing knows the token's decimals: its amounts are raw
+  /// units, and are shown and entered as such.
+  int? scale(String? tokenId) => tokenId == null
+      ? 9
+      : (tokenDecimals(tokenId) ?? tokens[tokenId]?.decimals);
+
+  /// For parsing and formatting: zero, i.e. raw units, when unknown.
+  int decimals(String? tokenId) => scale(tokenId) ?? 0;
+
+  /// [units] of one side: "1,234.5 SigUSD", or "1,234,500 raw units of
+  /// 03faf2cb…" when nothing knows the token's decimals.
+  String amount(BigInt units, String? tokenId) =>
+      unitsWithLabel(units, scale(tokenId), name(tokenId));
+
+  String get pairLabel => '${name(xTokenId)} / ${name(yTokenId)}';
+  double get feePercent {
+    final n = (raw['fee_num'] as num?)?.toInt() ?? 997;
+    final d = (raw['fee_denom'] as num?)?.toInt() ?? 1000;
+    return (1 - n / d) * 100;
+  }
+}
+
+/// Spectrum liquidity: what you provide, adding and removing, and
+/// creating a pool.
+class LiquidityScreen extends StatefulWidget {
+  const LiquidityScreen({super.key, this.readPools});
+  final Future<AmmPoolSet> Function(bool force)? readPools;
+
+  @override
+  State<LiquidityScreen> createState() => _LiquidityScreenState();
+}
+
+class _LiquidityScreenState extends State<LiquidityScreen> with TxReceiptOwner {
+  List<LiquidityPool> _pools = const [];
+  bool _loading = true;
+  bool _truncated = false;
+  String? _error;
+  bool _working = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pool tokens are named as the catalog resolves them, after the list.
+    walletService.metadataChanges.addListener(_metadataChanged);
+    _loadPools();
+  }
+
+  void _metadataChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    walletService.metadataChanges.removeListener(_metadataChanged);
+    super.dispose();
+  }
+
+  Future<void> _loadPools({bool force = false}) async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final set = await (widget.readPools?.call(force) ?? ammService.pools(forceRefresh: force));
+      if (!mounted) return;
+      setState(() {
+        _pools = [for (final p in set.pools) LiquidityPool(p, set.tokens)];
+        _truncated = set.truncated;
+      });
+    } catch (e) {
+      if (mounted) setState(() => _error = '$e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// Pools whose LP token this wallet holds, with the amount.
+  List<(LiquidityPool, int)> _positions(WalletRouteArgs args) {
+    final held = {for (final t in args.tokens) t.id: t.amount};
+    return [
+      for (final p in _pools)
+        if ((held[p.lpTokenId] ?? 0) > 0) (p, held[p.lpTokenId]!),
+    ];
+  }
+
+  Future<void> _confirmAndSend(
+    Map<String, dynamic> prepared, {
+    required String title,
+    required String headline,
+    required List<ConfirmTxRow> rows,
+    String? detail,
+    String confirmLabel = 'Sign & broadcast',
+  }) async {
+    final ok = await showConfirmTransactionSheet(
+      context,
+      title: title,
+      confirmLabel: confirmLabel,
+      detail: detail,
+      rows: rows,
+      preparationId: (prepared['preparation_id'] as num).toInt(),
+    );
+    if (!ok || !mounted) return;
+    final txId = await walletService.sendErg(
+      preparationId: (prepared['preparation_id'] as num).toInt(),
+    );
+    showTxResultSheet(receiptContext, txId: txId, headline: headline);
+  }
+
+  Future<void> _add(LiquidityPool pool) async {
+    if (_working) return;
+    final args = WalletRouteArgs.of(context);
+    final picked = await showModalBottomSheet<(int, int)>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(cardRadius))),
+      builder: (_) => _AddSheet(pool: pool, args: args),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _working = true);
+    try {
+      final prepared = await ammService.buildLpDeposit(
+        poolId: pool.id,
+        xAmount: picked.$1,
+        yAmount: picked.$2,
+        recipient: args.receiveAddress,
+        changeAddress: args.changeAddress,
+        spendAddresses: args.historyAddresses,
+      );
+      if (!mounted) return;
+      await _confirmAndSend(
+        prepared,
+        title: 'Add liquidity to ${pool.pairLabel}',
+        headline: 'Liquidity addition submitted',
+        rows: [
+          ConfirmTxRow(
+            'Deposit ${pool.name(pool.xTokenId)}',
+            pool.amount(_units(prepared['x_deposited']), pool.xTokenId),
+            bold: true,
+          ),
+          ConfirmTxRow(
+            'Deposit ${pool.name(pool.yTokenId)}',
+            pool.amount(_units(prepared['y_deposited']), pool.yTokenId),
+            bold: true,
+          ),
+          ConfirmTxRow('LP tokens received', '${prepared['lp_reward']}'),
+          ConfirmTxRow(
+            'Miner fee',
+            formatErg((prepared['miner_fee'] as num).toInt()),
+          ),
+        ],
+        detail:
+            'Spends the pool box directly with your boxes; no bot is involved. Your share earns the pool\'s ${pool.feePercent.toStringAsFixed(2)}% swap fee.',
+      );
+    } catch (e) {
+      if (mounted) showTxFailureSheet(context, e);
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  Future<void> _remove(LiquidityPool pool, int held) async {
+    if (_working) return;
+    final args = WalletRouteArgs.of(context);
+    final lp = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(cardRadius))),
+      builder: (_) => _RemoveSheet(pool: pool, held: held),
+    );
+    if (lp == null || !mounted) return;
+    setState(() => _working = true);
+    try {
+      final prepared = await ammService.buildLpRedeem(
+        poolId: pool.id,
+        lpAmount: lp,
+        recipient: args.receiveAddress,
+        changeAddress: args.changeAddress,
+        spendAddresses: args.historyAddresses,
+      );
+      if (!mounted) return;
+      await _confirmAndSend(
+        prepared,
+        title: 'Remove liquidity from ${pool.pairLabel}',
+        headline: 'Liquidity removal submitted',
+        rows: [
+          ConfirmTxRow(
+            'LP tokens returned',
+            '${prepared['lp_redeemed']}',
+            bold: true,
+          ),
+          ConfirmTxRow(
+            'You receive',
+            pool.amount(_units(prepared['x_received']), pool.xTokenId),
+            bold: true,
+          ),
+          ConfirmTxRow(
+            'And',
+            pool.amount(_units(prepared['y_received']), pool.yTokenId),
+            bold: true,
+          ),
+          ConfirmTxRow(
+            'Miner fee',
+            formatErg((prepared['miner_fee'] as num).toInt()),
+          ),
+        ],
+      );
+    } catch (e) {
+      if (mounted) showTxFailureSheet(context, e);
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  static BigInt _units(Object? units) => BigInt.from((units as num).toInt());
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = ArgusColors.of(context).muted;
+    final args = WalletRouteArgs.of(context);
+    final positions = _positions(args);
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Liquidity'),
+          actions: [
+            IconButton(tooltip: 'Refresh pools', onPressed: _loading ? null : () => _loadPools(force: true), icon: const Icon(Icons.refresh)),
+          ],
+          bottom: const TabBar(tabs: [Tab(text: 'Pools'), Tab(text: 'Create a pool')]),
+        ),
+        body: TabBarView(
+          children: [
+            RefreshIndicator(
+              onRefresh: () => _loadPools(force: true),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+                children: [
+                  Text(
+                    'Provide both sides of a Spectrum pool and hold LP tokens for your share; every swap '
+                    'through the pool pays its fee to the providers. Adding and removing spend the pool '
+                    'box directly, with no bot.',
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  if (_error != null)
+                    SelectableText('Could not read the pools: $_error', style: TextStyle(color: theme.colorScheme.error, fontSize: 12)),
+                  if (positions.isNotEmpty) ...[
+                    const SectionLabel('Your positions'),
+                    const SizedBox(height: 8),
+                    for (final (p, held) in positions) ...[
+                      _PoolCard(
+                        pool: p,
+                        held: held,
+                        onAdd: _working ? null : () => _add(p),
+                        onRemove: _working ? null : () => _remove(p, held),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    const SizedBox(height: 12),
+                  ],
+                  const SectionLabel('Pools'),
+                  const SizedBox(height: 8),
+                  if (_loading && _pools.isEmpty)
+                    const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
+                  else if (_pools.isEmpty)
+                    const EmptyState(icon: Icons.water_drop_outlined, title: 'No pools read', body: 'Pull down to read the Spectrum pools.', compact: true)
+                  else
+                    for (final p in _pools.where((p) => !positions.any((x) => x.$1.id == p.id))) ...[
+                      _PoolCard(pool: p, held: 0, onAdd: _working ? null : () => _add(p)),
+                      const SizedBox(height: 10),
+                    ],
+                  const SizedBox(height: 8),
+                  Text(_truncated
+                      ? 'The pool search reached its limit. Some pools and your positions may be missing.'
+                      : 'Pools are read from the network.', style: TextStyle(color: muted, fontSize: 12)),
+                ],
+              ),
+            ),
+            _CreateTab(key: ValueKey(walletService.activeWalletId), args: args),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PoolCard extends StatelessWidget {
+  const _PoolCard({required this.pool, required this.held, this.onAdd, this.onRemove});
+  final LiquidityPool pool;
+  final int held;
+  final VoidCallback? onAdd;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = ArgusColors.of(context).muted;
+    final p = pool;
+    // Values wrap under a narrow label rather than overflow: a raw amount
+    // with a short id can be wider than the card.
+    Widget row(String label, String value) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: TextStyle(color: muted, fontSize: 12.5)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(value, textAlign: TextAlign.end, style: monoStyle(context, size: 12.5)),
+            ),
+          ]),
+        );
+    final shareBps = held > 0 ? poolShareBps(BigInt.from(held), p.lpCirculating) : 0;
+    final (xo, yo) = held > 0 ? redeemShares(p.xReserves, p.yReserves, p.lpCirculating, BigInt.from(held)) : (BigInt.zero, BigInt.zero);
+    return SoftCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Expanded(child: Text(p.pairLabel, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600))),
+            Text('${p.feePercent.toStringAsFixed(2)}% fee', style: TextStyle(color: muted, fontSize: 12)),
+          ]),
+          const SizedBox(height: 8),
+          if (held > 0) ...[
+            row('Your share', '${(shareBps / 100).toStringAsFixed(2)}% · $held LP'),
+            row('Worth', '${p.amount(xo, p.xTokenId)} + ${p.amount(yo, p.yTokenId)}'),
+          ],
+          row('Reserves', '${p.amount(p.xReserves, p.xTokenId)} · ${p.amount(p.yReserves, p.yTokenId)}'),
+          const SizedBox(height: 10),
+          Wrap(spacing: 8, children: [
+            FilledButton.tonal(style: inlineButtonStyle, onPressed: onAdd, child: const Text('Add')),
+            if (held > 0) OutlinedButton(style: inlineButtonStyle, onPressed: onRemove, child: const Text('Remove')),
+          ]),
+        ],
+      ),
+    );
+  }
+}
+
+/// Both sides of a deposit, the second following the first at the pool's ratio.
+class _AddSheet extends StatefulWidget {
+  const _AddSheet({required this.pool, required this.args});
+  final LiquidityPool pool;
+  final WalletRouteArgs args;
+
+  @override
+  State<_AddSheet> createState() => _AddSheetState();
+}
+
+class _AddSheetState extends State<_AddSheet> {
+  final _x = TextEditingController();
+  final _y = TextEditingController();
+  bool _editingX = true;
+
+  @override
+  void dispose() {
+    _x.dispose();
+    _y.dispose();
+    super.dispose();
+  }
+
+  int _held(String? tokenId) => tokenId == null
+      ? (widget.args.spendableNano ?? 0)
+      : widget.args.tokens.where((t) => t.id == tokenId).fold(0, (a, t) => a + t.amount);
+
+  // The scale each side is typed in, fixed while the sheet is open. A name
+  // may still arrive meanwhile; a newly learned scale must not change what
+  // a figure already typed stands for. Null means raw units.
+  late final int? _xScale = widget.pool.scale(widget.pool.xTokenId);
+  late final int? _yScale = widget.pool.scale(widget.pool.yTokenId);
+
+  String _label(String? id, int? scale) => scale == null
+      ? '${widget.pool.name(id)} ($rawUnitsLabel)'
+      : widget.pool.name(id);
+
+  String _number(int units, int? scale) => scale == null
+      ? rawUnitsText(BigInt.from(units))
+      : formatUnits(BigInt.from(units), scale);
+
+  (int?, int?) get _units {
+    final x = parseDecimalToBase(_x.text, _xScale ?? 0);
+    final y = parseDecimalToBase(_y.text, _yScale ?? 0);
+    return (x, y);
+  }
+
+  void _follow() {
+    final p = widget.pool;
+    setState(() {
+      if (_editingX) {
+        final x = parseDecimalToBase(_x.text, _xScale ?? 0);
+        _y.text = x == null ? '' : formatTokenAmount(depositCounterpart(p.xReserves, p.yReserves, BigInt.from(x)).toInt(), _yScale ?? 0);
+      } else {
+        final y = parseDecimalToBase(_y.text, _yScale ?? 0);
+        _x.text = y == null ? '' : formatTokenAmount(depositCounterpart(p.yReserves, p.xReserves, BigInt.from(y)).toInt(), _xScale ?? 0);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.pool;
+    final muted = ArgusColors.of(context).muted;
+    final (x, y) = _units;
+    final reward = x != null && y != null ? lpReward(p.xReserves, p.yReserves, p.lpCirculating, BigInt.from(x), BigInt.from(y)) : BigInt.zero;
+    final tooMuch = (x != null && x > _held(p.xTokenId)) || (y != null && y > _held(p.yTokenId));
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SafeArea(child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+        child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Add to ${p.pairLabel}', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('lp-x'),
+            controller: _x,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(labelText: _label(p.xTokenId, _xScale), helperText: 'You hold ${_number(_held(p.xTokenId), _xScale)}'),
+            onTap: () => _editingX = true,
+            onChanged: (_) {
+              _editingX = true;
+              _follow();
+            },
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('lp-y'),
+            controller: _y,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(labelText: _label(p.yTokenId, _yScale), helperText: 'You hold ${_number(_held(p.yTokenId), _yScale)}'),
+            onTap: () => _editingX = false,
+            onChanged: (_) {
+              _editingX = false;
+              _follow();
+            },
+          ),
+          const SizedBox(height: 12),
+          if (tooMuch) Text('More than you hold', style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12)),
+          if (reward > BigInt.zero)
+            Text('About $reward LP tokens, ${(poolShareBps(reward, p.lpCirculating + reward) / 100).toStringAsFixed(3)}% of the pool. Both amounts follow the pool\'s ratio; the smaller side decides.',
+                style: TextStyle(color: muted, fontSize: 12.5)),
+          const SizedBox(height: 16),
+          FilledButton(
+            key: const Key('lp-add-continue'),
+            onPressed: x == null || y == null || x <= 0 || y <= 0 || tooMuch || reward <= BigInt.zero ? null : () => Navigator.pop(context, (x, y)),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    )));
+  }
+}
+
+class _RemoveSheet extends StatefulWidget {
+  const _RemoveSheet({required this.pool, required this.held});
+  final LiquidityPool pool;
+  final int held;
+
+  @override
+  State<_RemoveSheet> createState() => _RemoveSheetState();
+}
+
+class _RemoveSheetState extends State<_RemoveSheet> {
+  double _fraction = 1;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.pool;
+    final muted = ArgusColors.of(context).muted;
+    final lp = (widget.held * _fraction).floor();
+    final (xo, yo) = redeemShares(p.xReserves, p.yReserves, p.lpCirculating, BigInt.from(lp));
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Remove from ${p.pairLabel}', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Text('${(_fraction * 100).round()}% · $lp of ${widget.held} LP', style: TextStyle(color: muted)),
+          Slider(key: const Key('lp-remove-slider'), value: _fraction, min: 0.01, max: 1, divisions: 99, onChanged: (v) => setState(() => _fraction = v)),
+          Text('You receive about ${p.amount(xo, p.xTokenId)} and ${p.amount(yo, p.yTokenId)}.',
+              style: TextStyle(color: muted, fontSize: 12.5)),
+          const SizedBox(height: 16),
+          FilledButton(key: const Key('lp-remove-continue'), onPressed: lp <= 0 ? null : () => Navigator.pop(context, lp), child: const Text('Continue')),
+        ],
+      ),
+    );
+  }
+}
+
+/// Create a pool in two transactions; the second waits for the first to
+/// confirm, so what it needs is remembered on this device in between.
+class _CreateTab extends StatefulWidget {
+  const _CreateTab({super.key, required this.args});
+  final WalletRouteArgs args;
+
+  @override
+  State<_CreateTab> createState() => _CreateTabState();
+}
+
+class _CreateTabState extends State<_CreateTab>
+    with TxReceiptOwner, AutomaticKeepAliveClientMixin {
+  late final String? _walletId = walletService.activeWalletId;
+  PoolCreationStore? get _store => _walletId == null ? null : PoolCreationStore(_walletId);
+  bool _loadingPending = true;
+  String? _progressError;
+  bool _legacyProgress = false;
+  String? _xTokenId; // null = ERG
+  String? _yTokenId;
+  final _x = TextEditingController();
+  final _y = TextEditingController();
+  double _feePercent = 0.3;
+  bool _working = false;
+  Map<String, dynamic>? _pending;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    walletService.metadataChanges.addListener(_metadataChanged);
+    _loadPending();
+  }
+
+  @override
+  void dispose() {
+    walletService.metadataChanges.removeListener(_metadataChanged);
+    _x.dispose();
+    _y.dispose();
+    super.dispose();
+  }
+
+  /// The scale each side's figure was typed in: ERG's until a token is
+  /// picked, then that token's. A scale learned while a figure sits in its
+  /// field rewrites the figure to keep the base units it stood for, so the
+  /// reserves confirmed are the reserves typed.
+  int _xScaleSeen = 9;
+  int _yScaleSeen = 9;
+
+  void _metadataChanged() {
+    if (!mounted) return;
+    final x = _decimals(_xTokenId);
+    final y = _decimals(_yTokenId);
+    if (x != _xScaleSeen && _x.text.trim().isNotEmpty) {
+      _x.text = rescaleAmountText(_x.text, _xScaleSeen, x) ?? '';
+    }
+    if (y != _yScaleSeen && _y.text.trim().isNotEmpty) {
+      _y.text = rescaleAmountText(_y.text, _yScaleSeen, y) ?? '';
+    }
+    _xScaleSeen = x;
+    _yScaleSeen = y;
+    setState(() {});
+  }
+
+  Future<void> _loadPending() async {
+    try {
+      final pending = await _store?.load();
+      final legacy = await _store?.hasLegacy() ?? false;
+      if (!mounted) return;
+      setState(() {
+        _pending = pending;
+        _legacyProgress = legacy;
+        _progressError = legacy
+            ? 'Saved pool progress from an older version has no wallet owner, so it cannot be finished here. '
+                'Starting a new pool is blocked until you discard it.'
+            : null;
+      });
+    } catch (e) {
+      if (mounted) setState(() => _progressError = 'Could not read saved pool progress: $e');
+    } finally {
+      if (mounted) setState(() => _loadingPending = false);
+    }
+  }
+
+  Future<void> _discardLegacy() async {
+    if (!await confirmDiscardLegacyPool(context) || !mounted) return;
+    try {
+      await _store?.discardLegacy();
+      await _loadPending();
+    } catch (e) {
+      if (mounted) showErrorSheet(context, message: 'Could not discard the older progress: $e');
+    }
+  }
+
+  Future<void> _savePending(Map<String, dynamic>? p) async {
+    await _store!.save(p);
+    if (mounted) setState(() => _pending = p);
+  }
+
+  bool get _ownsWallet => _walletId != null && walletService.activeWalletId == _walletId;
+
+  Future<void> _forget() async {
+    try {
+      if (await confirmForgetPool(context) && mounted) await _savePending(null);
+    } catch (e) {
+      if (mounted) showErrorSheet(context, title: 'Could not delete progress', message: '$e');
+    }
+  }
+
+  TokenBalance? _heldToken(String? id) =>
+      id == null ? null : widget.args.tokens.where((t) => t.id == id).firstOrNull;
+
+  /// The pool's starting reserves are typed and confirmed in this scale, so
+  /// it has to be the real one: a pool list's zero-decimal placeholder once
+  /// won here, and "150" of a two-decimal token meant 1.50 on chain.
+  int? _scale(String? id) => id == null ? 9 : tokenDecimals(id, held: _heldToken(id));
+  int _decimals(String? id) => _scale(id) ?? 0;
+  String _name(String? id) => id == null ? 'ERG' : tokenLabel(id, held: _heldToken(id));
+
+  /// [_name] for the saved progress record, which outlives the session: it
+  /// must not carry a name only an explicit, memory-only load supplied.
+  String _storedName(String? id) =>
+      id == null ? 'ERG' : storedTokenLabel(id, held: _heldToken(id));
+
+  /// An amount of one side, labelled raw units when the scale is unknown.
+  String _amount(int units, String? id) =>
+      unitsWithLabel(BigInt.from(units), _scale(id), _name(id));
+
+  /// A field for one side's amount. The raw-units notice is in the helper
+  /// line, which wraps, so large text cannot cut it off the way it cuts a
+  /// label.
+  InputDecoration _fieldDecoration(String? id) => InputDecoration(
+    labelText: '${_name(id)} to put in',
+    helperText: _scale(id) == null
+        ? 'In raw units: nothing knows this token\'s decimals'
+        : null,
+    helperMaxLines: 3,
+  );
+
+  Future<void> _bootstrap() async {
+    final y = _yTokenId;
+    final xUnits = parseDecimalToBase(_x.text, _decimals(_xTokenId));
+    final yUnits = parseDecimalToBase(_y.text, _decimals(y));
+    if (!_ownsWallet || _loadingPending || y == null || xUnits == null || yUnits == null || xUnits <= 0 || yUnits <= 0 || _working) return;
+    if (_xTokenId != null && _xTokenId == y) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pick two different assets')));
+      return;
+    }
+    final poolType = _xTokenId == null ? 'N2T' : 'T2T';
+    setState(() => _working = true);
+    try {
+      final prepared = await ammService.buildPoolBootstrap(
+        poolType: poolType,
+        xTokenId: _xTokenId,
+        xAmount: xUnits,
+        yTokenId: y,
+        yAmount: yUnits,
+        feeNum: feeNumFor(_feePercent),
+        userAddress: widget.args.receiveAddress,
+        spendAddresses: widget.args.historyAddresses,
+      );
+      if (!mounted) return;
+      final ok = await showConfirmTransactionSheet(
+        context,
+        title: 'Create a pool, step 1 of 2',
+        confirmLabel: 'Sign & broadcast',
+        detail: 'Mints the pool\'s LP supply into a box of yours holding the first reserves. Once it confirms, '
+            'step 2 turns that box into the pool. Argus remembers step 2 for you.',
+        rows: [
+          ConfirmTxRow('Pair', '${_name(_xTokenId)} / ${_name(y)}', bold: true),
+          ConfirmTxRow('First reserves', '${_amount(xUnits, _xTokenId)} + ${_amount(yUnits, y)}'),
+          ConfirmTxRow('Swap fee', '${_feePercent.toStringAsFixed(2)}%'),
+          ConfirmTxRow('Your LP share', '${prepared['user_lp_share']} of ${prepared['lp_minted']}'),
+          ConfirmTxRow('LP token id', shorten(prepared['lp_token_id'] as String, head: 10, tail: 8)),
+          ConfirmTxRow('Miner fee', formatErg((prepared['miner_fee'] as num).toInt())),
+        ],
+        preparationId: (prepared['preparation_id'] as num).toInt(),
+      );
+      if (!ok || !mounted || !_ownsWallet) return;
+      // Everything step 2 needs is known before step 1 goes out, so write the
+      // record first: if the app dies between the broadcast and the write, the
+      // bootstrap box would otherwise be stranded with the user's reserves in it.
+      final record = <String, dynamic>{
+        'bootstrap_box_id': prepared['bootstrap_box_id'],
+        'pool_type': poolType,
+        'x_token_id': _xTokenId,
+        'x_amount': xUnits,
+        'y_token_id': y,
+        'y_amount': yUnits,
+        'fee_num': feeNumFor(_feePercent),
+        'lp_token_id': prepared['lp_token_id'],
+        'user_lp_share': prepared['user_lp_share'],
+        'pair': '${_storedName(_xTokenId)} / ${_storedName(y)}',
+        'created_at': DateTime.now().millisecondsSinceEpoch,
+        'sent': false,
+      };
+      await _savePending(record);
+      if (!_ownsWallet) return;
+      final txId = await walletService.sendErg(
+        preparationId: (prepared['preparation_id'] as num).toInt(),
+      );
+      final warning = await txBookkeeping(
+        () => _savePending({...record, 'bootstrap_tx_id': txId, 'sent': true}),
+      );
+
+      showTxResultSheet(
+        receiptContext,
+        txId: txId,
+        warning: warning,
+        headline: 'Pool step 1 submitted',
+        note:
+            'The pool is not created yet. Wait for confirmation, then continue with step 2 in the progress card.',
+      );
+    } catch (e) {
+      if (mounted) showTxFailureSheet(context, e);
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  Future<void> _create() async {
+    final p = _pending;
+    if (!_ownsWallet || p == null || _working) return;
+    setState(() => _working = true);
+    try {
+      final prepared = await ammService.buildPoolCreate(
+        bootstrapBoxId: p['bootstrap_box_id'] as String,
+        poolType: p['pool_type'] as String,
+        xTokenId: p['x_token_id'] as String?,
+        xAmount: (p['x_amount'] as num).toInt(),
+        yTokenId: p['y_token_id'] as String,
+        yAmount: (p['y_amount'] as num).toInt(),
+        feeNum: (p['fee_num'] as num).toInt(),
+        lpTokenId: p['lp_token_id'] as String,
+        userLpShare: (p['user_lp_share'] as num).toInt(),
+        userAddress: widget.args.receiveAddress,
+      );
+      if (!mounted) return;
+      final ok = await showConfirmTransactionSheet(
+        context,
+        title: 'Create a pool, step 2 of 2',
+        confirmLabel: 'Sign & broadcast',
+        detail: 'Spends the bootstrap box into the pool box and hands you your LP share. The pool is live once this confirms.',
+        rows: [
+          ConfirmTxRow('Pair', p['pair'] as String, bold: true),
+          ConfirmTxRow('Pool NFT', shorten(prepared['pool_nft_id'] as String, head: 10, tail: 8)),
+          ConfirmTxRow('Your LP share', '${p['user_lp_share']}'),
+          ConfirmTxRow('Miner fee', formatErg((prepared['miner_fee'] as num).toInt())),
+        ],
+        preparationId: (prepared['preparation_id'] as num).toInt(),
+      );
+      if (!ok || !mounted || !_ownsWallet) return;
+      final txId = await walletService.sendErg(
+        preparationId: (prepared['preparation_id'] as num).toInt(),
+      );
+      final warning = await txBookkeeping(() => _savePending(null));
+
+      showTxResultSheet(
+        receiptContext,
+        txId: txId,
+        warning: warning,
+        headline: 'Pool creation submitted',
+        note:
+            'Step 2 is submitted. The pool becomes available after confirmation.',
+      );
+    } catch (e) {
+      if (mounted) showTxFailureSheet(context, e);
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final theme = Theme.of(context);
+    final muted = ArgusColors.of(context).muted;
+    final pending = _pending;
+    final held = widget.args.tokens.toList();
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      children: [
+        if (_loadingPending) const LinearProgressIndicator(),
+        if (_progressError != null) Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SelectableText(_progressError!),
+              if (_legacyProgress)
+                TextButton(
+                  key: const Key('discard-legacy-pool'),
+                  onPressed: _working ? null : _discardLegacy,
+                  child: const Text('Discard it'),
+                ),
+            ],
+          ),
+        ),
+        if (pending != null) ...[
+          SoftCard(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Step 2 waiting: ${pending['pair']}', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                Text(
+                  (pending['sent'] as bool? ?? true)
+                      ? 'Step 1 was sent ${formatSyncAge(DateTime.fromMillisecondsSinceEpoch((pending['created_at'] as num).toInt()))}. '
+                          'Once it has confirmed, finish the pool.'
+                      : 'Step 1 was prepared ${formatSyncAge(DateTime.fromMillisecondsSinceEpoch((pending['created_at'] as num).toInt()))} but Argus never saw it '
+                          'accepted. If it did go out, finish the pool once it confirms; if it did not, forget this and start again.',
+                  style: TextStyle(color: muted, fontSize: 12.5),
+                ),
+                const SizedBox(height: 10),
+                Wrap(spacing: 8, children: [
+                  FilledButton(style: inlineButtonStyle, onPressed: _working || !_ownsWallet ? null : _create, child: const Text('Finish the pool')),
+                  if (pending['bootstrap_tx_id'] is String)
+                    TxExplorerLink(
+                      txId: pending['bootstrap_tx_id'] as String,
+                      label: 'Step 1 transaction',
+                    ),
+                  TextButton(onPressed: _working ? null : _forget, child: const Text('Forget')),
+                ]),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+        Text(
+          'A new Spectrum pool takes two transactions: one mints the LP supply into a box of yours with '
+          'the first reserves, the next turns it into the pool. The first reserves set the starting price.',
+          style: theme.textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 16),
+        DropdownButtonFormField<String?>(
+          key: const Key('pool-x'),
+          initialValue: _xTokenId,
+          decoration: const InputDecoration(labelText: 'First asset'),
+          items: [
+            const DropdownMenuItem(value: null, child: Text('ERG')),
+            for (final t in held) DropdownMenuItem(value: t.id, child: Text(_name(t.id), overflow: TextOverflow.ellipsis)),
+          ],
+          onChanged: (v) => setState(() {
+            _xTokenId = v;
+            _xScaleSeen = _decimals(v);
+          }),
+        ),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          key: const Key('pool-y'),
+          initialValue: _yTokenId,
+          decoration: const InputDecoration(labelText: 'Second asset (a token)'),
+          items: [for (final t in held) DropdownMenuItem(value: t.id, child: Text(_name(t.id), overflow: TextOverflow.ellipsis))],
+          onChanged: (v) => setState(() {
+            _yTokenId = v;
+            _yScaleSeen = _decimals(v);
+          }),
+        ),
+        const SizedBox(height: 12),
+        TextField(key: const Key('pool-x-amount'), controller: _x, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: _fieldDecoration(_xTokenId), onChanged: (_) => setState(() {})),
+        const SizedBox(height: 12),
+        TextField(key: const Key('pool-y-amount'), controller: _y, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: _fieldDecoration(_yTokenId), onChanged: (_) => setState(() {})),
+        const SizedBox(height: 12),
+        Text('Swap fee ${_feePercent.toStringAsFixed(2)}%', style: TextStyle(color: muted)),
+        Slider(key: const Key('pool-fee'), value: _feePercent, min: 0.1, max: 5, divisions: 49, onChanged: (v) => setState(() => _feePercent = v)),
+        const SizedBox(height: 8),
+        Text('Costs 0.002 ERG for the two boxes plus two miner fees. Only pools with real reserves attract swaps.', style: TextStyle(color: muted, fontSize: 12)),
+        const SizedBox(height: 12),
+        FilledButton(
+          key: const Key('pool-start'),
+          onPressed: !_ownsWallet || _loadingPending || _progressError != null || _working || pending != null || _yTokenId == null || _x.text.trim().isEmpty || _y.text.trim().isEmpty ? null : _bootstrap,
+          child: Text(_working ? 'Preparing…' : 'Start the pool (step 1)'),
+        ),
+      ],
+    );
+  }
+}
+
+@visibleForTesting
+Widget liquidityAddSheetForTest(LiquidityPool pool, WalletRouteArgs args) =>
+    _AddSheet(pool: pool, args: args);

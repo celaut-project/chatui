@@ -1,0 +1,1418 @@
+use citadel_core::NodeConfig;
+use ergo_lib::chain::ergo_state_context::ErgoStateContext;
+use ergo_lib::chain::parameters::Parameters;
+use ergo_lib::ergo_chain_types::{Header, PreHeader};
+use ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox;
+use ergo_lib::ergotree_ir::chain::address::{AddressEncoder, NetworkPrefix};
+use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
+use crate::node_interface::NodeInterface;
+use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Duration;
+
+const HEADERS_COUNT: usize = 10;
+const UNSPENT_PAGE_SIZE: u64 = 500;
+const UNSPENT_MAX_BOXES: usize = 10_000;
+
+/// The node's largest mempool page.
+const MEMPOOL_PAGE: usize = 100;
+
+/// Pending transactions read for one script before the list counts as cut
+/// short. Far beyond a personal wallet; a script past it is not a wallet
+/// address anyone spends from by hand.
+pub const MEMPOOL_MAX_TXS: usize = 1_000;
+
+/// Transactions in the node's whole mempool before a complete read of it
+/// counts as impossible. Nodes keep about a thousand by default.
+pub const MEMPOOL_SCAN_MAX_TXS: usize = 10_000;
+
+/// Unconfirmed boxes checked one by one before a spend offers them. Past
+/// this many the rest are left out rather than offered unchecked.
+pub const UNCONFIRMED_CHECKS: usize = 32;
+
+/// Further passes over a list longer than one page before giving up on it
+/// holding still.
+const MEMPOOL_STABLE_READS: usize = 2;
+
+/// The ids in a mempool list, sorted, to tell two reads of it apart.
+fn transaction_ids(txs: &[serde_json::Value]) -> Vec<String> {
+    let mut ids: Vec<String> = txs
+        .iter()
+        .filter_map(|tx| tx["id"].as_str().map(str::to_string))
+        .collect();
+    ids.sort();
+    ids
+}
+
+/// Where one box stands, as the node sees it now.
+#[derive(Debug, Clone, PartialEq)]
+pub enum BoxStatus {
+    /// A transaction in the mempool already spends it.
+    SpentInMempool,
+    /// In the confirmed UTXO set, and nothing pending spends it.
+    Confirmed,
+    /// Created by a transaction still in the mempool: the box, as the node
+    /// lists that transaction's output.
+    Unconfirmed(serde_json::Value),
+    /// Neither: spent in a block already, or never existed.
+    Unknown,
+}
+
+/// Default public Ergo node URL (mainnet).
+pub const DEFAULT_NODE_URL: &str = "https://ergo-node.eutxo.de";
+
+/// Public HTTPS nodes with extraIndex, tried after the preferred URL.
+pub const NODE_CANDIDATES: &[&str] = &[
+    DEFAULT_NODE_URL,
+    "https://ergo-node.zoomout.io",
+    "https://ergo1.oette.info",
+    "https://node.sigmaspace.io",
+];
+
+pub const DEFAULT_EXPLORER_URL: &str = "https://api.sigmaspace.io";
+
+#[derive(Clone)]
+struct NetworkConfig {
+    nodes: Vec<String>,
+    explorer: String,
+}
+
+impl Default for NetworkConfig {
+    fn default() -> Self {
+        Self {
+            nodes: NODE_CANDIDATES.iter().map(|s| (*s).to_string()).collect(),
+            explorer: DEFAULT_EXPLORER_URL.to_string(),
+        }
+    }
+}
+
+fn network() -> &'static Mutex<NetworkConfig> {
+    static NET: OnceLock<Mutex<NetworkConfig>> = OnceLock::new();
+    NET.get_or_init(|| Mutex::new(NetworkConfig::default()))
+}
+
+fn recover<T>(r: std::sync::LockResult<T>) -> T {
+    r.unwrap_or_else(|p| p.into_inner())
+}
+
+/// Replace the process node list. Empty input keeps the current list.
+pub fn set_network(nodes: Vec<String>, explorer: Option<String>) {
+    let mut cfg = recover(network().lock());
+    let cleaned: Vec<String> = nodes
+        .into_iter()
+        .map(|s| s.trim().trim_end_matches('/').to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+    if !cleaned.is_empty() {
+        cfg.nodes = cleaned;
+    }
+    if let Some(url) = explorer
+        .map(|s| s.trim().trim_end_matches('/').to_string())
+        .filter(|s| !s.is_empty())
+    {
+        cfg.explorer = url;
+    }
+}
+
+pub fn configured_nodes() -> Vec<String> {
+    recover(network().lock()).nodes.clone()
+}
+
+pub fn configured_explorer() -> String {
+    recover(network().lock()).explorer.clone()
+}
+
+/// Preferred URL first, then the configured list (no duplicates).
+pub fn node_urls(preferred: Option<String>) -> Vec<String> {
+    let mut urls = Vec::new();
+    if let Some(url) = preferred.filter(|s| !s.is_empty()) {
+        urls.push(url.trim_end_matches('/').to_string());
+    }
+    for candidate in configured_nodes() {
+        if !urls.iter().any(|u| u == &candidate) {
+            urls.push(candidate);
+        }
+    }
+    urls
+}
+
+pub async fn probe_height(url: &str) -> Result<u64, String> {
+    let info_url = join_url(url, "info");
+    let client = crate::http::client_builder()
+        .timeout(Duration::from_secs(8))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let text = client
+        .get(&info_url)
+        .send()
+        .await
+        .map_err(|e| format!("probe {url}: {e}"))?
+        .error_for_status()
+        .map_err(|e| format!("probe {url}: {e}"))?
+        .text()
+        .await
+        .map_err(|e| format!("probe {url}: {e}"))?;
+    let info: serde_json::Value =
+        serde_json::from_str(&text).map_err(|e| format!("probe parse {url}: {e}"))?;
+    info.get("fullHeight")
+        .or_else(|| info.get("headersHeight"))
+        .and_then(|v| v.as_u64())
+        .ok_or_else(|| format!("probe {url}: no height"))
+}
+
+fn join_url(base: &str, path: &str) -> String {
+    format!(
+        "{}/{}",
+        base.trim_end_matches('/'),
+        path.trim_start_matches('/')
+    )
+}
+
+/// Create a default mainnet NodeConfig.
+pub fn default_node_config() -> NodeConfig {
+    NodeConfig {
+        url: DEFAULT_NODE_URL.to_string(),
+        api_key: String::new(),
+    }
+}
+
+pub fn parse_parameters(value: &serde_json::Value) -> Result<Parameters, String> {
+    let req = |key: &str| -> Result<i32, String> {
+        let raw = value
+            .get(key)
+            .and_then(|v| v.as_i64())
+            .ok_or_else(|| format!("missing parameter {key}"))?;
+        i32::try_from(raw).map_err(|_| format!("parameter {key} out of range"))
+    };
+    Ok(Parameters::new(
+        req("blockVersion")?,
+        req("storageFeeFactor")?,
+        req("minValuePerByte")?,
+        req("maxBlockSize")?,
+        req("maxBlockCost")?,
+        req("tokenAccessCost")?,
+        req("inputCost")?,
+        req("dataInputCost")?,
+        req("outputCost")?,
+    ))
+}
+
+/// Convert an Ergo base58 address to an ErgoTree hex string.
+pub fn address_to_ergo_tree(address: &str) -> Result<String, String> {
+    let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+    let addr = encoder.parse_address_from_str(address)
+        .map_err(|e| format!("Invalid address: {e}"))?;
+    let tree = addr.script()
+        .map_err(|e| format!("Address script error: {e}"))?;
+    let bytes = tree.sigma_serialize_bytes()
+        .map_err(|e| format!("Serialization error: {e}"))?;
+    Ok(base16::encode_lower(&bytes))
+}
+
+#[derive(Clone)]
+pub struct ErgoNodeClient {
+    inner: Arc<NodeInterface>,
+    url: String,
+}
+
+/// A list of pending transactions to read page by page.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Pending<'a> {
+    /// `POST /transactions/unconfirmed/byErgoTree`: those touching one script.
+    Touching(&'a str),
+    /// `GET /transactions/unconfirmed`: the node's whole mempool.
+    All,
+}
+
+impl Pending<'_> {
+    /// Transactions read before the list counts as too long to read whole.
+    fn cap(self) -> usize {
+        match self {
+            Pending::Touching(_) => MEMPOOL_MAX_TXS,
+            Pending::All => MEMPOOL_SCAN_MAX_TXS,
+        }
+    }
+}
+
+#[path = "mempool_lookup.rs"]
+mod mempool_lookup;
+pub use mempool_lookup::{forget_mempool_routes, OutputRoute, SpendRoute};
+
+/// A parsed transaction summary from the explorer API.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TxSummary {
+    pub tx_id: String,
+    pub height: u64,
+    pub timestamp: u64,
+    /// Total nanoERG value sent (inputs - outputs to self)
+    pub value_nano_erg: i64,
+    pub token_ids: Vec<String>,
+    /// Tokens that arrived at the queried address, summed over outputs it
+    /// owns. Outgoing token legs ride in spent inputs, which the byAddress
+    /// payload does not describe beyond box ids — so this is arrivals only.
+    #[serde(default)]
+    pub tokens_received: Vec<TokenReceived>,
+    /// Tokens that left the queried address: held in its spent inputs and
+    /// not returned in its outputs. Needs input details (extraIndex).
+    #[serde(default)]
+    pub tokens_sent: Vec<TokenReceived>,
+    /// Miner fee, from the fee output; falls back to inputs minus outputs
+    /// when input values are known. None when neither is available.
+    #[serde(default)]
+    pub fee_nano_erg: Option<u64>,
+    /// The other party: for a spend, the first foreign non-fee output; for
+    /// a receipt, the first foreign input address.
+    #[serde(default)]
+    pub counterparty: Option<String>,
+    pub num_inputs: u32,
+    pub num_outputs: u32,
+    /// Inputs and outputs grouped by owner, for classifying the
+    /// transaction from the wallet's point of view.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub io: Option<crate::activity::TxIo>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TokenReceived {
+    pub token_id: String,
+    pub amount: u64,
+}
+
+/// Pure summary of one `byAddress` item for a single address; extracted
+/// for fixture testing. A wallet of several addresses must use
+/// [`crate::activity::summarize_for_wallet`] with all of them, or a move
+/// between two of its addresses reads as a payment.
+/// Returns None when the item lacks a transaction id.
+pub fn summarize_tx_for_address(
+    tx: &serde_json::Value,
+    address: &str,
+) -> Option<TxSummary> {
+    let owned: std::collections::HashSet<String> = [address.to_string()].into();
+    crate::activity::summarize_for_wallet(tx, None, &owned, &crate::activity::no_tags)
+}
+
+/// Result of following a singleton token lineage through spent transaction chains.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LineageHopResult {
+    pub singleton_token_id: String,
+    pub current_box_id: String,
+    pub is_unspent: bool,
+    pub hops_traversed: u32,
+    pub box_json: serde_json::Value,
+}
+
+impl ErgoNodeClient {
+    pub async fn new(config: NodeConfig) -> Result<Self, String> {
+        let node = NodeInterface::from_url_str(&config.api_key, &config.url)
+            .await
+            .map_err(|e| format!("Failed to connect to node: {e}"))?;
+        Ok(ErgoNodeClient {
+            inner: Arc::new(node),
+            url: config.url,
+        })
+    }
+
+    /// The endpoint this client is actually talking to.
+    ///
+    /// `connect` falls back past the preferred node, so callers that need to
+    /// know which node served a response — rather than which one was asked
+    /// for — must read this rather than the app's configured URL.
+    pub fn url(&self) -> &str {
+        &self.url
+    }
+
+    /// Connect to the preferred node, then public fallbacks.
+    pub async fn connect(preferred: Option<String>) -> Result<Self, String> {
+        let mut last = "no node candidates".to_string();
+        for url in node_urls(preferred) {
+            match Self::new(NodeConfig {
+                url: url.clone(),
+                api_key: String::new(),
+            })
+            .await
+            {
+                Ok(client) => {
+                    if client.current_height().await.is_ok() {
+                        return Ok(client);
+                    }
+                    last = format!("node {url} did not return height");
+                }
+                Err(e) => last = e,
+            }
+        }
+        Err(last)
+    }
+
+    pub async fn current_height(&self) -> Result<u64, String> {
+        self.inner
+            .current_block_height()
+            .await
+            .map_err(|e| format!("Failed to get height: {e}"))
+    }
+
+    pub async fn unspent_boxes_by_address(
+        &self,
+        address: &str,
+        offset: u64,
+        limit: u64,
+    ) -> Result<Vec<ErgoBox>, String> {
+        let endpoint = format!(
+            "/blockchain/box/unspent/byAddress?offset={offset}&limit={limit}"
+        );
+        let body =
+            serde_json::to_string(address).map_err(|e| format!("JSON serialize: {e}"))?;
+        let response = self
+            .inner
+            .send_post_req(&endpoint, body)
+            .await
+            .map_err(|e| format!("Node request: {e}"))?;
+        let text = response
+            .text()
+            .await
+            .map_err(|e| format!("Read: {e}"))?;
+        if text.is_empty() {
+            return Ok(Vec::new());
+        }
+        let value: serde_json::Value =
+            serde_json::from_str(&text).map_err(|e| format!("Parse: {e}"))?;
+        let items = match value {
+            serde_json::Value::Array(arr) => arr,
+            serde_json::Value::Object(ref map) => map
+                .get("items")
+                .and_then(|v| v.as_array())
+                .cloned()
+                .unwrap_or_default(),
+            _ => Vec::new(),
+        };
+        let mut boxes = Vec::with_capacity(items.len());
+        for item in items {
+            if !item["spentTransactionId"].is_null() {
+                continue;
+            }
+            match serde_json::from_value::<ErgoBox>(item) {
+                Ok(b) => boxes.push(b),
+                Err(e) => tracing::debug!("Skipping unparseable box: {}", e),
+            }
+        }
+        Ok(boxes)
+    }
+
+    /// Unspent boxes under a script, as the node's JSON items (spent ones
+    /// dropped), for callers that read them into more than one shape.
+    pub async fn unspent_boxes_by_ergo_tree(
+        &self,
+        ergo_tree: &str,
+        offset: u64,
+        limit: u64,
+    ) -> Result<Vec<serde_json::Value>, String> {
+        let endpoint = format!(
+            "/blockchain/box/unspent/byErgoTree?offset={offset}&limit={limit}"
+        );
+        let body =
+            serde_json::to_string(ergo_tree).map_err(|e| format!("JSON serialize: {e}"))?;
+        let response = self
+            .inner
+            .send_post_req(&endpoint, body)
+            .await
+            .map_err(|e| format!("Node request: {e}"))?;
+        let text = response
+            .text()
+            .await
+            .map_err(|e| format!("Read: {e}"))?;
+        if text.is_empty() {
+            return Ok(Vec::new());
+        }
+        let value: serde_json::Value =
+            serde_json::from_str(&text).map_err(|e| format!("Parse: {e}"))?;
+        let items = match value {
+            serde_json::Value::Array(arr) => arr,
+            serde_json::Value::Object(ref map) => map
+                .get("items")
+                .and_then(|v| v.as_array())
+                .cloned()
+                .unwrap_or_default(),
+            _ => Vec::new(),
+        };
+        Ok(items
+            .into_iter()
+            .filter(|item| item["spentTransactionId"].is_null())
+            .collect())
+    }
+
+    /// Build an ErgoStateContext by fetching the last 10 block headers from the node.
+    ///
+    /// `/blocks/lastHeaders/N` returns oldest-first. ergo-lib (and Citadel's
+    /// `NodeInterface::get_state_context`) expect newest-first so `HEIGHT` is
+    /// the tip. Using the oldest header makes FreeMint's reset-window R4 check
+    /// fail (`successorR4 <= HEIGHT + T_free + T_buffer` → script = false).
+    pub async fn get_state_context(&self) -> Result<ErgoStateContext, String> {
+        let inner = &self.inner;
+        let mut headers: Vec<Header> = inner
+            .get_last_block_headers(HEADERS_COUNT as u32)
+            .await
+            .map_err(|e| format!("Failed to get headers: {e}"))?;
+
+        if headers.len() < HEADERS_COUNT {
+            return Err(format!(
+                "Expected {HEADERS_COUNT} block headers, got {}",
+                headers.len()
+            ));
+        }
+        headers.reverse();
+
+        let pre_header = PreHeader::from(headers[0].clone());
+
+        let mut arr: [Header; HEADERS_COUNT] =
+            core::array::from_fn(|_| headers[0].clone());
+        for (i, h) in headers.iter().enumerate().take(HEADERS_COUNT) {
+            arr[i] = h.clone();
+        }
+
+        let params = self.parameters().await.unwrap_or_else(|_| Parameters::default());
+        Ok(ErgoStateContext::new(pre_header, arr, params))
+    }
+
+    pub async fn parameters(&self) -> Result<Parameters, String> {
+        let url = join_url(&self.url, "info");
+        let text = crate::http::client()
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| format!("Node /info: {e}"))?
+            .error_for_status()
+            .map_err(|e| format!("Node /info: {e}"))?
+            .text()
+            .await
+            .map_err(|e| format!("Node /info: {e}"))?;
+        let info: serde_json::Value =
+            serde_json::from_str(&text).map_err(|e| format!("Parse /info: {e}"))?;
+        let params = info.get("parameters").unwrap_or(&info);
+        parse_parameters(params)
+    }
+
+    async fn all_unspent_boxes(&self, address: &str) -> Result<Vec<ErgoBox>, String> {
+        let mut all = Vec::new();
+        let mut offset = 0u64;
+        loop {
+            let page = self
+                .unspent_boxes_by_address(address, offset, UNSPENT_PAGE_SIZE)
+                .await?;
+            let n = page.len();
+            all.extend(page);
+            if all.len() >= UNSPENT_MAX_BOXES {
+                all.truncate(UNSPENT_MAX_BOXES);
+                tracing::warn!(
+                    "Unspent box listing for {} hit the {}-box cap; \
+                     balances and coin selection exclude older boxes",
+                    address,
+                    UNSPENT_MAX_BOXES
+                );
+                break;
+            }
+            if n < UNSPENT_PAGE_SIZE as usize {
+                break;
+            }
+            offset += UNSPENT_PAGE_SIZE;
+        }
+        Ok(all)
+    }
+
+    /// Unspent boxes plus EIP-12 views (real txId, index, registers).
+    pub async fn get_unspent(
+        &self,
+        address: &str,
+    ) -> Result<(Vec<ErgoBox>, Vec<ergo_tx::Eip12InputBox>), String> {
+        let boxes = self.all_unspent_boxes(address).await?;
+        let eip12 = boxes
+            .iter()
+            .map(|b| {
+                ergo_tx::Eip12InputBox::from_ergo_box(b, b.transaction_id.to_string(), b.index)
+            })
+            .collect();
+        Ok((boxes, eip12))
+    }
+
+    pub async fn get_eip12_utxos(
+        &self,
+        address: &str,
+    ) -> Result<Vec<ergo_tx::Eip12InputBox>, String> {
+        Ok(self.get_unspent(address).await?.1)
+    }
+
+    /// Every transaction on `list`, page by page, and whether the list is
+    /// whole. Mempool is in-memory on the node, so this needs no extra index
+    /// and works against any node.
+    ///
+    /// An error status is an error, never an empty mempool: an empty answer
+    /// would read as "nothing pending spends these boxes".
+    async fn mempool_pages(
+        &self,
+        list: Pending<'_>,
+    ) -> Result<(Vec<serde_json::Value>, bool), String> {
+        let body = match list {
+            Pending::Touching(ergo_tree) => Some(
+                serde_json::to_string(ergo_tree).map_err(|e| format!("JSON serialize: {e}"))?,
+            ),
+            Pending::All => None,
+        };
+        let mut all = Vec::new();
+        let mut offset = 0usize;
+        loop {
+            let response = match &body {
+                Some(body) => {
+                    let endpoint = format!(
+                        "/transactions/unconfirmed/byErgoTree?offset={offset}&limit={MEMPOOL_PAGE}"
+                    );
+                    self.inner.send_post_req(&endpoint, body.clone()).await
+                }
+                None => {
+                    let endpoint =
+                        format!("/transactions/unconfirmed?offset={offset}&limit={MEMPOOL_PAGE}");
+                    self.inner.send_get_req(&endpoint).await
+                }
+            }
+            .map_err(|e| format!("Node request: {e}"))?;
+            let status = response.status();
+            let text = response.text().await.map_err(|e| format!("Read: {e}"))?;
+            if !status.is_success() {
+                return Err(format!("Mempool query failed ({status}): {text}"));
+            }
+            let items = if text.trim().is_empty() {
+                // The whole mempool stands in for lookups the node does not
+                // serve, so it must say "empty" in JSON like everything else.
+                if list == Pending::All {
+                    return Err("Mempool listing came back empty instead of as a list".into());
+                }
+                Vec::new()
+            } else {
+                match serde_json::from_str(&text).map_err(|e| format!("Parse: {e}"))? {
+                    serde_json::Value::Array(arr) => arr,
+                    serde_json::Value::Object(map) => map
+                        .get("items")
+                        .and_then(|v| v.as_array())
+                        .cloned()
+                        .ok_or("Mempool answer is neither a list nor a page")?,
+                    _ => return Err("Mempool answer is neither a list nor a page".into()),
+                }
+            };
+            if list == Pending::All {
+                mempool_lookup::check_listed(&items)?;
+            }
+            let full_page = items.len() >= MEMPOOL_PAGE;
+            all.extend(items);
+            if !full_page {
+                return Ok((all, true));
+            }
+            if all.len() >= list.cap() {
+                return Ok((all, false));
+            }
+            offset += MEMPOOL_PAGE;
+        }
+    }
+
+    /// Unconfirmed transactions touching `ergo_tree`, for display: what could
+    /// be read. A script with more than [`MEMPOOL_MAX_TXS`] pending is cut
+    /// short with a warning rather than failing the view.
+    pub async fn mempool_txs_for(&self, ergo_tree: &str) -> Result<Vec<serde_json::Value>, String> {
+        let (txs, whole) = self.mempool_pages(Pending::Touching(ergo_tree)).await?;
+        if !whole {
+            tracing::warn!("Mempool listing cut at {MEMPOOL_MAX_TXS} transactions");
+        }
+        Ok(txs)
+    }
+
+    /// Unconfirmed transactions touching `ergo_tree`, for spending: the whole
+    /// list or an error. A partial list may omit the transaction that spends
+    /// a box, and offering that box again is the double spend this guards.
+    pub async fn mempool_txs_complete(
+        &self,
+        ergo_tree: &str,
+    ) -> Result<Vec<serde_json::Value>, String> {
+        self.pending_complete(Pending::Touching(ergo_tree)).await
+    }
+
+    /// Every transaction on `list`, or an error.
+    ///
+    /// One page is one consistent answer. Past one page, the mempool can
+    /// reorder between requests (a higher fee arrives, a transaction leaves)
+    /// and slide a transaction across a page boundary unseen, so the list is
+    /// read again until two passes agree.
+    async fn pending_complete(
+        &self,
+        list: Pending<'_>,
+    ) -> Result<Vec<serde_json::Value>, String> {
+        let too_many = || match list {
+            Pending::Touching(_) => format!(
+                "more than {MEMPOOL_MAX_TXS} pending transactions touch one address; \
+                 they cannot all be checked"
+            ),
+            Pending::All => format!(
+                "more than {MEMPOOL_SCAN_MAX_TXS} transactions are pending on the node; \
+                 they cannot all be checked"
+            ),
+        };
+        let (mut txs, whole) = self.mempool_pages(list).await?;
+        if !whole {
+            return Err(too_many());
+        }
+        if txs.len() < MEMPOOL_PAGE {
+            return Ok(txs);
+        }
+        for _ in 0..MEMPOOL_STABLE_READS {
+            let (again, whole) = self.mempool_pages(list).await?;
+            if !whole {
+                return Err(too_many());
+            }
+            if transaction_ids(&again) == transaction_ids(&txs) {
+                return Ok(again);
+            }
+            txs = again;
+        }
+        Err("pending transactions kept changing while they were read; try again".into())
+    }
+
+    /// One address read for spending: every confirmed page first, then the
+    /// complete mempool list for its script. Unlike the display reads, a
+    /// mempool failure fails the read — without the list, a confirmed box a
+    /// pending transaction already spends looks spendable.
+    pub async fn read_for_spending(
+        &self,
+        address: &str,
+    ) -> Result<crate::mempool::AddressRead, String> {
+        let confirmed = self.get_unspent(address).await?;
+        let tree = address_to_ergo_tree(address)?;
+        let mempool = self
+            .mempool_txs_complete(&tree)
+            .await
+            .map_err(|e| format!("Could not check pending transactions: {e}"))?;
+        Ok(crate::mempool::AddressRead {
+            tree,
+            confirmed,
+            mempool,
+        })
+    }
+
+    /// Drop offered unconfirmed boxes that a pending transaction already
+    /// spends without paying any of the read addresses (see
+    /// [`Self::mempool_spends`]), and likewise from what waiting held back,
+    /// so a box already gone is never named as "still confirming". A box
+    /// whose state cannot be read, or one past [`UNCONFIRMED_CHECKS`], is
+    /// dropped too: it is not offered, or promised, on a guess. Confirmed
+    /// boxes need no such check.
+    pub async fn drop_spent_unconfirmed(
+        &self,
+        spendable: &mut crate::mempool::Spendable,
+        concurrency: usize,
+    ) {
+        let offered: Vec<String> = spendable.unconfirmed.iter().cloned().collect();
+        let held: Vec<String> = spendable.held_back.iter().map(|b| b.box_id.clone()).collect();
+        let answers = self
+            .mempool_spends_each(offered.iter().chain(&held).cloned().collect(), concurrency)
+            .await;
+        let free = |id: &String| matches!(answers.get(id), Some(Ok(false)));
+        let gone: std::collections::HashSet<String> =
+            offered.into_iter().filter(|id| !free(id)).collect();
+        spendable.remove(&gone);
+        spendable.held_back.retain(|b| free(&b.box_id));
+    }
+
+    pub async fn address_has_transactions(&self, address: &str) -> Result<bool, String> {
+        Ok(!self.get_transaction_history(address, 1, 0).await?.is_empty())
+    }
+
+    /// Fetch total nanoERG and per-token amounts for an address.
+    pub async fn get_address_balances(
+        &self,
+        address: &str,
+    ) -> Result<(u64, Vec<(String, u64)>), String> {
+        use std::collections::HashMap;
+        let boxes = self.all_unspent_boxes(address).await?;
+        let erg_total: u64 = boxes
+            .iter()
+            .fold(0u64, |acc, b| acc.saturating_add(*b.value.as_u64()));
+        let mut tokens: HashMap<String, u64> = HashMap::new();
+        for b in &boxes {
+            if let Some(held) = b.tokens.as_ref() {
+                for t in held.iter() {
+                    let id: String = t.token_id.into();
+                    let entry = tokens.entry(id).or_insert(0);
+                    *entry = entry.saturating_add(*t.amount.as_u64());
+                }
+            }
+        }
+        Ok((erg_total, tokens.into_iter().collect()))
+    }
+
+    /// Fetch transaction history for an address (paginated, max 100).
+    pub async fn get_transaction_history(&self, address: &str, limit: u64, offset: u64) -> Result<Vec<TxSummary>, String> {
+        let owned: std::collections::HashSet<String> = [address.to_string()].into();
+        self.get_wallet_transaction_history(address, &owned, &crate::activity::no_tags, limit, offset)
+            .await
+    }
+
+    /// One page of `address`'s history (max 100), each transaction read
+    /// from the point of view of a wallet owning every address in `owned`.
+    pub async fn get_wallet_transaction_history(
+        &self,
+        address: &str,
+        owned: &std::collections::HashSet<String>,
+        tagger: crate::activity::Tagger<'_>,
+        limit: u64,
+        offset: u64,
+    ) -> Result<Vec<TxSummary>, String> {
+        let items = self.transactions_by_address(address, limit, offset).await?;
+        Ok(items
+            .iter()
+            .filter_map(|tx| crate::activity::summarize_for_wallet(tx, None, owned, tagger))
+            .collect())
+    }
+
+    /// The node's raw `byAddress` page: whole transactions, inputs included.
+    pub async fn transactions_by_address(
+        &self,
+        address: &str,
+        limit: u64,
+        offset: u64,
+    ) -> Result<Vec<serde_json::Value>, String> {
+        let endpoint = format!(
+            "/blockchain/transaction/byAddress?offset={}&limit={}",
+            offset,
+            limit.min(100)
+        );
+        let body = serde_json::to_string(address)
+            .map_err(|e| format!("JSON serialize: {e}"))?;
+        let response = self
+            .inner
+            .send_post_req(&endpoint, body)
+            .await
+            .map_err(|e| format!("Node request: {e}"))?;
+        let status = response.status();
+        let text = response
+            .text()
+            .await
+            .map_err(|e| format!("Read: {e}"))?;
+        if status.as_u16() == 404 || text.is_empty() {
+            return Ok(Vec::new());
+        }
+        if !status.is_success() {
+            return Err(format!("Tx history failed ({status}): {text}"));
+        }
+        let value: serde_json::Value = serde_json::from_str(&text)
+            .map_err(|e| format!("Parse: {e}"))?;
+        Ok(value["items"].as_array().cloned().unwrap_or_default())
+    }
+
+    pub async fn get_blockchain_box_by_id(&self, box_id: &str) -> Result<serde_json::Value, String> {
+        let endpoint = format!("/blockchain/box/byId/{box_id}");
+        let response = self
+            .inner
+            .send_get_req(&endpoint)
+            .await
+            .map_err(|e| format!("Node request: {e}"))?;
+        let status = response.status();
+        let text = response.text().await.map_err(|e| format!("Read: {e}"))?;
+        if status.is_success() && !text.is_empty() {
+            serde_json::from_str(&text).map_err(|e| format!("Parse box: {e}"))
+        } else {
+            // Fallback to /utxo/byId if /blockchain/box/byId is not indexed
+            let utxo_endpoint = format!("/utxo/byId/{box_id}");
+            let utxo_resp = self
+                .inner
+                .send_get_req(&utxo_endpoint)
+                .await
+                .map_err(|e| format!("Node utxo request: {e}"))?;
+            let utxo_text = utxo_resp.text().await.map_err(|e| format!("Read: {e}"))?;
+            serde_json::from_str(&utxo_text).map_err(|e| format!("Parse utxo box (status {status}): {e}"))
+        }
+    }
+
+    pub async fn get_transaction_by_id(&self, tx_id: &str) -> Result<serde_json::Value, String> {
+        let endpoint = format!("/blockchain/transaction/byId/{tx_id}");
+        let response = self
+            .inner
+            .send_get_req(&endpoint)
+            .await
+            .map_err(|e| format!("Node request: {e}"))?;
+        let status = response.status();
+        let text = response.text().await.map_err(|e| format!("Read: {e}"))?;
+        if status.is_success() && !text.is_empty() {
+            serde_json::from_str(&text).map_err(|e| format!("Parse tx: {e}"))
+        } else {
+            // Fallback to /transactions/
+            let fallback_endpoint = format!("/transactions/{tx_id}");
+            let fb_resp = self
+                .inner
+                .send_get_req(&fallback_endpoint)
+                .await
+                .map_err(|e| format!("Node tx request: {e}"))?;
+            let fb_text = fb_resp.text().await.map_err(|e| format!("Read: {e}"))?;
+            serde_json::from_str(&fb_text).map_err(|e| format!("Parse tx (status {status}): {e}"))
+        }
+    }
+
+    /// Track a singleton token (NFT / contract state) forward through spent transaction outputs.
+    ///
+    /// Works without extraIndex or explorer indexing by relying on standard box and tx lookups.
+    pub async fn track_singleton_lineage(
+        &self,
+        singleton_token_id: &str,
+        starting_box_id: &str,
+        max_hops: u32,
+    ) -> Result<LineageHopResult, String> {
+        let mut cur_box_id = starting_box_id.trim().to_string();
+        let mut hops = 0u32;
+        let limit = max_hops.clamp(1, 200);
+
+        loop {
+            let box_json = self.get_blockchain_box_by_id(&cur_box_id).await?;
+
+            let has_token = box_json
+                .get("assets")
+                .or_else(|| box_json.get("tokens"))
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter().any(|a| {
+                        a.get("tokenId")
+                            .or_else(|| a.get("id"))
+                            .and_then(|s| s.as_str())
+                            == Some(singleton_token_id)
+                    })
+                })
+                .unwrap_or(false);
+
+            if !has_token {
+                return Err(format!(
+                    "Box {cur_box_id} does not contain singleton token {singleton_token_id}"
+                ));
+            }
+
+            let spent_tx = box_json
+                .get("spentTransactionId")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty() && *s != "null");
+
+            match spent_tx {
+                None => {
+                    // Head of lineage is unspent!
+                    return Ok(LineageHopResult {
+                        singleton_token_id: singleton_token_id.to_string(),
+                        current_box_id: cur_box_id,
+                        is_unspent: true,
+                        hops_traversed: hops,
+                        box_json,
+                    });
+                }
+                Some(tx_id) => {
+                    if hops >= limit {
+                        return Ok(LineageHopResult {
+                            singleton_token_id: singleton_token_id.to_string(),
+                            current_box_id: cur_box_id,
+                            is_unspent: false,
+                            hops_traversed: hops,
+                            box_json,
+                        });
+                    }
+
+                    let tx = self.get_transaction_by_id(tx_id).await?;
+                    let outputs = tx
+                        .get("outputs")
+                        .and_then(|v| v.as_array())
+                        .ok_or_else(|| format!("Spending tx {tx_id} has no outputs array"))?;
+
+                    let next_box = outputs.iter().find(|out| {
+                        out.get("assets")
+                            .or_else(|| out.get("tokens"))
+                            .and_then(|v| v.as_array())
+                            .map(|arr| {
+                                arr.iter().any(|a| {
+                                    a.get("tokenId")
+                                        .or_else(|| a.get("id"))
+                                        .and_then(|s| s.as_str())
+                                        == Some(singleton_token_id)
+                                })
+                            })
+                            .unwrap_or(false)
+                    });
+
+                    match next_box {
+                        Some(out) => {
+                            let next_id = out
+                                .get("boxId")
+                                .or_else(|| out.get("id"))
+                                .and_then(|s| s.as_str())
+                                .ok_or_else(|| "Output box missing boxId".to_string())?;
+                            cur_box_id = next_id.to_string();
+                            hops += 1;
+                        }
+                        None => {
+                            return Err(format!(
+                                "Singleton token {singleton_token_id} not found in outputs of spending tx {tx_id}"
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub async fn submit_transaction(&self, tx_json: &serde_json::Value) -> Result<String, String> {
+        let body =
+            serde_json::to_string(tx_json).map_err(|e| format!("Serialize tx: {e}"))?;
+        let response = self
+            .inner
+            .send_post_req("/transactions", body)
+            .await
+            .map_err(|e| format!("Submit: {e}"))?;
+        let status = response.status();
+        let text = response
+            .text()
+            .await
+            .map_err(|e| format!("Read: {e}"))?;
+        transaction_response(status.as_u16(), text, tx_json)
+    }
+}
+
+/// Build a minimal state context at a given height (for test/local reduction).
+/// Uses dummy header data that is sufficient for signature generation (not consensus checks).
+pub fn make_state_context(height: u32) -> ErgoStateContext {
+    use ergo_lib::ergo_chain_types::EcPoint;
+    use ergo_lib::ergo_chain_types::{AutolykosSolution, BlockId, Digest32, ADDigest, Votes};
+
+    let dummy32 = Digest32::from([0u8; 32]);
+    let dummy_ad = ADDigest::from([0u8; 33]);
+    let dummy_pk = Box::new(EcPoint::from_base16_str(
+        "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798".to_string(),
+    ).unwrap());
+
+    let pre_header = PreHeader {
+        version: 1,
+        parent_id: BlockId(dummy32),
+        timestamp: 0,
+        n_bits: 16842752,
+        height,
+        miner_pk: dummy_pk.clone(),
+        votes: Votes([0u8, 0u8, 0u8]),
+    };
+
+    let header = Header {
+        version: 1,
+        id: BlockId(dummy32),
+        parent_id: BlockId(dummy32),
+        ad_proofs_root: dummy32,
+        state_root: dummy_ad,
+        transaction_root: dummy32,
+        timestamp: 0,
+        n_bits: 16842752,
+        height,
+        extension_root: dummy32,
+        autolykos_solution: AutolykosSolution {
+            miner_pk: dummy_pk,
+            pow_onetime_pk: None,
+            nonce: vec![0u8; 8],
+            pow_distance: Some(num_bigint::BigUint::from(0u32)),
+        },
+        votes: Votes([0u8, 0u8, 0u8]),
+        unparsed_bytes: Box::new([]),
+    };
+
+    let headers: [Header; HEADERS_COUNT] = core::array::from_fn(|_| header.clone());
+
+    ErgoStateContext::new(pre_header, headers, Parameters::default())
+}
+
+fn token_by_id_url(base: &str, token_id: &str) -> String {
+    join_url(base, &format!("blockchain/token/byId/{token_id}"))
+}
+
+fn is_indexed_token(value: &serde_json::Value, token_id: &str) -> bool {
+    value.get("id").and_then(|v| v.as_str()) == Some(token_id)
+        && (value.get("name").is_some() || value.get("decimals").is_some())
+}
+
+/// ExtraIndex nodes first (`/blockchain/token/byId`), explorer last.
+fn token_info_urls(token_id: &str, explorer_url: Option<&str>) -> Vec<String> {
+    let mut urls: Vec<String> = node_urls(None)
+        .into_iter()
+        .map(|u| token_by_id_url(&u, token_id))
+        .collect();
+    let explorer = explorer_url
+        .map(|s| s.trim().trim_end_matches('/').to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(configured_explorer);
+    urls.push(join_url(&explorer, &format!("api/v1/tokens/{token_id}")));
+    urls
+}
+
+async fn fetch_json(url: &str) -> Result<serde_json::Value, String> {
+    let client = crate::http::client_builder()
+        .timeout(Duration::from_secs(8))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let text = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| format!("Token info {url}: {e}"))?
+        .error_for_status()
+        .map_err(|e| format!("Token info {url}: {e}"))?
+        .text()
+        .await
+        .map_err(|e| format!("Token info {url}: {e}"))?;
+    serde_json::from_str(&text).map_err(|e| format!("Parse token: {e}"))
+}
+
+pub async fn get_token_info(
+    token_id: &str,
+    explorer_url: Option<&str>,
+) -> Result<serde_json::Value, String> {
+    if token_id.len() != 64 || !token_id.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err("invalid token id".into());
+    }
+    let mut last = "no token source".to_string();
+    for url in token_info_urls(token_id, explorer_url) {
+        match fetch_json(&url).await {
+            Ok(v) if is_indexed_token(&v, token_id) => return Ok(v),
+            Ok(_) => last = format!("{url}: not an IndexedToken"),
+            Err(e) => last = e,
+        }
+    }
+    Err(last)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn summary_collects_token_arrivals_for_owned_outputs_only() {
+        let addr = "9hXQzT1jJdfLmMGA4rH5QMW2EK9QVnWYyRvVGHKP8pqvS2tVK9t";
+        let tx = serde_json::json!({
+            "id": "tx1",
+            "inclusionHeight": 100,
+            "timestamp": 1700000000000u64,
+            "inputs": [
+                {"boxId": "b0", "spendingProof": {}, "address": addr, "value": 200}
+            ],
+            "outputs": [
+                {"address": "9foreign", "value": 100,
+                 "assets": [{"tokenId": "tokA", "amount": 50}]},
+                {"address": addr, "value": 90,
+                 "assets": [{"tokenId": "tokB", "amount": 7},
+                            {"tokenId": "tokA", "amount": 3}]},
+                {"address": addr, "value": 10,
+                 "assets": [{"tokenId": "tokB", "amount": 5}]}
+            ]
+        });
+
+        let s = summarize_tx_for_address(&tx, addr).expect("summary");
+        assert_eq!(s.value_nano_erg, -100); // 100 back to self - 200 in
+        // ids cover ALL outputs; arrivals only owned ones, summed per token.
+        assert_eq!(s.token_ids, vec!["tokA".to_string(), "tokB".to_string()]);
+        let received: Vec<(String, u64)> = s
+            .tokens_received
+            .iter()
+            .map(|t| (t.token_id.clone(), t.amount))
+            .collect();
+        assert!(received.contains(&("tokB".to_string(), 12)));
+        assert!(received.contains(&("tokA".to_string(), 3)));
+    }
+
+    #[test]
+    fn summary_reports_fee_counterparty_and_tokens_sent() {
+        let addr = "9hXQzT1jJdfLmMGA4rH5QMW2EK9QVnWYyRvVGHKP8pqvS2tVK9t";
+        let fee_tree = ergo_lib::wallet::miner_fee::MINERS_FEE_BASE16_BYTES;
+        let tx = serde_json::json!({
+            "id": "tx2",
+            "inclusionHeight": 100,
+            "timestamp": 1700000000000u64,
+            "inputs": [
+                {"boxId": "b0", "address": addr, "value": 200,
+                 "assets": [{"tokenId": "tokA", "amount": 50}]}
+            ],
+            "outputs": [
+                {"address": "9foreign", "value": 100, "ergoTree": "00",
+                 "assets": [{"tokenId": "tokA", "amount": 30}]},
+                {"address": addr, "value": 90, "ergoTree": "01",
+                 "assets": [{"tokenId": "tokA", "amount": 20}]},
+                {"address": "9miner", "value": 10, "ergoTree": fee_tree, "assets": []}
+            ]
+        });
+        let s = summarize_tx_for_address(&tx, addr).expect("summary");
+        assert_eq!(s.fee_nano_erg, Some(10));
+        assert_eq!(s.counterparty.as_deref(), Some("9foreign"));
+        assert_eq!(s.tokens_sent.len(), 1);
+        assert_eq!(s.tokens_sent[0].token_id, "tokA");
+        assert_eq!(s.tokens_sent[0].amount, 30);
+        // The 20 tokA that came back is change, not a receipt.
+        assert!(s.tokens_received.is_empty(), "change must not count as received");
+
+        // A deposit-style tx: our box with tokA+tokB in, LP token out plus
+        // tokA+tokB change. Only the LP token is received.
+        let deposit = serde_json::json!({
+            "id": "tx4",
+            "inputs": [
+                {"boxId": "b1", "address": addr, "value": 1000,
+                 "assets": [{"tokenId": "tokA", "amount": 5}, {"tokenId": "tokB", "amount": 7}]}
+            ],
+            "outputs": [
+                {"address": "9pool", "value": 500, "ergoTree": "02", "assets": [{"tokenId": "tokA", "amount": 2}]},
+                {"address": addr, "value": 490, "ergoTree": "01",
+                 "assets": [{"tokenId": "lp", "amount": 470}, {"tokenId": "tokA", "amount": 3}, {"tokenId": "tokB", "amount": 7}]},
+                {"address": "9miner", "value": 10, "ergoTree": fee_tree, "assets": []}
+            ]
+        });
+        let s = summarize_tx_for_address(&deposit, addr).expect("summary");
+        assert_eq!(s.tokens_received.len(), 1);
+        assert_eq!(s.tokens_received[0].token_id, "lp");
+        assert_eq!(s.tokens_received[0].amount, 470);
+        assert_eq!(s.tokens_sent.len(), 1);
+        assert_eq!(s.tokens_sent[0].amount, 2);
+
+        // Incoming: counterparty is the sender's input address.
+        let incoming = serde_json::json!({
+            "id": "tx3",
+            "inputs": [{"boxId": "b9", "address": "9sender", "value": 500}],
+            "outputs": [
+                {"address": addr, "value": 490, "ergoTree": "01", "assets": []},
+                {"address": "9miner", "value": 10, "ergoTree": fee_tree, "assets": []}
+            ]
+        });
+        let s = summarize_tx_for_address(&incoming, addr).expect("summary");
+        assert_eq!(s.value_nano_erg, 490);
+        assert_eq!(s.counterparty.as_deref(), Some("9sender"));
+        assert!(s.tokens_sent.is_empty());
+    }
+
+    fn reset_network() {
+        set_network(
+            NODE_CANDIDATES.iter().map(|s| (*s).to_string()).collect(),
+            Some(DEFAULT_EXPLORER_URL.into()),
+        );
+    }
+
+    fn with_network<F: FnOnce()>(f: F) {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        let _guard = LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        struct Reset;
+        impl Drop for Reset {
+            fn drop(&mut self) {
+                reset_network();
+            }
+        }
+        let _reset = Reset;
+        reset_network();
+        f();
+    }
+
+    #[test]
+    fn preferred_node_is_first() {
+        with_network(|| {
+            let urls = node_urls(Some("https://custom.node".into()));
+            assert_eq!(urls[0], "https://custom.node");
+            assert!(urls.contains(&DEFAULT_NODE_URL.to_string()));
+        });
+    }
+
+    #[test]
+    fn default_list_has_no_duplicates() {
+        with_network(|| {
+            let urls = node_urls(Some(DEFAULT_NODE_URL.into()));
+            assert_eq!(urls.iter().filter(|u| *u == DEFAULT_NODE_URL).count(), 1);
+        });
+    }
+
+    #[test]
+    fn custom_list_replaces_defaults() {
+        with_network(|| {
+            set_network(
+                vec!["https://a.example".into(), "https://b.example".into()],
+                Some("https://exp.example".into()),
+            );
+            let urls = node_urls(None);
+            assert_eq!(urls, vec!["https://a.example", "https://b.example"]);
+            assert_eq!(configured_explorer(), "https://exp.example");
+        });
+    }
+
+    #[test]
+    fn empty_set_network_keeps_list() {
+        with_network(|| {
+            set_network(
+                vec!["https://only.example".into()],
+                None,
+            );
+            set_network(vec![], None);
+            assert_eq!(configured_nodes(), vec!["https://only.example"]);
+        });
+    }
+
+    #[test]
+    fn parses_node_parameters() {
+        let json = serde_json::json!({
+            "outputCost": 194,
+            "tokenAccessCost": 100,
+            "maxBlockCost": 8001091,
+            "maxBlockSize": 1271009,
+            "dataInputCost": 100,
+            "blockVersion": 3,
+            "inputCost": 2407,
+            "storageFeeFactor": 1250000,
+            "minValuePerByte": 360
+        });
+        let params = parse_parameters(&json).unwrap();
+        assert_eq!(params.block_version(), 3);
+        assert_eq!(params.min_value_per_byte(), 360);
+        assert_eq!(params.max_block_cost(), 8001091);
+    }
+
+    #[test]
+    fn rejects_incomplete_parameters() {
+        assert!(parse_parameters(&serde_json::json!({"blockVersion": 3})).is_err());
+    }
+
+    #[test]
+    fn token_by_id_url_uses_extraindex_path() {
+        assert_eq!(
+            token_by_id_url(
+                "https://node.sigmaspace.io",
+                "03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04"
+            ),
+            "https://node.sigmaspace.io/blockchain/token/byId/03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04"
+        );
+    }
+
+    #[test]
+    fn token_info_tries_nodes_before_explorer() {
+        with_network(|| {
+            let urls = token_info_urls(
+                "03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04",
+                None,
+            );
+            assert!(urls[0].starts_with(DEFAULT_NODE_URL));
+            assert!(urls[0].contains("/blockchain/token/byId/"));
+            assert!(urls.last().unwrap().contains("/api/v1/tokens/"));
+            assert!(urls.last().unwrap().starts_with(&configured_explorer()));
+        });
+    }
+
+    #[test]
+    fn accepts_indexed_token_json() {
+        let v = serde_json::json!({
+            "id": "03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04",
+            "boxId": "a49076f75e8446fec018d5d32cddf6e05575ef1273232e680f4cd5d716f4e78b",
+            "emissionAmount": 10000000000001i64,
+            "name": "SigUSD",
+            "description": "SigmaUSD - V2",
+            "decimals": 2
+        });
+        assert!(is_indexed_token(
+            &v,
+            "03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04"
+        ));
+    }
+
+    #[test]
+    fn rejects_indexed_token_with_other_id() {
+        let v = serde_json::json!({
+            "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "name": "SigUSD",
+            "decimals": 2
+        });
+        assert!(!is_indexed_token(
+            &v,
+            "03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04"
+        ));
+    }
+
+    #[test]
+    fn rejects_non_token_json() {
+        assert!(!is_indexed_token(
+            &serde_json::json!({"error": 404}),
+            "03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04"
+        ));
+    }
+
+    #[test]
+    fn rejects_parameter_outside_i32() {
+        let mut json = serde_json::json!({
+            "outputCost": 194,
+            "tokenAccessCost": 100,
+            "maxBlockCost": 8001091,
+            "maxBlockSize": 1271009,
+            "dataInputCost": 100,
+            "blockVersion": 3,
+            "inputCost": 2407,
+            "storageFeeFactor": 1250000,
+            "minValuePerByte": 360
+        });
+        json["maxBlockCost"] = serde_json::json!(i64::MAX);
+        assert!(parse_parameters(&json).is_err());
+    }
+}
+
+impl ErgoNodeClient {
+    /// Strict UTXO lookup: never fall back to historical (possibly spent) boxes.
+    pub async fn recovery_unspent_box(&self, box_id: &str) -> Result<serde_json::Value, String> {
+        let response = self
+            .inner
+            .send_get_req(&format!("/utxo/byId/{box_id}"))
+            .await
+            .map_err(|e| format!("Unspent lookup: {e}"))?;
+        let status = response.status();
+        let body = response.text().await.map_err(|e| format!("Read: {e}"))?;
+        if !status.is_success() {
+            return Err(format!("Unspent lookup ({status}): {body}"));
+        }
+        serde_json::from_str(&body).map_err(|e| format!("Unspent box: {e}"))
+    }
+
+    /// Validate a signed transaction against the live UTXO set without broadcast.
+    pub async fn check_transaction(&self, tx: &serde_json::Value) -> Result<(), String> {
+        let body = serde_json::to_string(tx).map_err(|e| format!("Serialize: {e}"))?;
+        let response = self
+            .inner
+            .send_post_req("/transactions/check", body)
+            .await
+            .map_err(|e| format!("Check: {e}"))?;
+        let status = response.status();
+        let body = response.text().await.map_err(|e| format!("Read: {e}"))?;
+        transaction_response(status.as_u16(), body, tx).map(|_| ())
+    }
+}
+
+#[cfg(test)]
+#[path = "check_tests.rs"]
+mod check_tests;
+
+#[cfg(test)]
+#[path = "mempool_client_tests.rs"]
+mod mempool_client_tests;
+
+/// Normalize only the observed already-known response, never arbitrary HTTP 400s.
+/// Kadia uses this exact envelope for both check and submit; Scala returns 200.
+fn transaction_response(
+    status: u16,
+    text: String,
+    tx: &serde_json::Value,
+) -> std::result::Result<String, String> {
+    if (200..300).contains(&status) {
+        return Ok(text.trim().trim_matches('"').to_string());
+    }
+    let error = serde_json::from_str::<serde_json::Value>(&text).ok();
+    if status == 400 && error == Some(serde_json::json!({"error": 400, "reason": "duplicate"})) {
+        // EIP-12 requests need not carry an id. Derive it from the transaction
+        // rather than trusting caller-supplied id / output box metadata.
+        use ergo_lib::chain::transaction::Transaction;
+        let parse = |error| format!("Cannot derive already-known transaction id: {error}");
+        let inputs = serde_json::from_value(tx["inputs"].clone()).map_err(parse)?;
+        let data_inputs = serde_json::from_value(tx["dataInputs"].clone()).map_err(parse)?;
+        let outputs = serde_json::from_value(tx["outputs"].clone()).map_err(parse)?;
+        let transaction = Transaction::new_from_vec(inputs, data_inputs, outputs)
+            .map_err(|error| format!("Cannot derive already-known transaction id: {error}"))?;
+        return Ok(transaction.id().to_string());
+    }
+    Err(format!("transaction rejected ({status}): {text}"))
+}

@@ -1,0 +1,303 @@
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'address_holdings.dart';
+
+/// Local cache for instant 0ms UI load and non-extraIndex contract tracking.
+///
+/// NOT encryption: `_obfuscate` only deters casual greps of prefs files. The
+/// key is derived from the wallet id, which is stored inside the payload
+/// itself, so anyone with file access (root, backup, malware) can read
+/// everything here — addresses, balances, full transaction history.
+///
+/// Platform notes: Android excludes this data from cloud backup and D2D
+/// transfer (see AndroidManifest + data_extraction_rules.xml). On iOS,
+/// NSUserDefaults IS included in iCloud/device backups — only obfuscated,
+/// never encrypted. This is acceptable solely because the payload is public
+/// chain data; never store secrets through this service. FLAG_SECURE guards
+/// the screen, not storage, and is irrelevant here.
+/// A wallet's last synced total, for rows the app cannot sync right now.
+class LastKnownBalance {
+  const LastKnownBalance({
+    required this.balanceNano,
+    required this.age,
+    this.tokens = const [],
+    this.tokensKnown = true,
+    this.addresses = const [],
+    this.stealthNano = 0,
+    this.stealthScannedAt,
+    this.addressHoldings = const [],
+  });
+  final int balanceNano;
+  /// Older snapshots without a token listing must not imply zero holdings.
+  final bool tokensKnown;
+  final Duration age;
+
+  /// Addresses this wallet was known to use when it was last unlocked.
+  /// A locked wallet cannot derive new ones (that needs the seed), but its
+  /// known addresses can still be queried live.
+  final List<String> addresses;
+
+  /// Stealth ERG at the last sync. A locked wallet cannot rescan for it,
+  /// because detection needs its seed.
+  final int stealthNano;
+
+  /// When [stealthNano] was last confirmed by a successful scan. Null means
+  /// it was never scanned, so the figure is not to be trusted as current.
+  final DateTime? stealthScannedAt;
+
+  /// Token holdings from the same snapshot, for portfolio valuation.
+  final List<({String id, int amount, int decimals})> tokens;
+
+  /// What each address held when [balanceNano] was read. Empty for
+  /// snapshots written before the split was recorded.
+  final List<AddressHolding> addressHoldings;
+}
+
+class WalletDatabaseService {
+  /// One snapshot per wallet id (v3); the older single slot is ignored.
+  static String _snapshotKey(String walletId) => 'argus_local_wallet_db_v3_$walletId';
+  static const _keyTrackedLineages = 'argus_tracked_lineages_v2';
+
+  /// Obfuscate plaintext with a wallet-specific deterministic keystream.
+  static String _obfuscate(String plaintext, String walletId) {
+    final textBytes = utf8.encode(plaintext);
+    final keyBytes = utf8.encode(walletId);
+    if (keyBytes.isEmpty) return base64Encode(textBytes);
+
+    final out = Uint8List(textBytes.length);
+    for (var i = 0; i < textBytes.length; i++) {
+      final k = keyBytes[i % keyBytes.length] ^ ((i * 31 + 17) & 0xFF);
+      out[i] = textBytes[i] ^ k;
+    }
+    return base64Encode(out);
+  }
+
+  /// De-obfuscate ciphertext with the expected wallet-specific keystream.
+  static String? _deobfuscate(String ciphertext, String walletId) {
+    try {
+      final encBytes = base64Decode(ciphertext);
+      final keyBytes = utf8.encode(walletId);
+      if (keyBytes.isEmpty) return utf8.decode(encBytes);
+
+      final out = Uint8List(encBytes.length);
+      for (var i = 0; i < encBytes.length; i++) {
+        final k = keyBytes[i % keyBytes.length] ^ ((i * 31 + 17) & 0xFF);
+        out[i] = encBytes[i] ^ k;
+      }
+      return utf8.decode(out);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Load cached wallet summary scoped to a stable unlocked-wallet identifier.
+  static Future<Map<String, dynamic>?> loadCachedState({
+    required String expectedWalletId,
+  }) async {
+    if (expectedWalletId.isEmpty) return null;
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_snapshotKey(expectedWalletId));
+    if (raw == null || raw.isEmpty) return null;
+
+    try {
+      final decrypted = _deobfuscate(raw, expectedWalletId);
+      if (decrypted == null) return null;
+
+      final map = jsonDecode(decrypted) as Map<String, dynamic>;
+      if (map['wallet_id'] != expectedWalletId) {
+        // Mismatched wallet identifier — reject cache
+        return null;
+      }
+      return map;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Save the latest synced wallet summary scoped to the unlocked wallet identifier.
+  static Future<void> saveCachedState({
+    required String walletId,
+    required String? primaryAddress,
+    required List<Map<String, dynamic>> usedAddresses,
+    required int? balanceNano,
+    required List<Map<String, dynamic>> tokens,
+    required List<Map<String, dynamic>> transactions,
+    required int utxoCount,
+    List<String> frontierAddresses = const [],
+    int? discoveredAt,
+    int? discoveryPinnedIndex,
+    bool? discoveryUnusedChange,
+    String? changeAddress,
+    int lastSyncedHeight = 0,
+    bool publicOnly = false,
+    String? syncPhase,
+    int? lastSuccessfulSyncAt,
+    int stealthNano = 0,
+    DateTime? stealthScannedAt,
+    List<Map<String, dynamic>> addressHoldings = const [],
+    Map<String, dynamic>? pending,
+  }) async {
+    if (walletId.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final snapshot = {
+      'wallet_id': walletId,
+      'primary_address': primaryAddress,
+      'used_addresses': usedAddresses,
+      'frontier_addresses': frontierAddresses,
+      'discovered_at': discoveredAt,
+      'discovery_pinned_index': discoveryPinnedIndex,
+      'discovery_unused_change': discoveryUnusedChange,
+      'change_address': changeAddress,
+      // A locked wallet cannot rescan for stealth funds: detection needs
+      // its seed. The last successful figure is kept with the time it was
+      // taken, so the row can say how old it is rather than imply it is now.
+      'stealth_nano_erg': stealthNano,
+      'stealth_scanned_at': stealthScannedAt?.millisecondsSinceEpoch,
+      'balance_nano_erg': balanceNano,
+      // Confirmed and pending figures behind balance_nano_erg, as the sync
+      // valued them (see PendingBalance). Public chain data, like the rest.
+      'pending': pending,
+      'tokens': tokens,
+      'transactions': transactions,
+      'utxo_count': utxoCount,
+      'address_holdings': addressHoldings,
+      'last_synced_height': lastSyncedHeight,
+      'public_only': publicOnly,
+      'sync_phase': syncPhase,
+      'last_successful_sync_at': lastSuccessfulSyncAt,
+      'last_sync_timestamp': DateTime.now().millisecondsSinceEpoch,
+    };
+
+    final obfuscated = _obfuscate(jsonEncode(snapshot), walletId);
+    await prefs.setString(_snapshotKey(walletId), obfuscated);
+  }
+
+  /// Writes public data only while the originating session still owns the job.
+  static Future<void> savePublicSnapshot(
+    String walletId,
+    Map<String, dynamic> snapshot,
+    bool Function() valid,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!valid() || snapshot['wallet_id'] != walletId) return;
+    await prefs.setString(
+      _snapshotKey(walletId),
+      _obfuscate(jsonEncode(snapshot), walletId),
+    );
+  }
+
+  static Future<LastKnownBalance?> lastKnownBalance(String walletId) async {
+    final map = await loadCachedState(expectedWalletId: walletId);
+    if (map == null || map['balance_nano_erg'] == null) return null;
+    final at = (map['last_sync_timestamp'] as num?)?.toInt();
+    return LastKnownBalance(
+      balanceNano: (map['balance_nano_erg'] as num?)?.toInt() ?? 0,
+      age: at == null ? Duration.zero : DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(at)),
+      stealthNano: (map['stealth_nano_erg'] as num?)?.toInt() ?? 0,
+      stealthScannedAt: (map['stealth_scanned_at'] as num?) == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(
+              (map['stealth_scanned_at'] as num).toInt()),
+      addresses: [
+        for (final a in (map['used_addresses'] as List? ?? const []))
+          if (a is Map && a['address'] != null) a['address'].toString()
+          else if (a is String && a.isNotEmpty) a,
+      ],
+      tokensKnown: map['tokens'] is List,
+      addressHoldings: AddressHolding.listFrom(map['address_holdings']),
+      tokens: [
+        for (final t in (map['tokens'] as List? ?? const []))
+          if (t is Map && t['id'] is String)
+            (
+              id: t['id'] as String,
+              amount: (t['amount'] as num?)?.toInt() ?? 0,
+              decimals: (t['decimals'] as num?)?.toInt() ?? 0,
+            ),
+      ],
+    );
+  }
+
+  static Future<void> clearWallet(String walletId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_snapshotKey(walletId));
+  }
+
+  /// Record or update a tracked DeFi singleton contract lineage.
+  static Future<void> recordLineage({
+    required String singletonTokenId,
+    required String protocolName,
+    required String rootBoxId,
+    required String currentBoxId,
+    required int lastUpdatedHeight,
+    Map<String, dynamic>? boxJson,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyTrackedLineages);
+    final map = raw != null ? (jsonDecode(raw) as Map<String, dynamic>) : <String, dynamic>{};
+
+    map[singletonTokenId] = {
+      'singleton_token_id': singletonTokenId,
+      'protocol_name': protocolName,
+      'root_box_id': rootBoxId,
+      'current_box_id': currentBoxId,
+      'last_updated_height': lastUpdatedHeight,
+      'box_json': boxJson,
+      'updated_at': DateTime.now().millisecondsSinceEpoch,
+    };
+
+    await prefs.setString(_keyTrackedLineages, jsonEncode(map));
+  }
+
+  /// Get all tracked contract lineages.
+  static Future<Map<String, dynamic>> getTrackedLineages() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyTrackedLineages);
+    if (raw == null || raw.isEmpty) return {};
+    try {
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      return {};
+    }
+  }
+
+  /// Durable public-chain recovery records, separate from disposable balances.
+  static Future<List<Map<String, dynamic>>> loadStakeProxies(
+    String walletId,
+    String network,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('argus_stake_proxies_v1_${network}_$walletId');
+    if (raw == null) return [];
+    final decoded = _deobfuscate(raw, walletId);
+    if (decoded == null) throw StateError('Could not read proxy recovery records');
+    return [
+      for (final item in jsonDecode(decoded) as List)
+        (item as Map).cast<String, dynamic>(),
+    ];
+  }
+
+  static Future<void> saveStakeProxies(
+    String walletId,
+    String network,
+    List<Map<String, dynamic>> records,
+  ) async {
+    if (walletId.isEmpty) throw StateError('Missing proxy wallet association');
+    final prefs = await SharedPreferences.getInstance();
+    final saved = await prefs.setString(
+      'argus_stake_proxies_v1_${network}_$walletId',
+      _obfuscate(jsonEncode(records), walletId),
+    );
+    if (!saved) throw StateError('Could not persist proxy recovery records');
+  }
+
+  /// Clear cached local state (e.g. on wallet reset).
+  static Future<void> clearAll() async {
+    final prefs = await SharedPreferences.getInstance();
+    for (final k in prefs.getKeys().where((k) => k.startsWith('argus_local_wallet_db_')).toList()) {
+      await prefs.remove(k);
+    }
+    await prefs.remove(_keyTrackedLineages);
+  }
+}

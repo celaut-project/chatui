@@ -1,0 +1,1710 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../bridge/api.dart' as bridge;
+import 'mix_activity.dart';
+import 'network_controller.dart';
+import 'mix_background.dart';
+import 'notification_service.dart';
+import 'secure_storage.dart';
+import 'wallet_service.dart';
+
+/// One mix as the app keeps it: the Rust engine's state JSON, which is the
+/// truth, plus what only the app knows (the last error, when it last
+/// looked). No secret is ever here; see the zerojoin crate's `mix` module.
+class MixRecord {
+  MixRecord({
+    required this.state,
+    this.lastError,
+    this.lastCheckedAt,
+    this.fundingNano,
+    this.fundingTokenAmount,
+    this.fundingTxId,
+    this.fundingBoxIds = const [],
+    this.entryAttempt,
+    this.entryTxId,
+    this.acknowledged = false,
+    this.tokensLeft,
+    this.mixedBoxId,
+  });
+
+  /// The box a withdrawal delivered to the destination, once seen: the
+  /// mixed money, which coin selection keeps apart from the rest. Empty
+  /// means looked and found none.
+  String? mixedBoxId;
+
+  Map<String, dynamic> state;
+
+  /// Mixing tokens on the mix's box at the last check: one is burned per
+  /// round as Alice, and a box needs two to afford another. Null until a
+  /// check has seen the box.
+  int? tokensLeft;
+
+  /// Rounds the tokens on the box can still pay for, at one each.
+  int? get roundsAffordable => tokensLeft == null ? null : (tokensLeft! - 1).clamp(0, 1 << 30);
+  String? lastError;
+  DateTime? lastCheckedAt;
+
+  /// What the funding box was made to hold, so a pending mix can find it
+  /// again even if the operator's price has moved since.
+  int? fundingNano;
+
+  /// For a token ring, the token the funding box was made to hold: the
+  /// ring amount plus the operator's commission.
+  int? fundingTokenAmount;
+
+  /// The funding self-send, once broadcast, and the ids of its outputs:
+  /// the funding box is one of them, found by id rather than by guessing
+  /// from its size.
+  String? fundingTxId;
+  List<String> fundingBoxIds;
+
+  /// The state an entry will produce, persisted before the entry is
+  /// broadcast. Still here after a crash means the entry may be on chain.
+  Map<String, dynamic>? entryAttempt;
+  String? entryTxId;
+
+  /// The user has seen that this mix finished; the home strip stops
+  /// announcing it.
+  bool acknowledged;
+
+  /// What happened, for the activity list: `(action, tx id, at, round,
+  /// height)` per event, oldest first.
+  List<Map<String, dynamic>> get events =>
+      (state['events'] as List?)?.cast<Map>().map((m) => m.cast<String, dynamic>()).toList() ??
+      const [];
+
+  int get mixId => (state['mix_id'] as num).toInt();
+  Map<String, dynamic> get phase => (state['phase'] as Map).cast<String, dynamic>();
+  String get phaseKind => phase['kind'] as String? ?? '';
+  String? get boxId => phase['box_id'] as String?;
+
+  /// The box the latest move spent, while that move is not yet seen on
+  /// chain; the engine falls back to it if the move is lost.
+  String? get previousBoxId => ((state['previous'] as Map?)?['phase'] as Map?)?['box_id'] as String?;
+  int get denomination => ((state['ring'] as Map)['value'] as num).toInt();
+  String? get ringTokenId => (state['ring'] as Map)['token_id'] as String?;
+  int? get ringTokenAmount => ((state['ring'] as Map)['token_amount'] as num?)?.toInt();
+
+  /// A token ring: the box holds a fixed sliver of ERG and the ring amount
+  /// of one token, and it is the token that is being mixed.
+  bool get isTokenRing => ringTokenId != null && ringTokenId!.isNotEmpty;
+  int get roundsDone => (state['rounds_done'] as num?)?.toInt() ?? 0;
+  int get roundsTarget => (state['rounds_target'] as num?)?.toInt() ?? 0;
+  int get round => (state['round'] as num?)?.toInt() ?? 0;
+  String get destinationErgoTree => state['destination_ergo_tree'] as String? ?? '';
+  int get createdAt => (state['created_at'] as num?)?.toInt() ?? 0;
+  int get updatedAt => (state['updated_at'] as num?)?.toInt() ?? 0;
+
+  /// The mix is waiting in, or moving through, the pool.
+  bool get inPool => phaseKind == 'half_posted' || phaseKind == 'full_owned' || awaitingWithdrawal;
+  bool get pending => phaseKind == 'pending';
+  bool get awaitingWithdrawal =>
+      (phaseKind == 'withdrawn' || phaseKind == 'reclaimed') && previousBoxId != null;
+  bool get finished => (phaseKind == 'withdrawn' || phaseKind == 'reclaimed') && !awaitingWithdrawal;
+
+  /// nanoERG this mix has in the pool right now.
+  int get lockedNano => inPool && !awaitingWithdrawal ? denomination : 0;
+
+  /// Rounds done and nothing left to do but leave: the money is mixed and
+  /// waiting to be withdrawn.
+  bool get readyToWithdraw => phaseKind == 'full_owned' && roundsDone >= roundsTarget;
+
+  /// Recovered from the seed: the engine knows the box but not where the
+  /// user wanted the money to go.
+  bool get needsDestination => inPool && destinationErgoTree.isEmpty;
+
+  Map<String, dynamic> toJson() => {
+        'state': state,
+        if (lastError != null) 'last_error': lastError,
+        if (lastCheckedAt != null) 'last_checked_at': lastCheckedAt!.millisecondsSinceEpoch,
+        if (fundingNano != null) 'funding_nano': fundingNano,
+        if (fundingTokenAmount != null) 'funding_token_amount': fundingTokenAmount,
+        if (fundingTxId != null) 'funding_tx_id': fundingTxId,
+        if (fundingBoxIds.isNotEmpty) 'funding_box_ids': fundingBoxIds,
+        if (entryAttempt != null) 'entry_attempt': entryAttempt,
+        if (entryTxId != null) 'entry_tx_id': entryTxId,
+        if (acknowledged) 'acknowledged': true,
+        if (tokensLeft != null) 'tokens_left': tokensLeft,
+        if (mixedBoxId != null) 'mixed_box_id': mixedBoxId,
+      };
+
+  static MixRecord fromJson(Map<String, dynamic> m) => MixRecord(
+        state: (m['state'] as Map).cast<String, dynamic>(),
+        lastError: m['last_error'] as String?,
+        fundingNano: (m['funding_nano'] as num?)?.toInt(),
+        fundingTokenAmount: (m['funding_token_amount'] as num?)?.toInt(),
+        fundingTxId: m['funding_tx_id'] as String?,
+        fundingBoxIds: (m['funding_box_ids'] as List?)?.cast<String>() ?? const [],
+        entryAttempt: (m['entry_attempt'] as Map?)?.cast<String, dynamic>(),
+        entryTxId: m['entry_tx_id'] as String?,
+        acknowledged: m['acknowledged'] == true,
+        tokensLeft: (m['tokens_left'] as num?)?.toInt(),
+        mixedBoxId: m['mixed_box_id'] as String?,
+        lastCheckedAt: (m['last_checked_at'] as num?) == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch((m['last_checked_at'] as num).toInt()),
+      );
+}
+
+/// What the engine needs of the wallet, so the service can be tested
+/// without the Rust bridge.
+abstract class MixGateway {
+  bool get isUnlocked;
+  String? get walletId;
+  String? get nodeUrl;
+  String get explorerBase;
+
+  /// Tell coin selection which boxes pending mixes have set aside:
+  /// `[{"box_ids": [...], "value_nano_erg": n}]`; `[]` frees them all.
+  void setReservedFunding(String reservationsJson);
+
+  /// Tell coin selection which boxes came out of a mix; `[]` frees them.
+  void setMixedBoxes(List<String> boxIds);
+
+  /// The chain height the wallet already knows from its node, if any.
+  int? get chainHeight;
+
+  /// `{"half","full","fee","token","mixing_token_id"}` ErgoTree hexes.
+  String contractTrees();
+  Future<String> newState({
+    required int mixId,
+    required int denomination,
+    String? tokenId,
+    int? tokenAmount,
+    required int level,
+    required int rounds,
+    required String destinationAddress,
+    required int nowUnix,
+  });
+  Future<String> rings(String chainJson);
+  Future<String> fundingRequirement(String chainJson, int denomination, int level, int? feeNano,
+      {String? tokenId, int? tokenAmount});
+  Future<String> plan(String stateJson, String chainJson, List<String> ownHalfBoxIds);
+  Future<String> observe(String stateJson, String chainJson, int nowUnix);
+  Future<String> advance(
+    String stateJson,
+    String chainJson,
+    List<String> ownHalfBoxIds,
+    String? nodeUrl,
+    int nowUnix,
+  );
+  Future<String> leave(
+    String stateJson,
+    String chainJson,
+    String? destinationAddress,
+    String? nodeUrl,
+    int nowUnix,
+  );
+  Future<String> recover(String chainJson, int nowUnix);
+  Future<String> prepareEntry({
+    required String stateJson,
+    required String chainJson,
+    required String fundingAddress,
+    required String fundingBoxId,
+    required List<String> ownHalfBoxIds,
+    String? nodeUrl,
+    required int nowUnix,
+  });
+  /// `mixId` makes the notification's identity: two mixes at the same
+  /// step must not replace each other.
+  Future<void> notify({required String title, required String body, int? mixId});
+
+  // Background mixing: a per-mix key in the app's keystore, and the same
+  // engine calls driven by it instead of the unlocked wallet.
+  Future<Uint8List> exportKey(int mixId);
+  Future<void> saveKey({required String walletId, required int mixId, required Uint8List keyBytes});
+  Future<Uint8List?> loadKey({required String walletId, required int mixId});
+  Future<void> deleteKey({required String walletId, required int mixId});
+  Future<List<({String walletId, int mixId})>> listKeys();
+  Future<String> observeWithKey(String stateJson, String chainJson, Uint8List keyBytes, int nowUnix);
+  Future<String> advanceWithKey(
+    String stateJson,
+    String chainJson,
+    List<String> ownHalfBoxIds,
+    String? nodeUrl,
+    int nowUnix,
+    Uint8List keyBytes,
+  );
+}
+
+/// The real thing: every call goes through the Rust bridge.
+class LiveMixGateway implements MixGateway {
+  const LiveMixGateway();
+
+  @override
+  bool get isUnlocked => walletService.isUnlocked;
+  @override
+  String? get walletId => walletService.activeWalletId;
+  @override
+  String? get nodeUrl => networkController.activeUrl;
+  @override
+  String get explorerBase => networkController.explorer;
+  @override
+  int? get chainHeight => networkController.height;
+  @override
+  void setReservedFunding(String reservationsJson) => walletService.mixSetReservedFunding(reservationsJson);
+
+  @override
+  void setMixedBoxes(List<String> boxIds) => walletService.mixSetMixedBoxes(boxIds);
+
+  @override
+  String contractTrees() => bridge.mixContractTrees();
+
+  @override
+  Future<String> newState({
+    required int mixId,
+    required int denomination,
+    String? tokenId,
+    int? tokenAmount,
+    required int level,
+    required int rounds,
+    required String destinationAddress,
+    required int nowUnix,
+  }) =>
+      bridge.mixNewState(
+        mixId: mixId,
+        denomination: denomination,
+        tokenId: tokenId,
+        tokenAmount: tokenAmount,
+        level: level,
+        rounds: rounds,
+        destinationAddress: destinationAddress,
+        nowUnix: nowUnix,
+      );
+
+  @override
+  Future<String> rings(String chainJson) => bridge.mixRings(chainJson: chainJson);
+
+  @override
+  Future<String> fundingRequirement(String chainJson, int denomination, int level, int? feeNano,
+          {String? tokenId, int? tokenAmount}) =>
+      bridge.mixFundingRequirement(
+        chainJson: chainJson,
+        denomination: denomination,
+        level: level,
+        feeNano: feeNano,
+        tokenId: tokenId,
+        tokenAmount: tokenAmount,
+      );
+
+  @override
+  Future<String> plan(String stateJson, String chainJson, List<String> ownHalfBoxIds) =>
+      bridge.mixPlan(stateJson: stateJson, chainJson: chainJson, ownHalfBoxIds: ownHalfBoxIds);
+
+  @override
+  Future<String> observe(String stateJson, String chainJson, int nowUnix) =>
+      walletService.mixObserve(stateJson: stateJson, chainJson: chainJson, nowUnix: nowUnix);
+
+  @override
+  Future<String> advance(
+    String stateJson,
+    String chainJson,
+    List<String> ownHalfBoxIds,
+    String? nodeUrl,
+    int nowUnix,
+  ) =>
+      walletService.mixAdvance(
+        stateJson: stateJson,
+        chainJson: chainJson,
+        ownHalfBoxIds: ownHalfBoxIds,
+        nodeUrl: nodeUrl,
+        nowUnix: nowUnix,
+      );
+
+  @override
+  Future<String> leave(
+    String stateJson,
+    String chainJson,
+    String? destinationAddress,
+    String? nodeUrl,
+    int nowUnix,
+  ) =>
+      walletService.mixLeave(
+        stateJson: stateJson,
+        chainJson: chainJson,
+        destinationAddress: destinationAddress,
+        nodeUrl: nodeUrl,
+        nowUnix: nowUnix,
+      );
+
+  @override
+  Future<String> recover(String chainJson, int nowUnix) =>
+      walletService.mixRecover(chainJson: chainJson, nowUnix: nowUnix);
+
+  @override
+  Future<String> prepareEntry({
+    required String stateJson,
+    required String chainJson,
+    required String fundingAddress,
+    required String fundingBoxId,
+    required List<String> ownHalfBoxIds,
+    String? nodeUrl,
+    required int nowUnix,
+  }) =>
+      walletService.mixPrepareEntry(
+        stateJson: stateJson,
+        chainJson: chainJson,
+        fundingAddress: fundingAddress,
+        fundingBoxId: fundingBoxId,
+        ownHalfBoxIds: ownHalfBoxIds,
+        nodeUrl: nodeUrl,
+        nowUnix: nowUnix,
+      );
+
+  @override
+  Future<void> notify({required String title, required String body, int? mixId}) =>
+      notificationService.mixProgress(title: title, body: body, mixId: mixId);
+
+  @override
+  Future<Uint8List> exportKey(int mixId) => walletService.mixExportKey(mixId);
+  @override
+  Future<void> saveKey({required String walletId, required int mixId, required Uint8List keyBytes}) =>
+      SecureStorageService.saveMixKey(walletId: walletId, mixId: mixId, keyBytes: keyBytes);
+  @override
+  Future<Uint8List?> loadKey({required String walletId, required int mixId}) =>
+      SecureStorageService.loadMixKey(walletId: walletId, mixId: mixId);
+  @override
+  Future<void> deleteKey({required String walletId, required int mixId}) =>
+      SecureStorageService.deleteMixKey(walletId: walletId, mixId: mixId);
+  @override
+  Future<List<({String walletId, int mixId})>> listKeys() => SecureStorageService.listMixKeys();
+  @override
+  Future<String> observeWithKey(String stateJson, String chainJson, Uint8List keyBytes, int nowUnix) =>
+      bridge.mixObserveWithKey(
+        stateJson: stateJson,
+        chainJson: chainJson,
+        keyBytes: keyBytes,
+        nowUnix: nowUnix,
+      );
+  @override
+  Future<String> advanceWithKey(
+    String stateJson,
+    String chainJson,
+    List<String> ownHalfBoxIds,
+    String? nodeUrl,
+    int nowUnix,
+    Uint8List keyBytes,
+  ) =>
+      bridge.mixAdvanceWithKey(
+        stateJson: stateJson,
+        chainJson: chainJson,
+        ownHalfBoxIds: ownHalfBoxIds,
+        nodeUrl: nodeUrl,
+        feeNano: null,
+        nowUnix: nowUnix,
+        keyBytes: keyBytes,
+      );
+}
+
+/// One HTTP GET returning the body, so the snapshot builder can be tested
+/// against canned pages.
+typedef MixHttpGet = Future<String> Function(Uri uri);
+
+/// One HTTP POST with a JSON body, for the node's indexed queries.
+typedef MixHttpPost = Future<String> Function(Uri uri, String jsonBody);
+
+/// Explorers answer a by-script query in ten to thirty seconds; the node's
+/// index answers in a few. The timeout covers the slow one.
+const mixHttpTimeout = Duration(seconds: 60);
+
+Future<String> _httpGet(Uri uri) async {
+  final res = await http.get(uri).timeout(mixHttpTimeout);
+  if (res.statusCode != 200) {
+    throw StateError('${uri.host} returned HTTP ${res.statusCode} for ${uri.path}');
+  }
+  return res.body;
+}
+
+Future<String> _httpPost(Uri uri, String jsonBody) async {
+  final res = await http
+      .post(uri, headers: const {'Content-Type': 'application/json'}, body: jsonBody)
+      .timeout(mixHttpTimeout);
+  if (res.statusCode != 200) {
+    throw StateError('${uri.host} returned HTTP ${res.statusCode} for ${uri.path}');
+  }
+  return res.body;
+}
+
+/// Boxes per explorer page.
+const mixPageLimit = 500;
+
+/// Most boxes one list fetch will pull. The live pool is a few hundred
+/// boxes; this keeps a runaway pool from filling a phone's memory.
+const mixListCap = 5000;
+
+/// The snapshot the engine reads, built from explorer pages.
+class MixSnapshot {
+  MixSnapshot({required this.json, required this.height, required this.truncated});
+
+  /// `{"half_boxes","full_boxes","fee_boxes","token_boxes","height"}`.
+  final String json;
+  final int height;
+
+  /// A fee or token list hit its cap. Planning still works,
+  /// but a counterpart may have been missed.
+  final bool truncated;
+}
+
+/// Drives every mix of the active wallet: keeps the records, fetches the
+/// chain snapshot, and asks the engine to move each mix along.
+///
+/// Entries are prepared here but confirmed by the user through the same
+/// PIN and confirm sheet as any send; every later move is broadcast by
+/// [tick] without asking, since it spends nothing the user has not already
+/// committed to the mix.
+class MixService extends ChangeNotifier {
+  MixService({
+    MixGateway? gateway,
+    MixHttpGet? get,
+    MixHttpPost? post,
+    DateTime Function()? clock,
+    void Function(bool wanted)? schedule,
+  })  : _gw = gateway ?? const LiveMixGateway(),
+        _get = get ?? _httpGet,
+        _post = post ?? _httpPost,
+        _clock = clock ?? DateTime.now,
+        _schedule = schedule;
+
+  static const _enabledKey = 'argus_mixing_enabled';
+  static const _backgroundKey = 'argus_mixing_background';
+  static String _recordsKey(String walletId) => 'argus_mixes_v1_$walletId';
+
+  /// A copy of a records value that could not be read, kept so the next
+  /// write cannot destroy it. The boxes are still on chain and recovery
+  /// finds them, but the destinations they carried live only here.
+  static String _salvageKey(String walletId) => 'argus_mixes_v1_${walletId}_unreadable';
+
+  /// The next mix index, kept apart from the records: a mix index names a
+  /// derivation path, and reusing one after its record was removed would
+  /// reuse a secret and its public commitment on chain.
+  static String _nextIdKey(String walletId) => 'argus_mixes_v1_${walletId}_next_id';
+
+  final MixGateway _gw;
+  final MixHttpGet _get;
+  final MixHttpPost _post;
+  final DateTime Function() _clock;
+
+  /// Told whether a periodic background job is wanted, whenever that
+  /// answer may have changed.
+  final void Function(bool wanted)? _schedule;
+
+  /// Off until the user turns mixing on in Settings → Privacy.
+  bool enabled = false;
+
+  /// Keep mixes moving with the app closed, from per-mix keys in the
+  /// keystore. Off until the user opts in; see [setBackgroundEnabled].
+  bool backgroundEnabled = false;
+
+  /// Whether the app is in front. While it is, the foreground tick owns
+  /// the mixes and the background job is cancelled; while it is not, the
+  /// job owns them and the foreground tick stands down. A job already
+  /// running may overlap a foreground action; its merge checks for that.
+  bool foreground = true;
+
+  static const _leaseKey = 'argus_mix_lease';
+  static const _leaseTtl = Duration(minutes: 3);
+
+  /// Every mix of the loaded wallet, newest first.
+  List<MixRecord> records = const [];
+
+  /// The wallet [records] belong to. Null until [load] runs.
+  String? _walletId;
+
+  bool _ticking = false;
+  int _generation = 0;
+
+  /// Text of the last failure of [tick] as a whole (fetching the snapshot,
+  /// not a single mix), kept so the UI can show and copy it.
+  String? lastTickError;
+  DateTime? lastTickAt;
+
+  /// True when the stored records for this wallet could not be read. They
+  /// were copied aside; a recovery scan can find the boxes again.
+  bool recordsUnreadable = false;
+
+  int _nextId = 0;
+
+  bool get busy => _ticking;
+
+  /// Mixes waiting in or moving through the pool.
+  List<MixRecord> get active => records.where((r) => r.inPool).toList();
+
+  /// nanoERG still moving through rounds.
+  int get inMixNano =>
+      records.where((r) => r.inPool && !r.readyToWithdraw).fold(0, (a, r) => a + r.lockedNano);
+
+  /// nanoERG that has done its rounds and sits in the pool until withdrawn.
+  int get mixedNano => records.where((r) => r.readyToWithdraw).fold(0, (a, r) => a + r.lockedNano);
+
+  /// Half-mix boxes this wallet posted, which it must never join itself.
+  List<String> get ownHalfBoxIds => [
+        for (final r in records)
+          if (r.phaseKind == 'half_posted' && r.boxId != null) r.boxId!,
+      ];
+
+  int get _now => _clock().millisecondsSinceEpoch ~/ 1000;
+
+  Future<void> load() async {
+    final prefs = await SharedPreferences.getInstance();
+    enabled = prefs.getBool(_enabledKey) ?? false;
+    backgroundEnabled = prefs.getBool(_backgroundKey) ?? false;
+    final id = _gw.walletId;
+    _walletId = id;
+    recordsUnreadable = false;
+    _nextId = 0;
+    if (id == null) {
+      records = const [];
+    } else {
+      // The background job may have written since this isolate last read.
+      await prefs.reload();
+      final raw = prefs.getString(_recordsKey(id));
+      final decoded = _decode(raw);
+      if (decoded == null) {
+        // Copy the unreadable value aside before anything can overwrite it.
+        recordsUnreadable = true;
+        await prefs.setString(_salvageKey(id), raw!);
+        records = const [];
+      } else {
+        records = decoded;
+      }
+      _nextId = prefs.getInt(_nextIdKey(id)) ?? 0;
+      for (final r in records) {
+        if (r.mixId + 1 > _nextId) _nextId = r.mixId + 1;
+      }
+      // A key that could not be exported earlier (the wallet was locked
+      // when the switch flipped, or when a mix entered) is exported now.
+      // A pending mix funded before the ids were kept (an earlier release,
+      // or a crash between the broadcast and the record) has nothing to
+      // set aside; read the ids from its funding transaction.
+      await _backfillFundingIds();
+      if (backgroundEnabled && _gw.isUnlocked) {
+        for (final r in active) {
+          if (await _gw.loadKey(walletId: id, mixId: r.mixId) == null) {
+            await _exportKey(r);
+          }
+        }
+      }
+    }
+    _syncReserved();
+    _reschedule();
+    notifyListeners();
+  }
+
+  /// Called by the app on lifecycle changes. Coming to the front re-reads
+  /// the records the background job may have advanced and cancels the job;
+  /// going to the back hands the mixes to the job.
+  Future<void> setForeground(bool value) async {
+    if (value == foreground) return;
+    foreground = value;
+    if (value && _walletId != null) {
+      await load();
+      return;
+    }
+    _reschedule();
+  }
+
+  Future<void> setEnabled(bool value) async {
+    if (value == enabled) return;
+    // Persist first, so the UI never claims a setting that will not
+    // survive a restart.
+    final prefs = await SharedPreferences.getInstance();
+    if (!await prefs.setBool(_enabledKey, value)) {
+      throw StateError('Failed to persist the mixing setting');
+    }
+    enabled = value;
+    if (!value && backgroundEnabled) await setBackgroundEnabled(false);
+    _reschedule();
+    notifyListeners();
+  }
+
+  /// Opt in or out of background mixing. On: every mix in the pool gets
+  /// its key exported to the keystore. Off: every stored key is deleted,
+  /// for this wallet and any other.
+  Future<void> setBackgroundEnabled(bool value) async {
+    if (value && !_gw.isUnlocked) {
+      // Keys come from the unlocked wallet; a switch that flipped without
+      // them would promise background mixing and deliver none.
+      throw StateError('Unlock the wallet to turn on background mixing');
+    }
+    final prefs = await SharedPreferences.getInstance();
+    if (!await prefs.setBool(_backgroundKey, value)) {
+      throw StateError('Failed to persist the background mixing setting');
+    }
+    backgroundEnabled = value;
+    if (value) {
+      for (final r in active) {
+        await _exportKey(r);
+      }
+    } else {
+      for (final k in await _gw.listKeys()) {
+        await _gw.deleteKey(walletId: k.walletId, mixId: k.mixId);
+      }
+    }
+    _reschedule();
+    notifyListeners();
+  }
+
+  /// Whether the background job is wanted: background mixing on, the app
+  /// in the back, and a mix to move. "A mix to move" is read from the
+  /// keystore, not only from memory: a lock empties the in-memory records
+  /// (see [reset]) and must not take the job with it, since the job is
+  /// for exactly the time the wallet is locked and the app closed.
+  /// Null when the keystore could not be read, which says nothing either
+  /// way and must not be taken as "no mixes". "A mix to move" means any
+  /// wallet's: background mixing is one job for every wallet's keys.
+  Future<bool?> backgroundWanted() async {
+    if (!enabled || !backgroundEnabled || foreground) return false;
+    if (active.isNotEmpty) return true;
+    try {
+      return (await _gw.listKeys()).isNotEmpty;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _reschedule() {
+    final schedule = _schedule;
+    if (schedule == null) return;
+    // Answer at once when memory settles it; ask the keystore only when
+    // memory shows no mix, which is what a lock leaves behind.
+    if (!enabled || !backgroundEnabled || foreground || active.isNotEmpty) {
+      schedule(enabled && backgroundEnabled && !foreground && active.isNotEmpty);
+      return;
+    }
+    // An unreadable keystore leaves the job as it is: cancelling it on a
+    // transient failure would stop mixing with the app closed, which is
+    // exactly when nothing is watching to put it back.
+    backgroundWanted().then((wanted) {
+      // The keystore answered for the state the question was asked in; a
+      // foreground or a switch since then has already answered for now.
+      if (wanted != null) schedule(wanted && enabled && backgroundEnabled && !foreground);
+    });
+  }
+
+  /// An advisory cross-isolate lease. SharedPreferences has no atomic
+  /// compare-and-set, so the background merge also checks its baseline.
+  Future<bool> _acquireLease(SharedPreferences prefs, String owner) async {
+    await prefs.reload();
+    final raw = prefs.getString(_leaseKey);
+    final now = _clock().millisecondsSinceEpoch;
+    if (raw != null) {
+      final i = raw.lastIndexOf(':');
+      final holder = i < 0 ? raw : raw.substring(0, i);
+      final until = i < 0 ? 0 : int.tryParse(raw.substring(i + 1)) ?? 0;
+      if (holder != owner && until > now) return false;
+    }
+    return prefs.setString(_leaseKey, '$owner:${now + _leaseTtl.inMilliseconds}');
+  }
+
+  Future<void> _releaseLease(SharedPreferences prefs, String owner) async {
+    final raw = prefs.getString(_leaseKey);
+    if (raw != null && raw.startsWith('$owner:')) await prefs.remove(_leaseKey);
+  }
+
+  Future<void> _exportKey(MixRecord r) async {
+    final id = _walletId;
+    if (id == null || !backgroundEnabled || !_gw.isUnlocked) return;
+    final bytes = await _gw.exportKey(r.mixId);
+    try {
+      await _gw.saveKey(walletId: id, mixId: r.mixId, keyBytes: bytes);
+    } finally {
+      bytes.fillRange(0, bytes.length, 0);
+    }
+  }
+
+  Future<void> _dropKey(MixRecord r) async {
+    final id = _walletId;
+    if (id == null) return;
+    try {
+      await _gw.deleteKey(walletId: id, mixId: r.mixId);
+    } catch (_) {
+      // A key that could not be deleted is useless once the box is spent;
+      // the switch-off path sweeps the store anyway.
+    }
+  }
+
+  /// Forget the loaded wallet's mixes in memory (never on disk).
+  void reset() {
+    _generation++;
+    _walletId = null;
+    records = const [];
+    // The reservation is left as it is: it is keyed by the wallet handle,
+    // so it cannot cross wallets, and clearing it here would open a window
+    // between an unlock's reset and the load that sets it again.
+    lastTickError = null;
+    notifyListeners();
+  }
+
+  /// Null when the stored value exists but cannot be read.
+  static List<MixRecord>? _decode(String? raw) {
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final list = jsonDecode(raw) as List;
+      return [for (final m in list) MixRecord.fromJson((m as Map).cast<String, dynamic>())];
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Runs [body] alone: never alongside a tick or another call that
+  /// broadcasts or rewrites the records. Waits for a running tick.
+  Future<T> _exclusive<T>(Future<T> Function() body) async {
+    while (_ticking) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    _ticking = true;
+    notifyListeners();
+    try {
+      return await body();
+    } finally {
+      _ticking = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> _persist() async {
+    final id = _walletId;
+    if (id == null) return false;
+    final prefs = await SharedPreferences.getInstance();
+    final ok = await prefs.setString(_recordsKey(id), jsonEncode([for (final r in records) r.toJson()]));
+    _syncReserved();
+    notifyListeners();
+    return ok;
+  }
+
+  /// Fill in the funding box ids of pending records that lack them, from
+  /// the funding transaction's outputs. Best effort: a transaction the
+  /// node and explorer do not know yet is tried again next load.
+  Future<void> _backfillFundingIds() async {
+    var changed = false;
+    for (final r in records) {
+      final tx = r.fundingTxId;
+      if (!r.pending || tx == null || tx.isEmpty || r.fundingBoxIds.isNotEmpty) continue;
+      try {
+        final ids = [
+          for (final o in await _txOutputs(_explorerBase, tx))
+            if (o is Map && o['boxId'] is String) o['boxId'] as String,
+        ];
+        if (ids.isNotEmpty) {
+          r.fundingBoxIds = List.unmodifiable(ids);
+          changed = true;
+        }
+      } catch (_) {
+        // Not known yet.
+      }
+    }
+    if (changed) await _persist();
+  }
+
+  /// What pending mixes have set aside, as coin selection must see it.
+  String reservedFundingJson() => jsonEncode([
+        for (final r in records)
+          if (r.pending && r.fundingNano != null && r.fundingBoxIds.isNotEmpty)
+            {'box_ids': r.fundingBoxIds, 'value_nano_erg': r.fundingNano},
+      ]);
+
+  /// Boxes that came out of a mix, for coin selection to keep apart.
+  List<String> get mixedBoxIds => [
+        for (final r in records)
+          if (r.mixedBoxId != null && r.mixedBoxId!.isNotEmpty) r.mixedBoxId!,
+      ];
+
+  void _syncReserved() {
+    try {
+      _gw.setReservedFunding(reservedFundingJson());
+      _gw.setMixedBoxes(mixedBoxIds);
+    } catch (_) {
+      // A locked wallet has no coin selection to protect; the next load
+      // or persist while unlocked sets the reservation again.
+    }
+  }
+
+  Map<String, String> get _trees {
+    final m = jsonDecode(_gw.contractTrees()) as Map;
+    return m.map((k, v) => MapEntry(k.toString(), v.toString()));
+  }
+
+  String? get _nodeBase => _gw.nodeUrl?.replaceAll(RegExp(r'/+$'), '');
+
+  /// Unspent boxes under one script, from the node's index when the wallet
+  /// has a node, else from the explorer. The node answers in seconds; an
+  /// explorer can take half a minute per page.
+  Future<List<dynamic>> _listByTree(String base, String tree, {int cap = mixListCap, bool requireComplete = false}) async {
+    final node = _nodeBase;
+    if (node != null) {
+      try {
+        return await _pageNode(node, tree, cap: cap, requireComplete: requireComplete);
+      } catch (_) {
+        // A node without the extra index, or unreachable: the explorer has
+        // the same data.
+      }
+    }
+    return _pageExplorer(base, tree, cap: cap, requireComplete: requireComplete);
+  }
+
+  Future<List<dynamic>> _pageNode(String node, String tree, {required int cap, required bool requireComplete}) async {
+    final items = <dynamic>[];
+    final seen = <String>{};
+    var offset = 0;
+    while (true) {
+      final uri = Uri.parse(
+        '$node/blockchain/box/unspent/byErgoTree?offset=$offset&limit=$mixPageLimit',
+      );
+      // Node versions differ on the envelope: a bare array, or
+      // `{"items": [...], "total": n}` like the explorer.
+      final decoded = jsonDecode(await _post(uri, jsonEncode(tree)));
+      final List page;
+      if (decoded is List) {
+        page = decoded;
+      } else if (decoded is Map && decoded['items'] is List) {
+        page = decoded['items'] as List;
+      } else {
+        // A node without the index answers with an error object under
+        // HTTP 200; that is a reason to fall back, not an empty pool.
+        throw StateError('node returned ${decoded is Map ? decoded.keys.join(',') : decoded.runtimeType} for byErgoTree');
+      }
+      // Never pass a pool larger than our parsing budget to the engine,
+      // even if a server ignores the requested page size.
+      if (requireComplete && offset + page.length > cap) {
+        throw StateError('The mix pool list is incomplete; it exceeds the read limit');
+      }
+      for (final b in page) {
+        final id = (b as Map)['boxId']?.toString() ?? '';
+        if (requireComplete && (id.isEmpty || seen.contains(id))) {
+          throw StateError('The mix pool list is incomplete; invalid or repeated box id');
+        }
+        if (id.isNotEmpty && seen.add(id)) items.add(b);
+      }
+      offset += page.length;
+      final total = decoded is Map ? (decoded['total'] as num?)?.toInt() : null;
+      if (total != null ? offset >= total : page.length < mixPageLimit) break;
+      if (page.isEmpty) throw StateError('The node returned an incomplete mix pool list');
+      if (offset >= cap) {
+        _lastListTruncated = true;
+        if (requireComplete) {
+          throw StateError('The mix pool list is incomplete; try again with another node');
+        }
+        break;
+      }
+    }
+    return items;
+  }
+
+  Future<List<dynamic>> _pageExplorer(String base, String tree, {required int cap, required bool requireComplete}) async {
+    final items = <dynamic>[];
+    final seen = <String>{};
+    var offset = 0;
+    while (true) {
+      final uri = Uri.parse(
+        '$base/api/v1/boxes/unspent/byErgoTree/$tree?offset=$offset&limit=$mixPageLimit',
+      );
+      final body = jsonDecode(await _get(uri)) as Map;
+      final page = body['items'] as List?;
+      if (page == null) {
+        throw StateError('${uri.host} returned ${body.keys.join(',')} instead of a box list');
+      }
+      // Never pass a pool larger than our parsing budget to the engine,
+      // even if a server ignores the requested page size.
+      if (requireComplete && offset + page.length > cap) {
+        throw StateError('The mix pool list is incomplete; it exceeds the read limit');
+      }
+      for (final b in page) {
+        final id = (b as Map)['boxId']?.toString() ?? '';
+        if (requireComplete && (id.isEmpty || seen.contains(id))) {
+          throw StateError('The mix pool list is incomplete; invalid or repeated box id');
+        }
+        if (id.isNotEmpty && seen.add(id)) items.add(b);
+      }
+      final total = (body['total'] as num?)?.toInt();
+      offset += page.length;
+      if (total != null ? offset >= total : page.length < mixPageLimit) break;
+      if (page.isEmpty) throw StateError('The explorer returned an incomplete mix pool list');
+      if (offset >= cap) {
+        _lastListTruncated = true;
+        if (requireComplete) {
+          throw StateError('The mix pool list is incomplete; try again with another node');
+        }
+        break;
+      }
+    }
+    return items;
+  }
+
+  bool _lastListTruncated = false;
+
+  /// Height of the last snapshot, stamped on the events it leads to so the
+  /// activity list can place them among ordinary transactions.
+  int _lastHeight = 0;
+
+  /// Give the newest event the height of the snapshot that saw its box on
+  /// chain. Never called for a transaction this app has only broadcast: a
+  /// broadcast is not an inclusion.
+  void _stampHeight(MixRecord r) {
+    final events = (r.state['events'] as List?);
+    if (events == null || events.isEmpty || _lastHeight <= 0) return;
+    final last = events.last;
+    if (last is Map && last['height'] == null) last['height'] = _lastHeight;
+  }
+
+  /// A plan that is not "box not seen" means the snapshot holds the box
+  /// the newest event created, so that event is on chain.
+  void _stampIfSeen(MixRecord r, Map<String, dynamic> plan) {
+    if (r.awaitingWithdrawal) return;
+    final action = plan['action'] as String? ?? 'wait';
+    if (action == 'wait' && plan['reason'] == 'box_not_seen') return;
+    _stampHeight(r);
+  }
+
+  /// A finished mix has nothing left to observe, so its last transaction
+  /// is looked up once to learn its inclusion height.
+  String get _explorerBase => _gw.explorerBase.replaceAll(RegExp(r'/+$'), '');
+
+  /// Whether a finished mix still lacks the height of its last transaction.
+  static bool _awaitsHeight(MixRecord r) {
+    final events = r.state['events'] as List?;
+    final last = events == null || events.isEmpty ? null : events.last;
+    return (r.finished || r.awaitingWithdrawal) && last is Map && last['height'] == null && (last['tx_id']?.toString() ?? '').isNotEmpty;
+  }
+
+  /// A withdrawal whose delivered box is not known yet. A reclaim is not
+  /// mixed money and is never marked.
+  static bool _awaitsMixedBox(MixRecord r) {
+    if (r.phaseKind != 'withdrawn' || r.mixedBoxId != null || r.destinationErgoTree.isEmpty) return false;
+    final events = r.state['events'] as List?;
+    final last = events == null || events.isEmpty ? null : events.last;
+    return last is Map && (last['tx_id']?.toString() ?? '').isNotEmpty;
+  }
+
+  static bool _awaitsFinishing(MixRecord r) => r.awaitingWithdrawal || _awaitsHeight(r) || _awaitsMixedBox(r);
+
+  /// Outside a tick: give every finished mix its last height, once.
+  ///
+  /// Runs without the cross-isolate lease. That is safe only because the
+  /// background job writes a wallet's records only while it holds a key
+  /// for an in-pool mix of that wallet, and a finished mix has no key;
+  /// this runs only when memory shows no in-pool mix. Widen either side
+  /// and the lease is needed here too.
+  Future<void> _confirmAllFinished() async {
+    if (_ticking || !records.any(_awaitsFinishing)) return;
+    _ticking = true;
+    final gen = _generation;
+    try {
+      var changed = false;
+      for (final r in records.where(_awaitsFinishing).toList()) {
+        changed |= await _confirmFinished(_explorerBase, r);
+        if (gen != _generation) return;
+      }
+      if (changed) {
+        await _persist();
+        _syncReserved();
+        notifyListeners();
+      }
+    } catch (_) {
+      // A height that could not be read is asked for again next time.
+    } finally {
+      _ticking = false;
+    }
+  }
+
+  /// True when something was learned now: the height of the last
+  /// transaction, or the box a withdrawal delivered. One read serves both.
+  Future<bool> _confirmFinished(String base, MixRecord r) async {
+    if (!_awaitsFinishing(r)) return false;
+    final last = (r.state['events'] as List).last as Map;
+    // The destination may be external, so the wallet's balance refresh
+    // cannot confirm this payment. Scanning all chain transactions is not
+    // affordable on a phone. This id lookup still discloses the payout.
+    final tx = await _txById(base, last['tx_id'].toString());
+    if (tx == null) return false;
+    var changed = false;
+    final h = (tx['inclusionHeight'] as num?)?.toInt();
+    if (h != null && h > 0 && (_awaitsHeight(r) || r.awaitingWithdrawal)) {
+      r.state.remove('previous');
+      last['height'] = h;
+      changed = true;
+    }
+    if (_awaitsMixedBox(r)) {
+      // Empty means looked and found none, so it is not asked again.
+      r.mixedBoxId = mixedOutputId(tx['outputs'] as List? ?? const [], r.destinationErgoTree) ?? '';
+      changed = true;
+    }
+    return changed;
+  }
+
+  /// A transaction's body, node first, or null while it is unknown.
+  Future<Map<String, dynamic>?> _txById(String base, String txId) async {
+    final node = _nodeBase;
+    if (node != null) {
+      try {
+        return _txBody(await _get(Uri.parse('$node/blockchain/transaction/byId/$txId')), txId);
+      } catch (_) {
+        // Fall through.
+      }
+    }
+    try {
+      return _txBody(await _get(Uri.parse('$base/api/v1/transactions/$txId')), txId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Rows for the activity list, newest first. Rounds never touch the
+  /// wallet's addresses, so the address history cannot show them.
+  List<Map<String, dynamic>> mixActivityRows() => mixActivityRowsFor(records);
+
+  /// The user has seen that [r] finished. Stays dismissed only if the
+  /// write succeeded; otherwise the strip shows it again rather than
+  /// forgetting it on the next restart.
+  Future<void> acknowledge(MixRecord r) async {
+    if (r.acknowledged) return;
+    r.acknowledged = true;
+    if (!await _persist()) {
+      r.acknowledged = false;
+      notifyListeners();
+      throw StateError('Could not save the dismissal');
+    }
+  }
+
+  /// A body that is the box asked for, or an error. Some explorers answer
+  /// an unknown id with HTTP 200 and an error object; only a body whose
+  /// `boxId` is the one requested counts.
+  static Map<String, dynamic> _boxBody(String body, String id) {
+    final decoded = jsonDecode(body);
+    if (decoded is Map && decoded['boxId'] == id) return decoded.cast<String, dynamic>();
+    throw StateError('not a box: ${decoded is Map ? decoded.keys.join(',') : decoded.runtimeType}');
+  }
+
+  /// A body that is the transaction asked for, or an error.
+  static Map<String, dynamic> _txBody(String body, String txId) {
+    final decoded = jsonDecode(body);
+    if (decoded is Map &&
+        decoded['outputs'] is List &&
+        (decoded['id'] == null || decoded['id'] == txId)) {
+      return decoded.cast<String, dynamic>();
+    }
+    throw StateError('not a transaction: ${decoded is Map ? decoded.keys.join(',') : decoded.runtimeType}');
+  }
+
+  /// One box by id, with its `spentTransactionId`: node first, then explorer.
+  /// Throws when neither knows it, which for a box this app just created
+  /// means it is not in a block yet.
+  Future<Map<String, dynamic>> _boxById(String base, String id) async {
+    final node = _nodeBase;
+    if (node != null) {
+      try {
+        return _boxBody(await _get(Uri.parse('$node/blockchain/box/byId/$id')), id);
+      } catch (_) {
+        // Fall through.
+      }
+    }
+    return _boxBody(await _get(Uri.parse('$base/api/v1/boxes/$id')), id);
+  }
+
+  /// The outputs of one transaction: node first, then explorer.
+  // Backfill funding outputs after a lost response. These may already be
+  // spent, so the unspent pool cannot replace this historical id lookup.
+  Future<List<dynamic>> _txOutputs(String base, String txId) async {
+    final node = _nodeBase;
+    if (node != null) {
+      try {
+        return _txBody(await _get(Uri.parse('$node/blockchain/transaction/byId/$txId')), txId)['outputs'] as List;
+      } catch (_) {
+        // Fall through.
+      }
+    }
+    return _txBody(await _get(Uri.parse('$base/api/v1/transactions/$txId')), txId)['outputs'] as List;
+  }
+
+  /// Ownership is checked locally against both contract listings, so a
+  /// routine poll never tells a remote service which output is ours.
+  Future<MixSnapshot> snapshot() async {
+    final base = _gw.explorerBase.replaceAll(RegExp(r'/+$'), '');
+    final trees = _trees;
+    _lastListTruncated = false;
+    final listsFuture = Future.wait<List<dynamic>>([
+      _listByTree(base, trees['half']!, requireComplete: true),
+      _listByTree(base, trees['fee']!, cap: 100),
+      _listByTree(base, trees['token']!, cap: 100),
+      _listByTree(base, trees['full']!, requireComplete: true),
+    ]);
+    final results = await Future.wait<Object>([listsFuture, _height(base)]);
+    final lists = results[0] as List<List<dynamic>>;
+    final height = results[1] as int;
+    _lastHeight = height;
+    return MixSnapshot(
+      json: jsonEncode({
+        'half_boxes': lists[0],
+        'full_boxes': lists[3],
+        'fee_boxes': lists[1],
+        'token_boxes': lists[2],
+        'height': height,
+      }),
+      height: height,
+      truncated: _lastListTruncated,
+    );
+  }
+
+  /// The current height: from the node the wallet is already talking to,
+  /// else from the explorer. Not every explorer serves `networkState`, so
+  /// the newest block is the second try.
+  Future<int> _height(String base) async {
+    final known = _gw.chainHeight;
+    if (known != null && known > 0) return known;
+    final node = _nodeBase;
+    if (node != null) {
+      try {
+        final info = jsonDecode(await _get(Uri.parse('$node/info'))) as Map;
+        final h = (info['fullHeight'] as num?)?.toInt();
+        if (h != null && h > 0) return h;
+      } catch (_) {
+        // Fall through to the explorer.
+      }
+    }
+    try {
+      final state = jsonDecode(await _get(Uri.parse('$base/api/v1/networkState'))) as Map;
+      final h = (state['height'] as num?)?.toInt();
+      if (h != null && h > 0) return h;
+    } catch (_) {
+      // Fall through to the block list.
+    }
+    final blocks = jsonDecode(await _get(Uri.parse('$base/api/v1/blocks?limit=1'))) as Map;
+    final items = blocks['items'] as List? ?? const [];
+    final h = items.isEmpty ? null : ((items.first as Map)['height'] as num?)?.toInt();
+    if (h == null || h <= 0) {
+      throw StateError('Could not learn the chain height from the node or the explorer');
+    }
+    return h;
+  }
+
+  /// What the pool offers now, as the engine reports it.
+  Future<Map<String, dynamic>> rings() async {
+    // Every full box too: how deep each ring is and how fast it moves.
+    final snap = await snapshot();
+    return (jsonDecode(await _gw.rings(snap.json)) as Map).cast<String, dynamic>();
+  }
+
+  /// nanoERG a funding box needs for `denomination` at `level`.
+  Future<Map<String, dynamic>> fundingRequirement({
+    required int denomination,
+    required int level,
+    int? feeNano,
+    String? tokenId,
+    int? tokenAmount,
+  }) async {
+    final snap = await snapshot();
+    final raw = await _gw.fundingRequirement(snap.json, denomination, level, feeNano,
+        tokenId: tokenId, tokenAmount: tokenAmount);
+    return (jsonDecode(raw) as Map).cast<String, dynamic>();
+  }
+
+  /// A new mix, persisted as pending. Nothing is on chain until
+  /// [prepareEntry] is confirmed and [commitEntry] records it.
+  Future<MixRecord> createMix({
+    required int denomination,
+    String? tokenId,
+    int? tokenAmount,
+    required int level,
+    required int rounds,
+    required String destinationAddress,
+    int? fundingNano,
+    int? fundingTokenAmount,
+  }) async {
+    final id = _walletId;
+    if (id == null) throw StateError('No wallet is loaded');
+    final mixId = _nextId;
+    // Reserve the index before the record exists, so a crash in between
+    // still never hands this path to another mix.
+    final prefs = await SharedPreferences.getInstance();
+    _nextId = mixId + 1;
+    await prefs.setInt(_nextIdKey(id), _nextId);
+    final raw = await _gw.newState(
+      mixId: mixId,
+      denomination: denomination,
+      tokenId: tokenId,
+      tokenAmount: tokenAmount,
+      level: level,
+      rounds: rounds,
+      destinationAddress: destinationAddress,
+      nowUnix: _now,
+    );
+    final record = MixRecord(
+      state: (jsonDecode(raw) as Map).cast<String, dynamic>(),
+      fundingNano: fundingNano,
+      fundingTokenAmount: fundingTokenAmount,
+    );
+    records = [record, ...records];
+    await _persist();
+    return record;
+  }
+
+  /// Build the entry for a pending mix from `fundingBoxId`, one of the
+  /// wallet's own boxes at `fundingAddress`. Returns the preparation the
+  /// confirm sheet needs plus the state to commit once it is broadcast.
+  Future<Map<String, dynamic>> prepareEntry(
+    MixRecord record, {
+    required String fundingAddress,
+    required String fundingBoxId,
+  }) async {
+    if (!record.pending) throw StateError('This mix has already entered the pool');
+    final snap = await snapshot();
+    final raw = await _gw.prepareEntry(
+      stateJson: jsonEncode(record.state),
+      chainJson: snap.json,
+      fundingAddress: fundingAddress,
+      fundingBoxId: fundingBoxId,
+      ownHalfBoxIds: ownHalfBoxIds,
+      nodeUrl: _gw.nodeUrl,
+      nowUnix: _now,
+    );
+    return (jsonDecode(raw) as Map).cast<String, dynamic>();
+  }
+
+  /// Record that the funding self-send went out.
+  Future<void> recordFunding(
+    MixRecord record, {
+    required String txId,
+    required List<String> outputBoxIds,
+  }) async {
+    record.fundingTxId = txId;
+    record.fundingBoxIds = List.unmodifiable(outputBoxIds);
+    if (outputBoxIds.isEmpty) {
+      // Without the ids the funding box cannot be set aside from other
+      // spends; the load backfills them from the transaction once it is seen.
+      record.lastError = 'The funding transaction\'s outputs are not known yet, so the funding box is not protected from other spends until the next load.';
+    }
+    // The ids are what keeps the funding box out of other spends after a
+    // restart: a write that did not land must not pass unnoticed.
+    if (!await _persist()) throw StateError('Failed to save the mix\'s funding record');
+  }
+
+  /// A funding broadcast whose outcome is not known: the record stays,
+  /// with a persistent note, so the box is adopted if it confirms.
+  Future<void> markFundingUncertain(MixRecord record, String why) async {
+    record.lastError = why;
+    await _persist();
+  }
+
+  /// Persist what an entry will produce, before it is broadcast.
+  Future<void> stageEntry(MixRecord record, Map<String, dynamic> nextState) async {
+    record.entryAttempt = nextState;
+    await _persist();
+  }
+
+  /// Forget a staged entry that provably never went out.
+  Future<void> clearEntryAttempt(MixRecord record, {String? error}) async {
+    record.entryAttempt = null;
+    record.lastError = error;
+    await _persist();
+    notifyListeners();
+  }
+
+  /// Whether the chain (node or explorer) knows a box by id, spent or not.
+  // Staged-entry recovery needs historical existence, including spent
+  // boxes. Unspent lists cannot answer it; scanning chain history is too
+  // expensive here. This exceptional lookup still reveals the box id.
+  Future<bool> boxOnChain(String boxId) async {
+    try {
+      final b = await _boxById(_explorerBase, boxId);
+      return b['boxId'] == boxId;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Record that a prepared entry was broadcast as `txId` (empty when the
+  /// id was lost with a crash; the next check reads the box from chain).
+  Future<void> commitEntry(MixRecord record, Map<String, dynamic> nextState, String txId) async {
+    final events = (nextState['events'] as List?)?.cast<Map>() ?? const [];
+    if (events.isNotEmpty && txId.isNotEmpty) {
+      // The engine could not know the id before broadcast.
+      events.last['tx_id'] = txId;
+    }
+    record.state = nextState;
+    record.entryAttempt = null;
+    record.entryTxId = txId.isEmpty ? null : txId;
+    record.lastError = null;
+    record.lastCheckedAt = _clock();
+    await _persist();
+    if (record.inPool) await _exportKey(record);
+    _reschedule();
+  }
+
+  /// Drop a finished or never-started mix from the list. A mix with money
+  /// in the pool cannot be forgotten: its box is only spendable through
+  /// its record or a recovery scan.
+  Future<void> remove(MixRecord record) async {
+    if (record.inPool) throw StateError('This mix still has money in the pool');
+    records = records.where((r) => r.mixId != record.mixId).toList();
+    await _dropKey(record);
+    await _persist();
+    _reschedule();
+  }
+
+  /// Look at the chain once and move every active mix that can move.
+  ///
+  /// Never throws. Failures land on the mix ([MixRecord.lastError]) or on
+  /// [lastTickError]. Runs at most once at a time; a tick that arrives
+  /// while another runs is dropped, not queued.
+  Future<void> tick() async {
+    if (_ticking || !enabled || !_gw.isUnlocked) return;
+    if (_walletId == null || _walletId != _gw.walletId) return;
+    // In the back with background mixing on, the job is the driver.
+    if (backgroundEnabled && !foreground) return;
+    if (active.isEmpty) {
+      // Nothing moves, but a mix that just finished may still be waiting
+      // to learn the height of its last transaction.
+      await _confirmAllFinished();
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    if (!await _acquireLease(prefs, 'ui')) return;
+    _ticking = true;
+    final gen = _generation;
+    try {
+      final snap = await snapshot();
+      if (gen != _generation) return;
+      lastTickError = null;
+      for (final r in active) {
+        await _step(r, snap);
+        if (gen != _generation) return;
+      }
+      final confirmed = <MixRecord>[];
+      for (final r in records) {
+        final wasAwaiting = r.awaitingWithdrawal;
+        if (r.finished || r.awaitingWithdrawal) await _confirmFinished(_explorerBase, r);
+        if (wasAwaiting && r.finished) confirmed.add(r);
+        if (gen != _generation) return;
+      }
+      lastTickAt = _clock();
+      if (!await _persist()) return;
+      for (final r in confirmed) {
+        await _announceFinished(r);
+      }
+      for (final r in records) {
+        if (r.finished) await _dropKey(r);
+      }
+      _reschedule();
+    } catch (e) {
+      if (gen != _generation) return;
+      lastTickError = e.toString();
+      notifyListeners();
+    } finally {
+      _ticking = false;
+      await _releaseLease(prefs, 'ui');
+    }
+  }
+
+  /// Advance one mix by one move.
+  Future<void> _step(MixRecord r, MixSnapshot snap) async {
+    final before = r.roundsDone;
+    r.lastCheckedAt = _clock();
+    try {
+      final observed = await _gw.observe(jsonEncode(r.state), snap.json, _now);
+      r.state = (jsonDecode(observed) as Map).cast<String, dynamic>();
+      if (r.inPool && !r.awaitingWithdrawal) r.mixedBoxId = null;
+      if (r.roundsDone > before) await _announceRound(r);
+      final mixingToken = _trees['mixing_token_id'];
+      if (mixingToken != null) {
+        r.tokensLeft = mixingTokensOn(r.boxId, snap.json, mixingToken) ?? r.tokensLeft;
+      }
+
+      final plan = (jsonDecode(await _gw.plan(jsonEncode(r.state), snap.json, ownHalfBoxIds)) as Map)
+          .cast<String, dynamic>();
+      // Whatever the newest event created is in this snapshot, or it is
+      // not: only the former earns a height.
+      _stampIfSeen(r, plan);
+      final action = plan['action'] as String? ?? 'wait';
+      if (action == 'wait') {
+        r.lastError = null;
+        return;
+      }
+      if (action == 'withdraw' && r.destinationErgoTree.isEmpty) {
+        // A recovered mix: the user must say where it goes.
+        r.lastError = null;
+        return;
+      }
+      final raw = await _gw.advance(jsonEncode(r.state), snap.json, ownHalfBoxIds, _gw.nodeUrl, _now);
+      final result = (jsonDecode(raw) as Map).cast<String, dynamic>();
+      if (result['action'] == 'wait') {
+        r.lastError = null;
+        return;
+      }
+      r.state = (result['state'] as Map).cast<String, dynamic>();
+      r.lastError = null;
+      if (r.finished) {
+        await _announceFinished(r);
+      } else if (r.roundsDone > before) {
+        await _announceRound(r);
+      }
+    } catch (e) {
+      r.lastError = e.toString();
+    }
+  }
+
+  // No amounts in notifications: the lock screen is not the place for
+  // them, and the app has the figures.
+  Future<void> _announceRound(MixRecord r) => _gw.notify(
+        title: 'A mix round completed',
+        body: 'Round ${r.roundsDone} of ${r.roundsTarget} done.',
+        mixId: r.mixId,
+      );
+
+  /// A withdrawal delivered the money; a reclaim only took it back. Both
+  /// say where, since that is the first thing the user will wonder.
+  Future<void> _announceFinished(MixRecord r) => _gw.notify(
+        title: 'A mix finished',
+        body: r.phaseKind == 'withdrawn'
+            ? 'Delivered to ${mixDestinationText(r)} after ${r.roundsDone} '
+                '${r.roundsDone == 1 ? 'round' : 'rounds'}. Tap to see it.'
+            : 'Withdrawn before a partner joined; it is back at ${mixDestinationText(r)}.',
+        mixId: r.mixId,
+      );
+
+  /// Withdraw or reclaim now. Broadcasts and records the result.
+  Future<String> leave(
+    MixRecord r, {
+    String? destinationAddress,
+    void Function(Object)? onWarning,
+  }) async {
+    if (!r.inPool || r.boxId == null) throw StateError('This mix has nothing in the pool');
+    if (destinationAddress == null && r.destinationErgoTree.isEmpty) {
+      throw StateError('Choose where the money should go');
+    }
+    // Exclusive with the tick: both would try to spend the same box, and
+    // whichever lost on the node must not be the state that survives.
+    return _exclusive(() async {
+      final snap = await snapshot();
+      final raw =
+          await _gw.leave(jsonEncode(r.state), snap.json, destinationAddress, _gw.nodeUrl, _now);
+      final result = (jsonDecode(raw) as Map).cast<String, dynamic>();
+      try {
+        r.state = (result['state'] as Map).cast<String, dynamic>();
+        r.lastError = null;
+        r.lastCheckedAt = _clock();
+        if (!await _persist())
+          throw StateError('Could not save withdrawal tracking');
+        if (r.finished) await _dropKey(r);
+        _reschedule();
+      } catch (e) {
+        onWarning?.call(e);
+      }
+      return result['tx_id'] as String? ?? '';
+    });
+  }
+
+  /// One pass over every wallet with stored mix keys, from a background
+  /// isolate: no unlocked wallet, no PIN. Each mix is observed and
+  /// advanced with its key; a finished mix loses its key. Never throws.
+  Future<void> tickHeadless() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    if (!(prefs.getBool(_enabledKey) ?? false) || !(prefs.getBool(_backgroundKey) ?? false)) {
+      return;
+    }
+    final keys = await _gw.listKeys();
+    if (keys.isEmpty) return;
+    if (!await _acquireLease(prefs, 'bg')) return;
+    try {
+      await _tickHeadlessLocked(prefs, keys);
+    } finally {
+      await _releaseLease(prefs, 'bg');
+    }
+  }
+
+  Future<void> _tickHeadlessLocked(
+    SharedPreferences prefs,
+    List<({String walletId, int mixId})> keys,
+  ) async {
+    final byWallet = <String, List<int>>{};
+    for (final k in keys) {
+      byWallet.putIfAbsent(k.walletId, () => []).add(k.mixId);
+    }
+    for (final entry in byWallet.entries) {
+      final walletId = entry.key;
+      final records = _decode(prefs.getString(_recordsKey(walletId)));
+      if (records == null) continue;
+      final baseline = {for (final r in records) r.mixId: jsonEncode(r.toJson())};
+      final roundsBefore = {for (final r in records) r.mixId: r.roundsDone};
+      final own = [
+        for (final r in records)
+          if (r.phaseKind == 'half_posted' && r.boxId != null) r.boxId!,
+      ];
+      final targets = records.where((r) => r.inPool && (r.boxId != null || r.previousBoxId != null) && entry.value.contains(r.mixId)).toList();
+      if (targets.isEmpty) continue;
+      MixSnapshot snap;
+      try {
+        snap = await snapshot();
+      } catch (_) {
+        continue;
+      }
+      var changed = false;
+      for (final r in targets) {
+        final keyBytes = await _gw.loadKey(walletId: walletId, mixId: r.mixId);
+        if (keyBytes == null) continue;
+        try {
+          r.lastCheckedAt = _clock();
+          final observed = await _gw.observeWithKey(jsonEncode(r.state), snap.json, keyBytes, _now);
+          r.state = (jsonDecode(observed) as Map).cast<String, dynamic>();
+          if (r.inPool && !r.awaitingWithdrawal) r.mixedBoxId = null;
+          if (r.awaitingWithdrawal) await _confirmFinished(_explorerBase, r);
+          final plan = (jsonDecode(await _gw.plan(jsonEncode(r.state), snap.json, own)) as Map)
+              .cast<String, dynamic>();
+          _stampIfSeen(r, plan);
+          final action = plan['action'] as String? ?? 'wait';
+          if (action != 'wait' && !(action == 'withdraw' && r.destinationErgoTree.isEmpty)) {
+            final raw = await _gw.advanceWithKey(
+              jsonEncode(r.state),
+              snap.json,
+              own,
+              _gw.nodeUrl,
+              _now,
+              keyBytes,
+            );
+            final result = (jsonDecode(raw) as Map).cast<String, dynamic>();
+            if (result['action'] != 'wait') {
+              r.state = (result['state'] as Map).cast<String, dynamic>();
+            }
+          }
+          r.lastError = null;
+        } catch (e) {
+          r.lastError = e.toString();
+        } finally {
+          keyBytes.fillRange(0, keyBytes.length, 0);
+        }
+        changed = true;
+      }
+      if (changed) {
+        // A foreground action may have spent this record's box while
+        // the job was awaiting the node. Only merge onto what we read.
+        await prefs.reload();
+        final stored = _decode(prefs.getString(_recordsKey(walletId)));
+        if (stored == null) continue;
+        final touched = {for (final r in targets) r.mixId: r};
+        final accepted = <MixRecord>[];
+        final merged = <MixRecord>[];
+        for (final r in stored) {
+          final update = touched[r.mixId];
+          if (update != null && jsonEncode(r.toJson()) == baseline[r.mixId]) {
+            accepted.add(update);
+            merged.add(update);
+          } else {
+            merged.add(r);
+          }
+        }
+        final saved = await prefs.setString(_recordsKey(walletId), jsonEncode([for (final r in merged) r.toJson()]));
+        if (saved) {
+          for (final r in accepted) {
+            if (r.finished) {
+              await _announceFinished(r);
+              await _gw.deleteKey(walletId: walletId, mixId: r.mixId);
+            } else if (r.roundsDone > roundsBefore[r.mixId]!) {
+              await _announceRound(r);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Recovery needs positive spend evidence. Absence from an unspent list
+  // is insufficient, and a whole-chain historical scan is unaffordable.
+  Future<bool> _boxIsSpent(String id) async {
+    final node = _nodeBase;
+    for (final url in [
+      if (node != null) '$node/blockchain/box/byId/$id',
+      '$_explorerBase/api/v1/boxes/$id',
+    ]) {
+      try {
+        final box = _boxBody(await _get(Uri.parse(url)), id);
+        if ((box['spentTransactionId']?.toString() ?? '').isNotEmpty) return true;
+      } catch (_) {
+        // An unknown box or missing spend metadata cannot prove a spend.
+      }
+    }
+    return false;
+  }
+
+  /// Find mixes of this wallet the records do not know about, from the
+  /// seed and every unspent pool box. Returns how many were added.
+  Future<int> recover() async {
+    if (!_gw.isUnlocked || _walletId == null) return 0;
+    return _exclusive(() async {
+      final snap = await snapshot();
+      final found = (jsonDecode(await _gw.recover(snap.json, _now)) as List)
+          .map((m) => MixRecord(state: (m as Map).cast<String, dynamic>()))
+          .toList();
+      final known = {for (final r in records) r.mixId: r};
+      final fresh = <MixRecord>[];
+      var reconciled = 0;
+      for (final f in found) {
+        final have = known[f.mixId];
+        if (have == null) {
+          fresh.add(f);
+        } else if (have.pending ||
+            (have.inPool && f.boxId != null && f.boxId == have.previousBoxId) ||
+            // A dropped exit whose input someone else spent has no box to
+            // roll back to, so the chain's live box is the only way out.
+            (have.awaitingWithdrawal && f.boxId != null && f.round >= have.round) ||
+            (have.inPool && have.boxId != null && f.boxId != null &&
+                f.boxId != have.boxId && f.round >= have.round && await _boxIsSpent(have.boxId!))) {
+          // Recovery can repair a lost broadcast result or roll back a
+          // dropped move. Keep the destination and target only we know.
+          have.state = {
+            ...f.state,
+            'destination_ergo_tree': have.destinationErgoTree,
+            'rounds_target': have.roundsTarget,
+            'level': have.state['level'] ?? f.state['level'],
+          };
+          have.entryAttempt = null;
+          have.mixedBoxId = null;
+          have.lastError = null;
+          reconciled++;
+        }
+      }
+      if (fresh.isEmpty && reconciled == 0) return 0;
+      records = [...fresh, ...records];
+      // A recovered index is taken: nothing new may derive on it.
+      final prefs = await SharedPreferences.getInstance();
+      for (final r in fresh) {
+        if (r.mixId + 1 > _nextId) _nextId = r.mixId + 1;
+      }
+      await prefs.setInt(_nextIdKey(_walletId!), _nextId);
+      await _persist();
+      return fresh.length + reconciled;
+    });
+  }
+}
+
+final mixService = MixService(schedule: (wanted) => MixBackground.schedule(wanted));
+
+/// Mixing tokens on box [boxId] in a snapshot, or null when the snapshot
+/// does not hold the box. Half and full boxes carry the token first.
+int? mixingTokensOn(String? boxId, String snapshotJson, String mixingTokenId) {
+  if (boxId == null || boxId.isEmpty) return null;
+  final snap = jsonDecode(snapshotJson) as Map;
+  for (final key in const ['full_boxes', 'half_boxes']) {
+    for (final b in (snap[key] as List? ?? const [])) {
+      if (b is! Map || b['boxId'] != boxId) continue;
+      for (final a in (b['assets'] as List? ?? const [])) {
+        if (a is Map && a['tokenId'] == mixingTokenId) return (a['amount'] as num).toInt();
+      }
+      return 0;
+    }
+  }
+  return null;
+}
+
+/// The output of a withdrawal that pays [destinationTree]: the mixed box.
+String? mixedOutputId(List<dynamic> outputs, String destinationTree) {
+  for (final o in outputs) {
+    if (o is! Map) continue;
+    final tree = o['ergoTree']?.toString() ?? '';
+    if (tree.toLowerCase() == destinationTree.toLowerCase()) return o['boxId']?.toString();
+  }
+  return null;
+}

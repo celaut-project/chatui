@@ -1,0 +1,1147 @@
+import 'widgets/tx_result_view.dart';
+import 'widgets/error_sheet.dart';
+import '../services/app_fee.dart';
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../bridge/argus_error.dart';
+import '../format.dart';
+import '../services/amm_service.dart';
+import '../services/swap_rounding.dart';
+import '../services/route_display.dart';
+import '../services/token_metadata.dart';
+import '../services/wallet_service.dart';
+import '../theme/argus_theme.dart';
+import 'confirm_transaction_sheet.dart';
+import 'offline_banner.dart';
+
+/// One quote line. `formatTokenAmount` supplies the number; the symbol is
+/// appended once here.
+String swapQuoteLabel(
+  AmmQuote quote, {
+  required String outputSymbol,
+  required int outputDecimals,
+}) =>
+    '≈ ${formatTokenAmount(quote.outputAmount, outputDecimals)} $outputSymbol'
+    '  ·  impact ${quote.priceImpactPct.toStringAsFixed(2)}%';
+
+/// Shown when discovery hit its cap, so a missing pair is explainable.
+String poolTruncationNotice() =>
+    'Pool list was capped — some pairs may be missing.';
+
+ConfirmTxRow swapInputRow(AmmSwapBuild build, {required String symbol, required int decimals}) =>
+    ConfirmTxRow('You pay', '${formatTokenAmount(build.inputAmount, decimals)} $symbol');
+
+/// Swap ERG and tokens directly against Spectrum AMM pools. The pool box is
+/// spent in the same signed transaction, so quotes go stale on contention —
+/// the service reports that as `POOL_MOVED` and this screen re-quotes.
+class SwapScreen extends StatefulWidget {
+  const SwapScreen({super.key, this.embedded = false, this.initialFrom});
+
+  /// When true the screen renders without its own Scaffold/AppBar so it can
+  /// live inside the swap hub's tab view.
+  final bool embedded;
+
+  /// The token to pay with when the screen opens, as a token's own sheet
+  /// asks for; null pays with ERG, as the screen always starts. The other
+  /// side starts on ERG, which every token with an ERG pool trades against.
+  final String? initialFrom;
+
+  @override
+  State<SwapScreen> createState() => _SwapScreenState();
+}
+
+class _SwapScreenState extends State<SwapScreen> with TxReceiptOwner {
+  AmmPoolSet? _set;
+
+  /// True only once a full discovery pass has returned an untruncated set.
+  /// A cached or capped set may omit pools that exist, so absence from it is
+  /// not evidence that a token has none.
+  bool _setComplete = false;
+  bool _loading = true;
+  String? _error;
+
+  // null means ERG, matching the bridge's from/to encoding.
+  late String? _fromToken = widget.initialFrom;
+  String? _toToken;
+
+  /// The FROM field is the single source of truth for quoting. The TO field
+  /// is a convenience entry: editing it derives a required input via pool
+  /// reserves and writes it back into the FROM field.
+  final _amountCtrl = TextEditingController();
+  final _toAmountCtrl = TextEditingController();
+  Timer? _quoteDebounce;
+  int _quoteGeneration = 0;
+  AmmQuote? _quote;
+
+  /// POOL_MOVED allows exactly one automatic re-quote; after that the user
+  /// must decide.
+  bool _movedRetried = false;
+  bool _busy = false;
+
+  /// Which field the user touched last: the quote result mirrors into the
+  /// other one so both sides always show a consistent pair.
+  String _lastEdited = 'from';
+
+  WalletRouteArgs get _args =>
+      WalletRouteArgs.of(context);
+
+  List<String> get _spendAddresses {
+    final args = _args;
+    return args.historyAddresses.isNotEmpty
+        ? args.historyAddresses
+        : [if (args.senderAddress.isNotEmpty) args.senderAddress];
+  }
+
+  String get _recipient =>
+      _args.changeAddress.isNotEmpty
+          ? _args.changeAddress
+          : _args.receiveAddress;
+
+  /// The wallet's own holding of [tokenId], if any: its published name is
+  /// the fallback when no layer of the lookup knows the token.
+  TokenBalance? _held(String? tokenId) {
+    if (tokenId == null) return null;
+    for (final t in _args.tokens) {
+      if (t.id == tokenId) return t;
+    }
+    return null;
+  }
+
+  /// What the asset is called, from the one token lookup — the same name
+  /// the asset list shows, whether or not the token is held.
+  String _symbol(String? tokenId) => tokenId == null
+      ? 'ERG'
+      : tokenLabel(tokenId, held: _held(tokenId));
+
+  /// Decimals for parsing and formatting; zero for a token whose scale no
+  /// layer knows, whose amounts are then raw units (see [_unit]).
+  int _decimals(String? tokenId) => tokenId == null
+      ? 9
+      : (tokenDecimals(tokenId, held: _held(tokenId)) ?? 0);
+
+  /// What follows an amount of the asset: its name, or — when its decimals
+  /// are unknown — "raw units of" it, so base units are never passed off as
+  /// whole tokens.
+  String _unit(String? tokenId) => _scaleKnown(tokenId)
+      ? _symbol(tokenId)
+      : '$rawUnitsLabel of ${_symbol(tokenId)}';
+
+  bool _scaleKnown(String? tokenId) =>
+      tokenId == null || tokenDecimals(tokenId, held: _held(tokenId)) != null;
+
+  /// Wallet balance for an asset; null = ERG spendable.
+  BigInt? _balanceFor(String? tokenId) {
+    if (tokenId == null) {
+      final nano = _args.spendableNano;
+      return nano == null ? null : BigInt.from(nano);
+    }
+    for (final t in _args.tokens) {
+      if (t.id == tokenId) return BigInt.from(t.amount);
+    }
+    return BigInt.zero;
+  }
+
+  String _fmtAmount(BigInt raw, int decimals) {
+    if (raw <= BigInt.from(0x7FFFFFFFFFFFFFFF)) {
+      return formatTokenAmount(raw.toInt(), decimals);
+    }
+    // Exact manual scaling for reserves/amounts beyond i64.
+    if (decimals <= 0) return raw.toString();
+    final base = BigInt.from(10).pow(decimals);
+    final whole = raw ~/ base;
+    final frac =
+        (raw % base).toString().padLeft(decimals, '0').replaceFirst(RegExp(r'0+$'), '');
+    return frac.isEmpty ? '$whole' : '$whole.$frac';
+  }
+
+  String _fmtReserve(BigInt raw, int decimals) => _fmtAmount(raw, decimals);
+
+  /// Deepest pool for the current pair by the reserve of whichever side the
+  /// user is selling into, plus how many pools serve the pair — one scan.
+  /// Recomputed per build; the pool list only changes via _loadPools.
+  /// The pool the depth card describes: the one the live quote chose when
+  /// there is a quote, otherwise the deepest on the pay side.
+  (Map<String, dynamic>?, int) _pairPoolInfo() {
+    Map<String, dynamic>? best;
+    Map<String, dynamic>? quoted;
+    var bestDepth = BigInt.zero;
+    var count = 0;
+    for (final pool in _set?.pools ?? const []) {
+      if (!poolSupportsPair(pool, _fromToken, _toToken)) continue;
+      count++;
+      if (_quote != null && pool['pool_id'] == _quote!.poolId) quoted = pool;
+      final sides = poolSides(pool);
+      final rIn = sides.firstWhere((s) => s.$1 == _fromToken).$2;
+      if (best == null || rIn > bestDepth) {
+        best = pool;
+        bestDepth = rIn;
+      }
+    }
+    return (quoted ?? best, count);
+  }
+
+  /// Desired-TO editing: derive required input from pool reserves and seed
+  /// the FROM field. The forward FFI quote remains authoritative. Any
+  /// derivation failure clears the pay field so the two sides can't disagree
+  /// about what is being quoted.
+  void _onToAmountChanged(String text) {
+    final parsed = parseDecimalToBase(text, _decimals(_toToken));
+    if (parsed == null || parsed <= 0 || _fromToken == _toToken) {
+      _invalidateFromForFailedDerivation();
+      return;
+    }
+    final outRaw = BigInt.from(parsed);
+    final pools = _set?.pools ?? const [];
+    final match = bestPoolForOutput(
+      pools: pools,
+      from: _fromToken,
+      to: _toToken,
+      output: outRaw,
+    );
+    if (match == null) {
+      _invalidateFromForFailedDerivation();
+      return;
+    }
+    final (_, rIn, rOut) = match;
+    final feeNum = (match.$1['fee_num'] as num?)?.toInt() ?? 0;
+    final feeDenom = (match.$1['fee_denom'] as num?)?.toInt() ?? 1;
+    final requiredIn = requiredInputFor(
+      reservesIn: rIn,
+      reservesOut: rOut,
+      output: outRaw,
+      feeNum: feeNum,
+      feeDenom: feeDenom,
+    );
+    if (requiredIn == null) {
+      _invalidateFromForFailedDerivation();
+      return;
+    }
+    _amountCtrl.text = _fmtReserve(requiredIn, _decimals(_fromToken));
+    _scheduleQuote();
+  }
+
+  void _invalidateFromForFailedDerivation() {
+    if (_amountCtrl.text.isEmpty) return;
+    setState(() => _amountCtrl.clear());
+    _scheduleQuote();
+  }
+
+  /// Pools change with every swap on chain; refresh the list on a timer so
+  /// quotes and depth stay current while the tab is open.
+  Timer? _poolRefresh;
+  static const poolRefreshEvery = Duration(seconds: 45);
+
+  @override
+  void initState() {
+    super.initState();
+    // Names resolve after the pool list lands; show each as it arrives.
+    walletService.metadataChanges.addListener(_metadataChanged);
+    _loadPools();
+    _poolRefresh = Timer.periodic(poolRefreshEvery, (_) => _loadPools());
+  }
+
+  /// Decimals the selected tokens had when their figures were typed or last
+  /// rescaled. The catalog and the wallet's sync learn scales in the
+  /// background; when one changes under a typed figure, the figure is
+  /// rewritten to keep the base units it stood for, and the quote, made for
+  /// the old reading, is dropped and asked again.
+  int _fromScaleSeen = 9;
+  int _toScaleSeen = 9;
+  bool _scalesRead = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // A preselected token's scale needs the wallet's holdings, which are
+    // read through context and so are not there yet in initState.
+    if (_scalesRead) return;
+    _scalesRead = true;
+    _fromScaleSeen = _decimals(_fromToken);
+  }
+
+  void _metadataChanged() {
+    if (!mounted) return;
+    final from = _decimals(_fromToken);
+    final to = _decimals(_toToken);
+    if (from == _fromScaleSeen && to == _toScaleSeen) {
+      setState(() {});
+      return;
+    }
+    _rescaleField(_amountCtrl, _fromScaleSeen, from);
+    _rescaleField(_toAmountCtrl, _toScaleSeen, to);
+    _fromScaleSeen = from;
+    _toScaleSeen = to;
+    setState(() {
+      _quote = null;
+      _rounding = null;
+    });
+    _scheduleQuote();
+  }
+
+  void _rescaleField(TextEditingController field, int was, int now) {
+    if (was == now || field.text.trim().isEmpty) return;
+    field.text = rescaleAmountText(field.text, was, now) ?? '';
+  }
+
+  @override
+  void dispose() {
+    walletService.metadataChanges.removeListener(_metadataChanged);
+    _poolRefresh?.cancel();
+    _quoteDebounce?.cancel();
+    _amountCtrl.dispose();
+    _toAmountCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadPools() async {
+    setState(() {
+      _loading = _set == null;
+      _error = null;
+    });
+    if (_set == null) {
+      // Paint the last known pools straight away; the fresh list replaces
+      // them when discovery finishes.
+      final cached = await ammService.cachedPools();
+      if (mounted && cached != null && _set == null) {
+        setState(() {
+          _set = cached;
+          // Cached: painted for speed, but discovery has not run yet.
+          _setComplete = false;
+          _loading = false;
+        });
+      }
+    }
+    try {
+      final set = await ammService.pools();
+      if (!mounted) return;
+      setState(() {
+        _set = set;
+        _setComplete = !set.truncated;
+        _loading = false;
+      });
+      // An amount typed while pools were still loading has no quote yet;
+      // a refreshed list may also move the price.
+      if (_amountCtrl.text.trim().isNotEmpty || _toAmountCtrl.text.trim().isNotEmpty) {
+        _scheduleQuote();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        // A refresh that failed leaves the previous set in place, but it is
+        // no longer current evidence: a pool created since then would be
+        // missing from it. Stop claiming any holding has no pool until
+        // discovery succeeds again.
+        _setComplete = false;
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  bool get _extraIndexMissing =>
+      (_error ?? '').contains('EXTRA_INDEX_REQUIRED');
+
+  /// The pair changed, so any amount already entered needs re-quoting. This is
+  /// also where the POOL_MOVED retry cap resets — a new pair is a new attempt,
+  /// whereas repeated presses of Swap on the same pair are not.
+  void _onPairChanged() {
+    _movedRetried = false;
+    _fromScaleSeen = _decimals(_fromToken);
+    _toScaleSeen = _decimals(_toToken);
+    _scheduleQuote();
+  }
+
+  void _scheduleQuote() {
+    _quoteDebounce?.cancel();
+    _quoteDebounce =
+        Timer(const Duration(milliseconds: 300), _refreshQuote);
+  }
+
+  int? get _parsedAmount =>
+      parseDecimalToBase(_amountCtrl.text, _decimals(_fromToken));
+
+  Future<void> _refreshQuote() async {
+    final amount = _parsedAmount;
+    if (amount == null || amount <= 0 || _fromToken == _toToken) {
+      if (mounted) setState(() => _quote = null);
+      return;
+    }
+    final gen = ++_quoteGeneration;
+    final from = _fromToken;
+    final to = _toToken;
+    try {
+      final q = await ammService.quote(
+        fromToken: from,
+        toToken: to,
+        amount: amount,
+      );
+      if (!mounted || gen != _quoteGeneration) return;
+      setState(() {
+        _quote = q;
+        _quotedFor = (from: from, to: to, amount: amount);
+        _quoteError = null;
+        _rounding = _lastEdited == 'from' ? _roundingFor(q, amount) : null;
+        // Mirror the quoted output into the want field so both sides always
+        // show a consistent pair — but only when the user's last edit was on
+        // the pay side; otherwise it would fight their typing.
+        if (_lastEdited == 'from') {
+          _toAmountCtrl.text =
+              _fmtAmount(BigInt.from(q.outputAmount), _decimals(_toToken));
+        }
+      });
+    } catch (e) {
+      if (!mounted || gen != _quoteGeneration) return;
+      setState(() {
+        _quote = null;
+        _quoteError = swapQuoteError('$e');
+      });
+    }
+  }
+
+  /// Why the last quote attempt produced nothing, shown under the fields.
+  String? _quoteError;
+
+  /// What [_quote] was made for. A swap is built only for exactly that,
+  /// never from a quote the fields have since moved away from — a figure
+  /// rescaled when a token's decimals became known, say.
+  ({String? from, String? to, int amount})? _quotedFor;
+
+  /// Set when the typed input over-pays for a floored output.
+  SwapRounding? _rounding;
+
+  SwapRounding? _roundingFor(AmmQuote q, int amount) {
+    final pool = (_set?.pools ?? const []).cast<Map<String, dynamic>?>().firstWhere(
+          (p) => p?['pool_id'] == q.poolId,
+          orElse: () => null,
+        );
+    if (pool == null) return null;
+    final sides = poolSides(pool);
+    BigInt? rIn;
+    BigInt? rOut;
+    for (final s in sides) {
+      if (s.$1 == _fromToken) rIn = s.$2;
+      if (s.$1 == _toToken) rOut = s.$2;
+    }
+    if (rIn == null || rOut == null) return null;
+    return swapRoundingFor(
+      input: amount,
+      output: q.outputAmount,
+      reservesIn: rIn,
+      reservesOut: rOut,
+      feeNum: (pool['fee_num'] as num?)?.toInt() ?? 997,
+      feeDenom: (pool['fee_denom'] as num?)?.toInt() ?? 1000,
+    );
+  }
+
+  void _useExactInput() {
+    final r = _rounding;
+    if (r == null) return;
+    _lastEdited = 'from';
+    _amountCtrl.text = _fmtAmount(BigInt.from(r.exactInput), _decimals(_fromToken));
+    _scheduleQuote();
+  }
+
+  Future<void> _swap() async {
+    final quote = _quote;
+    final amount = _parsedAmount;
+    if (quote == null || amount == null || amount <= 0 || _busy) return;
+    if (_quotedFor != (from: _fromToken, to: _toToken, amount: amount)) {
+      // The fields no longer say what was quoted: quote what they say now.
+      setState(() => _quote = null);
+      _scheduleQuote();
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final build = await ammService.buildSwap(
+        fromToken: _fromToken,
+        toToken: _toToken,
+        amount: amount,
+        minOutput: quote.minOutput,
+        poolId: quote.poolId,
+        recipient: _recipient,
+        changeAddress: _recipient,
+        spendAddresses: _spendAddresses,
+      );
+      if (!mounted) return;
+      final confirmed = await showConfirmTransactionSheet(
+        context,
+        preparationId: build.preparationId,
+        title: 'Swap ${_symbol(_fromToken)} → ${_symbol(_toToken)}',
+        rows: [
+          swapInputRow(build, symbol: _unit(_fromToken), decimals: _decimals(_fromToken)),
+          ConfirmTxRow(
+            'You receive',
+            '${formatTokenAmount(build.outputAmount, _decimals(_toToken))} '
+            '${_unit(_toToken)}',
+          ),
+          ConfirmTxRow(
+            'Minimum received',
+            '${formatTokenAmount(build.minOutput, _decimals(_toToken))} '
+            '${_unit(_toToken)}',
+          ),
+          ConfirmTxRow(
+            'Price impact',
+            '${quote.priceImpactPct.toStringAsFixed(2)}%',
+            bold: quote.priceImpactPct > priceImpactWarnPct,
+          ),
+          ConfirmTxRow('Miner fee', formatErg(build.minerFee)),
+          argusFeeRow(),
+          ConfirmTxRow('ERG cost including fees', formatErg(build.totalErgCost)),
+        ],
+        detail: [
+          if (impactWarning(quote.priceImpactPct) case final w?) w,
+          'Direct Spectrum swap — the pool is a counterparty in this transaction.',
+        ].join('  ·  '),
+        confirmLabel: 'Sign & broadcast swap',
+      );
+      if (confirmed) await _broadcast(build);
+    } catch (e) {
+      final message = e is ArgusException ? e.message : e.toString();
+      if (!mounted) return;
+      if (message.contains('POOL_MOVED')) {
+        if (!_movedRetried) {
+          _movedRetried = true;
+          _snack('Pool moved — quoting against current reserves');
+          await _refreshQuote();
+        } else {
+          showErrorSheet(context, message: 'The pool changed again. Refresh the quote and review the swap.');
+        }
+      } else {
+        showErrorSheet(context, title: 'Could not prepare swap', message: message);
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _broadcast(AmmSwapBuild build) async {
+    try {
+      final txId = await walletService.sendErg(
+        preparationId: build.preparationId,
+      );
+      showTxResultSheet(receiptContext, txId: txId, headline: 'Swap submitted');
+      HapticFeedback.mediumImpact();
+    } catch (e) {
+      if (!mounted) return;
+      showTxFailureSheet(context, e);
+    }
+  }
+
+  void _snack(String msg) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+
+  @override
+  Widget build(BuildContext context) {
+    final body = Column(
+        children: [
+          const OfflineBanner(),
+          Expanded(child: _buildBody(context)),
+        ],
+      );
+    if (widget.embedded) {
+      return body;
+    }
+    return Scaffold(
+      appBar: AppBar(title: const Text('Swap')),
+      body: body,
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_extraIndexMissing) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SelectableText("Your node doesn't support pool discovery"),
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: () => Navigator.pushNamed(context, '/settings'),
+                icon: const Icon(Icons.settings, size: 18),
+                label: const Text('Node settings'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SelectableText('Could not load pools. $_error',
+                textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            TextButton(onPressed: _loadPools, child: const Text('Retry')),
+          ],
+        ),
+      );
+    }
+
+    final set = _set!;
+    final (pool, poolCount) = _pairPoolInfo();
+    final fromBal = _balanceFor(_fromToken);
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        if (set.truncated)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(poolTruncationNotice(),
+                style: Theme.of(context).textTheme.bodySmall),
+          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _assetSelector('From', _fromToken, _toToken,
+                (v) {
+                  setState(() {
+                    _fromToken = v;
+                    _quote = null;
+                    // The old pair's want amount is meaningless against a
+                    // different pay asset.
+                    _toAmountCtrl.clear();
+                    _lastEdited = 'from';
+                  });
+                  _onPairChanged();
+                })),
+            IconButton(
+              tooltip: 'Flip direction',
+              onPressed: () {
+                setState(() {
+                  final from = _fromToken;
+                  _fromToken = _toToken;
+                  _toToken = from;
+                  final fromText = _amountCtrl.text;
+                  _amountCtrl.text = _toAmountCtrl.text;
+                  _toAmountCtrl.text = fromText;
+                  _quote = null;
+                  _lastEdited = 'from';
+                });
+                _onPairChanged();
+              },
+              icon: const Icon(Icons.swap_vert),
+            ),
+            Expanded(child: _assetSelector('To', _toToken, _fromToken,
+                (v) {
+                  setState(() {
+                    _toToken = v;
+                    _quote = null;
+                    // Keep the user's desired quantity across receive-token
+                    // changes; the next quote re-mirrors it for the new
+                    // token's decimals.
+                    _lastEdited = 'from';
+                  });
+                  _onPairChanged();
+                })),
+          ],
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _amountCtrl,
+          decoration: InputDecoration(
+            labelText: 'You pay (${_unit(_fromToken)})',
+            // The helper wraps where the label cannot, so the raw-units
+            // notice survives large text.
+            helperText: fromBal == null
+                ? null
+                : 'Balance ${_fmtAmount(fromBal, _decimals(_fromToken))}'
+                    '${_scaleKnown(_fromToken) ? '' : ' $rawUnitsLabel'}',
+            helperMaxLines: 2,
+            suffixIcon: TextButton(
+              onPressed:
+                  fromBal == null || fromBal <= BigInt.zero ? null : _applyMax,
+              child: const Text('MAX'),
+            ),
+          ),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          onChanged: (_) {
+            _lastEdited = 'from';
+            // A manual pay amount invalidates the previously derived want.
+            if (_toAmountCtrl.text.isNotEmpty) _toAmountCtrl.clear();
+            _scheduleQuote();
+          },
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _toAmountCtrl,
+          decoration: InputDecoration(
+            labelText: 'You want (${_unit(_toToken)})',
+            helperText: _scaleKnown(_toToken)
+                ? 'Optional — we derive what to pay'
+                : 'In raw units. Optional — we derive what to pay',
+            helperMaxLines: 3,
+          ),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          onChanged: (text) {
+            _lastEdited = 'to';
+            _onToAmountChanged(text);
+          },
+        ),
+        if (_quote != null && _rounding != null) ...[
+          const SizedBox(height: 8),
+          _roundingNote(context, _rounding!),
+        ],
+        if (pool != null) ...[
+          const SizedBox(height: 16),
+          _depthCard(pool, poolCount),
+        ],
+        const SizedBox(height: 16),
+        if (_quote == null)
+          Text(
+            _fromToken == _toToken
+                ? 'Choose two different assets.'
+                : _quoteError ?? 'Enter an amount on either side to see the quote.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: _quoteError != null ? rustFor(context) : null,
+                ),
+          )
+        else ...[
+          Text(swapQuoteLabel(
+            _quote!,
+            outputSymbol: _unit(_toToken),
+            outputDecimals: _decimals(_toToken),
+          )),
+          const SizedBox(height: 4),
+          Text(
+            'Minimum received '
+            '${formatTokenAmount(_quote!.minOutput, _decimals(_toToken))} '
+            '${_unit(_toToken)}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          if (impactWarning(_quote!.priceImpactPct) case final warning?)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(warning, style: TextStyle(fontSize: 12.5, color: rustFor(context))),
+            ),
+        ],
+        const SizedBox(height: 24),
+        FilledButton(
+          onPressed: _quote == null || _busy ? null : _swap,
+          child: Text(_busy ? 'Preparing…' : 'Review swap'),
+        ),
+      ],
+    );
+  }
+
+  void _applyMax() {
+    final bal = _balanceFor(_fromToken);
+    if (bal == null || bal <= BigInt.zero) return;
+    // Selling ERG must leave room for miner fee + min-box reserve.
+    var raw = bal;
+    if (_fromToken == null) {
+      final reserve = BigInt.from(minerFeeNano + minBoxNano);
+      if (raw <= reserve) {
+        showErrorSheet(context, message: 'Not enough ERG for fees and the amount kept in your wallet.');
+        return;
+      }
+      raw -= reserve;
+    }
+    setState(() {
+      _lastEdited = 'from';
+      _amountCtrl.text = _fmtAmount(raw, _decimals(_fromToken));
+      _toAmountCtrl.clear();
+    });
+    _scheduleQuote();
+  }
+
+  /// "1 ERG buys 1 DexyGold; 0.5397 ERG buys the same. Pay that instead"
+  Widget _roundingNote(BuildContext context, SwapRounding r) {
+    final from = _unit(_fromToken);
+    final to = _unit(_toToken);
+    final exact = _fmtAmount(BigInt.from(r.exactInput), _decimals(_fromToken));
+    final left = _fmtAmount(BigInt.from(r.leftover), _decimals(_fromToken));
+    // Stacked, not side by side: the button carries an exact amount, and
+    // beside it the explanation was squeezed to a word per line at large
+    // text sizes.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${_fmtAmount(BigInt.from(r.output), _decimals(_toToken))} $to is the most this buys; '
+          '$exact $from buys the same and $left $from would otherwise stay in the pool.',
+          style: TextStyle(fontSize: 12.5, color: rustFor(context)),
+        ),
+        Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: TextButton(onPressed: _useExactInput, child: Text('Pay $exact')),
+        ),
+      ],
+    );
+  }
+
+  Widget _depthCard(Map<String, dynamic> pool, int poolCount) {
+    final sides = poolSides(pool);
+    String side((String?, BigInt) s) =>
+        '${_fmtAmount(s.$2, _decimals(s.$1))} ${_unit(s.$1)}';
+    // The rate is per one unit of what is paid: a whole token when its
+    // decimals are known, one raw unit when they are not.
+    final perOne = _scaleKnown(_fromToken)
+        ? '1 ${_symbol(_fromToken)}'
+        : '1 raw unit of ${_symbol(_fromToken)}';
+    final rIn = sides.firstWhere((s) => s.$1 == _fromToken).$2;
+    final rOut = sides.firstWhere((s) => s.$1 == _toToken).$2;
+    // Rate per one whole FROM unit, expressed in TO raw units so the TO
+    // decimals formatter below renders it correctly for any pair direction.
+    final rate = (rIn > BigInt.zero)
+        ? rOut * BigInt.from(10).pow(_decimals(_fromToken)) ~/ rIn
+        : BigInt.zero;
+    // ERG needs no verification; either token side that is not on the
+    // verified list flags the pair, matching the picker's tick.
+    final verifiedIn = (_fromToken == null || isVerifiedToken(_fromToken!)) &&
+        (_toToken == null || isVerifiedToken(_toToken!));
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: ArgusColors.of(context).inset,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('Rate  ',
+                  style: Theme.of(context).textTheme.bodySmall),
+              Flexible(
+                child: Text(
+                  '$perOne ≈ '
+                  '${_fmtAmount(rate > BigInt.zero ? rate : BigInt.zero, _decimals(_toToken))} '
+                  '${_unit(_toToken)}'
+                  '${verifiedIn ? '' : ' · unverified token'}',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Pool depth  ${side(sides.firstWhere((s) => s.$1 == _fromToken))}'
+            '  /  ${side(sides.firstWhere((s) => s.$1 == _toToken))}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          if (poolCount > 1)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                _quote != null
+                    ? '$poolCount pools trade this pair — quoting the one that returns the most.'
+                    : '$poolCount pools trade this pair — showing the deepest on your side.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openAssetPicker(
+    String label,
+    String? current,
+    String? otherSide,
+    ValueChanged<String?> onPicked,
+  ) async {
+    // The record wraps the token id so a picked ERG (`(null,)`) is distinct
+    // from a dismissed sheet (`null`).
+    final result = await showModalBottomSheet<(String?,)>(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (ctx) => SwapAssetPickerSheet(
+        title: label,
+        set: _set,
+        poolsComplete: _setComplete,
+        heldTokens: _args.tokens,
+        spendableNano: _args.spendableNano,
+        exclude: otherSide,
+      ),
+    );
+    if (result == null) return; // dismissed
+    if (result.$1 != current) onPicked(result.$1);
+  }
+
+  Widget _assetSelector(
+    String label,
+    String? value,
+    String? otherSide,
+    ValueChanged<String?> onChanged,
+  ) {
+    final verified = value != null && isVerifiedToken(value);
+    return InkWell(
+      borderRadius: BorderRadius.circular(buttonRadius),
+      onTap: () => _openAssetPicker(label, value, otherSide, onChanged),
+      child: InputDecorator(
+        decoration: InputDecoration(labelText: label),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                _symbol(value),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (verified)
+              Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Tooltip(
+                  message: 'Verified protocol token',
+                  child: Icon(Icons.verified_outlined,
+                      size: 16, color: moss),
+                ),
+              ),
+            const Icon(Icons.arrow_drop_down, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Asset chooser for a swap side. Public so its enabled/disabled rules can
+/// be exercised directly; the swap screen is the only production caller.
+class SwapAssetPickerSheet extends StatefulWidget {
+  const SwapAssetPickerSheet({
+    super.key,
+    required this.title,
+    required this.set,
+    required this.poolsComplete,
+    required this.heldTokens,
+    required this.spendableNano,
+    required this.exclude,
+  });
+
+  final String title;
+  final AmmPoolSet? set;
+
+  /// Whether [set] is a complete pool list. When false, a token missing from
+  /// it may still be tradable, so the sheet makes no claim about it.
+  final bool poolsComplete;
+  final List<TokenBalance> heldTokens;
+  final int? spendableNano;
+
+  /// Asset that cannot be picked (the other side of the pair).
+  final String? exclude;
+
+  @override
+  State<SwapAssetPickerSheet> createState() => SwapAssetPickerSheetState();
+}
+
+class SwapAssetPickerSheetState extends State<SwapAssetPickerSheet> {
+  String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    walletService.metadataChanges.addListener(_metadataChanged);
+  }
+
+  void _metadataChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    walletService.metadataChanges.removeListener(_metadataChanged);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Which tokens the pools trade comes from the pools themselves: the
+    // token map holds only the ones something has named.
+    final poolIds = widget.set?.tokenIds ?? const <String>{};
+    final held = {for (final t in widget.heldTokens) t.id: t};
+
+    final verified =
+        verifiedTokenLabels().keys.where(poolIds.contains).toList();
+    final rest = poolIds.where((id) => !verified.contains(id)).toList()..sort();
+
+    /// What the row shows: the one token lookup's name, the same the asset
+    /// list uses, with the holding's own label as the fallback. Search
+    /// looks at the same text, or a token visible by name would disappear
+    /// when that name is typed.
+    String displayName(String? id) =>
+        id == null ? 'ERG' : tokenLabel(id, held: held[id]);
+
+    bool matches(String? id) {
+      if (_query.isEmpty) return true;
+      final q = _query.toLowerCase();
+      return displayName(id).toLowerCase().contains(q) ||
+          (id?.toLowerCase().contains(q) ?? false);
+    }
+
+    /// A balance in the token's own scale, or labelled as raw units when no
+    /// layer knows its decimals.
+    String balanceText(String? id, BigInt balance) {
+      final units = balance <= BigInt.from(0x7FFFFFFFFFFFFFFF) ? balance : BigInt.zero;
+      if (id == null) return formatTokenAmount(units.toInt(), 9);
+      final decimals = tokenDecimals(id, held: held[id]);
+      return decimals == null
+          ? rawUnitsText(units)
+          : formatTokenAmount(units.toInt(), decimals);
+    }
+
+    final showErg = matches(null);
+    final heldFiltered = [
+      for (final t in widget.heldTokens)
+        if (t.id != widget.exclude && matches(t.id)) t,
+    ];
+    // With an incomplete list there is nothing to sort by, so leave the
+    // wallet's own order alone.
+    final heldRows = widget.poolsComplete
+        ? heldByTradability(heldFiltered, poolIds)
+        : heldFiltered;
+    final verifiedRows = [
+      for (final id in verified)
+        if (id != widget.exclude &&
+            !widget.heldTokens.any((t) => t.id == id) &&
+            matches(id))
+          id,
+    ];
+    final restRows = [
+      for (final id in rest)
+        if (id != widget.exclude &&
+            !widget.heldTokens.any((t) => t.id == id) &&
+            matches(id))
+          id,
+    ];
+
+    Widget row(String? id, {BigInt? balance, TokenBalance? held}) {
+      final isVerified = id != null && isVerifiedToken(id);
+      // Only a complete pool list proves absence. Against a cached or capped
+      // one, say nothing and leave the token selectable rather than claim it
+      // cannot be traded.
+      final noPool =
+          id != null && widget.poolsComplete && !poolIds.contains(id);
+      final disabled = id == widget.exclude || noPool;
+      return ListTile(
+        enabled: !disabled,
+        dense: true,
+        title: Text(displayName(id)),
+        subtitle: noPool
+            ? const Text('No Spectrum pool')
+            : balance != null
+            ? Text(balanceText(id, balance))
+            : (isVerified ? const Text('Verified') : null),
+        trailing: isVerified
+            ? Icon(Icons.verified_outlined, size: 18, color: moss)
+            : null,
+        onTap: disabled ? null : () => Navigator.pop(context, (id,)),
+      );
+    }
+
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: TextField(
+                autofocus: true,
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.search, size: 20),
+                  hintText: 'Search name or token id',
+                  isDense: true,
+                ),
+                onChanged: (v) => setState(() => _query = v.trim()),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(0, 0, 0, 24),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(widget.title,
+                        style: Theme.of(context).textTheme.titleMedium),
+                  ),
+                  const SizedBox(height: 8),
+                  if (!showErg &&
+                      heldRows.isEmpty &&
+                      verifiedRows.isEmpty &&
+                      restRows.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text('Nothing matches "$_query".',
+                          style: Theme.of(context).textTheme.bodySmall),
+                    )
+                  else ...[
+                    if (showErg || heldRows.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text('Your tokens',
+                            style: Theme.of(context).textTheme.titleSmall),
+                      ),
+                      if (showErg)
+                        row(null,
+                            balance: widget.spendableNano == null
+                                ? null
+                                : BigInt.from(widget.spendableNano!)),
+                      for (final t in heldRows)
+                        row(t.id, balance: BigInt.from(t.amount), held: t),
+                      const Divider(height: 24),
+                    ],
+                    if (verifiedRows.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text('Verified protocols',
+                            style: Theme.of(context).textTheme.titleSmall),
+                      ),
+                      for (final id in verifiedRows) row(id),
+                      const SizedBox(height: 8),
+                    ],
+                    if (restRows.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text('All pool assets',
+                            style: Theme.of(context).textTheme.titleSmall),
+                      ),
+                      for (final id in restRows) row(id),
+                    ],
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Held tokens ordered so the ones a pool can trade come first.
+///
+/// Held tokens are the only group in the picker not drawn from the pool set;
+/// every other group is built from it. Without this split a holding Spectrum
+/// cannot trade is offered like any other and then fails to quote. They stay
+/// listed rather than being filtered out — a wallet token missing from its
+/// own section reads as a bug — but the picker disables them and says why.
+List<TokenBalance> heldByTradability(
+  Iterable<TokenBalance> held,
+  Set<String> poolIds,
+) =>
+    [
+      ...held.where((t) => poolIds.contains(t.id)),
+      ...held.where((t) => !poolIds.contains(t.id)),
+    ];
+
+/// User-facing text for a failed quote.
+String swapQuoteError(String raw) {
+  if (raw.contains('NO_POOL')) return 'No Spectrum pool can trade this pair at this size.';
+  if (raw.contains('EXTRA_INDEX_REQUIRED')) return "Your node doesn't support pool discovery.";
+  if (raw.contains('Amount must be positive')) return 'Enter an amount greater than zero.';
+  final m = RegExp(r'"message"\s*:\s*"([^"]+)"').firstMatch(raw);
+  return 'Quote failed: ${m?.group(1) ?? raw.replaceAll('Exception: ', '')}';
+}

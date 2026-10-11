@@ -1,0 +1,910 @@
+import 'package:argus_wallet/ui/duckpools_screen.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:argus_wallet/services/duckpools_service.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
+
+/// Pool identities as the Rust side reports them, and a state answer built
+/// the way the FFI does from the boxes it is handed.
+class FakeGateway implements DuckpoolsGateway {
+  FakeGateway({this.node});
+  List<Map<String, dynamic>> found = const [];
+  String? lastDiscoverBoxes;
+  @override
+  String proxyTrees() => jsonEncode(['pt-lend', 'pt-borrow']);
+  @override
+  String discoverOrders(String boxesJson, List<String> addresses) {
+    lastDiscoverBoxes = boxesJson;
+    return jsonEncode(found);
+  }
+  final String? node;
+  String? lastBoxes;
+  String? lastHoldings;
+  String? lastInterest;
+  int? height;
+
+  /// Outcomes by proxy box id for `orderOutcome`.
+  final outcomes = <String, Map<String, dynamic>>{};
+
+  @override
+  String? get nodeUrl => node;
+  @override
+  String get explorerBase => 'https://explorer/';
+  /// Mutable, so a test can switch wallets under an in-flight order.
+  String? wallet = 'w1';
+  @override
+  String? get walletId => wallet;
+  @override
+  bool get isUnlocked => true;
+  @override
+  int? get chainHeight => height;
+  @override
+  String quote(String b, String poolKey, String kind, int amount, int slippageBps, int refundHeight) => jsonEncode({
+        'kind': kind,
+        'pool': poolKey,
+        'amount': amount,
+        'service_fee': amount ~/ 160,
+        'to_pool': amount - amount ~/ 160,
+        'lend_tokens_expected': amount ~/ 2,
+        'min_lend_tokens': amount ~/ 2 * 99 ~/ 100,
+        'lend_tokens': amount,
+        'entitled': amount * 2,
+        'out': amount * 2 - 1,
+        'min_out': amount * 2 - 2,
+        'box_value': 3000000,
+        'refund_height': refundHeight,
+      });
+  String? lastLoanBoxes;
+  List<String>? lastLoanAddresses;
+  String? lastPrepareLoanBoxes;
+
+  /// Health the fake reports for the wallet's loan, and whether it is
+  /// liquidatable; the forced height stays at 1 920 515.
+  int healthBps = 18594;
+  bool liquidatable = false;
+
+  @override
+  Future<String> loans(String loanBoxesJson, List<String> walletAddresses, int height) async {
+    lastLoanBoxes = loanBoxesJson;
+    lastLoanAddresses = walletAddresses;
+    final root = (jsonDecode(loanBoxesJson) as Map).cast<String, dynamic>();
+    final collateral = (root['collateral'] as List).cast<Map>();
+    // As the Rust side does: only the wallet's collateral boxes count,
+    // and a pool whose boxes are missing reports why.
+    return jsonEncode({
+      'positions': [
+        for (final c in collateral)
+          if (walletAddresses.contains(c['borrower']))
+            {
+              'pool': 'sigusd', 'ticker': 'SigUSD', 'decimals': 2, 'box_id': c['boxId'],
+              'collateral_nano': c['value'], 'loan': 23899, 'owed': 23939, 'collateral_value': 62316,
+              'threshold': 1400, 'penalty': 400, 'health_bps': healthBps, 'liquidation_value': 33514,
+              'liquidatable': liquidatable, 'forced_liquidation_height': 1920515,
+            },
+      ],
+      'markets': [
+        if ((root['params'] as List).any((b) => b['boxId'] == 'param'))
+          {'pool': 'sigusd', 'ticker': 'SigUSD', 'decimals': 2, 'threshold': 1400, 'penalty': 400, 'erg_value': 25, 'loans': collateral.length}
+        else
+          {'pool': 'sigusd', 'ticker': 'SigUSD', 'decimals': 2, 'error': 'the SigUSD parameter box is missing'},
+        {
+          'pool': 'erg', 'ticker': 'ERG', 'decimals': 9, 'loans': 0, 'unpriced': 1,
+          'collaterals': [
+            {'asset': '03faf2', 'ticker': 'SigUSD', 'decimals': 2, 'dex_nft': 'dex-sigusd', 'threshold': 1250, 'penalty': 300, 'unit_value_nano': 3700000000, 'ready': true},
+            {'asset': '8b08cd', 'ticker': 'RSN', 'decimals': 3, 'dex_nft': 'dex-rsn', 'ready': false},
+          ],
+        },
+      ],
+    });
+  }
+
+  @override
+  String loanQuote({
+    required String poolBoxesJson,
+    required String loanBoxesJson,
+    required String poolKey,
+    required String kind,
+    required int amount,
+    required String collateralAsset,
+    required int collateralAmount,
+    required String collateralBoxId,
+    required int height,
+  }) =>
+      jsonEncode(switch (kind) {
+        'borrow' when collateralAsset.isNotEmpty => {
+            'kind': kind, 'pool': poolKey, 'loan': amount, 'collateral_asset': collateralAsset,
+            'collateral_amount': collateralAmount, 'collateral_nano': 4000000,
+            'collateral_value': collateralAmount * 37000000, 'max_loan': collateralAmount * 29600000,
+            'threshold': 1250, 'penalty': 300, 'health_bps': 20000, 'box_value': 6000000,
+          },
+        'borrow' => {
+            'kind': kind, 'pool': poolKey, 'loan': amount, 'collateral_amount': collateralAmount, 'collateral_nano': collateralAmount,
+            'collateral_value': collateralAmount ~/ 40000000, 'max_loan': collateralAmount ~/ 56000000,
+            'threshold': 1400, 'penalty': 400, 'health_bps': 15000, 'box_value': collateralAmount + 2000000,
+          },
+        'repay' => {
+            'kind': kind, 'pool': poolKey, 'collateral_box_id': collateralBoxId, 'owed_now': 23939,
+            'repayment': 23941, 'collateral_nano': 2500000000000, 'box_value': 3000000,
+          },
+        _ => {
+            'kind': kind, 'pool': poolKey, 'collateral_box_id': collateralBoxId, 'repayment': amount,
+            'final_borrow_tokens': 23899 - amount, 'owed_after': 23939 - amount, 'box_value': 3000000,
+          },
+      });
+
+  @override
+  Future<String> prepareOrder({
+    required String poolBoxesJson,
+    required String poolKey,
+    required String kind,
+    required int amount,
+    required int slippageBps,
+    required int refundAfterBlocks,
+    required String userAddress,
+    required List<String> spendAddresses,
+    required String changeAddress,
+    String? loanBoxesJson,
+    String? collateralAsset,
+    int? collateralAmount,
+    String? collateralBoxId,
+  }) async {
+    lastPrepareLoanBoxes = loanBoxesJson;
+    final loanSide = kind == 'borrow' || kind == 'repay' || kind == 'partial_repay';
+    return jsonEncode({
+      'preparation_id': 9,
+      'quote': loanSide
+          ? jsonDecode(loanQuote(
+              poolBoxesJson: poolBoxesJson, loanBoxesJson: loanBoxesJson ?? '', poolKey: poolKey, kind: kind,
+              amount: amount, collateralAsset: collateralAsset ?? '', collateralAmount: collateralAmount ?? 0,
+              collateralBoxId: collateralBoxId ?? '', height: 1000))
+          : jsonDecode(quote(poolBoxesJson, poolKey, kind, amount, slippageBps, 1000 + refundAfterBlocks)),
+      'proxy_box_id': 'proxy-$kind',
+      'refund_height': 1000 + refundAfterBlocks,
+      'height': 1000,
+      'miner_fee': 1100000,
+      'app_fee_nano': 1100000,
+    });
+  }
+  @override
+  Future<String> prepareRefund(String proxyBoxJson, String userAddress) async =>
+      jsonEncode({'preparation_id': 10, 'value_nano_erg': 2000000, 'miner_fee': 1000000});
+  @override
+  String orderOutcome(String kind, String proxyBoxId, String txJson) =>
+      jsonEncode(outcomes[proxyBoxId] ?? {'outcome': 'unknown'});
+  String? lastAdjustLoanBoxes;
+  @override
+  String adjustQuote(String loanBoxesJson, String poolKey, String collateralBoxId, int newAmount, int height) {
+    if (newAmount < 1338000000000) throw StateError('that leaves the loan at or below its liquidation line');
+    return jsonEncode({
+      'pool': poolKey, 'collateral_box_id': collateralBoxId, 'current_amount': 2500000000000, 'new_amount': newAmount,
+      'delta': newAmount - 2500000000000, 'owed': 23939, 'collateral_value_after': newAmount ~/ 40000000,
+      'liquidation_value': 33514, 'health_after_bps': newAmount ~/ 40000000 * 10000 ~/ 33514, 'min_amount': 1338000000000,
+    });
+  }
+  @override
+  Future<String> prepareAdjust({
+    required String loanBoxesJson,
+    required String poolKey,
+    required String collateralBoxId,
+    required int newAmount,
+    required String userAddress,
+    required List<String> spendAddresses,
+    required String changeAddress,
+  }) async {
+    lastAdjustLoanBoxes = loanBoxesJson;
+    return jsonEncode({
+      'preparation_id': 11,
+      'quote': jsonDecode(adjustQuote(loanBoxesJson, poolKey, collateralBoxId, newAmount, 1)),
+      'height': 1000, 'miner_fee': 1100000,
+    });
+  }
+
+  @override
+  String pools() => jsonEncode([
+        {
+          'key': 'erg', 'ticker': 'ERG', 'decimals': 9,
+          'pool_nft': '90290924d95d699f5852d54dd5c20d01a3c729b11e7ccb5444671f62bec3b4bc',
+          'lend_token': 'fc888e0eed50a4042324793a7894134d83c7aaf5c99f4bf643e7e2b4e71e0095',
+          'borrow_token': 'd90d4000ed4b826856b93fc3d1e2c10ecb8a08dc0172fe72f58c43d28e681b49',
+          'currency_id': null, 'ergo_tree': 'aa', 'interest_param_nft': 'ip-erg',
+          'param_nft': 'param-erg', 'child_nft': 'child-erg', 'parent_nft': 'parent-erg',
+          'collateral_ergo_tree': 'ce', 'erg_dex_nft': null, 'dex_nfts': ['dex-sigusd', 'dex-rsn'],
+          'token_collaterals': [
+            {'id': '03faf2', 'ticker': 'SigUSD', 'decimals': 2, 'dex_nft': 'dex-sigusd'},
+            {'id': '8b08cd', 'ticker': 'RSN', 'decimals': 3, 'dex_nft': 'dex-rsn'},
+          ],
+        },
+        {
+          'key': 'sigusd', 'ticker': 'SigUSD', 'decimals': 2,
+          'pool_nft': '6a5506ff2e12fe121686dfb5089b3576d0d921caba2eb68de99f7aa54c18d658',
+          'lend_token': '99fd3c29dd4485bcb9cabd3574a66435a8c699bef8783ce71bc3edbb7b39e4cd',
+          'borrow_token': '1d7857', 'currency_id': '03faf2', 'ergo_tree': 'bb', 'interest_param_nft': 'ip-sigusd',
+          'param_nft': 'param-sigusd', 'child_nft': 'child-sigusd', 'parent_nft': 'parent-sigusd',
+          'collateral_ergo_tree': 'cc', 'erg_dex_nft': 'dex-sigusd', 'dex_nfts': ['dex-sigusd'],
+        },
+      ]);
+
+  @override
+  String state(String poolBoxesJson, String holdingsJson, String interestBoxesJson) {
+    lastBoxes = poolBoxesJson;
+    lastHoldings = holdingsJson;
+    lastInterest = interestBoxesJson;
+    final boxes = jsonDecode(poolBoxesJson) as List;
+    final holdings = (jsonDecode(holdingsJson) as Map).cast<String, dynamic>();
+    // Only the ERG pool is valued here; enough to prove the plumbing.
+    return jsonEncode([
+      for (final b in boxes.cast<Map>())
+        // As the Rust side does: the pool box carries the NFT exactly once.
+        if ((b['assets'] as List).any((a) => a['tokenId'] == '90290924d95d699f5852d54dd5c20d01a3c729b11e7ccb5444671f62bec3b4bc' && a['amount'] == 1))
+          {
+            'pool': 'erg', 'ticker': 'ERG', 'decimals': 9,
+            'pool_nft': '90290924d95d699f5852d54dd5c20d01a3c729b11e7ccb5444671f62bec3b4bc',
+            'lend_token': 'fc888e0eed50a4042324793a7894134d83c7aaf5c99f4bf643e7e2b4e71e0095',
+            'box_id': b['boxId'], 'creation_height': 1,
+            'pooled': b['value'], 'borrowed': 0, 'lend_circulating': 7270560727953,
+            'utilisation_bps': 0, 'lend_token_price': 2.0707,
+            'wallet_lend_tokens': holdings['fc888e0eed50a4042324793a7894134d83c7aaf5c99f4bf643e7e2b4e71e0095'] ?? 0,
+            'wallet_value': ((holdings['fc888e0eed50a4042324793a7894134d83c7aaf5c99f4bf643e7e2b4e71e0095'] ?? 0) * 2.0707).round(),
+          },
+    ]);
+  }
+}
+
+void main() {
+  test('old token payout records never relabel ERG as tokens', () {
+    final raw = {
+      'kind': 'withdraw', 'pool': 'sigusd', 'ticker': 'SigUSD', 'decimals': 2,
+      'proxy_box_id': 'p', 'tx_id': 't', 'amount': 100, 'expected': 200,
+      'min_out': 190, 'refund_height': 10, 'created_at': 0,
+      'status': 'filled', 'received': 1000000,
+    };
+    expect(DuckOrder.fromJson(raw).received, isNull);
+    final corrected = DuckOrder.fromJson({...raw, 'received': 2500, 'received_asset_units': true});
+    expect(DuckOrder.fromJson(corrected.toJson()).received, 2500);
+    expect(orderStatusText(corrected), 'Filled: 25 SigUSD paid out');
+    expect(orderStatusText(DuckOrder.fromJson(raw)), 'Filled: paid out');
+  });
+
+  final ergBox = jsonDecode(File('test/fixtures/duckpools_pool_erg.json').readAsStringSync()) as Map;
+  final bag = {
+    'boxId': 'bag', 'value': 519000, 'ergoTree': 'aa',
+    'assets': [
+      {'tokenId': '90290924d95d699f5852d54dd5c20d01a3c729b11e7ccb5444671f62bec3b4bc', 'amount': 3},
+    ],
+  };
+
+  test('reads the pool box by script from the node, picks the box with the NFT, values holdings', () async {
+    final requests = <String>[];
+    final gw = FakeGateway(node: 'http://node');
+    final svc = DuckpoolsService(
+      gateway: gw,
+      get: (uri) async {
+        requests.add('GET $uri');
+        if (uri.path.contains('byTokenId')) return jsonEncode([]);
+        throw StateError('explorer should not be needed');
+      },
+      post: (uri, body) async {
+        requests.add('POST ${uri.path} $body');
+        if (body == '"aa"') return jsonEncode([ergBox]);
+        return jsonEncode([]);
+      },
+    );
+    await svc.refresh({'fc888e0eed50a4042324793a7894134d83c7aaf5c99f4bf643e7e2b4e71e0095': 482880000});
+    expect(svc.lastError, isNull);
+    expect(svc.states.length, 1);
+    final s = svc.states.single;
+    expect(s.pooled, 15055088456407);
+    expect(s.hasPosition, isTrue);
+    expect(s.walletValue, closeTo(1000000000, 2000000), reason: 'about 1 ERG');
+    expect(svc.positionLine((a, d) => (a / 1000000000).toStringAsFixed(3)), 'You lend 1.000 ERG');
+    expect(requests.where((r) => r.startsWith('GET') && r.contains('api/v1/boxes/unspent/byErgoTree')), isEmpty);
+    expect(gw.lastHoldings, contains('482880000'));
+  });
+
+  test('falls back to the explorer when the node has no index, and ignores the deployer bag', () async {
+    final gw = FakeGateway(node: 'http://node');
+    final svc = DuckpoolsService(
+      gateway: gw,
+      get: (uri) async => jsonEncode({'items': uri.path.contains('/byErgoTree/aa') ? [bag, ergBox] : []}),
+      post: (uri, body) async => throw StateError('404'),
+    );
+    await svc.refresh(const {});
+    expect(svc.lastError, isNull);
+    final sent = jsonDecode(gw.lastBoxes!) as List;
+    expect(sent.length, 2, reason: 'everything under the script goes to Rust, which picks');
+    expect(svc.states.single.boxId, ergBox['boxId'], reason: 'the bag with 3 NFT units is not the pool');
+    expect(svc.positions, isEmpty);
+    expect(svc.positionLine((a, d) => '$a'), isNull);
+  });
+
+  test('a pool that cannot be read keeps its last state and is reported, the rest refresh', () async {
+    final gw = FakeGateway(node: 'http://node');
+    var sigusdDown = false;
+    final started = <String>[];
+    final svc = DuckpoolsService(
+      gateway: gw,
+      get: (uri) async => throw StateError('explorer down'),
+      post: (uri, body) async {
+        started.add(body);
+        if (body == '"bb"' && sigusdDown) {
+          // Slow and failing: the other pool must not wait for this.
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+          throw StateError('timeout');
+        }
+        return jsonEncode(body == '"aa"' ? [ergBox] : []);
+      },
+    );
+    await svc.refresh(const {});
+    expect(svc.lastError, isNull);
+    expect(svc.states.map((s) => s.pool), ['erg']);
+
+    sigusdDown = true;
+    started.clear();
+    await svc.refresh(const {});
+    expect(started.length, 2, reason: 'both reads started');
+    expect(svc.lastError, contains('SigUSD'));
+    expect(svc.states.map((s) => s.pool), ['erg'], reason: 'the ERG pool still refreshed');
+
+    // Had the SigUSD pool been read before, its last state would stay.
+    // The fake only values the ERG pool, so prove it the other way round.
+    sigusdDown = false;
+    var ergDown = true;
+    final svc2 = DuckpoolsService(
+      gateway: gw,
+      get: (uri) async => throw StateError('explorer down'),
+      post: (uri, body) async {
+        if (body == '"aa"' && ergDown) throw StateError('timeout');
+        return jsonEncode(body == '"aa"' ? [ergBox] : []);
+      },
+    );
+    ergDown = false;
+    await svc2.refresh(const {});
+    expect(svc2.states.single.pool, 'erg');
+    ergDown = true;
+    await svc2.refresh(const {});
+    expect(svc2.states.single.pool, 'erg', reason: 'kept from the last read');
+    expect(svc2.lastError, contains('ERG'));
+  });
+
+  test('typed amounts are parsed exactly and refused beyond the asset\'s decimals', () {
+    expect(parseDuckAmount('1.5', 9), 1500000000);
+    expect(parseDuckAmount('1,000.25', 2), 100025);
+    expect(parseDuckAmount('.5', 2), 50);
+    expect(parseDuckAmount('7', 0), 7);
+    expect(parseDuckAmount('1.0000000005', 9), isNull, reason: 'ten decimals on a nine-decimal asset');
+    expect(parseDuckAmount('1,2', 2), isNull, reason: 'a comma is only a thousands separator');
+    expect(parseDuckAmount('1.2,3', 2), isNull);
+    expect(parseDuckAmount('1,000,000', 2), 100000000);
+    expect(parseDuckAmount('1,0000', 2), isNull);
+    expect(parseDuckAmount('0.001', 2), isNull);
+    expect(parseDuckAmount('0', 2), isNull);
+    expect(parseDuckAmount('abc', 2), isNull);
+    expect(parseDuckAmount('', 2), isNull);
+  });
+
+  test('an unreachable chain leaves the last state and reports the error', () async {
+    final svc = DuckpoolsService(
+      gateway: FakeGateway(),
+      get: (_) async => throw StateError('offline'),
+      post: (_, __) async => throw StateError('offline'),
+    );
+    await svc.refresh(const {});
+    expect(svc.lastError, contains('offline'));
+    expect(svc.states, isEmpty);
+  });
+
+  test('orders are recorded, tracked to refundable, and read as filled or refunded', () async {
+    SharedPreferences.setMockInitialValues({});
+    final gw = FakeGateway(node: 'http://node')..height = 1000;
+    final boxes = <String, Map<String, dynamic>>{};
+    final txs = <String, Map<String, dynamic>>{};
+    final svc = DuckpoolsService(
+      gateway: gw,
+      get: (uri) async {
+        final p = uri.path;
+        final b = RegExp(r'/blockchain/box/byId/(.+)$').firstMatch(p)?.group(1);
+        if (b != null) return jsonEncode(boxes[b] ?? (throw StateError('404')));
+        final t = RegExp(r'/blockchain/transaction/byId/(.+)$').firstMatch(p)?.group(1);
+        if (t != null) return jsonEncode(txs[t] ?? (throw StateError('404')));
+        if (p.contains('byTokenId')) return jsonEncode([]);
+        throw StateError('unexpected $uri');
+      },
+      post: (uri, body) async => jsonEncode([]),
+    );
+    await svc.load();
+    svc.lastPoolBoxesJson = '[]';
+
+    final prepared = await svc.prepareOrder(
+      poolKey: 'erg',
+      kind: 'lend',
+      amount: 1000000000,
+      userAddress: '9me',
+      spendAddresses: const ['9me'],
+      changeAddress: '9me',
+      refundAfterBlocks: 100,
+    );
+    expect(prepared['wallet_id'], 'w1');
+    expect(svc.canCommit(prepared), isTrue);
+    expect(svc.activeWalletId, 'w1');
+    // The wallet switches while the order is in flight: it must not be
+    // sent or recorded here.
+    gw.wallet = 'w2';
+    expect(svc.activeWalletId, 'w2');
+    expect(svc.canCommit(prepared), isFalse, reason: 'prepared under w1, w2 active');
+    await expectLater(svc.commitOrder(prepared, 'tx-x'), throwsStateError);
+    gw.wallet = 'w1';
+    expect(svc.canCommit(prepared), isTrue);
+    final order = await svc.commitOrder(prepared, 'tx-order');
+    expect(order.status, 'pending');
+    expect(order.refundHeight, 1100);
+    expect(svc.openOrders.length, 1);
+
+    // Unspent, before the refund height: still pending.
+    boxes['proxy-lend'] = {'boxId': 'proxy-lend', 'spentTransactionId': null};
+    await svc.tickOrders();
+    expect(order.status, 'pending');
+
+    // Past the refund height and still unspent: refundable.
+    gw.height = 1100;
+    await svc.tickOrders();
+    expect(order.status, 'refundable');
+
+    // A bot filled it: the spending transaction says so.
+    boxes['proxy-lend'] = {'boxId': 'proxy-lend', 'spentTransactionId': 'fill'};
+    txs['fill'] = {'id': 'fill', 'outputs': []};
+    gw.outcomes['proxy-lend'] = {
+      'outcome': 'filled',
+      'value': 1000000,
+      'assets': [
+        {'token_id': 'fc888e0eed50a4042324793a7894134d83c7aaf5c99f4bf643e7e2b4e71e0095', 'amount': '480000000'},
+      ],
+    };
+    await svc.tickOrders();
+    expect(order.status, 'filled');
+    expect(order.received, 480000000);
+    expect(order.outcomeTxId, 'fill');
+    expect(svc.openOrders, isEmpty);
+
+    final prefs = await SharedPreferences.getInstance();
+    final saved = jsonDecode(prefs.getString('argus_duck_orders_v1_w1')!) as List;
+    expect((saved.single as Map)['status'], 'filled');
+
+    // A withdraw order that got refunded by someone else.
+    final w = await svc.commitOrder(
+      await svc.prepareOrder(poolKey: 'erg', kind: 'withdraw', amount: 5, userAddress: '9me', spendAddresses: const [], changeAddress: '9me'),
+      'tx-w',
+    );
+    boxes['proxy-withdraw'] = {'boxId': 'proxy-withdraw', 'spentTransactionId': 'rf'};
+    txs['rf'] = {'id': 'rf', 'outputs': []};
+    gw.outcomes['proxy-withdraw'] = {'outcome': 'refunded', 'value': 2000000, 'assets': []};
+    await svc.tickOrders();
+    expect(w.status, 'refunded');
+    await svc.removeOrder(w);
+    expect(svc.orders.length, 1);
+  });
+
+  test('a fill is counted in the order\'s own units, ERG for an ERG-pool borrow', () {
+    final svc = DuckpoolsService(gateway: FakeGateway());
+    final erg = svc.pools.firstWhere((p) => p.key == 'erg');
+    final sigusd = svc.pools.firstWhere((p) => p.key == 'sigusd');
+    final outcome = {
+      'outcome': 'filled',
+      'value': 1000000000000,
+      'assets': [
+        {'tokenId': sigusd.lendToken, 'amount': '7'},
+        {'tokenId': sigusd.currencyId, 'amount': '2500'},
+      ],
+    };
+    expect(receivedFromFill('borrow', erg, outcome), 1000000000000, reason: 'the ERG pool lends ERG: the box value');
+    expect(receivedFromFill('borrow', sigusd, outcome), 2500, reason: 'the key the Rust side writes');
+    expect(receivedFromFill('borrow', sigusd, {'assets': [{'token_id': sigusd.currencyId, 'amount': '9'}]}), 9, reason: 'the older key too');
+    expect(receivedFromFill('lend', sigusd, outcome), 7);
+    expect(receivedFromFill('withdraw', sigusd, outcome), 2500);
+    expect(receivedFromFill('repay', erg, outcome, collateralAsset: sigusd.currencyId), 2500);
+    expect(receivedFromFill('repay', erg, {'outcome': 'filled', 'value': 5}), 5);
+  });
+
+  test('a market that cannot quote says which box is missing', () {
+    const base = DuckMarket(pool: 'sigusd', ticker: 'SigUSD', decimals: 2);
+    expect(base.ready, isFalse);
+    expect(base.unavailableReason, contains('parameter box'));
+    expect(const DuckMarket(pool: 'sigusd', ticker: 'SigUSD', decimals: 2, threshold: 1400).unavailableReason, contains('price box'));
+    expect(const DuckMarket(pool: 'sigusd', ticker: 'SigUSD', decimals: 2, error: 'collateral boxes could not be read: timeout').unavailableReason, contains('timeout'));
+    const ready = DuckMarket(pool: 'sigusd', ticker: 'SigUSD', decimals: 2, threshold: 1400, penalty: 300, ergValue: 100);
+    expect(ready.ready, isTrue);
+    expect(ready.unavailableReason, isNull);
+    const erg = DuckMarket(pool: 'erg', ticker: 'ERG', decimals: 9, collaterals: [
+      DuckMarketCollateral(asset: 'a', ticker: 'SigUSD', decimals: 2, ready: false),
+    ]);
+    expect(erg.unavailableReason, contains('token collaterals'));
+  });
+
+  test('orders left on chain are found by the proxy scripts and recorded once', () async {
+    SharedPreferences.setMockInitialValues({});
+    final gw = FakeGateway(node: 'http://node')
+      ..height = 1000
+      ..found = [
+        {'pool': 'sigusd', 'kind': 'borrow', 'box_id': 'pb1', 'tx_id': 'tx1', 'amount': 100, 'value': 12003000000, 'refund_height': 900},
+        {'pool': 'erg', 'kind': 'withdraw', 'box_id': 'pb2', 'tx_id': 'tx2', 'amount': 5, 'value': 3000000, 'refund_height': 5000},
+      ];
+    final posted = <String>[];
+    final svc = DuckpoolsService(
+      gateway: gw,
+      get: (u) async => throw StateError('unexpected $u'),
+      post: (u, body) async {
+        posted.add(jsonDecode(body) as String);
+        return jsonEncode([{'boxId': 'x', 'ergoTree': jsonDecode(body)}]);
+      },
+    );
+    expect(await svc.discoverOrders(['9me']), 2);
+    expect(posted.toSet(), {'pt-lend', 'pt-borrow'}, reason: 'every proxy script is read');
+    expect(jsonDecode(gw.lastDiscoverBoxes!), hasLength(2));
+    expect(svc.orders.map((o) => o.proxyBoxId), ['pb2', 'pb1']);
+    expect(svc.orders.last.kind, 'borrow');
+    expect(svc.orders.last.refundHeight, 900);
+    expect(svc.orders.first.ticker, 'ERG', reason: 'the pool metadata, as a posted order gets');
+    expect(svc.orders.first.decimals, 9);
+    // Found again: nothing new, nothing duplicated.
+    expect(await svc.discoverOrders(['9me']), 0);
+    expect(svc.orders, hasLength(2));
+    final prefs = await SharedPreferences.getInstance();
+    expect(jsonDecode(prefs.getString('argus_duck_orders_v1_w1')!), hasLength(2), reason: 'persisted');
+    // The once-per-session scan does nothing when records exist.
+    gw.found = [
+      {'pool': 'erg', 'kind': 'lend', 'box_id': 'pb3', 'tx_id': 'tx3', 'amount': 1, 'value': 1, 'refund_height': 1}
+    ];
+    await svc.discoverOrdersIfUnknown(['9me']);
+    expect(svc.orders, hasLength(2));
+  });
+
+  test('a failed write does not stop the next one', () async {
+    final store = _FailingOnceStore();
+    SharedPreferencesStorePlatform.instance = store;
+    addTearDown(() => SharedPreferences.setMockInitialValues({}));
+    final gw = FakeGateway(node: 'http://node')
+      ..height = 1000
+      ..found = [
+        {'pool': 'sigusd', 'kind': 'borrow', 'box_id': 'pb1', 'tx_id': 'tx1', 'amount': 100, 'value': 1, 'refund_height': 900},
+      ];
+    final svc = DuckpoolsService(
+      gateway: gw,
+      get: (u) async => throw StateError('unexpected $u'),
+      post: (u, body) async => jsonEncode([{'boxId': 'x', 'ergoTree': jsonDecode(body)}]),
+    );
+    await svc.load();
+    expect(await svc.discoverOrders(['9me']), 0, reason: 'the write failed');
+    expect(svc.scanError, contains('disk full'));
+    gw.found = [
+      {'pool': 'erg', 'kind': 'lend', 'box_id': 'pb2', 'tx_id': 'tx2', 'amount': 1, 'value': 1, 'refund_height': 1},
+    ];
+    expect(await svc.discoverOrders(['9me']), 1);
+    expect(svc.scanError, isNull);
+    expect(store.writes, 2);
+    final prefs = await SharedPreferences.getInstance();
+    expect(jsonDecode(prefs.getString('argus_duck_orders_v1_w1')!), hasLength(2));
+  });
+
+  test('a scan that outlives a wallet switch does not touch the new wallet', () async {
+    SharedPreferences.setMockInitialValues({
+      'argus_duck_orders_v1_w2': jsonEncode([
+        {'kind': 'lend', 'pool': 'erg', 'ticker': 'ERG', 'decimals': 9, 'proxy_box_id': 'theirs', 'tx_id': 't', 'amount': 1, 'expected': 1, 'min_out': 1, 'refund_height': 1, 'created_at': 0},
+      ]),
+    });
+    final gw = FakeGateway(node: 'http://node')
+      ..height = 1000
+      ..found = [
+        {'pool': 'sigusd', 'kind': 'borrow', 'box_id': 'pb1', 'tx_id': 'tx1', 'amount': 100, 'value': 1, 'refund_height': 900},
+      ];
+    final gate = Completer<void>();
+    final svc = DuckpoolsService(
+      gateway: gw,
+      get: (u) async => throw StateError('unexpected $u'),
+      post: (u, body) async {
+        await gate.future;
+        return jsonEncode([{'boxId': 'x', 'ergoTree': jsonDecode(body)}]);
+      },
+    );
+    await svc.load();
+    final scan = svc.discoverOrders(['9me']);
+    gw.wallet = 'w2';
+    await svc.load();
+    expect(svc.orders.map((o) => o.proxyBoxId), ['theirs']);
+    gate.complete();
+    expect(await scan, 0);
+    expect(svc.orders.map((o) => o.proxyBoxId), ['theirs'], reason: 'the first wallet\'s find is dropped');
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('argus_duck_orders_v1_w1'), isNull);
+    expect(jsonDecode(prefs.getString('argus_duck_orders_v1_w2')!), hasLength(1));
+  });
+
+  test('loans are read from the collateral, interest, price and parameter boxes', () async {
+    SharedPreferences.setMockInitialValues({});
+    final gw = FakeGateway(node: 'http://node')..height = 1866418;
+    final posted = <String>[];
+    final myLoan = {'boxId': 'loan-1', 'value': 2500000000000, 'ergoTree': 'cc', 'borrower': '9me'};
+    final theirs = {'boxId': 'loan-2', 'value': 1, 'ergoTree': 'cc', 'borrower': '9them'};
+    var withParams = true;
+    final svc = DuckpoolsService(
+      gateway: gw,
+      get: (uri) async {
+        final p = uri.path;
+        if (p.contains('byTokenId/param-sigusd')) return jsonEncode(withParams ? [{'boxId': 'param'}] : []);
+        if (p.contains('byTokenId/')) return jsonEncode([{'boxId': p.split('/').last}]);
+        throw StateError('unexpected $uri');
+      },
+      post: (uri, body) async {
+        posted.add('${uri.query} $body');
+        // A first full page of strangers' loans, then the page with ours.
+        final offset = int.parse(uri.queryParameters['offset']!);
+        if (body != '"cc"') return jsonEncode([]);
+        if (offset == 0) return jsonEncode([for (var i = 0; i < 100; i++) {...theirs, 'boxId': 'loan-x$i'}]);
+        return jsonEncode([myLoan, theirs]);
+      },
+    );
+    await svc.load();
+    await svc.refreshLoans(const ['9me', '9me-2']);
+    expect(svc.loansError, isNull);
+    expect(posted.where((p) => p.endsWith('"cc"')).length, 2, reason: 'a full page asks for the next');
+    expect((jsonDecode(gw.lastLoanBoxes!) as Map)['collateral'], hasLength(102));
+    expect(gw.lastLoanAddresses, ['9me', '9me-2']);
+    final sent = (jsonDecode(gw.lastLoanBoxes!) as Map).cast<String, dynamic>();
+    expect((sent['collateral'] as List).length, 102, reason: 'Rust picks the wallet\'s among all loans');
+    expect((sent['children'] as List).map((b) => b['boxId']).toSet(), {'child-sigusd', 'child-erg'});
+    expect(svc.loans.single.boxId, 'loan-1');
+    expect(svc.loans.single.owed, 23939);
+    expect(svc.loans.single.ratioPercent, closeTo(260.3, 0.1));
+    expect(svc.marketFor('sigusd')!.ready, isTrue);
+    expect(svc.loanLine((a, d) => (a / 100).toStringAsFixed(2)), 'You owe 239.39 SigUSD');
+    // Every price source of every borrowing pool was asked for.
+    expect((sent['dex'] as List).map((b) => b['boxId']).toSet(), {'dex-sigusd', 'dex-rsn'});
+    final erg = svc.marketFor('erg')!;
+    expect(erg.ready, isTrue, reason: 'one priced token is enough to borrow ERG');
+    expect(erg.collaterals.where((c) => c.ready).single.ticker, 'SigUSD');
+    expect(erg.unpriced, 1, reason: 'a loan no price box covers is counted, not silently dropped');
+    expect(svc.marketFor('sigusd')!.unpriced, 0);
+    expect(svc.pools.first.collateralUnit('03faf2'), ('SigUSD', 2));
+    expect(svc.pools.first.collateralUnit(null), ('ERG', 9));
+
+    // A borrow order records the collateral; a repayment names the loan.
+    svc.lastPoolBoxesJson = '[]';
+    final borrow = await svc.commitOrder(
+      await svc.prepareOrder(
+        poolKey: 'sigusd', kind: 'borrow', amount: 1000, collateralAmount: 100000000000,
+        userAddress: '9me', spendAddresses: const [], changeAddress: '9me',
+      ),
+      'tx-b',
+    );
+    expect(gw.lastPrepareLoanBoxes, gw.lastLoanBoxes, reason: 'the loan snapshot rides along');
+    expect(borrow.amount, 1000);
+    expect(borrow.collateralNano, 100000000000);
+    expect(borrow.collateralAsset, isNull);
+    expect(borrow.isLoanSide, isTrue);
+    // Borrowing ERG against SigUSD records the token and its amount.
+    final ergBorrow = await svc.commitOrder(
+      await svc.prepareOrder(
+        poolKey: 'erg', kind: 'borrow', amount: 1000000000000, collateralAsset: '03faf2', collateralAmount: 100000,
+        userAddress: '9me', spendAddresses: const [], changeAddress: '9me',
+      ),
+      'tx-eb',
+    );
+    expect(ergBorrow.collateralAsset, '03faf2');
+    expect(ergBorrow.collateralNano, 100000);
+    expect(ergBorrow.amount, 1000000000000);
+    final repay = await svc.commitOrder(
+      await svc.prepareOrder(
+        poolKey: 'sigusd', kind: 'repay', amount: 0, collateralBoxId: 'loan-1',
+        userAddress: '9me', spendAddresses: const [], changeAddress: '9me',
+      ),
+      'tx-r',
+    );
+    expect(repay.amount, 23941);
+    expect(repay.collateralBoxId, 'loan-1');
+    expect(repay.expected, 2500000000000);
+    final quote = svc.loanQuote(poolKey: 'sigusd', kind: 'partial_repay', amount: 5000, collateralBoxId: 'loan-1');
+    expect(quote['owed_after'], 18939);
+
+    // A collateral adjustment quotes against the same snapshot and needs no order.
+    final adj = svc.adjustQuote(poolKey: 'sigusd', collateralBoxId: 'loan-1', newAmount: 1500000000000);
+    expect(adj['delta'], -1000000000000);
+    expect(() => svc.adjustQuote(poolKey: 'sigusd', collateralBoxId: 'loan-1', newAmount: 1000000000000), throwsStateError);
+    final preparedAdj = await svc.prepareAdjust(
+      poolKey: 'sigusd', collateralBoxId: 'loan-1', newAmount: 2600000000000,
+      userAddress: '9me', spendAddresses: const [], changeAddress: '9me',
+    );
+    expect(preparedAdj['preparation_id'], 11);
+    expect(gw.lastAdjustLoanBoxes, gw.lastLoanBoxes);
+    expect(svc.orders.where((o) => o.kind == 'adjust'), isEmpty);
+    // A pool whose collateral boxes cannot be read says so on its market
+    // rather than looking fine with the loans silently missing.
+    var collateralDown = true;
+    final svcDown = DuckpoolsService(
+      gateway: gw,
+      get: (uri) async {
+        final p = uri.path;
+        if (p.contains('byTokenId/')) return jsonEncode([{'boxId': p.split('/').last}]);
+        throw StateError('unexpected $uri');
+      },
+      post: (uri, body) async {
+        if (body == '"cc"' && collateralDown) throw StateError('timeout');
+        return jsonEncode([]);
+      },
+    );
+    await svcDown.load();
+    await svcDown.refreshLoans(const ['9me']);
+    expect(svcDown.loansError, isNull);
+    expect(svcDown.marketFor('sigusd')!.ready, isFalse);
+    expect(svcDown.marketFor('sigusd')!.error, contains('collateral boxes could not be read'));
+    collateralDown = false;
+
+    // Without a chain height the figures would be wrong, so the read fails.
+    gw.height = null;
+    await svcDown.refreshLoans(const ['9me']);
+    expect(svcDown.loansError, contains('height'));
+    expect(() => svc.loanQuote(poolKey: 'sigusd', kind: 'repay', collateralBoxId: 'loan-1'), returnsNormally,
+        reason: 'the quote falls back to the height of the last read');
+    gw.height = 1866418;
+
+    // A wallet switch while the read is in flight drops the result.
+    gw.wallet = 'w2';
+    final pending = svc.refreshLoans(const ['9me']);
+    gw.wallet = 'w1';
+    await pending;
+    expect(svc.loans.single.boxId, 'loan-1', reason: 'the w1 read stays');
+    expect(svc.loansError, isNull);
+    // The same when the read names its wallet and another one takes over:
+    // the list and its timestamp are exactly what they were.
+    gw.wallet = 'w1';
+    final before = svc.loans;
+    final beforeAt = svc.loansRefreshedAt;
+    gw.healthBps = 12000;
+    final named = svc.refreshLoans(const ['9me'], walletId: 'w1');
+    gw.wallet = 'w2';
+    await named;
+    gw.wallet = 'w1';
+    expect(identical(svc.loans, before), isTrue, reason: 'the stale read installed nothing');
+    expect(svc.loansRefreshedAt, beforeAt);
+    // A read by id with no wallet active (locked) lands: new figures, new time.
+    gw.wallet = null;
+    await Future<void>.delayed(const Duration(milliseconds: 2));
+    await svc.refreshLoans(const ['9me'], walletId: 'w1');
+    expect(svc.loans.single.healthBps, 12000, reason: 'this read replaced the list');
+    expect(svc.loansRefreshedAt!.isAfter(beforeAt!), isTrue);
+    gw.healthBps = 18594;
+    gw.wallet = 'w1';
+
+    // A pool whose parameter box cannot be read says so and offers no borrowing.
+    withParams = false;
+    await svc.refreshLoans(const ['9me']);
+    expect(svc.loansError, isNull);
+    expect(svc.marketFor('sigusd')!.ready, isFalse);
+    expect(svc.marketFor('sigusd')!.error, contains('parameter box'));
+    expect(svc.loans.single.boxId, 'loan-1', reason: 'positions still read from the collateral boxes');
+  });
+
+  test('loan alert levels follow the health and the deadline', () {
+    DuckLoan loan(int health, {bool liq = false, int forced = 2000000}) => DuckLoan(
+          pool: 'sigusd', ticker: 'SigUSD', decimals: 2, boxId: 'b', collateralNano: 1, loan: 1, owed: 1,
+          collateralValue: 1, threshold: 1400, penalty: 400, healthBps: health, liquidationValue: 1,
+          liquidatable: liq, forcedLiquidationHeight: forced,
+        );
+    expect(duckAlertLevel(loan(18594)), isNull);
+    expect(duckAlertLevel(loan(13000)), isNull, reason: 'the line itself is fine');
+    expect(duckAlertLevel(loan(12999)), DuckAlertLevel.watch);
+    expect(duckAlertLevel(loan(11499)), DuckAlertLevel.danger);
+    expect(duckAlertLevel(loan(20000, liq: true)), DuckAlertLevel.liquidatable);
+    expect(duckDeadlineNear(loan(1, forced: 1002160), 1000000), isTrue);
+    expect(duckDeadlineNear(loan(1, forced: 1002161), 1000000), isFalse);
+    expect(duckDeadlineNear(loan(1, forced: 1002160), null), isFalse, reason: 'no height, no claim');
+  });
+
+  test('a loan crossing a line is announced once per level, and the watch record feeds the background job', () async {
+    SharedPreferences.setMockInitialValues({});
+    final gw = FakeGateway(node: 'http://node')..height = 1866418;
+    final notified = <String>[];
+    final scheduled = <bool>[];
+    final myLoan = {'boxId': 'loan-1', 'value': 2500000000000, 'ergoTree': 'cc', 'borrower': '9me'};
+    final svc = DuckpoolsService(
+      gateway: gw,
+      get: (uri) async {
+        final p = uri.path;
+        if (p.contains('byTokenId/')) return jsonEncode([{'boxId': p.split('/').last}]);
+        throw StateError('unexpected $uri');
+      },
+      post: (uri, body) async => jsonEncode(body == '"cc"' ? [myLoan] : []),
+      notify: ({required loanId, required title, required body}) async => notified.add('$loanId $title'),
+      schedule: (wanted) async => scheduled.add(wanted),
+    );
+    await svc.load();
+    await svc.refreshLoans(const ['9me']);
+    expect(notified, isEmpty, reason: 'healthy');
+    expect(scheduled, [true], reason: 'a loan exists, so the background check is on');
+
+    gw.healthBps = 12500;
+    await svc.refreshLoans(const ['9me']);
+    expect(notified, ['loan-1 Loan collateral ratio falling']);
+    await svc.refreshLoans(const ['9me']);
+    expect(notified.length, 1, reason: 'the same level is not repeated');
+
+    gw.healthBps = 11000;
+    await svc.refreshLoans(const ['9me']);
+    expect(notified.last, 'loan-1 Loan close to liquidation');
+    gw.healthBps = 12500;
+    await svc.refreshLoans(const ['9me']);
+    expect(notified.length, 2, reason: 'a milder level after a worse one says nothing');
+
+    // Recovery resets, so the next fall speaks again.
+    gw.healthBps = 20000;
+    await svc.refreshLoans(const ['9me']);
+    gw.healthBps = 12500;
+    await svc.refreshLoans(const ['9me']);
+    expect(notified.length, 3);
+
+    // The deadline, once.
+    gw.height = 1920515 - 2000;
+    await svc.refreshLoans(const ['9me']);
+    await svc.refreshLoans(const ['9me']);
+    expect(notified.where((n) => n.contains('deadline')).length, 1);
+
+    // The record the background job reads.
+    final prefs = await SharedPreferences.getInstance();
+    final record = jsonDecode(prefs.getString('argus_duck_watch_v1_w1')!) as Map;
+    expect(record['addresses'], ['9me']);
+    expect((record['alerted'] as Map)['loan-1:health'], DuckAlertLevel.watch.index);
+
+    // The headless pass reads by the recorded addresses, wallet locked.
+    gw.liquidatable = true;
+    await svc.tickHeadless();
+    expect(notified.last, 'loan-1 Loan can be liquidated');
+    expect(gw.lastLoanAddresses, ['9me']);
+
+    // Another wallet with no loans must not stop watching this one's.
+    myLoan['borrower'] = '9someone';
+    gw.wallet = 'w2';
+    await svc.refreshLoans(const ['9other'], walletId: 'w2');
+    expect(svc.loans, isEmpty);
+    expect(scheduled.last, isTrue, reason: 'wallet w1 still has a loan to watch');
+    gw.wallet = 'w1';
+
+    // Once the loan is gone the job is cancelled.
+    await svc.tickHeadless();
+    expect(scheduled.last, isFalse);
+  });
+
+  test('a refund is prepared only for an unspent order box', () async {
+    SharedPreferences.setMockInitialValues({});
+    final gw = FakeGateway(node: 'http://node');
+    final spent = <String, dynamic>{'boxId': 'p1', 'spentTransactionId': 'x'};
+    final svc = DuckpoolsService(
+      gateway: gw,
+      get: (uri) async => uri.path.endsWith('/p1') ? jsonEncode(spent) : (throw StateError('404')),
+      post: (_, __) async => '[]',
+    );
+    await svc.load();
+    final o = DuckOrder(
+      kind: 'lend', pool: 'erg', ticker: 'ERG', decimals: 9, proxyBoxId: 'p1', txId: 't',
+      amount: 1, expected: 1, minOut: 1, refundHeight: 1, createdAt: DateTime.now(), status: 'refundable',
+    );
+    await expectLater(svc.prepareRefund(o, userAddress: '9me'), throwsStateError);
+    spent['spentTransactionId'] = null;
+    final prepared = await svc.prepareRefund(o, userAddress: '9me');
+    expect(prepared['preparation_id'], 10);
+    await svc.markRefundSent(o, 'rtx');
+    expect(o.status, 'refund_sent');
+  });
+}
+
+/// The in-memory store, except that its first write fails.
+class _FailingOnceStore extends InMemorySharedPreferencesStore {
+  _FailingOnceStore() : super.empty();
+  int writes = 0;
+
+  @override
+  Future<bool> setValue(String valueType, String key, Object value) {
+    if (++writes == 1) throw StateError('disk full');
+    return super.setValue(valueType, key, value);
+  }
+}

@@ -1,0 +1,40 @@
+# Rust
+rust/target/
+**/*.rs.bk
+
+# Flutter
+app/build/
+app/.dart_tool/
+app/.packages
+app/.pub/
+app/ios/Pods/
+app/ios/.symlinks/
+app/ios/Flutter/Flutter.framework
+app/ios/Flutter/Flutter.podspec
+
+# FRB output is generated into app/lib/bridge and
+# rust/crates/wallet-ffi/src/frb_generated.rs and committed.
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+*.env.local
+
+# Extra cargo-ndk cdylibs; keep libwallet_ffi.so
+app/android/app/src/main/jniLibs/**/libergo_*.so
+app/ios/Frameworks/.serena/
+
+# Local tooling (not repo state)
+/.serena/
+
+# MCP server logs
+logs/

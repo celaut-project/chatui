@@ -1,0 +1,550 @@
+//! Simple wallet send (ERG and/or token) transaction builder.
+//!
+//! Builds an EIP-12 unsigned tx for Nautilus/ErgoPay signing. Does not manage keys.
+
+use std::collections::HashMap;
+
+use crate::dev_fee::{append_dev_fee_output, resolved_config, DevFeeConfig};
+use crate::eip12::{Eip12Asset, Eip12InputBox, Eip12Output, Eip12UnsignedTx};
+
+use citadel_core::constants::{MIN_BOX_VALUE_NANO as MIN_BOX_VALUE, TX_FEE_NANO as TX_FEE};
+
+#[derive(Debug, thiserror::Error)]
+pub enum SendError {
+    #[error("No inputs provided")]
+    NoInputs,
+
+    #[error("Must send ERG and/or a token")]
+    EmptySend,
+
+    #[error("Send ERG amount must be at least {min} nanoERG (min box value)")]
+    BelowMinBoxValue { min: i64 },
+
+    #[error("Token amount must be greater than zero")]
+    ZeroTokenAmount,
+
+    #[error("Insufficient ERG: have {have} nanoERG, need {need} nanoERG")]
+    InsufficientErg { have: i64, need: i64 },
+
+    #[error("Insufficient tokens: have {have} of {token_id}, need {need}")]
+    InsufficientTokens {
+        token_id: String,
+        have: u64,
+        need: u64,
+    },
+
+    #[error("Token change requires at least {min} nanoERG leftover, have {have}. Add ERG to fund the change box and preserve unsent tokens.")]
+    TokenChangeInsufficientErg { have: i64, min: i64 },
+
+    #[error("Change amount {change} nanoERG is below minimum box value of {min} nanoERG")]
+    ChangeBelowMin { change: i64, min: i64 },
+
+    #[error("Input ERG total exceeds the representable range")]
+    ErgTotalOverflow,
+
+    #[error("Total held amount of token {token_id} exceeds the representable range")]
+    TokenTotalOverflow { token_id: String },
+
+    #[error("Citadel fee config error: {0}")]
+    DevFee(String),
+
+    #[error("{0}")]
+    ChangeBox(String),
+}
+
+#[derive(Debug)]
+pub struct SendSummary {
+    pub recipient_erg: i64,
+    pub token_id: Option<String>,
+    pub token_amount: Option<u64>,
+    pub change_erg: i64,
+    pub miner_fee: i64,
+    /// Citadel app fee in nanoERG (0 when disabled)
+    pub citadel_fee_nano: i64,
+    pub input_count: usize,
+}
+
+#[derive(Debug)]
+pub struct SendBuildResult {
+    pub unsigned_tx: Eip12UnsignedTx,
+    pub summary: SendSummary,
+}
+
+/// Build an EIP-12 unsigned send tx from already-selected inputs.
+///
+/// - `send_erg` is the ERG attached to the recipient output (must be >= MIN_BOX_VALUE).
+/// - Optional token is placed on the recipient output.
+/// - Leftover ERG/tokens go to `change_ergo_tree` (wallet primary address).
+/// - When enabled, appends Citadel app fee (0.011 ERG) before miner fee.
+pub fn build_send_tx(
+    user_inputs: &[Eip12InputBox],
+    recipient_ergo_tree: &str,
+    change_ergo_tree: &str,
+    send_erg: i64,
+    send_token: Option<(&str, u64)>,
+    current_height: i32,
+) -> Result<SendBuildResult, SendError> {
+    build_send_tx_with_fee(
+        user_inputs,
+        recipient_ergo_tree,
+        change_ergo_tree,
+        send_erg,
+        send_token,
+        current_height,
+        &resolved_config(),
+    )
+}
+
+pub fn build_send_tx_with_fee(
+    user_inputs: &[Eip12InputBox],
+    recipient_ergo_tree: &str,
+    change_ergo_tree: &str,
+    send_erg: i64,
+    send_token: Option<(&str, u64)>,
+    current_height: i32,
+    fee_cfg: &DevFeeConfig,
+) -> Result<SendBuildResult, SendError> {
+    if user_inputs.is_empty() {
+        return Err(SendError::NoInputs);
+    }
+
+    let sending_token = send_token.is_some();
+    if send_erg <= 0 && !sending_token {
+        return Err(SendError::EmptySend);
+    }
+    if send_erg < MIN_BOX_VALUE {
+        return Err(SendError::BelowMinBoxValue { min: MIN_BOX_VALUE });
+    }
+    if let Some((_, amt)) = send_token {
+        if amt == 0 {
+            return Err(SendError::ZeroTokenAmount);
+        }
+    }
+
+    let total_erg: i64 = user_inputs
+        .iter()
+        .map(|b| b.value.parse::<i64>().unwrap_or(0))
+        .try_fold(0i64, i64::checked_add)
+        .ok_or(SendError::ErgTotalOverflow)?;
+
+    let mut token_totals: HashMap<String, u64> = HashMap::new();
+    for input in user_inputs {
+        for asset in &input.assets {
+            let amount = asset.amount.parse::<u64>().unwrap_or(0);
+            let entry = token_totals.entry(asset.token_id.clone()).or_insert(0);
+            *entry = entry
+                .checked_add(amount)
+                .ok_or_else(|| SendError::TokenTotalOverflow {
+                    token_id: asset.token_id.clone(),
+                })?;
+        }
+    }
+
+    if let Some((token_id, amount)) = send_token {
+        let have = token_totals.get(token_id).copied().unwrap_or(0);
+        if have < amount {
+            return Err(SendError::InsufficientTokens {
+                token_id: token_id.to_string(),
+                have,
+                need: amount,
+            });
+        }
+    }
+
+    let citadel_fee = fee_cfg.budget();
+
+    let min_needed = send_erg + TX_FEE + citadel_fee;
+    if total_erg < min_needed {
+        return Err(SendError::InsufficientErg {
+            have: total_erg,
+            need: min_needed,
+        });
+    }
+
+    let remainder = total_erg - send_erg - TX_FEE - citadel_fee;
+
+    // Subtract sent token from totals for change
+    if let Some((token_id, amount)) = send_token {
+        if let Some(balance) = token_totals.get_mut(token_id) {
+            *balance = balance.saturating_sub(amount);
+            if *balance == 0 {
+                token_totals.remove(token_id);
+            }
+        }
+    }
+
+    let has_change_tokens = !token_totals.is_empty();
+    // Dust change (0 < remainder < min box value) folds into the miner fee
+    // instead of failing the send — a slightly higher fee beats a stranded
+    // transfer. Token-bearing change still requires a full min-value box.
+    let dust_to_fee = if !has_change_tokens && remainder > 0 && remainder < MIN_BOX_VALUE {
+        remainder
+    } else {
+        0
+    };
+    let change_remainder = remainder - dust_to_fee;
+    let need_change = change_remainder > 0 || has_change_tokens;
+
+    if has_change_tokens && remainder < MIN_BOX_VALUE {
+        return Err(SendError::TokenChangeInsufficientErg {
+            have: remainder,
+            min: MIN_BOX_VALUE,
+        });
+    }
+
+    let effective_fee = TX_FEE + dust_to_fee;
+
+    let recipient_assets: Vec<Eip12Asset> = match send_token {
+        Some((token_id, amount)) => vec![Eip12Asset::new(token_id, amount as i64)],
+        None => vec![],
+    };
+
+    let mut outputs = Vec::with_capacity(4);
+    outputs.push(Eip12Output {
+        value: send_erg.to_string(),
+        ergo_tree: recipient_ergo_tree.to_string(),
+        assets: recipient_assets,
+        creation_height: current_height,
+        additional_registers: HashMap::new(),
+    });
+
+    let change_erg = if need_change {
+        let change_value = if change_remainder > 0 {
+            change_remainder
+        } else {
+            MIN_BOX_VALUE
+        };
+        let change_assets: Vec<Eip12Asset> = token_totals
+            .into_iter()
+            .map(|(id, amt)| Eip12Asset::new(id, amt as i64))
+            .collect();
+        outputs.extend(
+            crate::token_outputs(
+                change_value as u64,
+                change_ergo_tree,
+                change_assets,
+                current_height,
+                MIN_BOX_VALUE as u64,
+            )
+            .map_err(|e| match e {
+                crate::ChangeOutputError::NotEnoughErg {
+                    min_value,
+                    available,
+                } => SendError::TokenChangeInsufficientErg {
+                    have: available as i64,
+                    min: min_value as i64,
+                },
+                other => SendError::ChangeBox(other.to_string()),
+            })?,
+        );
+        change_value
+    } else {
+        0
+    };
+
+    append_dev_fee_output(&mut outputs, fee_cfg, current_height)
+        .map_err(|e| SendError::DevFee(e.to_string()))?;
+    outputs.push(Eip12Output::fee(effective_fee, current_height));
+
+    let unsigned_tx = Eip12UnsignedTx {
+        inputs: user_inputs.to_vec(),
+        data_inputs: vec![],
+        outputs,
+    };
+
+    Ok(SendBuildResult {
+        unsigned_tx,
+        summary: SendSummary {
+            recipient_erg: send_erg,
+            token_id: send_token.map(|(id, _)| id.to_string()),
+            token_amount: send_token.map(|(_, amt)| amt),
+            change_erg,
+            miner_fee: effective_fee,
+            citadel_fee_nano: citadel_fee,
+            input_count: user_inputs.len(),
+        },
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dev_fee::{with_test_dev_fee, DevFeeConfig};
+    use crate::eip12::Eip12Asset;
+    use citadel_core::constants::DEV_FEE_NANO;
+    use std::collections::HashMap;
+
+    const USER_TREE: &str = "0008cduser";
+    const RECIPIENT_TREE: &str = "0008cdrecip";
+
+    fn make_box(value: &str, assets: Vec<(&str, &str)>) -> Eip12InputBox {
+        Eip12InputBox {
+            box_id: "b".to_string(),
+            transaction_id: "t".to_string(),
+            index: 0,
+            value: value.to_string(),
+            ergo_tree: USER_TREE.to_string(),
+            assets: assets
+                .into_iter()
+                .map(|(id, amt)| Eip12Asset {
+                    token_id: id.to_string(),
+                    amount: amt.to_string(),
+                })
+                .collect(),
+            creation_height: 1,
+            additional_registers: HashMap::new(),
+            extension: HashMap::new(),
+        }
+    }
+
+    #[test]
+    fn max_budget_must_include_app_fee_before_selecting_inputs() {
+        let fee = DevFeeConfig::custom(USER_TREE.into(), 1_100_000);
+        let mut small = make_box("1072065", vec![]);
+        small.box_id = "small".into();
+        let inputs = vec![make_box("996727888", vec![]), small];
+        let balance = 997_799_953;
+        let amount = balance - TX_FEE - fee.budget() - MIN_BOX_VALUE;
+        let old =
+            crate::select_erg_boxes(&inputs, (amount + TX_FEE + MIN_BOX_VALUE) as u64).unwrap();
+        let error =
+            build_send_tx_with_fee(&old.boxes, RECIPIENT_TREE, USER_TREE, amount, None, 1, &fee)
+                .unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Insufficient ERG: have 996727888 nanoERG, need 996799953 nanoERG"
+        );
+        let required = amount + TX_FEE + fee.budget() + MIN_BOX_VALUE;
+        let selected = crate::select_erg_boxes(&inputs, required as u64).unwrap();
+        assert_eq!(selected.total_erg, balance as u64);
+        let built = build_send_tx_with_fee(
+            &selected.boxes,
+            RECIPIENT_TREE,
+            USER_TREE,
+            amount,
+            None,
+            1,
+            &fee,
+        )
+        .unwrap();
+        assert_eq!(built.summary.change_erg, MIN_BOX_VALUE);
+        assert_eq!(
+            built
+                .unsigned_tx
+                .outputs
+                .iter()
+                .map(|o| o.value.parse::<i64>().unwrap())
+                .sum::<i64>(),
+            balance
+        );
+    }
+
+    #[test]
+    fn send_erg_only() {
+        let inputs = vec![make_box("10000000000", vec![])]; // 10 ERG
+        let result = build_send_tx(
+            &inputs,
+            RECIPIENT_TREE,
+            USER_TREE,
+            2_000_000_000, // 2 ERG
+            None,
+            50000,
+        )
+        .unwrap();
+
+        assert_eq!(result.summary.recipient_erg, 2_000_000_000);
+        assert_eq!(result.summary.miner_fee, TX_FEE);
+        assert_eq!(result.summary.citadel_fee_nano, 0);
+        assert_eq!(
+            result.summary.change_erg,
+            10_000_000_000 - 2_000_000_000 - TX_FEE
+        );
+        assert_eq!(result.unsigned_tx.outputs.len(), 3); // recipient + change + fee
+        assert_eq!(result.unsigned_tx.outputs[0].ergo_tree, RECIPIENT_TREE);
+        assert_eq!(result.unsigned_tx.outputs[1].ergo_tree, USER_TREE);
+    }
+
+    #[test]
+    fn send_erg_with_citadel_fee() {
+        with_test_dev_fee(DevFeeConfig::enabled_default(), || {
+            let inputs = vec![make_box("10000000000", vec![])];
+            let result = build_send_tx(
+                &inputs,
+                RECIPIENT_TREE,
+                USER_TREE,
+                2_000_000_000,
+                None,
+                50000,
+            )
+            .unwrap();
+
+            assert_eq!(result.summary.citadel_fee_nano, DEV_FEE_NANO);
+            assert_eq!(
+                result.summary.change_erg,
+                10_000_000_000 - 2_000_000_000 - TX_FEE - DEV_FEE_NANO
+            );
+            // recipient + change + citadel + miner
+            assert_eq!(result.unsigned_tx.outputs.len(), 4);
+            let fee_out = &result.unsigned_tx.outputs[2];
+            assert_eq!(fee_out.value, DEV_FEE_NANO.to_string());
+            assert_eq!(fee_out.ergo_tree, crate::dev_fee::DEFAULT_DEV_FEE_ERGO_TREE);
+        });
+    }
+
+    #[test]
+    fn send_insufficient_when_citadel_fee_enabled() {
+        with_test_dev_fee(DevFeeConfig::enabled_default(), || {
+            let send = 5_000_000_000i64;
+            // Exactly send + miner — missing citadel fee
+            let inputs = vec![make_box(&(send + TX_FEE).to_string(), vec![])];
+            let err =
+                build_send_tx(&inputs, RECIPIENT_TREE, USER_TREE, send, None, 50000).unwrap_err();
+            match err {
+                SendError::InsufficientErg { need, .. } => {
+                    assert_eq!(need, send + TX_FEE + DEV_FEE_NANO);
+                }
+                other => panic!("expected InsufficientErg, got {other:?}"),
+            }
+        });
+    }
+
+    #[test]
+    fn send_token_with_min_erg() {
+        let inputs = vec![make_box("5000000000", vec![("tok_a", "100")])];
+        let result = build_send_tx(
+            &inputs,
+            RECIPIENT_TREE,
+            USER_TREE,
+            MIN_BOX_VALUE,
+            Some(("tok_a", 40)),
+            50000,
+        )
+        .unwrap();
+
+        assert_eq!(result.summary.token_amount, Some(40));
+        assert_eq!(result.unsigned_tx.outputs[0].assets.len(), 1);
+        assert_eq!(result.unsigned_tx.outputs[0].assets[0].amount, "40");
+        // change keeps remaining 60 tokens
+        assert_eq!(result.unsigned_tx.outputs[1].assets.len(), 1);
+        assert_eq!(result.unsigned_tx.outputs[1].assets[0].amount, "60");
+    }
+
+    #[test]
+    fn reject_below_min_box() {
+        let inputs = vec![make_box("10000000000", vec![])];
+        let err =
+            build_send_tx(&inputs, RECIPIENT_TREE, USER_TREE, 500_000, None, 50000).unwrap_err();
+        assert!(matches!(err, SendError::BelowMinBoxValue { .. }));
+    }
+
+    #[test]
+    fn reject_insufficient_token() {
+        let inputs = vec![make_box("5000000000", vec![("tok_a", "10")])];
+        let err = build_send_tx(
+            &inputs,
+            RECIPIENT_TREE,
+            USER_TREE,
+            MIN_BOX_VALUE,
+            Some(("tok_a", 50)),
+            50000,
+        )
+        .unwrap_err();
+        assert!(matches!(err, SendError::InsufficientTokens { .. }));
+    }
+
+    #[test]
+    fn exact_spend_no_change() {
+        // send + fee exactly consumes inputs, no leftover tokens
+        let send = 5_000_000_000i64;
+        let inputs = vec![make_box(&(send + TX_FEE).to_string(), vec![])];
+        let result = build_send_tx(&inputs, RECIPIENT_TREE, USER_TREE, send, None, 50000).unwrap();
+        assert_eq!(result.summary.change_erg, 0);
+        assert_eq!(result.unsigned_tx.outputs.len(), 2); // recipient + fee only
+    }
+
+    #[test]
+    fn dust_change_folds_into_miner_fee() {
+        // Leftover 900_000 nanoERG is below MIN_BOX_VALUE (1_000_000): instead
+        // of erroring, it joins the miner fee and no change box is emitted.
+        let send = 9_998_000_000i64;
+        let inputs = vec![make_box("10000000000", vec![])];
+        let result = build_send_tx(&inputs, RECIPIENT_TREE, USER_TREE, send, None, 50000).unwrap();
+        assert_eq!(result.summary.change_erg, 0);
+        assert_eq!(result.summary.miner_fee, TX_FEE + 900_000);
+        assert_eq!(result.unsigned_tx.outputs.len(), 2); // recipient + fee only
+    }
+
+    #[test]
+    fn a_wallet_with_more_tokens_than_a_box_holds_gets_split_change() {
+        let fee = DevFeeConfig::disabled();
+        let ids: Vec<String> = (0..123).map(|i| format!("tok{i:04}")).collect();
+        let assets: Vec<(&str, &str)> = ids.iter().map(|id| (id.as_str(), "7")).collect();
+        let inputs = vec![make_box("5000000000", assets)];
+        let built = build_send_tx_with_fee(
+            &inputs,
+            RECIPIENT_TREE,
+            USER_TREE,
+            1_000_000_000,
+            None,
+            1,
+            &fee,
+        )
+        .unwrap();
+        let change: Vec<_> = built
+            .unsigned_tx
+            .outputs
+            .iter()
+            .filter(|o| o.ergo_tree == USER_TREE)
+            .collect();
+        assert_eq!(change.len(), 2);
+        assert!(change
+            .iter()
+            .all(|o| o.assets.len() <= crate::MAX_TOKENS_PER_BOX));
+        assert_eq!(change.iter().map(|o| o.assets.len()).sum::<usize>(), 123);
+        let out_total: i64 = built
+            .unsigned_tx
+            .outputs
+            .iter()
+            .map(|o| o.value.parse::<i64>().unwrap())
+            .sum();
+        assert_eq!(
+            out_total, 5_000_000_000,
+            "ERG is conserved across the split"
+        );
+        assert_eq!(
+            built.summary.change_erg,
+            5_000_000_000 - 1_000_000_000 - TX_FEE
+        );
+    }
+
+    #[test]
+    fn split_change_short_of_erg_is_a_token_change_error() {
+        let fee = DevFeeConfig::disabled();
+        let ids: Vec<String> = (0..123).map(|i| format!("tok{i:04}")).collect();
+        let assets: Vec<(&str, &str)> = ids.iter().map(|id| (id.as_str(), "7")).collect();
+        let inputs = vec![make_box(
+            &(1_000_000_000 + TX_FEE + 1_500_000).to_string(),
+            assets,
+        )];
+        let err = build_send_tx_with_fee(
+            &inputs,
+            RECIPIENT_TREE,
+            USER_TREE,
+            1_000_000_000,
+            None,
+            1,
+            &fee,
+        )
+        .unwrap_err();
+        match err {
+            SendError::TokenChangeInsufficientErg { have, min } => {
+                assert_eq!(have, 1_500_000);
+                assert!(
+                    min > 2 * MIN_BOX_VALUE,
+                    "two boxes, each at its per-byte floor: {min}"
+                );
+            }
+            other => panic!("{other}"),
+        }
+    }
+}

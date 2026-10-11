@@ -1,0 +1,24 @@
+[package]
+name = "stealth"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "ErgoMixer-compatible stealth addresses (proveDHTuple one-time payment scripts)"
+
+[dependencies]
+ergo-lib = { workspace = true }
+ergo-chain-types = { workspace = true }
+ergotree-ir = { workspace = true }
+ergotree-interpreter = { workspace = true }
+bs58 = "0.5"
+hex = { workspace = true }
+sha2 = { workspace = true }
+sigma-ser = { workspace = true }
+# Not the workspace rand: sigma-rust's random_scalar_in_group_range takes a
+# rand_core 0.6 RNG, which rand 0.8 provides.
+rand = "0.8"
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+zeroize = { workspace = true }

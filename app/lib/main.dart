@@ -1,0 +1,188 @@
+import 'services/preview/preview_service.dart';
+import 'services/watch_account_service.dart';
+import 'package:flutter/material.dart';
+
+import 'services/address_label_service.dart';
+import 'services/contacts_service.dart';
+import 'services/deep_link_channel.dart';
+import 'services/notification_service.dart';
+import 'services/network_controller.dart';
+import 'services/privacy_service.dart';
+import 'services/token_pricer.dart';
+import 'services/session_lock.dart';
+import 'services/spend_policy.dart';
+import 'services/stealth_service.dart';
+import 'services/update_service.dart';
+import 'services/watch_only_service.dart';
+import 'services/watched_token_meta.dart';
+import 'services/wallet_service.dart';
+import 'services/wallet_sync_controller.dart';
+import 'theme/argus_theme.dart';
+import 'theme/theme_controller.dart';
+import 'ui/ageusd_screen.dart';
+import 'ui/arbitrage_screen.dart';
+import 'ui/contacts_screen.dart';
+import 'ui/create_wallet_screen.dart';
+import 'ui/dashboard_screen.dart';
+import 'ui/dexy_screen.dart';
+import 'ui/receive_screen.dart';
+import 'ui/restore_wallet_screen.dart';
+import 'ui/send_screen.dart';
+import 'ui/settings_screen.dart';
+import 'ui/swap_hub_screen.dart';
+import 'ui/transaction_detail_screen.dart';
+import 'ui/transactions_screen.dart';
+import 'services/mix_background.dart';
+import 'services/stealth_change_book.dart';
+import 'ui/dapp_browser_screen.dart';
+import 'ui/duckpools_screen.dart';
+import 'ui/sigmafi_screen.dart';
+import 'ui/stake_recovery_screen.dart';
+import 'ui/liquidity_screen.dart';
+import 'ui/rosen_screen.dart';
+import 'ui/mix_screen.dart';
+import 'ui/token_tools_screen.dart';
+import 'ui/utxo_management_screen.dart';
+
+final navigatorKey = GlobalKey<NavigatorState>();
+
+/// The page a named route opens, or null for a name the app does not know.
+Widget? appPage(String? name) => switch (name) {
+      '/' || null => const DashboardScreen(),
+      '/receive' => const ReceiveScreen(),
+      '/send' => const SendScreen(),
+      '/transactions' => const TransactionsScreen(),
+      '/create' => const CreateWalletScreen(),
+      '/restore' => const RestoreWalletScreen(),
+      '/settings' => const SettingsScreen(),
+      '/contacts' => const ContactsScreen(),
+      '/tx' => const TransactionDetailScreen(),
+      '/utxos' => const UtxoManagementScreen(),
+      UtxoManagementScreen.cleanupRoute => const UtxoManagementScreen(openCleanup: true),
+      '/stakes' => const StakeRecoveryScreen(),
+      '/tokens' => const TokenToolsScreen(),
+      '/mix' => const MixScreen(),
+      '/duckpools' => const DuckpoolsScreen(),
+      '/dapps' => const DappBrowserScreen(),
+      '/sigmafi' => const SigmaFiScreen(),
+      '/liquidity' => const LiquidityScreen(),
+      '/rosen' => const RosenScreen(),
+      '/dexy' => const DexyScreen(),
+      '/ageusd' => const AgeUsdScreen(),
+      '/swap' => const SwapHubScreen(),
+      '/arbitrage' => const ArbitrageScreen(),
+      _ => null,
+    };
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  themeController.load().catchError((_) {});
+  // Independent preference loads; run them together so the first frame
+  // waits on the slowest one instead of the sum.
+  await Future.wait<void>([
+    sessionLock.loadGrace().catchError((_) {}),
+    contactsService.load().catchError((_) {}),
+    addressLabelService.load().catchError((_) {}),
+    watchOnlyService.load().catchError((_) {}),
+    watchAccountService.load().catchError((_) {}),
+    privacyService.load().catchError((_) {}),
+    spendPolicy.load().catchError((_) {}),
+    previewSettings.load().catchError((_) {}),
+    stealthService.load().catchError((_) {}),
+    tokenPricer.load().catchError((_) {}),
+  ]);
+  networkController.priceRefresher = tokenPricer.refresh;
+  // The stealth change list of 1.0.0-beta.4 was one for the whole phone;
+  // it becomes the wallet's own, or goes (see migrateLegacy).
+  walletService
+      .listWallets()
+      .then((wallets) => stealthChangeBook.migrateLegacy([for (final w in wallets) w.walletId]))
+      .catchError((_) {});
+  // Watched addresses and accounts name their holdings as seed wallets do.
+  watchedTokenMeta.attach();
+  await MixBackground.init();
+  runApp(const ArgusApp());
+  // Off until the user turns it on in About; then at most one request a day.
+  updateService.checkOnStart().catchError((_) {});
+}
+
+class ArgusApp extends StatefulWidget {
+  const ArgusApp({super.key});
+
+  @override
+  State<ArgusApp> createState() => _ArgusAppState();
+}
+
+class _ArgusAppState extends State<ArgusApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    walletService.unlocked.addListener(_onUnlockChanged);
+    // A broadcast shows on the home screen at once, not at the next poll.
+    walletService.onBroadcast = (txId, delta) =>
+        walletSyncController.noteBroadcast(txId, valueNano: delta);
+    DeepLinkChannel.start();
+    notificationService.init().then((_) => notificationService.openLaunchTap());
+  }
+
+  @override
+  void dispose() {
+    walletService.unlocked.removeListener(_onUnlockChanged);
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    sessionLock.onLifecycle(state);
+  }
+
+  void _onUnlockChanged() {
+    if (!walletService.unlocked.value) {
+      navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: themeController,
+      builder: (context, _) {
+        return MaterialApp(
+          title: 'Argus',
+          navigatorKey: navigatorKey,
+          debugShowCheckedModeBanner: false,
+          theme: themeController.lightTheme,
+          darkTheme: themeController.darkTheme,
+          themeMode: themeController.themeMode,
+          // Densities in the wallet card assume at most ~1.6x text; larger
+          // system font scales would overflow fixed rows.
+          // Every route sees live wallet context through WalletArgsScope, so
+          // a pushed screen's balances update instead of freezing at push
+          // time. Route arguments still carry per-route data (a transaction).
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler:
+                  MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 1.6),
+            ),
+            child: ListenableBuilder(
+              listenable: walletSyncController,
+              builder: (context, _) => WalletArgsScope(
+                args: walletSyncController.routeArgs,
+                child: child!,
+              ),
+            ),
+          ),
+          onGenerateRoute: (settings) {
+            final page = appPage(settings.name);
+            if (page == null) return null;
+            return fadeRoute(page, settings: settings);
+          },
+          onUnknownRoute: (settings) =>
+              fadeRoute(const DashboardScreen(), settings: settings),
+        );
+      },
+    );
+  }
+}
