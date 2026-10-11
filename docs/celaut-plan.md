@@ -13,7 +13,7 @@ Updated on 2026-10-11, master at `160d24c`.
 |---|---|
 | M0: build from source, CI on master, debug APK in CI | Done. Merged in `5c3b2b3` (PR #1). CI run 38156157458 on master passed (rust, flutter, android) |
 | `celaut-proto` and the design notes (`docs/celaut/`) | Done. Merged from `celaut-crates` in `160d24c`. Make new PRs into master. Do not use `celaut-crates` again |
-| M0b: trimmed wallet and new identity | Started, not on master (see M0b in section 5) |
+| M0b: trimmed wallet and new identity | Not started on master. Start from master (see M0b in section 5) |
 | M1 to M5 | Not started |
 
 Do the next tasks in this order. Each task is one PR into master.
@@ -137,11 +137,8 @@ applicationId `org.celaut.chatui`, flutter_zxing scanner, updater on the
 celaut-project/chatui releases. Check: the APK runs on GrapheneOS without Play
 Services; `flutter test` and `cargo test` pass.
 
-A partial trim exists on the machine of Josemi and is not pushed yet. It removes the
-DeFi crates (AMM, SigmaUSD, Dexy, DuckPools, Rosen, SigmaFi, stake recovery, stealth,
-ZeroJoin), the arbitrage and pricing APIs and the dApp browser, renames the Dart
-package to `celaut_chatui` and puts `flutter_zxing` in `pubspec.yaml`. Josemi tells
-you if you continue from that branch or start from master.
+Start M0b from master. A partial trim exists on the machine of Josemi, but it will
+not be pushed. Do not wait for it.
 
 Items that are not done yet (master at `160d24c`):
 
