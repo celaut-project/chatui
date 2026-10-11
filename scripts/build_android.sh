@@ -6,12 +6,23 @@
 # Prerequisites:
 #   rustup target add aarch64-linux-android x86_64-linux-android
 #   cargo install cargo-ndk
-#   ANDROID_NDK_HOME, or ANDROID_HOME/ndk/<latest>, or ~/Android/Sdk/ndk/<latest>
+#   ANDROID_NDK_HOME, or ANDROID_HOME/ndk/<latest>, or the default SDK
+#   directory (~/Android/Sdk on Linux, ~/Library/Android/sdk on macOS)
+#
+# The Gradle build of app/android runs this script before it merges the native
+# libraries, so `flutter build apk` alone is enough.
 #
 set -euo pipefail
 
+if ! command -v cargo-ndk >/dev/null 2>&1; then
+  echo "cargo-ndk is not installed. Run: cargo install cargo-ndk --locked"
+  exit 1
+fi
+
 if [[ -z "${ANDROID_NDK_HOME:-}" ]]; then
-  SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}}"
+  DEFAULT_SDK="$HOME/Android/Sdk"
+  [[ "$(uname -s)" == "Darwin" ]] && DEFAULT_SDK="$HOME/Library/Android/sdk"
+  SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$DEFAULT_SDK}}"
   if [[ -d "$SDK/ndk" ]]; then
     ANDROID_NDK_HOME="$(ls -d "$SDK/ndk/"* 2>/dev/null | tail -1 || true)"
   fi
