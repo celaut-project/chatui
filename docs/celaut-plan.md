@@ -13,7 +13,7 @@ Updated on 2026-10-11, master at `160d24c`.
 |---|---|
 | M0: build from source, CI on master, debug APK in CI | Done. Merged in `5c3b2b3` (PR #1). CI run 38156157458 on master passed (rust, flutter, android) |
 | `celaut-proto` and the design notes (`docs/celaut/`) | Done. Merged from `celaut-crates` in `160d24c`. Make new PRs into master. Do not use `celaut-crates` again |
-| M0b: trimmed wallet and new identity | Not started on master. Start from master (see M0b in section 5) |
+| M0b: trimmed wallet and new identity | Done on branch `m0b-trim-identity`, in review (section 5). Spanish is a separate PR after it |
 | `bee-rpc-over-grpc-rs` | Specification ready (`68d6f0e`): public API with `todo!()`, tests and vectors from the Python reference, agent guide and prompt. Port not started |
 | M1a, M1 to M5 | Not started |
 | Open questions (section 7) | Answered on 2026-10-11 |
