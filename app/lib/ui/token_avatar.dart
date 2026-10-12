@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../theme/argus_theme.dart';
@@ -49,12 +51,19 @@ MonogramLook monogramLook({
 }) {
   final dark = brightness == Brightness.dark;
   if (verified) {
+    final top = Color.alphaBlend(accent.withValues(alpha: dark ? 0.22 : 0.36), page);
+    // On a light page the accent's text colour is taken a step toward the
+    // ink, since the disc under it is darker than the page. On a dark one it
+    // is lifted toward white only as far as the disc needs (Celaut's coral
+    // disc on teal), so other palettes keep their accent as it is.
+    var letter = dark ? accentText : Color.lerp(accentText, ink, 0.3)!;
+    for (var t = 0.05; dark && _contrast(letter, top) < 4.5 && t <= 1; t += 0.05) {
+      letter = Color.lerp(accentText, Colors.white, t)!;
+    }
     return (
-      top: Color.alphaBlend(accent.withValues(alpha: dark ? 0.22 : 0.36), page),
+      top: top,
       bottom: Color.alphaBlend(accent.withValues(alpha: dark ? 0.12 : 0.16), page),
-      // On a light page the accent's text colour is taken a step toward the
-      // ink, since the disc under it is darker than the page.
-      letter: dark ? accentText : Color.lerp(accentText, ink, 0.3)!,
+      letter: letter,
     );
   }
   var hash = 0;
@@ -63,9 +72,24 @@ MonogramLook monogramLook({
   }
   final hue = _hues[hash % _hues.length];
   HSLColor at(double s, double l) => HSLColor.fromAHSL(1, hue, s, l);
-  return dark
+  final look = dark
       ? (top: at(0.22, 0.25).toColor(), bottom: at(0.24, 0.18).toColor(), letter: at(0.45, 0.82).toColor())
       : (top: at(0.42, 0.90).toColor(), bottom: at(0.38, 0.83).toColor(), letter: at(0.50, 0.26).toColor());
+  // A hue near the page's own can vanish into it (a teal disc on Celaut's
+  // teal): such a disc steps off the page, lighter on a dark one and darker
+  // on a light one. Other discs are left as they are.
+  if (_contrast(look.top, page) < 1.15 && _contrast(look.bottom, page) < 1.15) {
+    return dark
+        ? (top: at(0.22, 0.35).toColor(), bottom: at(0.24, 0.28).toColor(), letter: look.letter)
+        : (top: at(0.42, 0.84).toColor(), bottom: at(0.38, 0.77).toColor(), letter: look.letter);
+  }
+  return look;
+}
+
+double _contrast(Color a, Color b) {
+  final la = a.computeLuminance();
+  final lb = b.computeLuminance();
+  return (max(la, lb) + 0.05) / (min(la, lb) + 0.05);
 }
 
 /// Local-only token mark. Issuer URIs are inert, including for fungible tokens.
@@ -153,8 +177,8 @@ class TokenAvatar extends StatelessWidget {
         letterFor(tokenId: tokenId, label: label),
         textScaler: TextScaler.noScaling,
         style: TextStyle(
-          fontFamily: 'Newsreader',
-          fontWeight: FontWeight.w600,
+          fontFamily: headingFont,
+          fontWeight: FontWeight.w700,
           fontSize: radius * 0.9,
           height: 1,
           color: look.letter,

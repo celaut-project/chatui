@@ -45,7 +45,7 @@ void main() {
       ];
       final icons = <String, (Color, Color)>{
         'the selected tab': (colors.accentText, Color.alphaBlend(palette.accent.withValues(alpha: 0.22), palette.background)),
-        'the sync dot': (moss, palette.background),
+        'the sync dot': (dark ? mossBright : moss, palette.background),
       };
       for (final MapEntry(key: what, value: (fg, bg)) in icons.entries) {
         if (contrast(fg, bg) < 3) short.add('$what (${contrast(fg, bg).toStringAsFixed(2)})');

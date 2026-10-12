@@ -202,7 +202,7 @@ class _AddressHoldingRow extends StatelessWidget {
           ? TextSpan(
               children: [
                 if (shownAs)
-                  TextSpan(text: 'Shown as this wallet', style: TextStyle(color: accent, fontWeight: FontWeight.w500)),
+                  TextSpan(text: 'Shown as this wallet', style: TextStyle(color: accent, fontWeight: FontWeight.w700)),
                 if (named != null) TextSpan(text: shownAs ? '  ·  $named' : named),
               ],
             )

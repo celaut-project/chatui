@@ -78,7 +78,7 @@ class WalletNavBar extends StatelessWidget {
               ),
               labelTextStyle: WidgetStateProperty.resolveWith(
                 (states) => TextStyle(
-                  fontFamily: 'Karla',
+                  fontFamily: bodyFont,
                   fontSize: 13,
                   letterSpacing: 0.3,
                   color: states.contains(WidgetState.selected) ? colors.accentText : colors.muted,

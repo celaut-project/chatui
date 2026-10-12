@@ -160,7 +160,7 @@ class CleanupSuggestionCard extends StatelessWidget {
               Icon(
                 Icons.auto_fix_high_outlined,
                 size: 18,
-                color: accentOf(context),
+                color: accentTextOf(context),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -174,7 +174,7 @@ class CleanupSuggestionCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Merge $n$of boxes at ${shorten(s.address, head: 6, tail: 4)} $into.',
-            style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w500),
+            style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
           ),
           for (final reason in reasons) ...[
             const SizedBox(height: 4),
@@ -303,7 +303,7 @@ class RentSummaryLine extends StatelessWidget {
                 ? null
                 : TextStyle(
                     color: rustFor(context),
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w700,
                   ),
           ),
           TextSpan(text: ' $dust$rate'),

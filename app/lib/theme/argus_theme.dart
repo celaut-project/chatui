@@ -2,23 +2,49 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
-const iris = Color(0xFFC4A46A);
-/// Brand iris darkened for text/buttons on light paper (~6.4:1 vs ~2.1:1).
-const irisDeep = Color(0xFF6B5320);
-const ink = Color(0xFF0E0D0B);
-const watchfulSurface = Color(0xFF171512);
-const bone = Color(0xFFEDE6D6);
-const watchfulMuted = Color(0xFFA69E8F);
-const paper = Color(0xFFF5F1E8);
-const ledgerSurface = Color(0xFFFEFCF7);
-const ledgerInk = Color(0xFF1C1914);
-const ledgerMuted = Color(0xFF6B6458);
-const rust = Color(0xFFB54A3C);
-/// Brand rust brightened to a clear coral for text on dark ink (about
-/// 7:1, where [rust] manages about 3.6:1).
-const rustBright = Color(0xFFFF8A73);
+// The Celaut colours, from the landing page's tokens (app.css). The two
+// default palettes are built from them: deep teal with cream type (dark) and
+// warm cream with teal type (light).
+
+/// The brand coral. Decorative only: fills, borders, rules, marks. On cream
+/// it reads about 1.9:1, so it is never a text colour; text in the accent
+/// takes [PaletteSpec.accentText].
+const coral = Color(0xFFEF9C82);
+
+/// Coral lifted for text and icons on the dark teal (about 6.6:1).
+const coralText = Color(0xFFF2A98F);
+
+/// Deep terracotta for accented text and headings on cream (about 5.5:1).
+const terracotta = Color(0xFFA6431F);
+
+/// The landing's second decorative channel: mint cells in the brand mark.
+const mint = Color(0xFF6FE3C4);
+
+/// Deep teal: the dark page, and type on light grounds where a fixed dark
+/// is needed.
+const ink = Color(0xFF12302E);
+const watchfulSurface = Color(0xFF173937);
+
+/// The deepest teal: type on a coral fill in the dark palette.
+const tealDeep = Color(0xFF0A1F1E);
+
+/// Warm cream: the dark palette's type, and type on rust.
+const bone = Color(0xFFF2ECE6);
+const watchfulMuted = Color(0xFFBACAC7);
+
+/// Warm cream page of the light palette, its white cards and teal type.
+const paper = Color(0xFFFBF5EF);
+const ledgerSurface = Color(0xFFFFFFFF);
+const ledgerInk = Color(0xFF143331);
+const ledgerMuted = Color(0xFF3D5B58);
+const bannerTint = Color(0xFFF1E6DA);
+
+/// Error red, held off the coral's hue so a fault never reads as the accent.
+const rust = Color(0xFFB42335);
+/// Error red brightened for text on dark grounds (about 6.3:1 on the teal,
+/// where [rust] manages about 2.2:1).
+const rustBright = Color(0xFFFF8A9A);
 const moss = Color(0xFF1A7A47);
-const bannerTint = Color(0xFFF0E6D2);
 
 /// Palette-aware rust for *text*: the brand rust fails WCAG on dark
 /// surfaces, so dark mode gets [rustBright]. Icons and borders keep [rust].
@@ -28,8 +54,12 @@ Color rustFor(BuildContext context) =>
 const cardRadius = 20.0;
 const buttonRadius = 14.0;
 
-/// Accent colour for the current palette (gold on Watchful and Ledger).
+/// Accent colour for the current palette (coral on the Celaut palettes).
+/// Decorative: fills, borders, marks. Text and icons take [accentTextOf].
 Color accentOf(BuildContext context) => ArgusColors.of(context).accent;
+
+/// The accent as text or an icon, contrast-safe on the current palette.
+Color accentTextOf(BuildContext context) => ArgusColors.of(context).accentText;
 
 /// The colours of the scene the home pages open on: a sky that settles
 /// into the page, a glow of the accent (an eclipse's rim on the overview, a
@@ -66,6 +96,7 @@ class SceneSpec {
   factory SceneSpec.of(PaletteSpec p) {
     final bg = p.background;
     final a = p.accent;
+    final k = p.sceneGlow;
     Color mix(Color x, Color y, double t) => Color.lerp(x, y, t)!;
     // A light mark on Send (Parchment's sage) needs the accent darkened, not
     // lifted, under it.
@@ -77,12 +108,12 @@ class SceneSpec {
         // The far crests catch the light, a shade above the sky; the main
         // range and the near ridge are darker than the page, masses against
         // the haze.
-        sky: mix(bg, a, 0.075),
-        haze: a.withValues(alpha: 0.12),
-        lit: a.withValues(alpha: 0.18),
+        sky: mix(bg, a, 0.075 * k),
+        haze: a.withValues(alpha: 0.12 * k),
+        lit: a.withValues(alpha: 0.18 * k),
         glow: a,
         rimLight: mix(a, Colors.white, 0.35),
-        ridges: [mix(bg, a, 0.10), mix(bg, Colors.black, 0.25), mix(bg, Colors.black, 0.4)],
+        ridges: [mix(bg, a, 0.10 * k), mix(bg, Colors.black, 0.25), mix(bg, Colors.black, 0.4)],
         glassFill: Colors.white.withValues(alpha: 0.05),
         glassBorder: Colors.white.withValues(alpha: 0.11),
         glassSheen: Colors.white.withValues(alpha: 0.035),
@@ -98,12 +129,12 @@ class SceneSpec {
       // On a light page the scene is luminous rather than dark: a sky paler
       // than the page, the light a white haze, the ridges barely tinted.
       // Darkening it would cost the page's type its contrast.
-      sky: mix(p.surface, a, 0.03),
+      sky: mix(p.surface, a, 0.03 * k),
       haze: Colors.white.withValues(alpha: 0.55),
       lit: Colors.white.withValues(alpha: 0.6),
       glow: mix(a, Colors.black, 0.1),
       rimLight: Colors.white,
-      ridges: [mix(p.surface, a, 0.07), mix(p.surface, a, 0.045), mix(p.surface, a, 0.02)],
+      ridges: [mix(p.surface, a, 0.07 * k), mix(p.surface, a, 0.045 * k), mix(p.surface, a, 0.02 * k)],
       glassFill: Colors.white.withValues(alpha: 0.62),
       glassBorder: p.ink.withValues(alpha: 0.08),
       glassSheen: Colors.white.withValues(alpha: 0.55),
@@ -151,8 +182,9 @@ class SceneSpec {
   final Color onSend;
 }
 
-/// One complete palette. Two ship as the defaults (Watchful, Ledger); the
-/// rest are alternatives the user can pick per brightness.
+/// One complete palette. Two ship as the defaults, the Celaut palettes (ids
+/// 'watchful' and 'ledger', kept so stored choices still resolve); the rest
+/// are alternatives the user can pick per brightness.
 class PaletteSpec {
   const PaletteSpec({
     required this.id,
@@ -170,7 +202,9 @@ class PaletteSpec {
     required this.accent,
     required this.onAccent,
     required this.accentText,
-  });
+    Color? heading,
+    this.sceneGlow = 1,
+  }) : _heading = heading;
 
   final String id;
   final String name;
@@ -190,25 +224,39 @@ class PaletteSpec {
   /// Accent as text on this background, contrast-safe.
   final Color accentText;
 
+  /// Serif headings (page and dialog titles); the ink unless the palette
+  /// sets its own, as Celaut's light palette does with terracotta.
+  Color get heading => _heading ?? ink;
+  final Color? _heading;
+
+  /// How strongly the accent tints the home scene's sky, haze and ridges.
+  /// The scene was tuned on near-black pages; a lighter dark page (Celaut's
+  /// teal) takes less, so the balance and its lines keep WCAG AA on it.
+  final double sceneGlow;
+
   /// The scene the home pages open on.
   SceneSpec get scene => SceneSpec.of(this);
 
   bool get isDark => brightness == Brightness.dark;
 }
 
+/// Celaut, dark: the landing page's deep teal, cream type, coral accent.
 const watchfulPalette = PaletteSpec(
-  id: 'watchful', name: 'Watchful', hint: 'Warm black, cream type, gold', brightness: Brightness.dark,
-  background: ink, surface: watchfulSurface, surfaceHigh: Color(0xFF201D18),
+  id: 'watchful', name: 'Celaut Teal', hint: 'Teal, cream type, coral', brightness: Brightness.dark,
+  background: ink, surface: watchfulSurface, surfaceHigh: Color(0xFF1C4442),
   ink: bone, muted: watchfulMuted,
-  outline: Color(0xFF2E2A23), cardBorder: Color(0xFF26231D), chip: watchfulSurface,
-  accent: Color(0xFFC9A35A), onAccent: ink, accentText: Color(0xFFC9A35A),
+  // Cream at 28% and 14% over the page: the landing's border-strong and border.
+  outline: Color(0xFF3F5C59), cardBorder: Color(0xFF334F4C), chip: watchfulSurface,
+  accent: coral, onAccent: tealDeep, accentText: coralText, sceneGlow: 0.5,
 );
 
+/// Celaut, light: warm cream, teal type, terracotta headings and accented
+/// text over the same decorative coral.
 const ledgerPalette = PaletteSpec(
-  id: 'ledger', name: 'Ledger', hint: 'Warm paper, dark ink, gold', brightness: Brightness.light,
-  background: paper, surface: ledgerSurface, surfaceHigh: Color(0xFFEDE4D4), ink: ledgerInk, muted: ledgerMuted,
-  outline: Color(0xFFD4C8B4), cardBorder: Color(0xFFEDE4D3), chip: bannerTint,
-  accent: iris, onAccent: ink, accentText: irisDeep,
+  id: 'ledger', name: 'Celaut Cream', hint: 'Cream, teal type, coral', brightness: Brightness.light,
+  background: paper, surface: ledgerSurface, surfaceHigh: Color(0xFFF3E9DF), ink: ledgerInk, muted: ledgerMuted,
+  outline: Color(0xFFBCC0B9), cardBorder: Color(0xFFDCDCD5), chip: bannerTint,
+  accent: coral, onAccent: Color(0xFF14322F), accentText: terracotta, heading: terracotta,
 );
 
 const obsidianPalette = PaletteSpec(
@@ -265,9 +313,9 @@ class ArgusColors extends ThemeExtension<ArgusColors> {
     required this.cardBorder,
     required this.inset,
     required this.chip,
-    this.accent = iris,
-    this.onAccent = ink,
-    this.accentText = iris,
+    this.accent = coral,
+    this.onAccent = tealDeep,
+    this.accentText = coralText,
     this.scene,
   });
 
@@ -309,17 +357,19 @@ class ArgusColors extends ThemeExtension<ArgusColors> {
   /// Small tinted container (icon wells, badges).
   final Color chip;
 
+  /// The default palettes' colours, for a theme without the extension.
   static const light = ArgusColors(
     muted: ledgerMuted,
-    cardBorder: Color(0xFFEDE4D3),
+    cardBorder: Color(0xFFDCDCD5),
     inset: paper,
     chip: bannerTint,
-    accentText: irisDeep,
+    onAccent: Color(0xFF14322F),
+    accentText: terracotta,
   );
 
   static const dark = ArgusColors(
     muted: watchfulMuted,
-    cardBorder: Color(0xFF26231D),
+    cardBorder: Color(0xFF334F4C),
     inset: ink,
     chip: watchfulSurface,
   );
@@ -366,6 +416,12 @@ class ArgusColors extends ThemeExtension<ArgusColors> {
   }
 }
 
+/// The heading face: Playfair Display, 500, 700 and 800.
+const headingFont = 'Playfair Display';
+
+/// The body face: Lato, 400 and 700.
+const bodyFont = 'Lato';
+
 ThemeData argusTheme({required bool watchful}) =>
     argusThemeFor(watchful ? watchfulPalette : ledgerPalette);
 
@@ -391,52 +447,60 @@ ThemeData argusThemeFor(PaletteSpec p) {
     colorScheme: scheme,
     scaffoldBackgroundColor: p.background,
     canvasColor: p.background,
-    fontFamily: 'Karla',
+    fontFamily: bodyFont,
   );
 
-  final text = base.textTheme.copyWith(
+  // Headings in Playfair Display, the rest in Lato, as on the landing page.
+  // Lato ships 400 and 700 only, so emphasis is 700.
+  final applied = base.textTheme.copyWith(
     displayLarge: const TextStyle(
-      fontFamily: 'Newsreader',
-      fontWeight: FontWeight.w600,
+      fontFamily: headingFont,
+      fontWeight: FontWeight.w700,
       fontSize: 56,
       height: 0.95,
       letterSpacing: -1.2,
     ),
     headlineSmall: const TextStyle(
-      fontFamily: 'Newsreader',
-      fontWeight: FontWeight.w600,
+      fontFamily: headingFont,
+      fontWeight: FontWeight.w700,
       fontSize: 28,
-      height: 1.1,
+      height: 1.15,
     ),
     titleLarge: const TextStyle(
-      fontFamily: 'Newsreader',
-      fontWeight: FontWeight.w600,
+      fontFamily: headingFont,
+      fontWeight: FontWeight.w700,
       fontSize: 22,
     ),
     titleMedium: const TextStyle(
-      fontFamily: 'Karla',
-      fontWeight: FontWeight.w500,
+      fontFamily: bodyFont,
+      fontWeight: FontWeight.w700,
       fontSize: 16,
       letterSpacing: 0.1,
     ),
     titleSmall: const TextStyle(
-      fontFamily: 'Karla',
-      fontWeight: FontWeight.w500,
+      fontFamily: bodyFont,
+      fontWeight: FontWeight.w700,
       fontSize: 13,
       letterSpacing: 1.4,
     ),
-    bodyLarge: const TextStyle(fontFamily: 'Karla', fontSize: 16, height: 1.45),
-    bodyMedium: const TextStyle(fontFamily: 'Karla', fontSize: 14, height: 1.45),
-    bodySmall: const TextStyle(fontFamily: 'Karla', fontSize: 12, height: 1.4),
+    bodyLarge: const TextStyle(fontFamily: bodyFont, fontSize: 16, height: 1.45),
+    bodyMedium: const TextStyle(fontFamily: bodyFont, fontSize: 14, height: 1.45),
+    bodySmall: const TextStyle(fontFamily: bodyFont, fontSize: 12, height: 1.4),
     labelLarge: const TextStyle(
-      fontFamily: 'Karla',
-      fontWeight: FontWeight.w500,
+      fontFamily: bodyFont,
+      fontWeight: FontWeight.w700,
       fontSize: 14,
       letterSpacing: 0.4,
     ),
   ).apply(
     bodyColor: p.ink,
     displayColor: p.ink,
+  );
+  // The serif headings take the palette's heading colour.
+  final text = applied.copyWith(
+    displayLarge: applied.displayLarge?.copyWith(color: p.heading),
+    headlineSmall: applied.headlineSmall?.copyWith(color: p.heading),
+    titleLarge: applied.titleLarge?.copyWith(color: p.heading),
   );
 
   return base.copyWith(
@@ -478,6 +542,21 @@ ThemeData argusThemeFor(PaletteSpec p) {
         borderSide: BorderSide(color: p.accent, width: 1.2),
       ),
       labelStyle: TextStyle(color: p.muted),
+      // Left to the scheme, a focused field's label took the decorative
+      // accent; as text it takes the accent's text colour.
+      floatingLabelStyle: WidgetStateTextStyle.resolveWith(
+        (states) => TextStyle(color: states.contains(WidgetState.focused) ? p.accentText : p.muted),
+      ),
+    ),
+    textSelectionTheme: TextSelectionThemeData(
+      cursorColor: p.accentText,
+      selectionHandleColor: p.accentText,
+      selectionColor: p.accent.withValues(alpha: 0.35),
+    ),
+    tabBarTheme: TabBarThemeData(
+      labelColor: p.accentText,
+      unselectedLabelColor: p.muted,
+      indicatorColor: p.accent,
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
@@ -489,8 +568,8 @@ ThemeData argusThemeFor(PaletteSpec p) {
           borderRadius: BorderRadius.circular(buttonRadius),
         ),
         textStyle: const TextStyle(
-          fontFamily: 'Karla',
-          fontWeight: FontWeight.w500,
+          fontFamily: bodyFont,
+          fontWeight: FontWeight.w700,
           letterSpacing: 0.6,
         ),
       ),
@@ -529,13 +608,13 @@ ThemeData argusThemeFor(PaletteSpec p) {
         (states) => text.bodySmall?.copyWith(
           letterSpacing: 0.6,
           color: states.contains(WidgetState.selected) ? p.ink : p.muted,
-          fontWeight: states.contains(WidgetState.selected) ? FontWeight.w500 : FontWeight.w400,
+          fontWeight: states.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w400,
         ),
       ),
     ),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: watchful ? p.surface : p.ink,
-      contentTextStyle: TextStyle(fontFamily: 'Karla', color: watchful ? p.ink : p.background),
+      contentTextStyle: TextStyle(fontFamily: bodyFont, color: watchful ? p.ink : p.background),
     ),
     progressIndicatorTheme: ProgressIndicatorThemeData(color: p.accent),
     dialogTheme: DialogThemeData(
@@ -558,13 +637,16 @@ TextStyle monoStyle(BuildContext context, {double size = 13}) {
 
 class Hairline extends StatelessWidget {
   const Hairline({super.key, this.gold = false});
+
+  /// Drawn in the palette's accent rather than the divider colour (the
+  /// name is from when the accent was gold).
   final bool gold;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 1,
-      color: gold ? iris : Theme.of(context).dividerColor,
+      color: gold ? accentOf(context) : Theme.of(context).dividerColor,
     );
   }
 }
@@ -579,9 +661,7 @@ class SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final muted = Theme.of(context).brightness == Brightness.dark
-        ? watchfulMuted
-        : ledgerMuted;
+    final muted = ArgusColors.of(context).muted;
     return Row(
       children: [
         Text(
@@ -600,7 +680,7 @@ class SectionLabel extends StatelessWidget {
               scope!.toUpperCase(),
               style: TextStyle(
                 fontSize: 9,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 letterSpacing: 0.5,
                 color: muted,
               ),
@@ -625,7 +705,7 @@ class StepDots extends StatelessWidget {
           width: i == index ? 22 : 7,
           height: 7,
           margin: const EdgeInsets.only(right: 6),
-          color: i == index ? iris : Theme.of(context).dividerColor,
+          color: i == index ? accentOf(context) : Theme.of(context).dividerColor,
         );
       }),
     );
@@ -658,41 +738,112 @@ Route<T> fadeRoute<T>(Widget page, {RouteSettings? settings}) {
   );
 }
 
-class IrisMark extends StatelessWidget {
-  const IrisMark({super.key, this.size = 56});
+/// The Celaut mark: a Game-of-Life glider on a faint grid of cells, with
+/// the one cell its next generation brings to life in mint. The same
+/// drawing as the launcher icon, in the current palette's colours.
+class CellMark extends StatelessWidget {
+  const CellMark({super.key, this.size = 56});
   final double size;
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(size: Size.square(size), painter: _IrisPainter());
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final colors = ArgusColors.of(context);
+    return ExcludeSemantics(
+      child: CustomPaint(
+        size: Size.square(size),
+        painter: CellMarkPainter(
+          live: colors.accent,
+          // Mint reads on the teal; on a light page it takes the landing's
+          // deep viz green so the cell keeps its edge.
+          born: dark ? mint : const Color(0xFF0F6B58),
+          grid: theme.colorScheme.onSurface.withValues(alpha: dark ? 0.10 : 0.08),
+        ),
+      ),
+    );
   }
 }
 
-class _IrisPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size canvasSize) {
-    final side = canvasSize.shortestSide;
-    final stroke = Paint()
-      ..color = iris
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = side * 0.07;
-    final c = Offset(canvasSize.width / 2, canvasSize.height / 2);
-    final r = side * 0.36;
-    canvas.drawCircle(c, r, stroke);
+/// Paints [CellMark]: a grid five cells wide and four high, the glider in
+/// its middle three columns and the born cell under it. The empty cells
+/// are faint and fade toward the corners, as the launcher icon's grid does.
+class CellMarkPainter extends CustomPainter {
+  const CellMarkPainter({required this.live, required this.born, required this.grid});
 
-    const ang = -0.5235987755982988; // 2 o'clock
-    final outer = Offset(c.dx + cos(ang) * r, c.dy + sin(ang) * r);
-    final inward = Offset(c.dx + cos(ang) * r * 0.52, c.dy + sin(ang) * r * 0.52);
-    const perp = ang + 1.5707963267948966;
-    final half = side * 0.055;
-    final path = Path()
-      ..moveTo(outer.dx + cos(perp) * half, outer.dy + sin(perp) * half)
-      ..lineTo(inward.dx, inward.dy)
-      ..lineTo(outer.dx - cos(perp) * half, outer.dy - sin(perp) * half)
-      ..close();
-    canvas.drawPath(path, Paint()..color = iris);
+  final Color live;
+  final Color born;
+  final Color grid;
+
+  /// The glider, moving down and to the right, by column and row.
+  static const glider = [(2, 0), (3, 1), (1, 2), (2, 2), (3, 2)];
+
+  /// The cell its next generation gives birth to.
+  static const bornCell = (2, 3);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final side = size.shortestSide;
+    final pitch = side / 5;
+    final cell = pitch * 0.84;
+    final radius = Radius.circular(cell * 0.2);
+    // Four rows, centred in the square.
+    final origin = Offset((size.width - side) / 2, (size.height - side) / 2 + pitch / 2);
+    final livePaint = Paint()..color = live;
+    final bornPaint = Paint()..color = born;
+    final gridAlpha = grid.a;
+    for (var r = 0; r < 4; r++) {
+      for (var c = 0; c < 5; c++) {
+        final rect = Rect.fromLTWH(
+          origin.dx + c * pitch + (pitch - cell) / 2,
+          origin.dy + r * pitch + (pitch - cell) / 2,
+          cell,
+          cell,
+        );
+        final Paint paint;
+        if (glider.contains((c, r))) {
+          paint = livePaint;
+        } else if ((c, r) == bornCell) {
+          paint = bornPaint;
+        } else {
+          final dx = c - 2.0, dy = r - 1.5;
+          final fade = ((2.7 - sqrt(dx * dx + dy * dy)) / 1.2).clamp(0.0, 1.0);
+          if (fade == 0) continue;
+          paint = Paint()..color = grid.withValues(alpha: gridAlpha * fade);
+        }
+        canvas.drawRRect(RRect.fromRectAndRadius(rect, radius), paint);
+      }
+    }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(CellMarkPainter oldDelegate) =>
+      oldDelegate.live != live || oldDelegate.born != born || oldDelegate.grid != grid;
+}
+
+/// The wordmark beside [CellMark]: CELAUT in Playfair Display 800, widely
+/// tracked, in the accent's text colour, as on the landing page.
+class CelautWordmark extends StatelessWidget {
+  const CelautWordmark({super.key, this.size = 26, this.textAlign});
+  final double size;
+  final TextAlign? textAlign;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      'CELAUT',
+      semanticsLabel: 'Celaut',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: textAlign,
+      style: TextStyle(
+        fontFamily: headingFont,
+        fontWeight: FontWeight.w800,
+        fontSize: size,
+        height: 1.1,
+        letterSpacing: size * 0.06,
+        color: accentTextOf(context),
+      ),
+    );
+  }
 }

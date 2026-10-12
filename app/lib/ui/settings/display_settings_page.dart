@@ -141,7 +141,7 @@ class _PaletteRow extends StatelessWidget {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       '1,277.94',
-                      style: TextStyle(fontFamily: 'Newsreader', fontWeight: FontWeight.w600, fontSize: 16, color: p.ink),
+                      style: TextStyle(fontFamily: headingFont, fontWeight: FontWeight.w700, fontSize: 16, color: p.ink),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -151,7 +151,7 @@ class _PaletteRow extends StatelessWidget {
                       const SizedBox(width: 6),
                       Container(width: 22, height: 22, decoration: BoxDecoration(color: p.muted, borderRadius: BorderRadius.circular(6))),
                       const Spacer(),
-                      if (on) Icon(Icons.check_circle, size: 18, color: p.accent),
+                      if (on) Icon(Icons.check_circle, size: 18, color: p.accentText),
                     ],
                   ),
                   const Spacer(),

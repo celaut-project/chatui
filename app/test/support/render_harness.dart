@@ -294,7 +294,7 @@ Future<void> saveFrameStrip(
       Paint()..filterQuality = FilterQuality.high,
     );
     final text = TextPainter(
-      text: TextSpan(text: '${time.inMilliseconds} ms', style: TextStyle(fontFamily: 'Karla', fontSize: 14, color: caption)),
+      text: TextSpan(text: '${time.inMilliseconds} ms', style: TextStyle(fontFamily: bodyFont, fontSize: 14, color: caption)),
       textDirection: TextDirection.ltr,
     )..layout();
     text.paint(canvas, Offset(x + (source.width - text.width) / 2, gap + source.height + 6));

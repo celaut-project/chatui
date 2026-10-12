@@ -102,7 +102,7 @@ class WalletPageScreen extends StatelessWidget {
                       ],
                       Text(
                         subtitle!,
-                        style: t.secondary.copyWith(fontFamily: 'Karla', fontSize: 14, color: subtitleLive ? live : t.muted),
+                        style: t.secondary.copyWith(fontFamily: bodyFont, fontSize: 14, color: subtitleLive ? live : t.muted),
                       ),
                     ],
                   ),
@@ -369,7 +369,7 @@ class WalletPageView extends StatelessWidget {
         ),
         text: TextSpan(
           children: [
-            TextSpan(text: word, style: TextStyle(color: problem ? rustFor(context) : t.ink, fontWeight: FontWeight.w500)),
+            TextSpan(text: word, style: TextStyle(color: problem ? rustFor(context) : t.ink, fontWeight: FontWeight.w700)),
             for (final p in parts) TextSpan(text: '  ·  $p'),
           ],
         ),
@@ -385,7 +385,7 @@ class WalletPageView extends StatelessWidget {
             for (final (i, s) in watched.status.indexed)
               TextSpan(
                 text: i == 0 ? s : '  ·  ${whole(s)}',
-                style: i == 0 ? TextStyle(color: t.ink, fontWeight: FontWeight.w500) : null,
+                style: i == 0 ? TextStyle(color: t.ink, fontWeight: FontWeight.w700) : null,
               ),
           ],
         ),
@@ -418,7 +418,7 @@ class WalletPageView extends StatelessWidget {
         text: TextSpan(
           children: [
             TextSpan(text: utxoText, style: TextStyle(color: t.ink)),
-            TextSpan(text: ' · Fragmented', style: TextStyle(color: rustFor(context), fontWeight: FontWeight.w500)),
+            TextSpan(text: ' · Fragmented', style: TextStyle(color: rustFor(context), fontWeight: FontWeight.w700)),
           ],
         ),
       ));

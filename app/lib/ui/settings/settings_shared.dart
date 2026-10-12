@@ -40,7 +40,7 @@ class SettingsRow extends StatelessWidget {
                 color: colors.chip,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, size: 19, color: danger ? rustFor(context) : accentOf(context)),
+              child: Icon(icon, size: 19, color: danger ? rustFor(context) : accentTextOf(context)),
             ),
             const SizedBox(width: 14),
             Expanded(

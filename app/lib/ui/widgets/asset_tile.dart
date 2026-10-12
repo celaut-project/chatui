@@ -108,7 +108,7 @@ class AssetTile extends StatelessWidget {
           : '$amountText $ticker',
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14.5),
+      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
     );
     final fiat = fiatText == null
         ? null
@@ -145,7 +145,7 @@ class AssetTile extends StatelessWidget {
                       ),
                       if (verified && !isErg) ...[
                         const SizedBox(width: 4),
-                        Icon(Icons.verified, size: 15, color: accentOf(context)),
+                        Icon(Icons.verified, size: 15, color: accentTextOf(context)),
                       ],
                       if (caution) ...[
                         const SizedBox(width: 4),

@@ -1,8 +1,8 @@
 // The overview and a wallet's page drawn from the figures in the look the
 // user chose (two phone screens: the overview and Main Wallet), in
-// Watchful, Harbor and a light palette, checked for layout errors, 48 dp
+// Celaut Teal, Harbor and Celaut Cream, checked for layout errors, 48 dp
 // targets and labelled controls. To also save PNGs under
-// <repo>/ui-renders/ref/, each Watchful one beside the reference when the
+// <repo>/ui-renders/ref/, each Celaut Teal one beside the reference when the
 // reference is on this machine (ARGUS_REFERENCE names it):
 //
 //   ARGUS_UI_RENDERS=1 ARGUS_REFERENCE=/path/to/reference.png \

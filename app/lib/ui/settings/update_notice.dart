@@ -36,19 +36,18 @@ class _UpdateNoticeState extends State<UpdateNotice> {
       builder: (context, _) {
         final release = _updates.available;
         if (release == null || !_updates.noticeVisible) return const SizedBox.shrink();
-        final dark = Theme.of(context).brightness == Brightness.dark;
         return Padding(
           padding: const EdgeInsets.only(bottom: 16),
           child: Container(
             key: const Key('update-notice'),
             padding: const EdgeInsets.fromLTRB(14, 6, 4, 6),
             decoration: BoxDecoration(
-              color: dark ? watchfulSurface : bannerTint,
+              color: ArgusColors.of(context).chip,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               children: [
-                const Icon(Icons.system_update_outlined, size: 18, color: iris),
+                Icon(Icons.system_update_outlined, size: 18, color: accentTextOf(context)),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(

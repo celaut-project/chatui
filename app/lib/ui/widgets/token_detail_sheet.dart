@@ -264,7 +264,7 @@ class _TokenDetailBody extends StatelessWidget {
                             Icon(
                               Icons.verified,
                               size: 18,
-                              color: accentOf(context),
+                              color: accentTextOf(context),
                             ),
                           ],
                           if (caution != null) ...[
@@ -284,7 +284,7 @@ class _TokenDetailBody extends StatelessWidget {
                             : token.classification,
                         style: TextStyle(
                           fontSize: 12.5,
-                          color: verified != null ? accentOf(context) : muted,
+                          color: verified != null ? accentTextOf(context) : muted,
                         ),
                       ),
                     ],
@@ -388,8 +388,8 @@ class _TokenDetailBody extends StatelessWidget {
             Text(
               scaled ? '$amount $ticker' : amount,
               style: const TextStyle(
-                fontFamily: 'Newsreader',
-                fontWeight: FontWeight.w600,
+                fontFamily: headingFont,
+                fontWeight: FontWeight.w700,
                 fontSize: 28,
               ),
             ),

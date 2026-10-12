@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../format.dart';
 import '../../theme/argus_theme.dart';
+import '../../theme/argus_tones.dart';
 import 'home_format.dart';
 import 'home_glass.dart';
 import 'home_models.dart';
@@ -216,10 +217,10 @@ class HomeBalance extends StatelessWidget {
   Widget _numeral(BuildContext context) {
     final t = HomeText.of(context);
     final nano = nanoErg;
-    // Newsreader at display size: the one serif figure on the page, large
+    // Playfair Display at display size: the one serif figure on the page, large
     // enough to read across a room.
     final style = TextStyle(
-      fontFamily: 'Newsreader',
+      fontFamily: headingFont,
       fontWeight: FontWeight.w500,
       fontSize: 46,
       height: 1.08,
@@ -276,7 +277,7 @@ class HomeBalance extends StatelessWidget {
             TextSpan(
               text: '${nbsp}ERG',
               style: TextStyle(
-                fontFamily: 'Karla',
+                fontFamily: bodyFont,
                 fontSize: 17,
                 fontWeight: FontWeight.w400,
                 letterSpacing: 1.6,
@@ -304,10 +305,10 @@ class HomeBalance extends StatelessWidget {
         child: Text(
           hidden ? '≈$nbsp${fiat.currency.symbol}$maskedFigure' : fiatFigure(fiat.value, fiat.currency),
           style: TextStyle(
-            fontFamily: 'Newsreader',
+            fontFamily: headingFont,
             fontSize: 21,
             height: 1.2,
-            fontWeight: FontWeight.w400,
+            fontWeight: FontWeight.w500,
             color: t.ink,
             fontFeatures: const [FontFeature.liningFigures()],
           ),
@@ -356,7 +357,7 @@ class HomePendingLine extends StatelessWidget {
           child: Icon(Icons.schedule, size: 14, color: t.ink),
         ),
         const SizedBox(width: 4),
-        Flexible(child: Text(text, style: t.secondary.copyWith(color: t.ink, fontWeight: FontWeight.w500))),
+        Flexible(child: Text(text, style: t.secondary.copyWith(color: t.ink, fontWeight: FontWeight.w700))),
       ],
     );
   }
@@ -418,7 +419,9 @@ class IdentityPill extends StatelessWidget {
 /// The word for a status, its dot, and whether it is a problem.
 (String, Color, bool) syncLook(BuildContext context, NetworkStatus status) {
   final (word, dot) = switch (status.state) {
-    SyncState.synced => ('Synced', moss),
+    // The bright moss on a dark page: the brand moss is under 3:1 on
+    // Celaut's teal.
+    SyncState.synced => ('Synced', mossFor(context)),
     SyncState.syncing => ('Syncing…', ArgusColors.of(context).accent),
     SyncState.partial => ('Not synced', ArgusColors.of(context).accent),
     SyncState.stale => ('Out of sync', rustFor(context)),
@@ -486,7 +489,7 @@ class HomeLineRow extends StatelessWidget {
           ),
           if (action != null) ...[
             const SizedBox(width: 12),
-            Text(action!, style: t.secondary.copyWith(color: accent, fontWeight: FontWeight.w500)),
+            Text(action!, style: t.secondary.copyWith(color: accent, fontWeight: FontWeight.w700)),
           ],
           if (onTap != null && trailing == null && chevron)
             Icon(Icons.chevron_right, size: 18, color: action != null ? accent : t.muted),
@@ -547,7 +550,7 @@ class ErgPriceStrip extends StatelessWidget {
                   text: '   ${percentChange(change!)}',
                   style: t.secondary.copyWith(
                     color: rising ? tones.positive : tones.negative,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
             ],

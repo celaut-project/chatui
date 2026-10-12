@@ -62,16 +62,23 @@ flutter:
   uses-material-design: true
 
   fonts:
-    - family: Newsreader
+    # Playfair Display (headings) and Lato (body), as on the Celaut
+    # landing page. Both under the SIL OFL 1.1: see the *-OFL.txt files
+    # next to them. The Playfair cuts are static instances of the Google
+    # Fonts variable font (fontTools varLib.instancer, wght 500/700/800).
+    - family: Playfair Display
       fonts:
-        - asset: assets/fonts/Newsreader-Regular.ttf
-        - asset: assets/fonts/Newsreader-Semibold.ttf
-          weight: 600
-    - family: Karla
-      fonts:
-        - asset: assets/fonts/Karla-Regular.ttf
-        - asset: assets/fonts/Karla-Medium.ttf
+        - asset: assets/fonts/PlayfairDisplay-Medium.ttf
           weight: 500
+        - asset: assets/fonts/PlayfairDisplay-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/PlayfairDisplay-ExtraBold.ttf
+          weight: 800
+    - family: Lato
+      fonts:
+        - asset: assets/fonts/Lato-Regular.ttf
+        - asset: assets/fonts/Lato-Bold.ttf
+          weight: 700
     - family: IBMPlexMono
       fonts:
         - asset: assets/fonts/IBMPlexMono-Regular.ttf

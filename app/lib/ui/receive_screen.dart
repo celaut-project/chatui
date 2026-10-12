@@ -193,7 +193,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                           color: accentOf(context).withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text(label, style: TextStyle(color: accentOf(context), fontSize: 12)),
+                        child: Text(label, style: TextStyle(color: accentTextOf(context), fontSize: 12)),
                       ),
                     if (label != null) const SizedBox(width: 8),
                     TextButton.icon(

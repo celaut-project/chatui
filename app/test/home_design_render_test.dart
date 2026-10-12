@@ -1,5 +1,5 @@
 // The home screens, rendered from sample data on a 390x844 phone in the
-// dark (Watchful), light (Ledger) and teal (Harbor) palettes at normal
+// dark (Celaut Teal), light (Celaut Cream) and teal (Harbor) palettes at normal
 // text and in the dark one at 2x, and checked for layout errors, 48 dp
 // touch targets, labelled controls, screen-reader sentences and hidden
 // balances. Text contrast is checked from the palette tokens in
