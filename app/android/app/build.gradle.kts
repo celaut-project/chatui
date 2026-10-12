@@ -6,8 +6,10 @@ plugins {
 }
 
 // Release signing comes from the environment (see example.env). Debug
-// builds need none of it.
+// builds need none of it. CI sets CHATUI_UNSIGNED_RELEASE=1 to build the
+// release APKs unsigned; scripts/sign_release.sh signs them with the local key.
 val releaseStore: String? = System.getenv("ARGUS_KEYSTORE")
+val unsignedRelease = System.getenv("CHATUI_UNSIGNED_RELEASE") == "1"
 
 android {
     namespace = "org.celaut.chatui"
@@ -75,7 +77,9 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            if (!releaseStore.isNullOrBlank()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -95,7 +99,7 @@ gradle.taskGraph.whenReady {
         task.project.path == project.path &&
             Regex("^(assemble|package|bundle)\\w*Release$").matches(task.name)
     }
-    if (buildsRelease) {
+    if (buildsRelease && !unsignedRelease) {
         require(!releaseStore.isNullOrBlank()) {
             "Release builds require ARGUS_KEYSTORE. Copy example.env to .env and set the signing values."
         }

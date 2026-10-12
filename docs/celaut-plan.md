@@ -257,6 +257,13 @@ onion addresses for nodes are nodo work (decision 7 in section 7).
    nodes that the user adds by address or QR code.
 9. **Release key:** CI builds the release APK unsigned. Josemi signs it by hand with
    a local key and uploads it to the GitHub release. The key never goes to CI.
+   Steps: set `appVersion` and `appBuildNumber` in `build_info.dart` and `pubspec.yaml`,
+   merge, then push the tag `v<appVersion>`. The `release` workflow builds the unsigned
+   APKs and puts them on a draft prerelease. On a checkout of the tag, run
+   `scripts/sign_release.sh v<appVersion>`: it signs the APKs, runs
+   `release_check.sh apks` and replaces the unsigned assets. Then publish the draft.
+   The updater ignores prereleases, so mark a release as latest only after the test on
+   GrapheneOS.
 
 ## 8. Notes for `docs/celaut/wire.md`
 
