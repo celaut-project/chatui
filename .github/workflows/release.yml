@@ -57,7 +57,8 @@ jobs:
           fi
           echo "VERSION=$version" >> "$GITHUB_ENV"
           echo "BASE_CODE=$code" >> "$GITHUB_ENV"
-      # Only --split-per-abi gives the split APKs their ABI versionCode offset.
+      # `flutter build apk` does not find unsigned APKs, so Gradle runs directly.
+      # Only split-per-abi gives the split APKs their ABI versionCode offset.
       # Do not run a second, plain build after it (see release_check.sh).
       - name: Build the unsigned release APKs
         working-directory: app
@@ -65,17 +66,19 @@ jobs:
           CHATUI_UNSIGNED_RELEASE: '1'
         run: |
           flutter pub get --enforce-lockfile
-          flutter build apk --release --split-per-abi
+          flutter build apk --release --config-only
+          cd android
+          ./gradlew assembleRelease -Psplit-per-abi=true -Ptarget-platform=android-arm64,android-x64
+          ls -l ../build/app/outputs/apk/release/
       - name: Check that the native libraries match a fresh build
         run: scripts/release_check.sh libs
       - name: Collect and check the APKs
         run: |
           aapt2="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)aapt2"
-          out=app/build/app/outputs/flutter-apk
+          out=app/build/app/outputs/apk/release
           mkdir dist
-          cp "$out/app-release.apk" "dist/chatui-$VERSION-universal-unsigned.apk"
-          for abi in arm64-v8a x86_64; do
-            cp "$out/app-$abi-release.apk" "dist/chatui-$VERSION-$abi-unsigned.apk"
+          for kind in universal arm64-v8a x86_64; do
+            cp "$out/app-$kind-release-unsigned.apk" "dist/chatui-$VERSION-$kind-unsigned.apk"
           done
           declare -A want=([universal]=$BASE_CODE [arm64-v8a]=$((BASE_CODE + 2000)) [x86_64]=$((BASE_CODE + 4000)))
           declare -A native=([universal]='arm64-v8a x86_64' [arm64-v8a]=arm64-v8a [x86_64]=x86_64)
