@@ -7,7 +7,7 @@ can run.
 
 ## 0. Status and next tasks
 
-Updated on 2026-10-12, master at `db3261f` plus the M1 PR.
+Updated on 2026-10-12, master at `c7044fe` plus the M2 PR.
 
 | Item | Status |
 |---|---|
@@ -15,9 +15,10 @@ Updated on 2026-10-12, master at `db3261f` plus the M1 PR.
 | `celaut-proto` and the design notes (`docs/celaut/`) | Done. Merged from `celaut-crates` in `160d24c`. Make new PRs into master. Do not use `celaut-crates` again |
 | M0b: trimmed wallet and new identity | Done. Merged in PR #3 (section 5). Spanish is a separate PR after it |
 | `bee-rpc-over-grpc-rs` | M1a done. Tag `v0.1.0` (`a832abc`) has the whole API: frames, blocks, signal, skip, hashes and the generic bidi call over tonic. `celaut-wire` uses it as a git dependency. Its license is GPL-3.0-only, and chatui is GPL-3.0-only too (section 7, question 10) |
-| M1: connect to a node and show its advertisement | Done, in review. `celaut-wire`, `celaut-client`, FFI function `celaut_peer_info` and the debug screen (Settings, Developer). The tests pass against the real nodo Gateway on a local port (see M1 in section 5). Not tested: the Android build outside CI, and a node on the internet |
-| M2 to M5 | Not started |
-| Open questions (section 7) | Answered on 2026-10-11 |
+| M1: connect to a node and show its advertisement | Done. Merged in PR #9 |
+| M2: quote, start, tunnel, stop on free credit | Done, in review (PR #11). `celaut-wire` (the M2 calls and `ServiceTunnel`), `celaut-balancer`, `celaut-client` (node sessions, quotes, the local port), the FFI functions in `api/celaut_service.rs` and the debug screen (Settings, Developer). Checked on our own node, from the client crate and from the app in the Android emulator (see M2 in section 5). Not tested: a phone, a node on the internet, more than one node |
+| M3 to M5 | Not started |
+| Open questions (section 7) | Answered on 2026-10-11 and 2026-10-12 |
 
 Do the next tasks in this order. Each task is one PR into master.
 
@@ -27,11 +28,10 @@ Do the next tasks in this order. Each task is one PR into master.
 3. **bee-rpc in Rust** (M1a): the repo
    [bee-rpc-protocol/bee-rpc-over-grpc-rs](https://github.com/bee-rpc-protocol/bee-rpc-over-grpc-rs).
    Done: tag `v0.1.0`.
-4. **M1**: done, in review. Then **M2**.
+4. **M1**: done (PR #9). **M2**: done, in review (PR #11).
 5. **M3**, **M4**, then **M5**.
 
-Josemi answered all the open questions on 2026-10-11 (section 7). One task is left
-from them: before M3, find out if nodo accepts deposits on the Ergo testnet.
+Josemi answered all the open questions on 2026-10-11 and 2026-10-12 (section 7).
 
 Measured by the author of PR #1 on 2026-10-11, master at `802dd55`, macOS arm64,
 Rust 1.99.0, Flutter 3.41.2, NDK 28.2.13676358:
@@ -233,6 +233,63 @@ must already be built on the node, or the test node gives more credit. Check: on
 own node (x86_64 with KVM), start a small HTTP service, call it through the local port
 from the app, stop it, and see the refund.
 
+What M2 has (PR #11):
+
+- `celaut-wire`: GetServiceEstimatedCost, StartService (time limit 600 s),
+  StopService and GetMetrics. `ServiceRequest::parts` sends Client (1), RecursionGuard
+  (2), Configuration (3, only if it has bytes) and the Hash (4), in this order.
+  ServiceTunnel: `TokenMessage{token, slot}` at index 1, then the bytes at index 0 in
+  pieces of 64 KiB. The end of the request half-closes the connection to the service.
+- `celaut-balancer`: the port of `estimated_cost_sorter` and `scoring.py`. Quotes are
+  compared in nanoERG with the `mu_per_unit` of the ERG contract of each node (rounded
+  up). A node with no ERG rate comes last. A stable sort, and a quote cache (10 s, 4096
+  entries). Not yet: the filter on the advertised resources, and reputation events (0).
+- `celaut-client`: `NodeSession` (one client id per node, in memory only), `quotes`
+  (all nodes at the same time, 10 s each), and `LocalPort` on 127.0.0.1: one
+  ServiceTunnel stream per TCP connection, half-close in both directions, the last
+  error kept.
+- FFI (`api/celaut_service.rs`): quote, start (with an optional start balance), open a
+  local port, status, stop. Client ids and instance tokens stay in Rust; Dart gets an
+  instance id.
+- Dart: `TunnelHttp` (one `HttpClient`, one connection per port, no proxy) and the
+  debug screen "Celaut service" (Settings, Developer).
+
+Facts from nodo dev `ec1274d` (the node of the check):
+
+- The start cost is the build (`BUILD_MU`, only if the node has no built container
+  for the service) plus the start balance of the instance. A service in the registry
+  is not built before its first run.
+- Without `Configuration.initial_mu`, the start balance is one hour of the resources of
+  the service: 5 000 683 MU for the test service on our node, more than the free
+  credit. So the app sends `initial_mu` (the screen proposes 1 000 000 MU), and the
+  node quotes and charges that amount. This works because Configuration comes before
+  the Hash.
+- StopService gives the unused balance of the instance back to the client at once, and
+  GetMetrics of the client shows it.
+- GetMetrics with the token of a stopped instance is an error ("Invalid token"), not a
+  balance of 0.
+
+Check on 2026-10-12, on our node (x86_64 with KVM, nodo dev `ec1274d`, default
+config: free credit 4 500 000 MU, `BUILD_MU` 10 000 000 MU). Service: `tiny` of
+demo-service (`9b0e4e45d3b078451984895891402a24b24a7f4112522592d7b3e2326aecb4c4`), an HTTP server on port 3030. The Gateway
+port came through an SSH port-forward, with no new firewall rule.
+
+- The node had `tiny` in its registry, but not built: the first quote was 14 389 612
+  MU. One `nodo execute` on the node built it, and was stopped at once. No change of
+  the config and no restart.
+- `cargo test -p celaut-client --test real_node -- --ignored`, start balance
+  1 000 000 MU: new client 4 500 000 MU; quote 1 000 000 MU, then 11 990 MU every 10 s;
+  start: slot 3030, client 3 500 000 MU; three GETs through the local port on one TCP
+  connection: HTTP 200 each time, 1 stream; instance 986 400 MU before the calls and
+  976 400 MU after (one `TUNNEL_OPEN_MU`); stop: refund 976 399 MU; client
+  3 500 000 MU before the stop and 4 476 399 MU after.
+- From the app (debug APK in the arm64 AOSP emulator, the node at `10.0.2.2`): quote,
+  start, local port, three calls (HTTP 200, 1 stream), stop: refund 940 074 MU, client
+  4 440 074 MU.
+- After the check: `nodo doctor` 23 OK and 0 FAIL or WARN; `nft list table inet nodo`
+  and `config.yaml` as before; no instance or tunnel of the check left. What stays on
+  the node: the built container of `tiny`, and the test clients in its database.
+
 **M3: deposit with the wallet.** GenerateDepositToken, an Ergo transaction with one
 output to the node script and the token in R4 (the send path in `ergo-tx/src/send.rs`
 writes no registers today), the existing confirmation and sign screens, wait until the
@@ -281,8 +338,10 @@ onion addresses for nodes are nodo work (decision 7 in section 7).
    that it calls runs the service. A nodo change to relay ServiceTunnel comes only if
    delegation is wanted later.
 5. **Tests of M2 and M3:** our own node with a large `CREDIT_MU_PER_NEW_CLIENT` for
-   M2. For M3, find out if nodo accepts deposits on the Ergo testnet. If it does not,
-   use one small real deposit, with an amount that Josemi approves first.
+   M2 (not needed in the end: the M2 check runs on the default credit, see M2 in
+   section 5). For M3: nodo does not accept the Ergo testnet (answer of 2026-10-12).
+   Mainnet fees are small enough, so the M3 end-to-end test uses one small real
+   deposit on mainnet, with an amount that is approved first (section 6).
 6. **Package upload:** import a `.celaut.bee` that already exists, through
    StartService indices 5 and 6, for a node that does not have the service. Show the
    size and warn on mobile data. This needs the send side of blocks in

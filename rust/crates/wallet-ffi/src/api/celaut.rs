@@ -114,7 +114,7 @@ pub struct CelautError {
     pub message: String,
 }
 
-fn error_of(e: ClientError) -> CelautError {
+pub(crate) fn error_of(e: ClientError) -> CelautError {
     use CelautErrorKind as K;
     let kind = match &e {
         ClientError::Wire(WireError::Identity(IdentityError::PeerMismatch { .. })) => {
@@ -130,7 +130,7 @@ fn error_of(e: ClientError) -> CelautError {
         ClientError::Peer(_) => K::BadSignature,
         ClientError::Store(_) => K::Storage,
         ClientError::PowTooHard(_) | ClientError::PowRejected => K::ProofOfWork,
-        ClientError::Protocol(_) | ClientError::Random => K::Protocol,
+        ClientError::Protocol(_) | ClientError::Random | ClientError::Amount(_) => K::Protocol,
     };
     CelautError {
         kind,
@@ -138,7 +138,7 @@ fn error_of(e: ClientError) -> CelautError {
     }
 }
 
-fn invalid(message: &str) -> CelautError {
+pub(crate) fn invalid(message: &str) -> CelautError {
     CelautError {
         kind: CelautErrorKind::InvalidInput,
         message: message.to_string(),

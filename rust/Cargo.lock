@@ -400,13 +400,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "celaut-balancer"
+version = "0.1.0"
+dependencies = [
+ "celaut-proto",
+ "thiserror",
+]
+
+[[package]]
 name = "celaut-client"
 version = "0.1.0"
 dependencies = [
  "bee-rpc",
  "blake2 0.11.0",
+ "celaut-balancer",
  "celaut-proto",
  "celaut-wire",
+ "futures",
  "hex",
  "prost",
  "ring",
@@ -437,7 +447,9 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-rustls",
+ "tokio-stream",
  "tonic",
+ "tonic-prost",
  "tower",
 ]
 
@@ -3429,6 +3441,7 @@ dependencies = [
 name = "wallet-ffi"
 version = "0.1.0"
 dependencies = [
+ "celaut-balancer",
  "celaut-client",
  "celaut-proto",
  "celaut-wire",

@@ -13,6 +13,7 @@ crate-type = ["cdylib", "staticlib"]
 wallet-core = { path = "../wallet-core" }
 wallet-net = { path = "../wallet-net" }
 celaut-client = { path = "../celaut-client" }
+celaut-balancer = { workspace = true }
 celaut-wire = { workspace = true }
 celaut-proto = { workspace = true }
 ergo-lib = { workspace = true, features = ["mnemonic_gen"] }

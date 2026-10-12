@@ -1,6 +1,6 @@
-//! Celaut client, first part (milestone M1): ask a node for its advertisement.
+//! Celaut client.
 //!
-//! The steps of [`fetch_node_info`]:
+//! Milestone M1: ask a node for its advertisement. The steps of [`fetch_node_info`]:
 //!
 //! 1. `GenerateClient`, with the proof of work if the node asks for it ([`pow`]).
 //! 2. `GetPeerInfo`.
@@ -8,8 +8,16 @@
 //!    certificate proved, and the `ts` against the last advertisement that this app
 //!    accepted from that node ([`peer`], [`store`]).
 //!
-//! The client id is not kept. M1 uses it for the one `GetPeerInfo` call and drops it.
-//! A store for client ids comes with the milestone that needs them (M2).
+//! Milestone M2, on the free credit of a new client:
+//!
+//! - [`session`]: a [`NodeSession`] keeps the client id of one node and makes the calls
+//!   of a service: quote, start, stop and balance.
+//! - [`quotes`]: the quotes of several nodes, best first ([`celaut_balancer`]).
+//! - [`local_port`]: a TCP port on 127.0.0.1 for one port of an instance. Each TCP
+//!   connection is one `ServiceTunnel` stream.
+//!
+//! The client ids and instance tokens are kept in memory only. Encrypted storage comes
+//! with the deposits (M3), because only then a balance is worth keeping.
 //!
 //! Input from a peer must never make this crate panic.
 #![forbid(unsafe_code)]
@@ -18,15 +26,21 @@
     deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)
 )]
 
+pub mod local_port;
 pub mod peer;
 pub mod pow;
+pub mod quotes;
+pub mod session;
 pub mod store;
 
 use celaut_proto::celaut::{Client, Peer};
 use celaut_wire::gateway::{generate_client, get_peer_info, GenerateClientReply};
 use celaut_wire::{ConnectOptions, Connection, Transport, WireError};
 
+pub use local_port::LocalPort;
 pub use peer::PeerError;
+pub use quotes::{quotes, QuoteFailure, Quotes};
+pub use session::{NodeSession, StartedInstance};
 pub use store::{FilePeerStore, MemoryPeerStore, PeerStore, Seen, StoreError};
 
 /// Every error of this crate.
@@ -53,6 +67,9 @@ pub enum ClientError {
     /// No random numbers from the system.
     #[error("the system gave no random numbers")]
     Random,
+    /// An amount of the node cannot be used.
+    #[error(transparent)]
+    Amount(#[from] celaut_balancer::BalancerError),
 }
 
 /// The advertisement of a node, after the checks.
@@ -134,7 +151,17 @@ pub async fn fetch_node_info<T: Transport>(
     store: &dyn PeerStore,
 ) -> Result<NodeInfo, ClientError> {
     let client_id = obtain_client_id(transport).await?;
-    let peer = get_peer_info(transport, &client_id).await?;
+    fetch_node_info_as(transport, &client_id, certificate_peer_id, store).await
+}
+
+/// [`fetch_node_info`] with a client id that the caller already has.
+pub async fn fetch_node_info_as<T: Transport>(
+    transport: &T,
+    client_id: &str,
+    certificate_peer_id: &str,
+    store: &dyn PeerStore,
+) -> Result<NodeInfo, ClientError> {
+    let peer = get_peer_info(transport, client_id).await?;
     let digest = peer::verify_signature(&peer, certificate_peer_id)?;
     let last = store.get(certificate_peer_id)?;
     peer::check_ts(last.as_ref(), peer.ts, &digest)?;

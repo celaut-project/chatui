@@ -8,6 +8,7 @@
 
 import 'api.dart';
 import 'api/celaut.dart';
+import 'api/celaut_service.dart';
 import 'api/mempool.dart';
 import 'api/storage_rent.dart';
 import 'dart:async';
@@ -36,6 +37,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
+  NodeAddress dco_decode_box_autoadd_node_address(dynamic raw);
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
@@ -48,6 +52,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CelautErrorKind dco_decode_celaut_error_kind(dynamic raw);
 
   @protected
+  double dco_decode_f_32(dynamic raw);
+
+  @protected
   double dco_decode_f_64(dynamic raw);
 
   @protected
@@ -55,6 +62,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
+
+  @protected
+  InstanceStatusView dco_decode_instance_status_view(dynamic raw);
+
+  @protected
+  InstanceView dco_decode_instance_view(dynamic raw);
 
   @protected
   KeyValueView dco_decode_key_value_view(dynamic raw);
@@ -66,6 +79,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<KeyValueView> dco_decode_list_key_value_view(dynamic raw);
 
   @protected
+  List<NodeAddress> dco_decode_list_node_address(dynamic raw);
+
+  @protected
   List<NodeResourcesView> dco_decode_list_node_resources_view(dynamic raw);
 
   @protected
@@ -75,10 +91,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<PaymentContractView> dco_decode_list_payment_contract_view(dynamic raw);
 
   @protected
+  Uint16List dco_decode_list_prim_u_16_strict(dynamic raw);
+
+  @protected
   List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  List<QuoteFailureView> dco_decode_list_quote_failure_view(dynamic raw);
+
+  @protected
+  List<QuoteView> dco_decode_list_quote_view(dynamic raw);
+
+  @protected
+  NodeAddress dco_decode_node_address(dynamic raw);
 
   @protected
   NodeResourcesView dco_decode_node_resources_view(dynamic raw);
@@ -111,6 +139,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PeerInfoView dco_decode_peer_info_view(dynamic raw);
 
   @protected
+  QuoteFailureView dco_decode_quote_failure_view(dynamic raw);
+
+  @protected
+  QuoteView dco_decode_quote_view(dynamic raw);
+
+  @protected
+  QuotesView dco_decode_quotes_view(dynamic raw);
+
+  @protected
+  StopView dco_decode_stop_view(dynamic raw);
+
+  @protected
   int dco_decode_u_16(dynamic raw);
 
   @protected
@@ -138,6 +178,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
+  NodeAddress sse_decode_box_autoadd_node_address(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
@@ -150,6 +193,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CelautErrorKind sse_decode_celaut_error_kind(SseDeserializer deserializer);
 
   @protected
+  double sse_decode_f_32(SseDeserializer deserializer);
+
+  @protected
   double sse_decode_f_64(SseDeserializer deserializer);
 
   @protected
@@ -157,6 +203,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
+
+  @protected
+  InstanceStatusView sse_decode_instance_status_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  InstanceView sse_decode_instance_view(SseDeserializer deserializer);
 
   @protected
   KeyValueView sse_decode_key_value_view(SseDeserializer deserializer);
@@ -168,6 +222,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<KeyValueView> sse_decode_list_key_value_view(
     SseDeserializer deserializer,
   );
+
+  @protected
+  List<NodeAddress> sse_decode_list_node_address(SseDeserializer deserializer);
 
   @protected
   List<NodeResourcesView> sse_decode_list_node_resources_view(
@@ -183,10 +240,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  Uint16List sse_decode_list_prim_u_16_strict(SseDeserializer deserializer);
+
+  @protected
   List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  List<QuoteFailureView> sse_decode_list_quote_failure_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<QuoteView> sse_decode_list_quote_view(SseDeserializer deserializer);
+
+  @protected
+  NodeAddress sse_decode_node_address(SseDeserializer deserializer);
 
   @protected
   NodeResourcesView sse_decode_node_resources_view(
@@ -223,6 +294,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PeerInfoView sse_decode_peer_info_view(SseDeserializer deserializer);
 
   @protected
+  QuoteFailureView sse_decode_quote_failure_view(SseDeserializer deserializer);
+
+  @protected
+  QuoteView sse_decode_quote_view(SseDeserializer deserializer);
+
+  @protected
+  QuotesView sse_decode_quotes_view(SseDeserializer deserializer);
+
+  @protected
+  StopView sse_decode_stop_view(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_u_16(SseDeserializer deserializer);
 
   @protected
@@ -253,6 +336,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_node_address(
+    NodeAddress self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
@@ -268,6 +357,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_f_32(double self, SseSerializer serializer);
+
+  @protected
   void sse_encode_f_64(double self, SseSerializer serializer);
 
   @protected
@@ -275,6 +367,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_instance_status_view(
+    InstanceStatusView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_instance_view(InstanceView self, SseSerializer serializer);
 
   @protected
   void sse_encode_key_value_view(KeyValueView self, SseSerializer serializer);
@@ -285,6 +386,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_key_value_view(
     List<KeyValueView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_node_address(
+    List<NodeAddress> self,
     SseSerializer serializer,
   );
 
@@ -307,6 +414,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_prim_u_16_strict(
+    Uint16List self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
 
   @protected
@@ -314,6 +427,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     Uint8List self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_list_quote_failure_view(
+    List<QuoteFailureView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_quote_view(
+    List<QuoteView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_node_address(NodeAddress self, SseSerializer serializer);
 
   @protected
   void sse_encode_node_resources_view(
@@ -353,6 +481,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_peer_info_view(PeerInfoView self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_quote_failure_view(
+    QuoteFailureView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_quote_view(QuoteView self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_quotes_view(QuotesView self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_stop_view(StopView self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_16(int self, SseSerializer serializer);
