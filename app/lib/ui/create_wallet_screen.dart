@@ -75,6 +75,25 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
     setState(() => _step = 2);
   }
 
+  Future<void> _skipConfirm() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Skip the check?'),
+        content: const Text(
+          'Nothing will prove that your written phrase is complete and in order. If a word is wrong or missing, the funds of this wallet cannot be recovered.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Skip')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    _confirmCtrl.clear();
+    setState(() => _step = 2);
+  }
+
   Future<String?> _finish() async {
     final phrase = _mnemonic;
     if (phrase == null) return null;
@@ -236,6 +255,12 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
         ),
         const SizedBox(height: 20),
         FilledButton(onPressed: _toPin, child: const Text('Continue')),
+        const SizedBox(height: 8),
+        TextButton(
+          key: const Key('create-skip-confirm'),
+          onPressed: _skipConfirm,
+          child: const Text('Skip this check'),
+        ),
       ],
     );
   }
