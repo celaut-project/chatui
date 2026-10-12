@@ -1,6 +1,6 @@
 [package]
 name = "celaut-client"
-description = "Celaut client: GenerateClient with proof of work, GetPeerInfo and the check of the signed Peer"
+description = "Celaut client: the check of a node, quotes, start and stop of a service, and a local port for ServiceTunnel"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,15 +8,17 @@ license.workspace = true
 [dependencies]
 celaut-proto = { workspace = true }
 celaut-wire = { workspace = true }
+celaut-balancer = { workspace = true }
+futures = { workspace = true }
 blake2 = "0.11"
 ring = "0.17"
 hex = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tokio = { workspace = true, features = ["time"] }
+tokio = { workspace = true, features = ["time", "net", "io-util", "rt"] }
 
 [dev-dependencies]
 bee-rpc = { workspace = true }
 prost = "0.14"
-tokio = { workspace = true, features = ["time"] }
+tokio = { workspace = true, features = ["time", "net", "io-util", "rt"] }
