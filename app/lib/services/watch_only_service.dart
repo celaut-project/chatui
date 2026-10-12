@@ -25,7 +25,7 @@ Future<({Map<String, int?> balances, String? error})> readWatchBalances(
     balances: Map.fromEntries(entries),
     error: errors.isEmpty
         ? null
-        : 'Some watched balances are unavailable.\n${errors.join('\n')}',
+        : appL10n.watchSomeUnavailable(errors.join('\n')),
   );
 }
 

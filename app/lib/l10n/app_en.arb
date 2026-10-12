@@ -4081,5 +4081,14 @@
       }
     }
   },
-  "homeLockedCaps": "LOCKED"
+  "homeLockedCaps": "LOCKED",
+  "formatUnconfirmed": "Unconfirmed",
+  "watchSomeUnavailable": "Some watched balances are unavailable.\n{errors}",
+  "@watchSomeUnavailable": {
+    "placeholders": {
+      "errors": {
+        "type": "String"
+      }
+    }
+  }
 }

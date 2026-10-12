@@ -5404,4 +5404,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homeLockedCaps => 'LOCKED';
+
+  @override
+  String get formatUnconfirmed => 'Unconfirmed';
+
+  @override
+  String watchSomeUnavailable(String errors) {
+    return 'Some watched balances are unavailable.\n$errors';
+  }
 }

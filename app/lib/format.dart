@@ -100,7 +100,7 @@ PaymentRequest? parseErgoUri(String raw) {
 }
 
 String formatHeight(int? height) {
-  if (height == null || height <= 0) return 'Unconfirmed';
+  if (height == null || height <= 0) return appL10n.formatUnconfirmed;
   return '#$height';
 }
 

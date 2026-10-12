@@ -1406,5 +1406,7 @@
   "homeInclPartsWhere": "incl. {parts} {where}",
   "homeErgPendingFigure": "{figure} ERG pendientes",
   "homePendingConfirmed": "{lead} · {confirmed} confirmados",
-  "homeLockedCaps": "BLOQUEADA"
+  "homeLockedCaps": "BLOQUEADA",
+  "formatUnconfirmed": "Sin confirmar",
+  "watchSomeUnavailable": "Algunos saldos observados no están disponibles.\n{errors}"
 }

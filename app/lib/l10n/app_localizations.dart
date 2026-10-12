@@ -8554,6 +8554,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'LOCKED'**
   String get homeLockedCaps;
+
+  /// No description provided for @formatUnconfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Unconfirmed'**
+  String get formatUnconfirmed;
+
+  /// No description provided for @watchSomeUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Some watched balances are unavailable.\n{errors}'**
+  String watchSomeUnavailable(String errors);
 }
 
 class _AppLocalizationsDelegate
