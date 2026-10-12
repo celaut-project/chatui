@@ -15,13 +15,8 @@ import 'home_harness.dart';
 // "'_dependents.isEmpty': is not true" screen; [answer] fails on it.
 
 const dialogWallet = 'dialogs';
-const stealthAddress0 =
-    'stealth2Zc5nJHNTZmnKSyfnCsQrkVW42s9dhoNUmm5bxLrDBnwuGSaSQ';
-const stealthAddress1 =
-    'stealth7pKv2xPsEjeNd2v68sbKxjxP2p63A8MwcrXhh6LAq945wfPo5Z';
 
-/// The home stand-in, plus re-wrapping a key under a new PIN and the
-/// stealth identity calls.
+/// The home stand-in, plus re-wrapping a key under a new PIN.
 class DialogApi extends HomeApi {
   /// Every PIN a key was wrapped under.
   final wrappedUnder = <String>[];
@@ -34,18 +29,6 @@ class DialogApi extends HomeApi {
     wrappedUnder.add(pin);
     return '{"pin":"$pin"}';
   }
-
-  @override
-  Future<int> crateApiStealthUseIdentity({
-    required BigInt handleId,
-    required int index,
-  }) async => index + 1;
-
-  @override
-  Future<String> crateApiStealthAddressAt({
-    required BigInt handleId,
-    required int index,
-  }) async => index == 0 ? stealthAddress0 : stealthAddress1;
 }
 
 /// The platform keystore for [dialogWallet], recording what was written.

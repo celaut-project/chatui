@@ -19,11 +19,11 @@ import 'home_models.dart';
 
 typedef Holding = ({String id, int amount, int decimals});
 
-/// The display currency picked in Display settings.
+/// The display currency: USD, the currency the oracle pool prices ERG in.
 FiatCurrency homeCurrency() => FiatCurrency(
       symbol: networkController.fiatSymbol,
       code: networkController.fiatCode.toUpperCase(),
-      decimals: networkController.fiatCode == 'jpy' ? 0 : 2,
+      decimals: 2,
     );
 
 /// No node answers, and none is being looked for.
@@ -31,13 +31,13 @@ bool networkOffline() => networkController.activeUrl == null && !networkControll
 
 /// What ERG and [tokens] are worth in the display currency, and how many
 /// tokens that value leaves out: those nothing prices, those whose scale
-/// nothing knows, and those whose price does not count (unverified pools,
-/// stopped feeds). Null while ERG itself has no price in this currency.
+/// nothing knows, and those whose price does not count (stopped feeds).
+/// Null while ERG itself has no price.
 ({double? fiat, int unpriced}) holdingsFiat(int? ergNano, Iterable<Holding> tokens) {
   final result = tokenPricer.result;
-  if (ergNano == null || result.ergUsd == null || !tokenPricer.displayRateKnown) return (fiat: null, unpriced: 0);
+  if (ergNano == null || result.ergUsd == null) return (fiat: null, unpriced: 0);
   final value = holdingsValue(ergNano: ergNano, tokens: tokens, result: result);
-  return (fiat: value.usd * tokenPricer.fiatPerUsd, unpriced: value.unpriced + value.excluded);
+  return (fiat: value.usd, unpriced: value.unpriced + value.excluded);
 }
 
 /// Said beside a fiat value while the ERG rate is not current: the age of
@@ -77,7 +77,7 @@ ErgPriceView ergPriceView(ErgPriceHistory? history) {
   // The pricer appends ", 3 h old" to a stale source; the age is said once,
   // on its own.
   final source = via == null
-      ? tokenPricer.source.label
+      ? priceSourceLabel
       : staleAge == null
           ? via
           : via.replaceFirst(', $staleAge old', '');
@@ -96,9 +96,7 @@ ErgPriceView ergPriceView(ErgPriceHistory? history) {
       h.currency.toLowerCase() == networkController.fiatCode.toLowerCase();
   String? unavailable;
   if (rate == null) {
-    unavailable = result.ergUsd != null && !tokenPricer.displayRateKnown
-        ? '${networkController.fiatCode.toUpperCase()} rate not known yet'
-        : null;
+    // No rate: nothing to say beyond the price being unavailable.
   } else if (h != null && !h.available) {
     unavailable = h.unavailableReason;
   } else if (h != null && h.stale) {
@@ -141,9 +139,8 @@ AssetRowData tokenAssetRow(TokenBalance t) {
   final price = tokenPricer.priceOf(t.id);
   final known = hasKnownScale(t);
   double? fiat;
-  if (!t.isCollectible && price != null && tokenPricer.displayRateKnown && (known || price.decimals != null)) {
-    final usd = tokenPricer.usdOf(t.id, t.amount, t.decimals);
-    if (usd != null) fiat = usd * tokenPricer.fiatPerUsd;
+  if (!t.isCollectible && price != null && (known || price.decimals != null)) {
+    fiat = tokenPricer.usdOf(t.id, t.amount, t.decimals);
   }
   final name = issuerText(t.name).trim();
   return AssetRowData(
@@ -154,11 +151,7 @@ AssetRowData tokenAssetRow(TokenBalance t) {
     decimals: known ? t.decimals : null,
     fiatValue: fiat,
     priceNote: fiat == null || price?.staleAge == null ? null : '${price!.staleAge} old',
-    kind: t.isCollectible
-        ? AssetKind.collectible
-        : (price?.via.startsWith('Spectrum LP share') ?? false)
-            ? AssetKind.lpShare
-            : AssetKind.token,
+    kind: t.isCollectible ? AssetKind.collectible : AssetKind.token,
     verified: isVerifiedToken(t.id),
     caution: cautionedToken(t.id) != null,
   );

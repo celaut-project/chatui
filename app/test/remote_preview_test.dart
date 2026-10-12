@@ -48,10 +48,9 @@ void main() {
     'https://gateway.example',
     lookup: (_) async => [InternetAddress('8.8.8.8')],
   );
-  TokenBalance token({String? url, int stealth = 0}) => TokenBalance(
+  TokenBalance token({String? url}) => TokenBalance(
     id: 'a' * 64,
     amount: 1,
-    stealthAmount: stealth,
     iconUrl: url ?? 'ipfs://$cid',
     declaredAssetKind: DeclaredAssetKind.picture,
     mediaState: MediaState.notLoaded,
@@ -87,13 +86,13 @@ void main() {
     expect(find.text('Remote previews disabled.'), findsOneWidget);
   });
   testWidgets(
-    'per-item consent names gateway and stealth linkage before any client',
+    'per-item consent names the gateway before any client',
     (tester) async {
       await configure();
       final deny = NoPreviewHttp(), previous = HttpOverrides.current;
       HttpOverrides.global = deny;
       addTearDown(() => HttpOverrides.global = previous);
-      await mount(tester, token(stealth: 1));
+      await mount(tester, token());
       expect(deny.calls, 0);
       await tester.tap(find.text('Load preview'));
       await tester.pumpAndSettle();
@@ -103,10 +102,6 @@ void main() {
       );
       expect(
         find.textContaining('IP address and which artwork'),
-        findsOneWidget,
-      );
-      expect(
-        find.textContaining('may link this private holding'),
         findsOneWidget,
       );
       expect(deny.calls, 0);
@@ -176,7 +171,6 @@ void main() {
     'token',
     'hash',
     'invalid metadata',
-    'private holding',
   ]) {
     testWidgets('$change while consent is open cancels that consent', (
       tester,
@@ -193,7 +187,6 @@ void main() {
         amount: 1,
         iconUrl: change == 'URI' ? 'ipfs://$cid/changed.png' : 'ipfs://$cid',
         issuanceHash: change == 'hash' ? '00' * 32 : null,
-        stealthAmount: change == 'private holding' ? 1 : 0,
         declaredAssetKind: DeclaredAssetKind.picture,
         metadataState: change == 'invalid metadata'
             ? MetadataState.invalid

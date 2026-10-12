@@ -45,17 +45,13 @@ class ActivityTile extends StatelessWidget {
     final tint = switch (kind) {
       ActivityKind.received => moss,
       ActivityKind.sent => rust,
-      ActivityKind.swap => accentOf(context),
-      ActivityKind.mix => accentOf(context),
       _ => muted,
     };
     final icon = switch (kind) {
       ActivityKind.received => Icons.arrow_downward,
       ActivityKind.sent => Icons.arrow_upward,
-      ActivityKind.swap => Icons.swap_horiz,
       ActivityKind.selfTransfer => Icons.sync_alt,
       ActivityKind.contract => Icons.code,
-      ActivityKind.mix => Icons.blender_outlined,
     };
     final line = activityLine(
       tx,

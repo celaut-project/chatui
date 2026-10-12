@@ -1,13 +1,11 @@
 import 'widgets/tx_batch_result_view.dart';
 import 'widgets/tx_result_view.dart';
 import 'widgets/error_sheet.dart';
-import '../services/app_fee.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../format.dart';
-import '../services/mix_service.dart';
 import '../services/network_controller.dart';
 import '../services/storage_rent.dart';
 import '../services/utxo_plans.dart';
@@ -161,30 +159,16 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
     _maybeOpenCleanup();
   }
 
-  /// Boxes a cleanup must leave where they are: [mixed] coins, funding
-  /// set aside for a pending mix ([reservedJson]), boxes already spent
-  /// from this screen, and boxes still confirming. The listing offers
-  /// those only while Settings allows spending unconfirmed funds, and a
-  /// housekeeping move the app proposes on its own should not hang on a
-  /// transaction that may yet be dropped.
-  Set<String> _heldBack(List<String> mixed, String reservedJson) {
-    final ids = <String>{
-      ...mixed,
-      ..._movingIds,
-      for (final b in _boxes)
-        if (!b.confirmed) b.boxId,
-    };
-    try {
-      for (final r in jsonDecode(reservedJson) as List) {
-        for (final id in (r as Map)['box_ids'] as List? ?? const []) {
-          ids.add(id.toString());
-        }
-      }
-    } catch (_) {
-      // No pending mix records to honour.
-    }
-    return ids;
-  }
+  /// Boxes a cleanup must leave where they are: boxes already spent from
+  /// this screen, and boxes still confirming. The listing offers those only
+  /// while Settings allows spending unconfirmed funds, and a housekeeping
+  /// move the app proposes on its own should not hang on a transaction that
+  /// may yet be dropped.
+  Set<String> _heldBack() => {
+        ..._movingIds,
+        for (final b in _boxes)
+          if (!b.confirmed) b.boxId,
+      };
 
   ({CleanupSuggestion? suggestion, OutputRentEstimate? estimate})? _cleanupMemo;
   Object? _cleanupMemoKey;
@@ -193,14 +177,10 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
   /// change to the boxes, their rent or what is held back, not per build:
   /// a selection tap must not regroup 2,000 boxes and call the core.
   ({CleanupSuggestion? suggestion, OutputRentEstimate? estimate}) get _cleanup {
-    final mixed = mixService.mixedBoxIds;
-    final reserved = mixService.reservedFundingJson();
     final parameters = _rentParameters;
     final key = (
       _tools.boxes,
       _tools.rent,
-      mixed.join(','),
-      reserved,
       (_movingIds.toList()..sort()).join(','),
       parameters?.height,
       parameters?.storageFeeFactor,
@@ -214,7 +194,7 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
     final suggestion = suggestCleanup(
       boxes: _boxes,
       rent: _tools.rent,
-      exclude: _heldBack(mixed, reserved),
+      exclude: _heldBack(),
       viable: (s) => cleanupIsViable(s, measure(s)),
     );
     final next = (
@@ -340,7 +320,7 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
     final changeAddress = addrs.first;
     final totalIn = targets.fold(BigInt.zero, (s, b) => s + b.valueNanoErg);
     final tokenTypes = {for (final b in targets) for (final a in b.assets) a.tokenId}.length;
-    final fees = (minerFeeNano + argusFeeNano) * chunks.length;
+    final fees = minerFeeNano * chunks.length;
 
     final confirmed = await showConfirmTransactionSheet(
       context,
@@ -351,7 +331,6 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
         ConfirmTxRow('Total value in', formatNanoErg(totalIn)),
         if (tokenTypes > 0) ConfirmTxRow('Token types carried', '$tokenTypes'),
         ConfirmTxRow('Miner fee', formatErg(minerFeeNano * chunks.length)),
-        ConfirmTxRow('Argus fee', formatErg(argusFeeNano * chunks.length)),
         ConfirmTxRow('Value after fees', formatNanoErg(totalIn - BigInt.from(fees)), bold: true),
       ],
       detail: chunks.length == 1
@@ -482,7 +461,6 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
         if (tokenTypes > 0) ConfirmTxRow('Token types carried', '$tokenTypes'),
         ConfirmTxRow('Total value in', formatNanoErg(s.totalNano)),
         ConfirmTxRow('Miner fee', formatErg(minerFeeNano)),
-        ConfirmTxRow('Argus fee', formatErg(argusFeeNano)),
         ConfirmTxRow('Value after fees', formatNanoErg(s.afterFeesNano), bold: true),
         if (newRent != null) ConfirmTxRow('New box rent', newRent),
       ],
@@ -598,7 +576,6 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
           ),
           ConfirmTxRow('Change Returned', formatErg(preview.changeNanoErg)),
           ConfirmTxRow('Miner Fee', formatErg(preview.minerFee)),
-          argusFeeRow(),
         ],
         detail: 'Fee is computed by the transaction builder.',
         confirmLabel: 'Sign & broadcast split',
@@ -678,7 +655,6 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
           ConfirmTxRow('ERG in token boxes', formatErg(preview.allocatedErg)),
           ConfirmTxRow('ERG change', formatErg(preview.changeNanoErg)),
           ConfirmTxRow('Miner fee', formatErg(preview.minerFee)),
-          argusFeeRow(),
         ],
         detail:
             'Each token type keeps its full balance in a separate box at your source address. All remaining ERG is returned to your wallet.',
@@ -753,7 +729,6 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
           ConfirmTxRow('Allocated to Outputs', formatErg(preview.allocatedErg)),
           ConfirmTxRow('Change Output', formatErg(preview.changeNanoErg)),
           ConfirmTxRow('Miner Fee', formatErg(preview.minerFee)),
-          argusFeeRow(),
         ],
         detail: 'Fee is computed by the transaction builder.',
         confirmLabel: 'Sign & broadcast restructure',
@@ -1362,7 +1337,7 @@ class _SplitConfigSheetState extends State<_SplitConfigSheet> {
   int? get _equalPerBox => equalSplitAmount(
         totalNano: _totalNano.toInt(),
         count: _count,
-        feesNano: minerFeeNano + argusFeeNano,
+        feesNano: minerFeeNano,
       );
 
   String _tokenLabel(String id) => walletService.cachedTokenMeta(id)?.label ?? shorten(id, head: 8, tail: 6);
@@ -1373,13 +1348,13 @@ class _SplitConfigSheetState extends State<_SplitConfigSheet> {
       case _SplitMode.equal:
         final per = _equalPerBox;
         if (per == null) return null;
-        final change = _totalNano.toInt() - minerFeeNano - argusFeeNano - per * _count;
+        final change = _totalNano.toInt() - minerFeeNano - per * _count;
         return '$_count boxes of ${formatErg(per, maxFrac: 4)}'
             '${change > 0 ? ' · ${formatErg(change, maxFrac: 4)} change' : ''}';
       case _SplitMode.fixed:
         final per = parseErgToNano(_amountCtrl.text);
         if (per == null || per < minBoxNano) return null;
-        final change = _totalNano.toInt() - minerFeeNano - argusFeeNano - per * _count;
+        final change = _totalNano.toInt() - minerFeeNano - per * _count;
         if (change < 0) return null;
         return '$_count boxes of ${formatErg(per, maxFrac: 4)} · ${formatErg(change, maxFrac: 4)} change';
       case _SplitMode.token:
@@ -1539,7 +1514,7 @@ class _SplitConfigSheetState extends State<_SplitConfigSheet> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Fees: ${formatErg(minerFeeNano)} miner + ${formatErg(argusFeeNano)} Argus. Remaining ERG and every token return to you as change.',
+              'Miner fee: ${formatErg(minerFeeNano)}. Remaining ERG and every token return to you as change.',
               style: TextStyle(fontSize: 12, color: colors.muted),
             ),
             const SizedBox(height: 16),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../format.dart';
-import '../services/amm_service.dart' show ammService;
 import '../services/network_controller.dart';
 import '../services/privacy_service.dart';
 import '../services/token_metadata.dart';
@@ -10,7 +9,6 @@ import '../services/wallet_service.dart';
 import '../services/wallet_sync_controller.dart';
 import '../theme/argus_theme.dart';
 import 'send_screen.dart';
-import 'swap_hub_screen.dart';
 import 'token_avatar.dart';
 import 'widgets/asset_tile.dart';
 import 'widgets/pending_balance_line.dart';
@@ -63,17 +61,6 @@ class _AssetsScreenState extends State<AssetsScreen> {
         settings: RouteSettings(arguments: widget.args),
       ),
     ),
-    // Swapping signs; a watched wallet's holdings offer only a look.
-    onSwap: widget.args.watchOnly
-        ? null
-        : (t) => Navigator.push(
-            context,
-            fadeRoute(
-              SwapHubScreen(initialTab: coerceVenue(SwapVenue.spectrum), initialFrom: t.id),
-              settings: RouteSettings(arguments: widget.args),
-            ),
-          ),
-    swappable: widget.args.watchOnly ? null : ammService.hasPool(token.id),
   );
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -105,7 +92,7 @@ class _AssetsScreenState extends State<AssetsScreen> {
       builder: (context, _) {
         final live = walletSyncController;
         final hidden = privacyService.hideBalances;
-        final holdings = live.displayTokens
+        final holdings = live.tokens
             .map(walletService.displayMetadata)
             .toList();
         final rows = holdings
@@ -188,7 +175,7 @@ class _AssetsScreenState extends State<AssetsScreen> {
                           : '${holdings.length} token IDs${unknown > 0 ? ' · $unknown with incomplete metadata' : ''}',
                       style: TextStyle(color: ArgusColors.of(context).muted),
                     ),
-                  if (live.publicSnapshotOnly || live.stealthBalanceUnknown)
+                  if (live.publicSnapshotOnly)
                     const Text('Public holdings only'),
                   if (live.balanceNano == null)
                     const Text('Holdings not loaded'),
@@ -235,10 +222,8 @@ class _AssetsScreenState extends State<AssetsScreen> {
                         final hasErg = !_collectibles && _query.isEmpty;
                         if (index == 0 && hasErg)
                           return AssetTile.erg(
-                            balanceNano: live.totalNanoWithStealth,
-                            fiatText: networkController.fiatText(
-                              live.totalNanoWithStealth,
-                            ),
+                            balanceNano: live.balanceNano,
+                            fiatText: networkController.fiatText(live.balanceNano),
                           );
                         final token = rows[index - (hasErg ? 1 : 0)];
                         return AssetTile.token(

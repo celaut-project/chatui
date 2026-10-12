@@ -1,7 +1,6 @@
 import 'package:argus_wallet/bridge/frb_generated.dart';
 import 'package:argus_wallet/services/privacy_service.dart';
 import 'package:argus_wallet/services/public_wallet_sync.dart';
-import 'package:argus_wallet/services/stealth_service.dart';
 import 'package:argus_wallet/services/wallet_database_service.dart';
 import 'package:argus_wallet/services/watch_account_service.dart';
 import 'package:argus_wallet/services/watch_only_service.dart';
@@ -62,7 +61,6 @@ void main() {
     });
     await watchOnlyService.load();
     await privacyService.load();
-    stealthService.scanEnabled = false;
     api.balances
       ..clear()
       ..[zero] = {
@@ -138,7 +136,6 @@ void main() {
   tearDown(() {
     publicWalletSync.setForeground(true);
     watchAccountService.accounts.clear();
-    stealthService.scanEnabled = true;
   });
 
   /// Two seed wallets: the pinned "9evoke9", last seen with funds on index
@@ -267,7 +264,7 @@ void main() {
       await renderPng(tester, 'wallet-unlocked-lower$tag');
       await tester.tap(find.widgetWithText(NavigationDestination, 'Discover'));
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('discover-ageusd')), findsOneWidget);
+      expect(find.byKey(const Key('discover-utxos')), findsOneWidget);
       await renderPng(tester, 'wallet-discover-tab$tag');
       await tester.tap(find.widgetWithText(NavigationDestination, 'Settings'));
       await tester.pumpAndSettle();

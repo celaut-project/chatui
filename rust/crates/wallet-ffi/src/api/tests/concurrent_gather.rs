@@ -109,19 +109,6 @@ async fn reverse_completion_is_byte_identical_to_serial_and_reservations_still_a
         serde_json::to_vec(&expected).unwrap()
     );
     assert_eq!(result.0.len(), 11);
-    let reserved_id = result.1[0].box_id.clone();
-    mix_set_reserved_funding(
-        handle,
-        serde_json::json!([{
-            "box_ids": [reserved_id], "value_nano_erg": 10000000
-        }])
-        .to_string(),
-    )
-    .unwrap();
-    let filtered = without_reserved(handle, result.0, result.1);
-    assert_eq!(filtered.0.len(), 10);
-    assert!(filtered.1.iter().all(|e| e.box_id != reserved_id));
-    mix_set_reserved_funding(handle, "[]".into()).unwrap();
     wallet_lock(handle).unwrap();
 }
 
@@ -376,7 +363,7 @@ async fn real_client_keeps_pages_before_mempool_and_cross_address_chain_is_spent
         }
     });
     let client = server.client().await;
-    let actual = gather_unspent_all(handle, &client, &addresses)
+    let actual = gather_unspent(handle, &client, &addresses)
         .await
         .unwrap();
     // Address order, confirmed before unconfirmed: the 499 confirmed boxes
@@ -431,7 +418,7 @@ async fn live_gather_benchmark() {
         })
         .await
         .unwrap();
-        gather_unspent_all(handle, &client, &addresses)
+        gather_unspent(handle, &client, &addresses)
             .await
             .unwrap();
         for count in [1, 10] {

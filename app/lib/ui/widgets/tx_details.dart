@@ -57,7 +57,6 @@ String txOutputKindLabel(String kind) => switch (kind) {
       'recipient' => 'To',
       'change' => 'Change',
       'fee' => 'Miner fee',
-      'app_fee' => 'Argus fee',
       _ => kind,
     };
 
@@ -87,7 +86,6 @@ class TxDetailsView extends StatelessWidget {
     final outputs = (details['outputs'] as List? ?? const []).cast<Map>();
     final dataInputs = (details['data_inputs'] as List? ?? const []).cast<String>();
     final fee = (details['fee_nano_erg'] as num?)?.toInt() ?? 0;
-    final appFee = (details['app_fee_nano_erg'] as num?)?.toInt() ?? 0;
     final txId = details['tx_id']?.toString() ?? '';
 
     Widget line(String label, String value, {String? sub}) => Padding(
@@ -140,7 +138,6 @@ class TxDetailsView extends StatelessWidget {
           ),
         heading('Fees'),
         line('Miner', formatErg(fee)),
-        if (appFee > 0) line('Argus', formatErg(appFee)),
         if (dataInputs.isNotEmpty) ...[
           heading('Data inputs (${dataInputs.length})'),
           for (final d in dataInputs) line('Box', shorten(d, head: 10, tail: 6)),

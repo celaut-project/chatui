@@ -3,7 +3,7 @@
 /// Two different things are called "explorer" here. A [ExplorerSite] is a
 /// website for people, chosen for "Open in explorer" links. An explorer
 /// *API* is a data source speaking the Ergo Platform explorer's REST
-/// schema, which the stealth scan, mixer, lending and bridge code read.
+/// schema, which the token metadata lookups read.
 /// Only some sites have such an API: ErgExplorer and Kadia serve their own
 /// schemas, so they are links-only and never a data source.
 class ExplorerSite {

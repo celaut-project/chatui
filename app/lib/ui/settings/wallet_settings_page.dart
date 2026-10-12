@@ -88,7 +88,7 @@ class _WalletSettingsPageState extends State<WalletSettingsPage> {
       builder: (ctx) => AlertDialog(
         title: Text('Remove $_name?'),
         content: const Text(
-          'This removes the wallet from this device. Argus does not keep a '
+          'This removes the wallet from this device. Celaut does not keep a '
           'copy of the recovery phrase; the paper you wrote when creating '
           'this wallet is the only way back in.',
         ),
@@ -238,7 +238,7 @@ class _WalletSettingsPageState extends State<WalletSettingsPage> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text(
-              'Argus does not keep a copy of the recovery phrase. The paper you wrote at create or restore is the only way back in.',
+              'Celaut does not keep a copy of the recovery phrase. The paper you wrote at create or restore is the only way back in.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),

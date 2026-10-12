@@ -7,7 +7,6 @@ import 'package:share_plus/share_plus.dart';
 import '../format.dart';
 import '../services/contacts_service.dart';
 import '../services/wallet_service.dart';
-import '../services/stealth_service.dart';
 import '../theme/argus_theme.dart';
 
 class ContactsScreen extends StatefulWidget {
@@ -21,8 +20,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
   bool get _selectMode =>
       ModalRoute.of(context)?.settings.arguments == true;
 
-  /// The user's other wallets as destinations: each one's address, and
-  /// its stealth address where one has been seen. Only in select mode.
+  /// The user's other wallets as destinations: each one's address. Only in
+  /// select mode.
   List<WalletContact> _ownWallets = const [];
 
   @override
@@ -35,7 +34,6 @@ class _ContactsScreenState extends State<ContactsScreen> {
     if (!mounted || !_selectMode) return;
     try {
       final wallets = await walletService.listWallets();
-      final stealth = await StealthService.rememberedAddresses();
       final active = walletService.activeWalletId;
       final out = <WalletContact>[];
       for (final w in wallets) {
@@ -43,10 +41,6 @@ class _ContactsScreenState extends State<ContactsScreen> {
         final addr = w.pinnedAddress ?? w.address0;
         if (addr != null && addr.isNotEmpty) {
           out.add(WalletContact(id: 'wallet:${w.walletId}', name: w.name, address: addr));
-        }
-        final s = stealth[w.walletId];
-        if (s != null) {
-          out.add(WalletContact(id: 'wallet-stealth:${w.walletId}', name: '${w.name} · stealth', address: s));
         }
       }
       if (mounted) setState(() => _ownWallets = out);
@@ -184,7 +178,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
               children: [
                 if (own) ...[
                   Icon(
-                    c.id.startsWith('wallet-stealth') ? Icons.visibility_off_outlined : Icons.account_balance_wallet_outlined,
+                    Icons.account_balance_wallet_outlined,
                     size: 20,
                     color: ArgusColors.of(context).muted,
                   ),
@@ -238,11 +232,9 @@ class _ContactDialogState extends State<_ContactDialog> {
     final name = _name.text.trim();
     final addr = _address.text.trim();
     if (name.isEmpty || addr.isEmpty) return;
-    // Stealth strings are storable too: paying one derives a fresh one-time
-    // address at send time.
     if (!looksLikeRecipient(addr)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Not a valid Ergo or stealth address')),
+        const SnackBar(content: Text('Not a valid Ergo address')),
       );
       return;
     }

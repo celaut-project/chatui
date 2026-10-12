@@ -169,8 +169,7 @@ void main() {
         // At 2x the list builds rows only as they near the screen.
         expect(
           find.bySemanticsLabel(RegExp(r'^Main Wallet, unlocked, 107\.71 ERG, about A\$50\.43 AUD, 50 tokens, '
-              r'\+2\.5 ERG pending · 105\.21 confirmed, incl\. 3\.2 ERG · 4 tokens on another address, '
-              r'incl\. 0\.001 ERG stealth$')),
+              r'\+2\.5 ERG pending · 105\.21 confirmed, incl\. 3\.2 ERG · 4 tokens on another address$')),
           findsOneWidget,
         );
         expect(find.bySemanticsLabel(RegExp(r'^9evoke9, 0 ERG, empty$')), findsOneWidget);
@@ -188,7 +187,7 @@ void main() {
       await saveRender(tester, _file('wallet', palette, scale));
       expect(
         find.bySemanticsLabel(RegExp(r'^Balance 107\.71 ERG, about A\$50\.43 AUD, 46 tokens unpriced, '
-            r'\+2\.5 ERG pending · 105\.21 confirmed, incl\. 0\.001 ERG stealth$')),
+            r'\+2\.5 ERG pending · 105\.21 confirmed$')),
         findsOneWidget,
       );
       expect(find.bySemanticsLabel('incl. 3.2 ERG · 4 tokens on 1 other address'), findsOneWidget);
@@ -207,7 +206,7 @@ void main() {
       if (scale == 1 && palette != harborPalette) {
         await saveRender(tester, _file('wallet', palette, scale, '-full'));
       }
-      for (final action in ['send', 'receive', 'swap', 'more']) {
+      for (final action in ['send', 'receive', 'more']) {
         expect(find.byKey(Key('wallet-action-$action')), findsOneWidget);
       }
       expect(find.bySemanticsLabel('Synced, Block 1,888,681, just now'), findsOneWidget);
@@ -216,8 +215,7 @@ void main() {
           findsOneWidget);
       expect(find.bySemanticsLabel(RegExp(r'^COMET, verified, Comet, 69, about A\$0\.21 AUD$')), findsOneWidget);
       expect(
-        find.bySemanticsLabel(RegExp(r'^Ergo_6de6f46e_LP, liquidity pool share, Spectrum pool share, '
-            r'18,252,893,012, about A\$0\.87 AUD$')),
+        find.bySemanticsLabel(RegExp(r'^Kushti, Kushti token, 18,252,893,012, about A\$0\.87 AUD$')),
         findsOneWidget,
       );
       expect(find.bySemanticsLabel(RegExp(r'^Sent, −1\.81 ERG, −69 COMET \+ 1 more, contract 5vSUZR…SCqM, 10:08 pm$')),
@@ -255,7 +253,7 @@ void main() {
       expect(find.bySemanticsLabel('Receive'), findsOneWidget);
       expect(find.byKey(const Key('watch-action-send')), findsOneWidget);
       expect(find.byKey(const Key('watch-action-receive')), findsOneWidget);
-      for (final keyed in ['send', 'swap', 'more']) {
+      for (final keyed in ['send', 'more']) {
         expect(find.byKey(Key('wallet-action-$keyed')), findsNothing, reason: '$keyed needs keys on this phone');
       }
       expect(find.byKey(const Key('wallet-scan')), findsNothing);
@@ -420,7 +418,6 @@ void main() {
     for (final key in [
       'wallet-action-send',
       'wallet-action-receive',
-      'wallet-action-swap',
       'funds-elsewhere',
       'wallet-status',
       'utxo-fragmented',
@@ -440,7 +437,6 @@ void main() {
       'tab activity',
       'send',
       'receive',
-      'swap',
       'addresses',
       'status',
       'tidy',
@@ -519,7 +515,7 @@ void main() {
         loading: true,
         notLoaded: 1,
         network: NetworkStatus(state: SyncState.syncing, blockHeight: 1888681),
-        price: ErgPriceView(fiatPerErg: null, source: 'CoinGecko'),
+        price: ErgPriceView(fiatPerErg: null, source: 'SigmaUSD oracle'),
       )),
       palette: ledgerPalette,
     );
@@ -527,7 +523,7 @@ void main() {
     expect(find.bySemanticsLabel('Total balance loading'), findsOneWidget);
     expect(find.bySemanticsLabel(RegExp(r'^Fresh restore, loading…')), findsOneWidget);
     expect(find.bySemanticsLabel('Syncing…, Block 1,888,681'), findsOneWidget);
-    expect(find.bySemanticsLabel('ERG price unavailable, CoinGecko'), findsOneWidget);
+    expect(find.bySemanticsLabel('ERG price unavailable, SigmaUSD oracle'), findsOneWidget);
   });
 
   testWidgets('a wallet with no activity offers its address', (tester) async {

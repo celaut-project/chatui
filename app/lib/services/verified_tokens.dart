@@ -1,6 +1,4 @@
-import 'dexy_service.dart';
 import 'rosen_tokens.dart';
-import 'sigmausd_service.dart';
 
 /// A token whose id was checked against the chain: name, decimals and
 /// emission match the issuer's, and holder counts rule out look-alikes.
@@ -34,10 +32,10 @@ class VerifiedToken {
 /// name, its emission and decimals compared with the issuer's, and holder
 /// statistics used to reject copies (several "SigUSD", "NETA", "Paideia",
 /// "CYPX" and "rsBTC" tokens exist with one holder or a mocking
-/// description). Protocol tokens come from the pinned protocol constants.
+/// description).
 const curatedTokens = <VerifiedToken>[
-  VerifiedToken(id: SigmaUsdTokens.sigUsd, ticker: 'SigUSD', name: 'SigmaUSD', project: 'AgeUSD', decimals: 2),
-  VerifiedToken(id: SigmaUsdTokens.sigRsv, ticker: 'SigRSV', name: 'SigmaRSV', project: 'AgeUSD', decimals: 0),
+  VerifiedToken(id: '03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04', ticker: 'SigUSD', name: 'SigmaUSD', project: 'AgeUSD', decimals: 2),
+  VerifiedToken(id: '003bd19d0187117f130b62e1bcab0939929ff5c7709f843c5c4dd158949285d0', ticker: 'SigRSV', name: 'SigmaRSV', project: 'AgeUSD', decimals: 0),
   VerifiedToken(id: '6122f7289e7bb2df2de273e09d4b2756cda6aeb0f40438dc9d257688f45183ad', ticker: 'DexyGold', name: 'DexyGold', project: 'Dexy', decimals: 0),
   VerifiedToken(id: 'a55b8735ed1a99e46c2c89f8994aacdf4b1109bdcf682f1e5b34479c6e392669', ticker: 'USE', name: 'DexyUSD', project: 'Dexy', decimals: 3),
   VerifiedToken(id: '8b08cdd5449a9592a9e79711d7d79249d7a03c535d17efaee83e216e80a44c4b', ticker: 'RSN', name: 'Rosen', project: 'Rosen Bridge', decimals: 3),
@@ -114,15 +112,3 @@ VerifiedToken? impersonatedToken({required String tokenId, String? name}) {
   final hit = _byTicker[n] ?? _byTicker[n.split(' ').first];
   return hit;
 }
-
-/// Ticker for the swap picker; unchanged behaviour for callers that only
-/// need a label.
-Map<String, String> verifiedTokenLabels() => {
-      for (final t in verifiedTokens)
-        if (t.isVerified) t.id: '${t.ticker}${t.project == t.ticker || t.project == t.name ? '' : ' (${t.project})'}',
-    };
-
-// Keep DexyVariant referenced so a constant drift between the pinned Dexy
-// ids and this registry fails loudly in tests.
-bool dexyIdsMatchRegistry() =>
-    DexyVariant.values.every((v) => v.tokenId.isEmpty || isVerifiedToken(v.tokenId));

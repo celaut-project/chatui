@@ -6,20 +6,10 @@ members = [
     "crates/wallet-ffi",
     "crates/celaut-proto",
     "tools/gen-protos",
-    "crates/wallet-amm",
     "crates/vendor/citadel-core",
     "crates/vendor/ergo-tx",
     "crates/vendor/ergo-node-client",
     "crates/vendor/ergopay-core",
-    "crates/vendor/protocols/amm",
-    "crates/vendor/protocols/sigmausd",
-    "crates/vendor/protocols/dexy",
-    "crates/vendor/protocols/duckpools",
-    "crates/vendor/protocols/rosen",
-    "crates/vendor/protocols/sigmafi",
-    "crates/vendor/protocols/stake-recovery",
-    "crates/vendor/protocols/stealth",
-    "crates/vendor/protocols/zerojoin",
 ]
 
 [workspace.package]
@@ -87,15 +77,6 @@ citadel-core = { path = "crates/vendor/citadel-core" }
 ergo-node-client = { path = "crates/vendor/ergo-node-client" }
 ergo-tx = { path = "crates/vendor/ergo-tx" }
 ergopay-core = { path = "crates/vendor/ergopay-core" }
-amm = { path = "crates/vendor/protocols/amm" }
-sigmausd = { path = "crates/vendor/protocols/sigmausd" }
-dexy = { path = "crates/vendor/protocols/dexy" }
-duckpools = { path = "crates/vendor/protocols/duckpools" }
-rosen = { path = "crates/vendor/protocols/rosen" }
-sigmafi = { path = "crates/vendor/protocols/sigmafi" }
-stake-recovery = { path = "crates/vendor/protocols/stake-recovery" }
-stealth = { path = "crates/vendor/protocols/stealth" }
-zerojoin = { path = "crates/vendor/protocols/zerojoin" }
 
 # ─── Misc ────────────────────────────────────────────────────────────────
 indexmap = "2"

@@ -14,19 +14,12 @@ class CoinSelection {
     required this.totalNanoErg,
     required this.tokens,
     required this.addresses,
-    this.mixedCount = 0,
     this.unconfirmedCount = 0,
   });
-
-  /// How many of the chosen boxes came out of a mix.
-  final int mixedCount;
 
   /// How many of the chosen boxes a transaction still in the mempool
   /// created. Offered only while Settings allows spending unconfirmed funds.
   final int unconfirmedCount;
-
-  /// True when mixed boxes would be spent next to ordinary ones.
-  bool get undoesMix => mixedCount > 0 && mixedCount < count;
 
   final List<InputBoxInput> boxes;
   final int totalNanoErg;
@@ -47,9 +40,8 @@ class CoinSelection {
 
 CoinSelection summariseSelection(
   List<InputBoxInput> all,
-  Set<String> selectedIds, {
-  Set<String> mixedIds = const {},
-}) {
+  Set<String> selectedIds,
+) {
   final chosen = [for (final b in all) if (selectedIds.contains(b.boxId)) b];
   var total = 0;
   final tokens = <String, BigInt>{};
@@ -67,7 +59,6 @@ CoinSelection summariseSelection(
     totalNanoErg: total,
     tokens: tokens,
     addresses: addresses,
-    mixedCount: chosen.where((b) => mixedIds.contains(b.boxId)).length,
     unconfirmedCount: chosen.where((b) => !b.confirmed).length,
   );
 }
@@ -91,26 +82,20 @@ CoinSelectionCheck checkSelection({
   required CoinSelection selection,
   required int amountNanoErg,
   required int feeNanoErg,
-  required int appFeeNanoErg,
   int minBoxNano = 1000000,
 }) {
-  final needed = amountNanoErg + feeNanoErg + appFeeNanoErg + minBoxNano;
+  final needed = amountNanoErg + feeNanoErg + minBoxNano;
   final have = selection.totalNanoErg;
   return CoinSelectionCheck(
     covers: have >= needed,
     shortfallNano: have >= needed ? 0 : needed - have,
-    changeNano: have >= needed ? have - amountNanoErg - feeNanoErg - appFeeNanoErg : 0,
+    changeNano: have >= needed ? have - amountNanoErg - feeNanoErg : 0,
   );
 }
 
 /// One line describing the privacy cost of a selection, or null when there
 /// is nothing to warn about.
 String? selectionPrivacyNote(CoinSelection selection) {
-  if (selection.undoesMix) {
-    return '${selection.mixedCount} of these boxes came out of a mix. Spending '
-        'them with other coins ties the mixed money back to this wallet and '
-        'undoes the mix. Choose only mixed boxes, or none of them.';
-  }
   if (selection.count < 2) return null;
   if (!selection.linksAddresses) return null;
   return 'These ${selection.count} boxes sit on ${selection.addresses.length} '
@@ -133,7 +118,7 @@ String? selectionConfirmationNote(CoinSelection selection) {
 
 /// Human summary of what the chosen boxes hold.
 String selectionSummary(CoinSelection selection) {
-  if (selection.isEmpty) return 'No boxes chosen — Argus will pick them.';
+  if (selection.isEmpty) return 'No boxes chosen — Celaut will pick them.';
   final parts = <String>[
     '${selection.count} box${selection.count == 1 ? '' : 'es'}',
     formatErg(selection.totalNanoErg, maxFrac: 4),

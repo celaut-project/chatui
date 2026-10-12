@@ -29,7 +29,7 @@ void main() {
 
     final svc = UpdateService(
       platform: FakePlatform(null),
-      endpoint: Uri.parse('http://127.0.0.1:${server.port}/repos/arkadianet/Argus/releases/latest'),
+      endpoint: Uri.parse('http://127.0.0.1:${server.port}/repos/celaut-project/chatui/releases/latest'),
       current: AppVersion.tryParse('1.0.0-beta.1'),
     );
     await svc.checkNow();
@@ -38,8 +38,8 @@ void main() {
     expect(svc.available?.version.toString(), '1.0.0-beta.2');
     expect(seen, hasLength(1));
     expect(seen.single.method, 'GET');
-    expect(seen.single.uri.toString(), '/repos/arkadianet/Argus/releases/latest');
-    expect(headers['user-agent'], ['Argus']);
+    expect(seen.single.uri.toString(), '/repos/celaut-project/chatui/releases/latest');
+    expect(headers['user-agent'], ['Celaut']);
 
     // Every header on the wire, by name. These are the transport's own: the
     // address asked for, and willingness to take gzip. Anything else added

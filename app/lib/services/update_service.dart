@@ -13,7 +13,7 @@ import '../build_info.dart';
 import 'apk_signature.dart';
 import 'update_channel.dart';
 
-// Opt-in update check against Argus's GitHub releases, and a download that is
+// Opt-in update check against the GitHub releases of celaut-project/chatui, and a download that is
 // checked before Android is asked to install it.
 //
 // What leaves the phone, and when:
@@ -27,12 +27,12 @@ import 'update_channel.dart';
 // Nothing is sent at any other time, and nothing about the wallet is ever
 // part of either request.
 
-/// GitHub's "latest release" for Argus: the newest release that is neither a
-/// draft nor a prerelease, which is how Argus publishes.
-final latestReleaseUri = Uri.https('api.github.com', '/repos/arkadianet/Argus/releases/latest');
+/// GitHub's "latest release" for chatui: the newest release that is neither a
+/// draft nor a prerelease.
+final latestReleaseUri = Uri.https('api.github.com', '/repos/celaut-project/chatui/releases/latest');
 
 /// GitHub rejects a request with no User-Agent. This is the whole identity.
-const updateUserAgent = 'Argus';
+const updateUserAgent = 'Celaut';
 
 /// How often the start-up check may contact GitHub.
 const updateCheckInterval = Duration(hours: 24);
@@ -294,7 +294,7 @@ ReleaseAsset? pickAsset(List<ReleaseAsset> assets, List<String> supportedAbis) {
   ReleaseAsset? named(String variant) {
     for (final a in assets) {
       final name = a.name.toLowerCase();
-      if (name.startsWith('argus-') && name.endsWith('-$variant.apk')) return a;
+      if (name.startsWith('chatui-') && name.endsWith('-$variant.apk')) return a;
     }
     return null;
   }
@@ -443,7 +443,7 @@ Future<DownloadedApk> downloadApk({
   Duration stallTimeout = _stallTimeout,
 }) async {
   if (!isTrustedReleaseUrl(asset.url)) throw const UpdateException('The download address is not on GitHub.');
-  if (asset.size > maxBytes) throw const UpdateException('The download is larger than Argus will accept.');
+  if (asset.size > maxBytes) throw const UpdateException('The download is larger than Celaut will accept.');
   final limit = asset.size;
 
   final http.StreamedResponse response;
@@ -467,7 +467,7 @@ Future<DownloadedApk> downloadApk({
   try {
     file = await into.open(mode: FileMode.write);
   } on FileSystemException {
-    throw const UpdateException('Argus could not save the download. Is the phone out of storage?');
+    throw const UpdateException('Celaut could not save the download. Is the phone out of storage?');
   }
   var received = 0;
   try {
@@ -493,7 +493,7 @@ Future<DownloadedApk> downloadApk({
   } catch (e) {
     await _discard(file, into);
     if (isCancelled()) throw const _Cancelled();
-    if (e is FileSystemException) throw const UpdateException('Argus could not save the download. Is the phone out of storage?');
+    if (e is FileSystemException) throw const UpdateException('Celaut could not save the download. Is the phone out of storage?');
     throw _networkFailure(e);
   }
   return DownloadedApk(sha256: digest.value.toString(), bytes: received);
@@ -602,7 +602,7 @@ String _rejection(ApkVerdict verdict) => switch (verdict) {
       ApkVerdict.unreadable =>
         'The signing key of this download could not be read, so it was not offered for install. It has been deleted.',
       ApkVerdict.appKeyUnknown =>
-        'Argus could not read its own signing key, so it cannot check this download. It has been deleted.',
+        'Celaut could not read its own signing key, so it cannot check this download. It has been deleted.',
       ApkVerdict.verified => '',
     };
 
@@ -982,7 +982,7 @@ class UpdateService extends ChangeNotifier {
       return;
     }
     if (!await _platform.canRequestInstall()) {
-      stageMessage = 'Android needs your permission first. Allow Argus to install apps on the next screen, then tap Install again.';
+      stageMessage = 'Android needs your permission first. Allow Celaut to install apps on the next screen, then tap Install again.';
       notifyListeners();
       await _platform.openInstallSettings();
       return;

@@ -30,8 +30,6 @@ class HomeBalance extends StatelessWidget {
     this.notLoaded = 0,
     this.asOf,
     this.pending,
-    this.pockets = const [],
-    this.pocketsAsOf,
     this.hidden = false,
     this.figureKey,
     this.pendingKey,
@@ -76,8 +74,6 @@ class HomeBalance extends StatelessWidget {
   /// Age of a snapshot figure ("3h ago").
   final String? asOf;
   final PendingBalance? pending;
-  final List<PocketBalance> pockets;
-  final String? pocketsAsOf;
   final bool hidden;
 
   /// Keys for the numeral and the pending line, so a figure can be found
@@ -128,7 +124,6 @@ class HomeBalance extends StatelessWidget {
       if (_showUnpriced) '$unpricedCount tokens unpriced',
       ..._notes(),
       ?pendingLine,
-      ?pocketsLine(pockets, hidden: false, asOf: pocketsAsOf),
     ].join(', '));
   }
 
@@ -331,12 +326,6 @@ class HomeBalance extends StatelessWidget {
       lines.add(Padding(
         padding: const EdgeInsets.only(top: 6),
         child: HomePendingLine(key: pendingKey, pending: pending, hidden: hidden),
-      ));
-    }
-    if (pocketsLine(pockets, hidden: hidden, asOf: pocketsAsOf) case final note?) {
-      lines.add(Padding(
-        padding: const EdgeInsets.only(top: 6),
-        child: Text(note, style: t.secondary.copyWith(fontSize: 15, letterSpacing: 0.3)),
       ));
     }
     return lines;

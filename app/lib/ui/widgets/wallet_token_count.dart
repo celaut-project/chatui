@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import '../../theme/argus_theme.dart';
 
 /// Counts token IDs, including NFTs, only for a known holdings snapshot.
-/// Locked snapshots contain public tokens only; say so rather than imply
-/// that an unavailable stealth scan found none.
 class WalletTokenCount extends StatelessWidget {
   const WalletTokenCount({
     super.key,

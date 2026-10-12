@@ -15,25 +15,6 @@ void main() {
     expect(classifyActivity({'value_nano_erg': -1000, 'counterparty': p2pk}), ActivityKind.sent);
   });
 
-  test('ERG out and tokens in from a contract is a swap', () {
-    final k = classifyActivity({
-      'value_nano_erg': -750000000,
-      'counterparty': contract,
-      'tokens_received': [{'token_id': 'a', 'amount': 5}],
-    });
-    expect(k, ActivityKind.swap);
-    expect(activityTitle(k), 'Swapped');
-  });
-
-  test('tokens out and ERG in from a contract is a swap too', () {
-    final k = classifyActivity({
-      'value_nano_erg': 500000000,
-      'counterparty': contract,
-      'tokens_sent': [{'token_id': 'a', 'amount': 5}],
-    });
-    expect(k, ActivityKind.swap);
-  });
-
   test('a contract interaction with no clear direction is labelled as such', () {
     final k = classifyActivity({'value_nano_erg': -1100000, 'counterparty': contract});
     expect(k, ActivityKind.contract);
@@ -118,16 +99,6 @@ void main() {
       };
       expect(classifyActivity(tx), ActivityKind.sent);
       expect(activityLine(tx, name: name, decimals: decimals), '69 COMET + 1.8162 ERG');
-    });
-
-    test('a swap shows what went out and what came back', () {
-      final tx = {
-        'value_nano_erg': -750000000,
-        'counterparty': contract,
-        'tokens_received': [t(comet, 69)],
-      };
-      expect(classifyActivity(tx), ActivityKind.swap);
-      expect(activityLine(tx, name: name, decimals: decimals), '0.75 ERG for 69 COMET');
     });
 
     test('hidden balances hide names too', () {

@@ -1,5 +1,5 @@
 use citadel_core::constants::{MIN_BOX_VALUE_NANO as MIN, TX_FEE_NANO as FEE};
-use ergo_tx::{dev_fee::DevFeeConfig, Eip12Asset, Eip12InputBox, Eip12UnsignedTx, RecipientSpec};
+use ergo_tx::{Eip12Asset, Eip12InputBox, Eip12UnsignedTx, RecipientSpec};
 use std::collections::BTreeMap;
 use wallet_core::spend::select_for_send;
 
@@ -86,14 +86,13 @@ fn selected_colocated_tokens_are_conserved_by_both_send_builders() {
                     select_for_send(&inputs, (2 * MIN + FEE) as u64, Some(("receipt", sent)))
                         .unwrap();
                 assert_eq!(selected.boxes.len(), if split { 2 } else { 1 });
-                let single = ergo_tx::build_send_tx_with_fee(
+                let single = ergo_tx::build_send_tx(
                     &selected.boxes,
                     "recipient",
                     "wallet",
                     MIN,
                     Some(("receipt", sent)),
                     1,
-                    &DevFeeConfig::disabled(),
                 )
                 .unwrap();
                 check(&single.unsigned_tx, sent, extras);
@@ -125,13 +124,7 @@ fn selected_colocated_tokens_are_conserved_by_both_send_builders() {
 #[test]
 fn extra_tokens_require_funded_change_instead_of_being_burned_or_reported_missing() {
     for multi in [false, true] {
-        // Account for the configured app fee in the multi-send builder.
-        let app_fee = if multi {
-            ergo_tx::resolved_dev_fee_config().budget()
-        } else {
-            0
-        };
-        let base = MIN + FEE + app_fee;
+        let base = MIN + FEE;
         for remainder in [0, MIN - 1, MIN] {
             for extras in [0, 1, 3] {
                 let inputs = [input("a", base + remainder, 100, extras)];
@@ -144,7 +137,7 @@ fn extra_tokens_require_funded_change_instead_of_being_burned_or_reported_missin
                             e.to_string()
                         })
                 } else {
-                    ergo_tx::build_send_tx_with_fee(&selected.boxes, "recipient", "wallet", MIN, Some(("receipt", 100)), 1, &DevFeeConfig::disabled())
+                    ergo_tx::build_send_tx(&selected.boxes, "recipient", "wallet", MIN, Some(("receipt", 100)), 1)
                         .map(|b| b.unsigned_tx).map_err(|e| {
                             assert!(matches!(e, ergo_tx::SendError::TokenChangeInsufficientErg { have, min } if have == remainder && min == MIN));
                             e.to_string()

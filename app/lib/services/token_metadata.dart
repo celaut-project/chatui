@@ -4,8 +4,8 @@ import 'wallet_service.dart';
 export 'token_amounts.dart';
 
 // Display helpers over the one token lookup: `WalletService.cachedTokenMeta`
-// (this wallet's descriptors, the public pool-token catalog, the curated
-// registry, the legacy table) plus this session's explicit loads. Every
+// (this wallet's descriptors, the curated registry, the legacy table) plus
+// this session's explicit loads. Every
 // screen that names a token or scales an amount by its id goes through
 // these, so a name learned anywhere shows everywhere at once, and an amount
 // nothing can scale says so instead of passing base units off as tokens.
@@ -66,10 +66,9 @@ int? tokenDecimals(String id, {TokenBalance? held}) {
 }
 
 /// A holding's amount in its own scale, "1,234.5", or "5,000 raw units"
-/// when nothing knows its decimals. [units] stands in for the amount, for
-/// a part of the holding such as what sits in stealth boxes.
-String holdingAmountText(TokenBalance t, {int? units}) {
-  final amount = BigInt.from(units ?? t.amount);
+/// when nothing knows its decimals.
+String holdingAmountText(TokenBalance t) {
+  final amount = BigInt.from(t.amount);
   return hasKnownScale(t)
       ? formatUnits(amount, t.decimals)
       : rawUnitsText(amount);

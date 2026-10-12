@@ -17,13 +17,6 @@ class NotificationService {
     importance: Importance.high,
   );
 
-  static const _loanChannel = AndroidNotificationChannel(
-    'argus_loans',
-    'Loan health',
-    description: 'A Duckpools loan of yours is close to its liquidation line or its deadline.',
-    importance: Importance.high,
-  );
-
   Future<void> init() async {
     if (_ready) return;
     try {
@@ -37,7 +30,6 @@ class NotificationService {
       );
       final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
       await android?.createNotificationChannel(_channel);
-      await android?.createNotificationChannel(_loanChannel);
       _ready = true;
     } catch (e) {
       debugPrint('argus: notifications unavailable: $e');
@@ -74,69 +66,16 @@ class NotificationService {
     } catch (_) {}
   }
 
-  /// Progress of a mix: a round done, or the money delivered. `mixId`
-  /// keeps two mixes at the same step from replacing each other's
-  /// notification, since the text names no amount that would tell them
-  /// apart.
-  Future<void> mixProgress({required String title, required String body, int? mixId}) async {
-    if (!_ready) return;
-    try {
-      await _plugin.show(
-        id: ('$mixId|$title|$body').hashCode & 0x7fffffff,
-        title: title,
-        body: body,
-        payload: 'mix',
-        notificationDetails: NotificationDetails(
-          android: AndroidNotificationDetails(
-            _channel.id,
-            _channel.name,
-            channelDescription: _channel.description,
-            importance: Importance.defaultImportance,
-            priority: Priority.defaultPriority,
-          ),
-        ),
-      );
-    } catch (e) {
-      debugPrint('argus: notification failed: $e');
-    }
-  }
-
-  /// A loan's health crossed a line, or its forced liquidation is near.
-  /// One notification per loan and level: the id is the loan's.
-  Future<void> loanHealth({required String loanId, required String title, required String body}) async {
-    if (!_ready) return;
-    try {
-      await _plugin.show(
-        id: loanId.hashCode & 0x7fffffff,
-        title: title,
-        body: body,
-        payload: 'loans',
-        notificationDetails: NotificationDetails(
-          android: AndroidNotificationDetails(
-            _loanChannel.id,
-            _loanChannel.name,
-            channelDescription: _loanChannel.description,
-            importance: Importance.high,
-            priority: Priority.high,
-          ),
-        ),
-      );
-    } catch (e) {
-      debugPrint('argus: notification failed: $e');
-    }
-  }
-
   Future<void> incomingPayment({
     required int nanoErg,
     required String walletName,
     required bool pending,
-    bool stealth = false,
   }) async {
     if (!_ready) return;
     try {
       await _plugin.show(
         id: nanoErg.hashCode & 0x7fffffff,
-        title: incomingTitle(pending: pending, stealth: stealth),
+        title: incomingTitle(pending: pending),
         body: '${formatErg(nanoErg, maxFrac: 4)} to $walletName',
         payload: 'activity',
         notificationDetails: NotificationDetails(
@@ -157,9 +96,5 @@ class NotificationService {
 
 final notificationService = NotificationService();
 
-/// A stealth receipt is always confirmed by the time it is detected: it is
-/// found in the unspent set, not the mempool, so it is never "on the way".
-String incomingTitle({required bool pending, required bool stealth}) {
-  if (stealth) return 'Stealth payment received';
-  return pending ? 'Payment on the way' : 'Payment received';
-}
+String incomingTitle({required bool pending}) =>
+    pending ? 'Payment on the way' : 'Payment received';

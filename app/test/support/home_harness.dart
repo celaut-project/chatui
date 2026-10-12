@@ -39,8 +39,6 @@ class HomeApi extends RustLibApi {
   Map<String, dynamic> _balance(String address) =>
       balances[address] ?? {'balance_nano_erg': 0, 'tokens': []};
 
-  @override
-  Future<void> crateApiInitApp() async {}
 
   @override
   Future<BigInt> crateApiWalletRestore({
@@ -260,9 +258,8 @@ Future<void> pumpHome(
 Future<void> disposeHome(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox());
   if (walletService.isUnlocked) await walletService.lock();
-  // An unlock reschedules background mixing, which on a test host starts a
-  // process whose zero-length timer lands after the tree is gone. Let it
-  // run out before the test's own timer check.
+  // Let timers the screen started run out before the test's own timer
+  // check.
   for (var i = 0; i < 3; i++) {
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
     await tester.pump(const Duration(milliseconds: 1));

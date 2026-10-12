@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:flutter_zxing/flutter_zxing.dart';
 
 import '../services/session_lock.dart';
 
@@ -12,6 +12,7 @@ class ScanScreen extends StatefulWidget {
 
 class _ScanScreenState extends State<ScanScreen> {
   bool _done = false;
+  bool _cameraFailed = false;
 
   @override
   void initState() {
@@ -25,45 +26,53 @@ class _ScanScreenState extends State<ScanScreen> {
     super.dispose();
   }
 
-  void _onDetect(BarcodeCapture capture) {
-    if (_done || !mounted) return;
-    for (final code in capture.barcodes) {
-      final raw = code.rawValue?.trim();
-      if (raw == null || raw.isEmpty) continue;
-      _done = true;
-      Navigator.pop(context, raw);
-      return;
-    }
+  void _onScan(Code code) {
+    if (_done || !mounted || !code.isValid) return;
+    final raw = code.text?.trim();
+    if (raw == null || raw.isEmpty) return;
+    _done = true;
+    Navigator.pop(context, raw);
+  }
+
+  // A phone without a flash also reports an error here; the camera still works.
+  void _onControllerCreated(CameraController? controller, Exception? error) {
+    if (error == null || !mounted) return;
+    if (error.toString().contains('setFlashModeFailed')) return;
+    setState(() => _cameraFailed = true);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Scan')),
-      body: MobileScanner(
-        onDetect: _onDetect,
-        errorBuilder: (context, error) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    'Camera is unavailable. Allow camera access and try again.',
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 20),
-                  FilledButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Back'),
-                  ),
-                ],
+      body: _cameraFailed
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Camera is unavailable. Allow camera access and try again.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Back'),
+                    ),
+                  ],
+                ),
               ),
+            )
+          : ReaderWidget(
+              codeFormat: Format.qrCode,
+              onScan: _onScan,
+              onControllerCreated: _onControllerCreated,
+              showGallery: false,
+              showToggleCamera: false,
+              scanDelaySuccess: Duration.zero,
             ),
-          );
-        },
-      ),
     );
   }
 }

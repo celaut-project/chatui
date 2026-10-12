@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:argus_wallet/services/preview/preview_service.dart';
 import 'package:argus_wallet/bridge/frb_generated.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
-import 'package:argus_wallet/services/stealth_service.dart';
 import 'wallet_sync_controller_test.dart' show FakeGateway;
 import 'package:argus_wallet/services/wallet_sync_controller.dart';
 import 'package:argus_wallet/ui/assets_screen.dart';
@@ -98,10 +97,6 @@ void main() {
   // unlocked wallet, so no unrelated guard can make them pass vacuously.
   const ordinary =
       'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
-  const stealthOnly =
-      'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
-  const both =
-      'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc';
 
   test('an ordinary holding is resolved from the node that served it',
       () async {
@@ -121,58 +116,6 @@ void main() {
         reason: 'the endpoint that answered, not the configured one');
     expect(api.descriptorCalls.single.isNode, isTrue,
         reason: 'never the explorer');
-  });
-
-  test('a stealth-only holding is never handed to resolution', () async {
-    final service = WalletService();
-    await service.restoreWallet('mock', walletId: 'stealth-w');
-    addTearDown(() => service.lock('stealth-w'));
-
-    final gateway = ResolvingGateway(service)
-      ..balances = {
-        'addr0': {
-          'balance_nano_erg': 100,
-          'tokens': [
-            {'id': ordinary, 'amount': 5},
-            {'id': both, 'amount': 5},
-          ],
-        },
-      }
-      ..stealthResult = StealthScanResult(
-        scanned: 2,
-        ownedCount: 2,
-        totalNanoErg: 10,
-        tokens: [
-          StealthToken(id: stealthOnly, amount: BigInt.from(3)),
-          StealthToken(id: both, amount: BigInt.from(2)),
-        ],
-        boxIds: const ['private-box'],
-      );
-    final controller = WalletSyncController(gateway);
-    addTearDown(controller.dispose);
-    await controller.hydrateAfterUnlock();
-    await controller.refresh(discover: false);
-    await controller.pendingNameResolution;
-    expect(controller.stealthTokens.map((t) => t.id), contains(stealthOnly));
-    expect(
-      api.descriptorCalls.every(
-        (c) => c.isNode && c.provider == 'https://served.example',
-      ),
-      isTrue,
-    );
-
-    final asked = api.descriptorCalls.map((c) => c.tokenId).toSet();
-    expect(asked, contains(ordinary), reason: 'positive control');
-    expect(
-      asked,
-      isNot(contains(stealthOnly)),
-      reason: 'a stealth-only id is not derivable from public addresses',
-    );
-    expect(
-      asked,
-      contains(both),
-      reason: 'held in ordinary boxes too, so the node already has this id',
-    );
   });
 
   test('a stale wallet generation resolves nothing', () async {

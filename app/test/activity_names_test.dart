@@ -1,5 +1,3 @@
-import 'package:argus_wallet/services/token_catalog.dart';
-import 'package:argus_wallet/services/token_descriptor_store.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
 import 'package:argus_wallet/theme/argus_theme.dart';
 import 'package:argus_wallet/ui/transaction_detail_screen.dart';
@@ -28,7 +26,6 @@ Map<String, dynamic> _sent(List<Map<String, Object>> tokens) => {
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
-    publicTokenCatalog.debugReset();
   });
 
   Future<void> row(WidgetTester tester, Map<String, dynamic> tx) =>
@@ -53,9 +50,7 @@ void main() {
   testWidgets('more than two tokens: two by name, then how many more', (
     tester,
   ) async {
-    publicTokenCatalog.debugSeed([
-      CachedDescriptor(id: _pooled, name: 'Pooled', decimals: 2, decimalsEvidence: DecimalsEvidence.valid),
-    ]);
+    walletService.rememberTokenMeta(TokenBalance(id: _pooled, amount: 0, name: 'Pooled', decimals: 2, decimalsEvidence: DecimalsEvidence.valid));
     await row(tester, _sent([
       {'token_id': _unknown, 'amount': 5},
       {'token_id': _comet, 'amount': 69},
@@ -68,13 +63,13 @@ void main() {
   });
 
   testWidgets('a name learned later repaints the row', (tester) async {
+    final later = 'cc' * 32;
     await row(tester, _sent([
-      {'token_id': _pooled, 'amount': 150},
+      {'token_id': later, 'amount': 150},
     ]));
-    expect(find.textContaining('150 raw units of aaaaaaaa…'), findsOneWidget);
-    publicTokenCatalog.debugSeed([
-      CachedDescriptor(id: _pooled, name: 'Pooled', decimals: 2, decimalsEvidence: DecimalsEvidence.valid),
-    ]);
+    expect(find.textContaining('150 raw units of cccccccc…'), findsOneWidget);
+    walletService.rememberTokenMeta(TokenBalance(id: later, amount: 0, name: 'Pooled', decimals: 2, decimalsEvidence: DecimalsEvidence.valid));
+    walletService.metadataChanges.value++;
     await tester.pump();
     expect(find.textContaining('1.5 Pooled + 1.8162 ERG'), findsOneWidget);
   });

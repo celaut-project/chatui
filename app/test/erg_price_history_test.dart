@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:argus_wallet/services/erg_price_history.dart';
-import 'package:argus_wallet/services/sigmausd_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 List<Map<String, dynamic>> _load(String name) {
@@ -11,41 +10,8 @@ List<Map<String, dynamic>> _load(String name) {
   return items.map((e) => (e as Map).cast<String, dynamic>()).toList();
 }
 
-/// A synthetic pool box at [height] pricing ERG at [usd].
-Map<String, dynamic> poolBox(int height, double usd, {int id = 0}) {
-  const erg = 100000 * 1000000000;
-  return {
-    'boxId': 'box-$height-$id',
-    'value': erg,
-    'inclusionHeight': height,
-    'assets': [
-      {'tokenId': ergSigUsdPoolNft, 'amount': 1},
-      {'tokenId': 'lp', 'amount': 9},
-      {'tokenId': SigmaUsdTokens.sigUsd, 'amount': (usd * 100000 * 100).round()},
-    ],
-  };
-}
-
 void main() {
   final now = DateTime.utc(2026, 10, 6, 12);
-
-  test('real ERG/SigUSD pool boxes become a price series, oldest first', () {
-    final history = poolHistoryFromBoxes(_load('erg_sigusd_pool_history.json'), sigUsdId: SigmaUsdTokens.sigUsd);
-    expect(history, hasLength(12));
-    expect(history.first.$1, 1888470);
-    expect(history.last.$1, 1888486);
-    // 34,216.49 SigUSD against 114,319.79 ERG.
-    expect(history.last.$2, closeTo(0.29931, 0.00001));
-    for (var i = 1; i < history.length; i++) {
-      expect(history[i].$1, greaterThanOrEqualTo(history[i - 1].$1));
-    }
-  });
-
-  test('boxes of another pool layout or token are not read as prices', () {
-    final odd = poolBox(10, 0.3);
-    (odd['assets'] as List)[2] = {'tokenId': 'not-sigusd', 'amount': 5};
-    expect(poolHistoryFromBoxes([odd, {'value': 1, 'assets': []}], sigUsdId: SigmaUsdTokens.sigUsd), isEmpty);
-  });
 
   test('recorded SigmaUSD pool boxes become its rate history, oldest first', () {
     final history = oracleRateHistory(_load('sigmausd_oracle_pool_history.json'));
@@ -94,22 +60,10 @@ void main() {
     expect(clipped.last.price, 0.3);
   });
 
-  test('CoinGecko market chart points parse and sort', () {
-    final points = coingeckoChartPoints({
-      'prices': [
-        [1700000060000, 0.31],
-        [1700000000000, 0.30],
-        ['bad', 1],
-      ],
-    });
-    expect(points.map((p) => p.price), [0.30, 0.31]);
-    expect(points.first.at.isUtc, isTrue);
-  });
-
   group('sampleHistory', () {
     /// [count] boxes newest first, [perBlock] per block, ending at [tip].
     List<Map<String, dynamic>> chain(int count, {required int tip, required double perBlock}) => [
-          for (var i = 0; i < count; i++) poolBox(tip - (i / perBlock).floor(), 0.3, id: i),
+          for (var i = 0; i < count; i++) {'boxId': 'box-$i', 'inclusionHeight': tip - (i / perBlock).floor()},
         ];
 
     test('a quiet pool needs one request', () async {

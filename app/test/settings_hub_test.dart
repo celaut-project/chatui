@@ -33,7 +33,7 @@ void main() {
   testWidgets('without a wallet the hub is app-wide only', (tester) async {
     listWallets(tester, const []);
     await pump(tester, const SettingsScreen());
-    for (final text in ['Security', 'Offline signing', 'Network', 'Display', 'Address book', 'About Argus']) {
+    for (final text in ['Security', 'Offline signing', 'Network', 'Display', 'Address book', 'About Celaut']) {
       expect(find.text(text), findsOneWidget, reason: text);
     }
     // Wallets are listed, switched, created and watched on the overview;

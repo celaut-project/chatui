@@ -15,8 +15,6 @@ import 'batch_a_sync_test.dart' show GatedGateway;
 class PublicApi extends RustLibApi {
   final calls = <String>[];
   @override
-  Future<void> crateApiInitApp() async {}
-  @override
   Future<String> crateApiGetBalance({
     required String address,
     String? nodeUrl,
@@ -171,7 +169,6 @@ void main() {
         'history:c',
       ]);
       expect(active.discoverCalls, 0);
-      expect(active.stealthCalls, 0);
       expect(
         walletService.isUnlocked,
         isFalse,

@@ -3,7 +3,6 @@ import 'package:argus_wallet/services/address_label_service.dart';
 import 'package:argus_wallet/services/erg_price_history.dart';
 import 'package:argus_wallet/services/network_controller.dart';
 import 'package:argus_wallet/services/public_wallet_sync.dart';
-import 'package:argus_wallet/services/stealth_service.dart';
 import 'package:argus_wallet/services/token_pricer.dart';
 import 'package:argus_wallet/services/token_pricing.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
@@ -12,7 +11,6 @@ import 'package:argus_wallet/services/watch_only_service.dart';
 import 'package:argus_wallet/ui/home/erg_price_feed.dart';
 import 'package:argus_wallet/ui/home/home_data.dart';
 import 'package:argus_wallet/ui/home/home_format.dart';
-import 'package:argus_wallet/ui/home/home_models.dart';
 import 'package:argus_wallet/ui/home/unlock_gate.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -34,13 +32,8 @@ class _HistoryPricer extends TokenPricer {
       : super(PricerDeps(
           nodeUrl: () => null,
           tipHeight: () => null,
-          fiatCode: () => 'usd',
           oracle: (_) async => null,
-          coingecko: (_, _) async => const {},
-          pools: () async => null,
-          poolPrices: (_) async => PoolPriceBook.empty,
-          sigRsvPriceNano: () async => null,
-          onRate: (_, _) {},
+          onRate: (_) {},
           metadataChanges: ValueNotifier(0),
         ));
 
@@ -59,7 +52,7 @@ class _HistoryPricer extends TokenPricer {
   }
 }
 
-ErgPriceHistory _day({String currency = 'aud', String source = 'SigmaUSD oracle', bool stale = false}) {
+ErgPriceHistory _day({String currency = 'usd', String source = 'SigmaUSD oracle', bool stale = false}) {
   final now = DateTime.now();
   return ErgPriceHistory(
     window: PriceWindow.day,
@@ -72,38 +65,32 @@ ErgPriceHistory _day({String currency = 'aud', String source = 'SigmaUSD oracle'
 }
 
 void _price({String via = 'SigmaUSD oracle', String? staleAge, Map<String, TokenPrice> tokens = const {}}) {
-  networkController.fiatCode = 'aud';
-  networkController.setErgRate(fiatPerErg: 0.36, usdPerErg: _usdPerErg);
+  networkController.setErgRate(_usdPerErg);
   tokenPricer.result = PricingResult(ergUsd: _usdPerErg, ergVia: via, prices: tokens, ergStaleAge: staleAge);
-  tokenPricer.fiatPerUsd = 1.5;
-  tokenPricer.displayRateKnown = true;
   tokenPricer.stale = staleAge != null;
 }
 
 void main() {
   tearDown(() {
-    networkController.fiatCode = 'usd';
-    networkController.setErgRate(fiatPerErg: null, usdPerErg: null);
+    networkController.setErgRate(null);
     tokenPricer.result = const PricingResult(ergUsd: null, ergVia: null, prices: {});
     tokenPricer.stale = false;
     tokenPricer.pricesAreOld = false;
     tokenPricer.asOf = null;
-    tokenPricer.fiatPerUsd = 1;
-    tokenPricer.displayRateKnown = true;
   });
 
   group('the ERG price', () {
-    test('names its source and the currency picked, with the day\'s trend', () {
+    test('names its source, with the day\'s trend', () {
       _price();
       final view = ergPriceView(_day());
-      expect(view.fiatPerErg, 0.36);
+      expect(view.fiatPerErg, _usdPerErg);
       expect(view.source, 'SigmaUSD oracle');
       expect(view.points, [0.35, 0.36]);
       expect(view.changePercent, 2.9);
       expect(view.trendSource, isNull);
       expect(view.staleNote, isNull);
       expect(ergAssetRow(10000000000, view).changePercent, 2.9);
-      expect(ergAssetRow(10000000000, view).fiatValue, closeTo(3.6, 1e-9));
+      expect(ergAssetRow(10000000000, view).fiatValue, closeTo(2.4, 1e-9));
     });
 
     test('a stale rate says how old it is, everywhere it shows', () {
@@ -130,17 +117,6 @@ void main() {
       expect(ergPriceView(null).staleNote, 'as of 22m ago');
     });
 
-    test('a rate the currency cannot be converted to is unknown, never zero', () {
-      _price();
-      networkController.setErgRate(fiatPerErg: null, usdPerErg: _usdPerErg);
-      tokenPricer.displayRateKnown = false;
-      final view = ergPriceView(_day());
-      expect(view.fiatPerErg, isNull);
-      expect(view.hasTrend, isFalse);
-      expect(view.historyUnavailable, 'AUD rate not known yet');
-      expect(holdingsFiat(1000000000, const []).fiat, isNull);
-    });
-
     test('a chart from another feed than today\'s price says so', () {
       _price(via: 'Dexy USD oracle');
       expect(ergPriceView(_day()).trendSource, 'SigmaUSD oracle');
@@ -148,7 +124,7 @@ void main() {
 
     test('history in another currency, or out of date, is not charted', () {
       _price();
-      expect(ergPriceView(_day(currency: 'usd')).hasTrend, isFalse);
+      expect(ergPriceView(_day(currency: 'aud')).hasTrend, isFalse);
       final old = ergPriceView(_day(stale: true));
       expect(old.hasTrend, isFalse);
       expect(old.historyUnavailable, 'SigmaUSD oracle history is out of date');
@@ -159,7 +135,7 @@ void main() {
       final view = ergPriceView(const ErgPriceHistory.unavailable(
         window: PriceWindow.day,
         sourceLabel: 'SigmaUSD oracle',
-        currency: 'aud',
+        currency: 'usd',
         reason: 'This node has no price history for SigmaUSD oracle yet.',
       ));
       expect(view.historyUnavailable, 'This node has no price history for SigmaUSD oracle yet');
@@ -169,16 +145,16 @@ void main() {
   group('holdings', () {
     test('ERG and every counted token are valued; the rest are counted as unpriced', () {
       _price(tokens: {
-        'peg': const TokenPrice(usd: 1, via: 'USD peg', decimals: 2),
-        'pool': const TokenPrice(usd: 5, via: 'Spectrum pool', countsInTotal: false, decimals: 0),
+        'current': const TokenPrice(usd: 1, via: 'AVL oracle', decimals: 2),
+        'stopped': const TokenPrice.stale(usd: 5, source: 'AVL oracle', age: '22 days', decimals: 0),
       });
       final value = holdingsFiat(1000000000, const [
-        (id: 'peg', amount: 250, decimals: 2),
-        (id: 'pool', amount: 1, decimals: 0),
+        (id: 'current', amount: 250, decimals: 2),
+        (id: 'stopped', amount: 1, decimals: 0),
         (id: 'nobody', amount: 1, decimals: 0),
       ]);
-      expect(value.fiat, closeTo((_usdPerErg + 2.5) * 1.5, 1e-9));
-      expect(value.unpriced, 2, reason: 'one unverified, one unpriced');
+      expect(value.fiat, closeTo(_usdPerErg + 2.5, 1e-9));
+      expect(value.unpriced, 2, reason: 'one stale, one unpriced');
     });
 
     test('a token nothing can scale is shown in raw units and left unvalued', () {
@@ -186,13 +162,6 @@ void main() {
       final row = tokenAssetRow(TokenBalance(id: 'd7' * 32, amount: 5000));
       expect(row.decimals, isNull);
       expect(row.fiatValue, isNull);
-    });
-
-    test('an LP share is marked by the price the pricer gave it', () {
-      _price(tokens: {'lp': const TokenPrice(usd: 3, via: 'Spectrum LP share', decimals: 0)});
-      final row = tokenAssetRow(TokenBalance(id: 'lp', amount: 2, name: 'ERG_SigUSD_LP'));
-      expect(row.kind, AssetKind.lpShare);
-      expect(row.fiatValue, closeTo(9, 1e-9));
     });
 
     test('a token priced by a stopped feed says how old its price is', () {
@@ -223,37 +192,6 @@ void main() {
       expect(row.counterparty, 'to 9aaaaa…aaaa');
       expect(row.legs.map((l) => spoken(legText(l))), ['−1.5 ERG', '−69 raw units of tok']);
     });
-
-    test('a stealth receipt names no payer', () {
-      final row = activityRow({
-        'tx_id': 's1',
-        'height': 1500000,
-        'timestamp': DateTime(2026, 9, 30, 12).millisecondsSinceEpoch,
-        'value_nano_erg': 1000000,
-        'stealth': true,
-      }, id: 's1');
-      expect(row.title, 'Stealth payment');
-      expect(row.counterparty, 'to your stealth address');
-      expect(row.pending, isFalse);
-    });
-
-    test('a swap leads with what came back', () {
-      final row = activityRow({
-        'tx_id': 'w1',
-        'height': 1500000,
-        'timestamp': 0,
-        'value_nano_erg': -4200000000,
-        'counterparty': 'contract-${'b' * 60}',
-        'tokens_received': [
-          {'token_id': 'rsv', 'amount': 79},
-        ],
-      }, id: 'w1');
-      expect(row.title, 'Swapped');
-      expect(row.counterparty, isNull, reason: 'the pool contract says nothing a person can use');
-      expect(row.legs.first.amount, BigInt.from(79));
-      expect(row.legs.last.amount, BigInt.from(-4200000000));
-      expect(row.time, '');
-    });
   });
 
   group('the price feed', () {
@@ -275,23 +213,23 @@ void main() {
       expect(pricer.reads, 1);
       expect(feed.history!.available, isFalse);
       // A notification that changes nothing the price depends on.
-      network.setErgRate(fiatPerErg: 0.36, usdPerErg: 0.24);
+      network.setErgRate(0.24);
       await Future<void>.delayed(Duration.zero);
       expect(pricer.reads, 1);
-      // A new display currency is a new price.
-      network.fiatCode = 'aud';
+      // A new node is a new price.
+      network.activeUrl = 'http://node';
       pricer.answer = _day();
-      network.setErgRate(fiatPerErg: 0.36, usdPerErg: 0.24);
+      network.setErgRate(0.24);
       await Future<void>.delayed(Duration.zero);
       expect(pricer.reads, 2);
       expect(feed.history!.available, isTrue);
       // An available answer stands for the pricer's five minutes.
       now = now.add(const Duration(minutes: 4));
-      network.setErgRate(fiatPerErg: 0.36, usdPerErg: 0.24);
+      network.setErgRate(0.24);
       await Future<void>.delayed(Duration.zero);
       expect(pricer.reads, 2);
       now = now.add(const Duration(minutes: 2));
-      network.setErgRate(fiatPerErg: 0.36, usdPerErg: 0.24);
+      network.setErgRate(0.24);
       await Future<void>.delayed(Duration.zero);
       expect(pricer.reads, 3);
     });
@@ -304,12 +242,10 @@ void main() {
       SharedPreferences.setMockInitialValues({'argus_watch_only_addresses': '[]'});
       await watchOnlyService.load();
       watchAccountService.accounts.clear();
-      stealthService.scanEnabled = false;
       publicWalletSync.setForeground(false);
     });
     tearDown(() async {
       publicWalletSync.setForeground(true);
-      stealthService.scanEnabled = true;
       if (walletService.isUnlocked) await walletService.lock();
     });
 
@@ -356,14 +292,14 @@ void main() {
       await disposeHome(tester);
     });
 
-    testWidgets('Discover explains a protocol before anything opens', (tester) async {
+    testWidgets('Discover explains a tool before anything opens', (tester) async {
       await openWallet(tester);
       await tester.tap(find.widgetWithText(NavigationDestination, 'Discover'));
       await tester.pumpAndSettle();
       expect(find.widgetWithText(AppBar, 'Discover'), findsOneWidget);
-      await tester.tap(find.byKey(const Key('discover-ageusd')));
+      await tester.tap(find.byKey(const Key('discover-utxos')));
       await tester.pumpAndSettle();
-      expect(find.text('Open AgeUSD'), findsOneWidget);
+      expect(find.text('Open UTXO management'), findsOneWidget);
       await tester.tapAt(const Offset(20, 20));
       await tester.pumpAndSettle();
       await disposeHome(tester);

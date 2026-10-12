@@ -91,7 +91,7 @@ void main() {
       );
     });
 
-    test('the mix funding finder can ask for confirmed boxes only', () async {
+    test('a caller can ask for confirmed boxes only', () async {
       final boxes = await walletService.listUnspentBoxes(
         ['addr0'],
         nodeUrl: null,

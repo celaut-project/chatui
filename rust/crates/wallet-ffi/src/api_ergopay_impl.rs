@@ -63,7 +63,6 @@ pub(crate) fn summarize_unsigned(
     let fee_tree = ergo_lib::wallet::miner_fee::MINERS_FEE_ADDRESS
         .script()
         .ok();
-    let app_fee_tree = tree_from_hex(ergo_tx::DEFAULT_DEV_FEE_ERGO_TREE);
 
     let mut inputs = Vec::new();
     let mut inputs_known = true;
@@ -112,7 +111,6 @@ pub(crate) fn summarize_unsigned(
 
     let mut outputs = Vec::new();
     let mut fee: u64 = 0;
-    let mut app_fee: u64 = 0;
     let mut sent: u64 = 0;
     let mut change: u64 = 0;
     let mut tokens_out: std::collections::BTreeMap<String, u64> = Default::default();
@@ -127,9 +125,6 @@ pub(crate) fn summarize_unsigned(
         let kind = if is_fee {
             fee = fee.saturating_add(value);
             "fee"
-        } else if app_fee_tree.as_ref().is_some_and(|t| *t == out.ergo_tree) {
-            app_fee = app_fee.saturating_add(value);
-            "app_fee"
         } else if is_owned(&address) {
             change = change.saturating_add(value);
             "change"
@@ -182,7 +177,6 @@ pub(crate) fn summarize_unsigned(
         "inputs": inputs,
         "outputs": outputs,
         "fee_nano_erg": fee,
-        "app_fee_nano_erg": app_fee,
         "sent_nano_erg": sent,
         "change_nano_erg": change,
         "spend_nano_erg": spend,

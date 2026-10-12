@@ -5,29 +5,23 @@ import '../widgets/discover_sheet.dart';
 import 'home_style.dart';
 import 'home_widgets.dart';
 
-/// One protocol or tool on the Discover tab.
+/// One tool on the Discover tab.
 class DiscoverCardData {
   const DiscoverCardData(this.feature, {this.subtitle});
 
   final DiscoverFeature feature;
 
-  /// The wallet's own position in the feature ("You hold 12.5 SigUSD"),
-  /// else its blurb is shown.
+  /// A line about the wallet's own use of the feature, else its blurb is
+  /// shown.
   final String? subtitle;
 }
 
-/// The Discover tab: every protocol the wallet can use and every tool that
-/// acts on its coins, one row each, the wallet's own position in place of
-/// the blurb where it has one.
-///
-/// It replaces the old Swap tab, so swapping is no longer offered three
-/// times: the DEX, AgeUSD and Dexy each open the swap screen on their own
-/// venue. A row opens the feature's explainer, whose button opens the
+/// The Discover tab: every tool that acts on the wallet's coins, one row
+/// each. A row opens the feature's explainer, whose button opens the
 /// feature itself, so nothing that moves money opens from one tap.
 class DiscoverView extends StatelessWidget {
-  const DiscoverView({super.key, required this.protocols, required this.tools, required this.onExplain});
+  const DiscoverView({super.key, required this.tools, required this.onExplain});
 
-  final List<DiscoverCardData> protocols;
   final List<DiscoverCardData> tools;
   final ValueChanged<DiscoverFeature> onExplain;
 
@@ -41,17 +35,16 @@ class DiscoverView extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(homeGutter, 0, homeGutter, 8),
           child: Text(
-            'What Argus can do beyond sending and receiving. Each one says what it is, '
+            'What Celaut can do beyond sending and receiving. Each one says what it is, '
             'what you can do with it, and what to watch for before it opens.',
             style: t.secondary.copyWith(height: 1.4),
           ),
         ),
-        for (final (title, cards) in [('Protocols', protocols), ('Tools', tools)])
-          if (cards.isNotEmpty) ...[
-            HomeSectionHeader(title: title),
-            for (final card in cards) _row(context, card),
-            const SizedBox(height: 8),
-          ],
+        if (tools.isNotEmpty) ...[
+          const HomeSectionHeader(title: 'Tools'),
+          for (final card in tools) _row(context, card),
+          const SizedBox(height: 8),
+        ],
       ],
     );
   }

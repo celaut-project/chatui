@@ -85,7 +85,7 @@ fn the_burn_is_read_from_the_whole_wallet() {
 }
 
 #[test]
-fn spectrum_swaps_net_both_addresses_and_name_the_pool() {
+fn swaps_net_both_addresses() {
     let f = fixture();
     // Old row: "Sent · contract 5vSUZR…SCqM · −0.0001 ERG · −2,000 …".
     let s = summary(&f, "e3e175d3", &[INDEX0, PINNED]);
@@ -95,7 +95,6 @@ fn spectrum_swaps_net_both_addresses_and_name_the_pool() {
     );
     assert_eq!(s.tokens_sent.len(), 1);
     assert_eq!(s.tokens_sent[0].amount, 2_000);
-    assert!(tags(&s).contains(&"spectrum:pool".to_string()));
     // Old row: "−0.1087 ERG · −57.32 Flux".
     let s = summary(&f, "cf2ec21b", &[INDEX0, PINNED]);
     assert_eq!(s.value_nano_erg, 316_034_223);
@@ -119,17 +118,7 @@ fn moves_between_own_addresses_change_nothing_but_the_fee() {
 #[test]
 fn protocol_boxes_are_recognised_on_real_transactions() {
     let f = fixture();
-    let cases: &[(&str, &str)] = &[
-        ("132545d9", "sigmausd:bank"),
-        ("bdeb8484", "dexy:bank"),
-        ("20c7f321", "dexy:lp_mint"),
-        ("dc100432", "dexy:lp_swap"),
-        ("9a8d09be", "stake:proxy"),
-        ("13e2659c", "stake:paideia"),
-        ("d957a1f2", "stealth"),
-        ("accfef63", "spectrum:redeem_order"),
-        ("68ab842a", "argus_fee"),
-    ];
+    let cases: &[(&str, &str)] = &[("68ab842a", "argus_fee")];
     for (id, tag) in cases {
         let s = summary(&f, id, &[]);
         assert!(tags(&s).contains(&tag.to_string()), "{id}: {:?}", tags(&s));

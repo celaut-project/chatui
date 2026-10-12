@@ -83,7 +83,6 @@ class RentSendApi extends RustLibApi {
     String? nodeUrl,
     PlatformInt64? feeNano,
     List<String>? inputBoxIds,
-    String? stealthBoxesJson,
     String? babelTokenId,
   }) async {
     prepared = {'nano': amountNanoErg, 'token': tokenId};

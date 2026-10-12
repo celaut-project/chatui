@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:argus_wallet/bridge/frb_generated.dart';
-import 'package:argus_wallet/services/stealth_service.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
 import 'package:argus_wallet/services/watch_only_service.dart';
 import 'package:argus_wallet/ui/receive_screen.dart';
@@ -25,7 +24,7 @@ class ReceiveApi extends RustLibApi {
 
 void main() {
   setUpAll(() => RustLib.initMock(api: ReceiveApi()));
-  testWidgets('account Receive states stealth exclusion and uses supplied fresh address', (tester) async {
+  testWidgets('account Receive states its limits and uses supplied fresh address', (tester) async {
     await tester.pumpWidget(MaterialApp(
       onGenerateRoute: (_) => MaterialPageRoute<void>(
         settings: const RouteSettings(arguments: WalletRouteArgs(
@@ -36,9 +35,8 @@ void main() {
       ),
     ));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Cannot see stealth identities'), findsOneWidget);
+    expect(find.textContaining('Public payment addresses only'), findsOneWidget);
     expect(tester.widget<QrImageView>(find.byType(QrImageView)).semanticsLabel, watched);
-    expect(find.byKey(const Key('stealth-qr')), findsNothing);
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -47,14 +45,10 @@ void main() {
       'argus_watch_only_addresses': jsonEncode([watched]),
     });
     await watchOnlyService.load();
-    stealthService.reset();
-    // Stale identities from a different wallet must never appear here.
-    stealthService.debugSetIdentities([], {0: 'stealth-unrelated'});
     const channel = MethodChannel('com.argus.wallet/secure_storage');
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel,
         (call) async => call.method == 'listWalletIds' ? <String>[] : null);
     addTearDown(() {
-      stealthService.reset();
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null);
     });
     expect(walletService.isUnlocked, isFalse);
@@ -78,8 +72,6 @@ void main() {
     expect(find.byType(ReceiveScreen), findsOneWidget);
     expect(tester.widget<QrImageView>(find.byType(QrImageView)).semanticsLabel, watched);
     expect(find.textContaining('Fresh addresses'), findsNothing);
-    expect(find.byKey(const Key('stealth-qr')), findsNothing);
-    expect(find.byKey(const Key('stealth-identity-add')), findsNothing);
     expect(find.text('USED ADDRESSES'), findsNothing);
     await tester.enterText(find.byKey(const Key('receive-amount')), '1.25');
     await tester.pump();

@@ -18,7 +18,7 @@ void main() {
       ..pricesAreOld = false
       ..stale = false
       ..asOf = null;
-    networkController.setErgRate(fiatPerErg: null, usdPerErg: null);
+    networkController.setErgRate(null);
   });
 
   void pricedAt(DateTime asOf, {required bool old}) {
@@ -27,7 +27,7 @@ void main() {
       ..pricesAreOld = old
       ..stale = old
       ..asOf = asOf;
-    networkController.setErgRate(fiatPerErg: 0.44, usdPerErg: 0.31);
+    networkController.setErgRate(0.31);
   }
 
   test('a failed refresh a moment after a good one flags nothing', () {
@@ -37,7 +37,7 @@ void main() {
     expect(pricesNote(), isNull);
     final row = ergAssetRow(10 * 1000000000, view);
     expect(row.priceNote, isNull);
-    expect(row.fiatValue, closeTo(4.4, 1e-9), reason: 'the row keeps its value');
+    expect(row.fiatValue, closeTo(3.1, 1e-9), reason: 'the row keeps its value');
   });
 
   test('prices past the threshold say how old they are', () {
@@ -47,7 +47,7 @@ void main() {
   });
 
   test('with no rate at all the row says the price is unavailable', () {
-    networkController.setErgRate(fiatPerErg: null, usdPerErg: null);
+    networkController.setErgRate(null);
     final row = ergAssetRow(10 * 1000000000, ergPriceView(null));
     expect(row.fiatValue, isNull);
     expect(row.priceNote, startsWith('unavailable'));

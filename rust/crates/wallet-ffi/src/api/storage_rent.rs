@@ -94,9 +94,6 @@ pub async fn box_rent_report(
 /// follows their token layout (usually one box). `suggested_nano_erg` is the
 /// recipient amount that lets the first box pay one charge and keep the
 /// minimum box value, or null when the protocol cannot charge it.
-///
-/// A published stealth address is measured through a fresh one-time
-/// script, which every payment to it uses in the same length.
 #[flutter_rust_bridge::frb(sync)]
 pub fn output_rent_estimate(
     address: String,
@@ -197,12 +194,7 @@ fn report_row(b: &ListedBox, size: usize, basis: &Basis) -> serde_json::Value {
 }
 
 fn recipient_tree(address: &str) -> Result<String, String> {
-    if let Ok(tree) = address_to_ergo_tree(address) {
-        return Ok(tree);
-    }
-    let one_time = stealth::payment_address_for_stealth_address(address)
-        .map_err(|e| ArgusError::InvalidAddress(e.to_string()).to_json_string())?;
-    address_to_ergo_tree(&one_time).map_err(|e| ArgusError::InvalidAddress(e).to_json_string())
+    address_to_ergo_tree(address).map_err(|e| ArgusError::InvalidAddress(e).to_json_string())
 }
 
 fn parse_tokens(tokens_json: &str) -> Result<Vec<(String, u64)>, String> {
@@ -228,7 +220,7 @@ fn parse_tokens(tokens_json: &str) -> Result<Vec<(String, u64)>, String> {
 mod tests {
     use super::*;
 
-    const P2PK: &str = crate::api::ARGUS_FEE_ADDRESS;
+    const P2PK: &str = "9fRAWhdxEsTcdb8PhGNrZfwqa65zfkuYHAMmkQLcic1gdLSV5vA";
 
     /// A mainnet oracle box as the node returns it (438 bytes; see
     /// `wallet_core::rent` tests).
@@ -254,21 +246,6 @@ mod tests {
         assert_eq!(first["fee_nano"], 137_500_000);
         assert_eq!(first["charge"], "whole_box");
         assert_eq!(first["token_count"], 1);
-    }
-
-    #[test]
-    fn stealth_recipients_are_measured_through_a_one_time_script() {
-        let g = ergo_lib::ergo_chain_types::EcPoint::from_base16_str(
-            "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798".into(),
-        )
-        .unwrap();
-        let published = stealth::encode_stealth_address(&g).unwrap();
-        let tokens = format!(r#"[{{"id":"{}","amount":5}}]"#, "08".repeat(32));
-        let a = estimate(&published, 1_000_000, &tokens);
-        let b = estimate(&published, 1_000_000, &tokens);
-        // A fresh script each time, but always the same size.
-        assert_eq!(a["boxes"][0]["size_bytes"], b["boxes"][0]["size_bytes"]);
-        assert!(a["boxes"][0]["size_bytes"].as_u64().unwrap() > 110);
     }
 
     #[test]

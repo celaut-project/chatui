@@ -5,7 +5,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../build_info.dart';
 import '../../format.dart';
 import '../../services/apk_signature.dart';
-import '../../services/app_fee.dart';
 import '../../services/update_service.dart';
 import '../../theme/argus_theme.dart';
 import 'settings_shared.dart';
@@ -64,7 +63,7 @@ class _AboutPageState extends State<AboutPage> {
           const SizedBox(height: 16),
           const Center(child: IrisMark(size: 64)),
           const SizedBox(height: 14),
-          Text('Argus', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall),
+          Text('Celaut', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 6),
           Text(
             '$appVersion · build $appBuildNumber',
@@ -100,7 +99,7 @@ class _AboutPageState extends State<AboutPage> {
             ],
           ),
           const SettingsNote(
-            'Off by default. When on, Argus asks api.github.com for the latest release once a day as it starts. '
+            'Off by default. When on, Celaut asks api.github.com for the latest release once a day as it starts. '
             '"Check now" does the same on request, even with this off. Nothing else is sent: no account, token, '
             'app version or device identifier. A download comes from github.com and is checked against this '
             'app\'s signing key before Android is asked to install it.',
@@ -112,11 +111,6 @@ class _AboutPageState extends State<AboutPage> {
                 icon: Icons.shield_outlined,
                 title: 'Unaudited prototype',
                 subtitle: 'Transactions on Ergo are irreversible. Use only funds you can afford to lose.',
-              ),
-              SettingsRow(
-                icon: Icons.toll_outlined,
-                title: 'App fee ${formatErg(argusFeeNano)} per transaction',
-                subtitle: 'Paid to ${argusFeeAddress.substring(0, 12)}… on every transaction Argus builds. ErgoPay requests from dApps are not charged.',
               ),
               _SigningKeyRow(fingerprints: _signingKey),
               SettingsRow(
@@ -130,14 +124,14 @@ class _AboutPageState extends State<AboutPage> {
                 title: 'Open-source licenses',
                 onTap: () => showLicensePage(
                   context: context,
-                  applicationName: 'Argus',
+                  applicationName: 'Celaut',
                   applicationVersion: appVersion,
                 ),
               ),
             ],
           ),
           const SettingsNote(
-            'Argus is a light client: it talks to public Ergo nodes over HTTPS and never sends your keys anywhere.',
+            'Celaut is a light client: it talks to public Ergo nodes over HTTPS and never sends your keys anywhere.',
           ),
         ],
       ),

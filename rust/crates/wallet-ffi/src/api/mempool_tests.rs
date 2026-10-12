@@ -346,7 +346,6 @@ async fn send(w: &Sent, node: &Node, amount: i64) -> Result<String, String> {
         None,
         None,
         None,
-        None,
     )
     .await
 }
@@ -368,51 +367,14 @@ async fn every_gathering_path_skips_the_spent_box_and_follows_the_policy() {
             vec![free.clone()]
         };
 
-        // Sends, multi-sends, mint/burn, Rosen, Duckpools, SigmaFi, stake
-        // recovery and the UTXO tools gather here.
+        // Sends, multi-sends, mint, burn and the UTXO tools gather here.
         let (boxes, inputs) = super::super::gather_unspent(w.handle, &client, &addresses)
             .await
             .unwrap();
         assert_eq!(ids(&inputs), expected, "allow={allow}");
         assert_eq!(boxes.len(), inputs.len());
-        // The mix entry gathers here.
-        let (_, inputs) = super::super::gather_unspent_all(w.handle, &client, &addresses)
-            .await
-            .unwrap();
-        assert_eq!(ids(&inputs), expected, "allow={allow}");
-        // Dexy, AgeUSD and Spectrum swaps and LP gather here.
-        let (_, inputs) =
-            super::super::gather_wallet_boxes(w.handle, &addresses, Some(node.url.clone()))
-                .await
-                .unwrap();
-        assert_eq!(ids(&inputs), expected, "allow={allow}");
-
-        // A dApp page's get_utxos: unconfirmed boxes say so.
-        let utxos: serde_json::Value = serde_json::from_str(
-            &super::super::dapp_utxos(w.handle, addresses.clone(), Some(node.url.clone()))
-                .await
-                .unwrap(),
-        )
-        .unwrap();
-        let listed: Vec<(String, bool)> = utxos
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|u| {
-                (
-                    u["boxId"].as_str().unwrap().to_string(),
-                    u["confirmed"].as_bool().unwrap(),
-                )
-            })
-            .collect();
-        let mut want = vec![(free.clone(), true)];
-        if allow {
-            want.push((change.clone(), false));
-        }
-        assert_eq!(listed, want, "allow={allow}");
-
-        // Coin control and the UTXO tools list boxes here; the mix funding
-        // finder asks for confirmed ones only.
+        // Coin control and the UTXO tools list boxes here, with or without
+        // confirmed_only.
         for confirmed_only in [false, true] {
             let listing: serde_json::Value = serde_json::from_str(
                 &list_spendable_boxes(
@@ -542,16 +504,15 @@ async fn waiting_names_the_confirming_funds_and_allowing_chains_on_change() {
     let used: Vec<&str> = inputs.iter().map(|b| b["box_id"].as_str().unwrap()).collect();
     assert!(used.contains(&Sent::id(&w.change).as_str()), "{used:?}");
     assert!(!used.contains(&Sent::id(&w.spent).as_str()), "a spent box is never an input");
-    // Nothing is created or lost: inputs pay the recipient, the change, the
-    // miner and the app fee exactly.
+    // Nothing is created or lost: inputs pay the recipient, the change and
+    // the miner exactly.
     let total_in: u64 = inputs
         .iter()
         .map(|b| b["value_nano_erg"].as_str().unwrap().parse::<u64>().unwrap())
         .sum();
     let total_out = sent["amount_nano_erg"].as_u64().unwrap()
         + sent["change_nano_erg"].as_u64().unwrap()
-        + sent["miner_fee"].as_u64().unwrap()
-        + sent["citadel_fee_nano"].as_u64().unwrap();
+        + sent["miner_fee"].as_u64().unwrap();
     assert_eq!(total_in, total_out);
 }
 
@@ -577,7 +538,6 @@ async fn waiting_explains_an_empty_wallet_in_multi_send_and_the_utxo_tools() {
         w.address.clone(),
         recipients,
         url.clone(),
-        None,
         None,
         None,
         None,
@@ -618,7 +578,6 @@ async fn hand_picked_inputs_are_not_told_to_wait() {
         Some(node.url.clone()),
         None,
         Some(vec![Sent::id(&w.free)]),
-        None,
         None,
     )
     .await
@@ -725,72 +684,6 @@ async fn the_sync_splits_confirmed_and_pending_and_locked_wallets_read_in_turn()
 
 // ─── Transactions built elsewhere ────────────────────────────────────────
 
-fn eip12_input(b: &ErgoBox) -> serde_json::Value {
-    serde_json::json!({
-        "boxId": b.box_id().to_string(),
-        "transactionId": b.transaction_id.to_string(),
-        "index": b.index,
-        "ergoTree": tree_of(b),
-        "creationHeight": b.creation_height,
-        "value": b.value.as_u64().to_string(),
-        "assets": [],
-        "additionalRegisters": {},
-        "extension": {}
-    })
-}
-
-fn dapp_tx(input: &ErgoBox, to: &str) -> String {
-    let value = *input.value.as_u64();
-    serde_json::json!({
-        "inputs": [eip12_input(input)],
-        "dataInputs": [],
-        "outputs": [{
-            "value": (value - 1_100_000).to_string(),
-            "ergoTree": address_to_ergo_tree(to).unwrap(),
-            "creationHeight": 1_000,
-            "assets": [],
-            "additionalRegisters": {}
-        }, {
-            "value": "1100000",
-            "ergoTree": citadel_core::constants::MINER_FEE_ERGO_TREE,
-            "creationHeight": 1_000,
-            "assets": [],
-            "additionalRegisters": {}
-        }]
-    })
-    .to_string()
-}
-
-#[tokio::test]
-async fn dapp_requests_cannot_double_spend_or_spend_confirming_funds_while_waiting() {
-    let w = Sent::new(16);
-    let node = Node::start(w.chain.clone());
-    let url = Some(node.url.clone());
-    for allow in [true, false] {
-        let _policy = policy(allow);
-        // A page built on the box the pending send already spends.
-        let error = super::super::dapp_prepare_sign(w.handle, dapp_tx(&w.spent, &w.foreign), url.clone())
-            .await
-            .unwrap_err();
-        assert!(message(&error).contains("pending transaction already spends"), "{error}");
-        // The free box is fine either way.
-        super::super::dapp_prepare_sign(w.handle, dapp_tx(&w.free, &w.foreign), url.clone())
-            .await
-            .unwrap();
-        // The unconfirmed change: only when unconfirmed funds are allowed.
-        let change = super::super::dapp_prepare_sign(w.handle, dapp_tx(&w.change, &w.foreign), url.clone()).await;
-        match allow {
-            true => {
-                change.unwrap();
-            }
-            false => {
-                let error = change.unwrap_err();
-                assert!(message(&error).contains("0.6989 ERG of yours that is still confirming"), "{error}");
-            }
-        }
-    }
-}
-
 /// An ErgoPay request as a dApp would hand it over: a reduced transaction
 /// spending `input` to `to`, minus the miner fee.
 fn ergopay_request(input: &ErgoBox, to: &str) -> Vec<u8> {
@@ -860,33 +753,6 @@ async fn ergopay_requests_cannot_double_spend_or_spend_confirming_funds_while_wa
             }
         }
     }
-}
-
-#[tokio::test]
-async fn stealth_coins_already_being_spent_are_never_broadcast_again() {
-    let w = Sent::new(17);
-    // Any script stands in for a one-time stealth script here.
-    let stealth = boxed(&address_to_ergo_tree(&w.foreign).unwrap(), &tx_id(5), 0, ERG);
-    let mut chain = w.chain.clone();
-    chain.spent_in_mempool.insert(Sent::id(&stealth));
-    let node = Node::start(chain);
-    let client = node.client().await;
-    let stealth_tree = vec![tree_of(&stealth)];
-
-    let error = check_stealth_inputs(&client, &[w.free.clone(), stealth.clone()], &stealth_tree)
-        .await
-        .unwrap_err();
-    assert!(message(&error).contains("already spends these stealth coins"), "{error}");
-    // Ordinary inputs are not looked up one by one, and a send without
-    // stealth inputs asks nothing.
-    check_stealth_inputs(&client, &[w.spent.clone()], &[]).await.unwrap();
-    assert!(!node.requests().iter().any(|r| r.ends_with(&Sent::id(&w.free))));
-    assert!(!node.requests().iter().any(|r| r.ends_with(&Sent::id(&w.spent))));
-
-    let fresh = Node::start(w.chain.clone());
-    check_stealth_inputs(&fresh.client().await, &[stealth], &stealth_tree)
-        .await
-        .unwrap();
 }
 
 #[tokio::test]

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../format.dart';
 import '../theme/argus_theme.dart';
-import 'app_fee.dart';
 import 'storage_rent.dart';
 import 'utxo_tools_controller.dart';
 import 'wallet_service.dart';
@@ -212,8 +211,7 @@ UtxoHealth utxoHealth(int boxCount) {
 ///
 /// Boxes come from one address only: they are already publicly tied to each
 /// other, so the cleanup links nothing new (merging across addresses would).
-/// Mixed boxes and boxes set aside for a pending mix never take part. Boxes
-/// that rent puts at risk or that fall due within [rentSoonDays] go first,
+/// Boxes that rent puts at risk or that fall due within [rentSoonDays] go first,
 /// then dust, then the oldest; moving a box into the new one also restarts
 /// its four-year rent clock.
 class CleanupSuggestion {
@@ -224,7 +222,7 @@ class CleanupSuggestion {
     required this.dueSoonCount,
     required this.leftAtAddress,
     required this.forRent,
-    this.feesNano = minerFeeNano + argusFeeNano,
+    this.feesNano = minerFeeNano,
   });
 
   final String address;
@@ -244,7 +242,7 @@ class CleanupSuggestion {
   /// True when rent, not box count alone, is the reason for the suggestion.
   final bool forRent;
 
-  /// Miner fee plus Argus fee, as the consolidation builder charges them.
+  /// Miner fee, as the consolidation builder charges it.
   final int feesNano;
 
   List<String> get boxIds => [for (final b in boxes) b.boxId];
@@ -280,8 +278,8 @@ class CleanupSuggestion {
 /// moves its flagged boxes. Either way the address's largest ERG-only box
 /// (failing that, its largest box) joins, so the new box can pay its own
 /// rent. The address with the most flagged boxes wins, then the one with
-/// the most boxes. [exclude] removes boxes that must not move (mixed,
-/// reserved for a mix, or already being spent). [viable] lets the caller,
+/// the most boxes. [exclude] removes boxes that must not move (already
+/// being spent, or still confirming). [viable] lets the caller,
 /// which can measure the new box, turn down a candidate that could not be
 /// built or would not cover its rent; the next address is tried instead.
 CleanupSuggestion? suggestCleanup({
@@ -290,7 +288,7 @@ CleanupSuggestion? suggestCleanup({
   Set<String> exclude = const {},
   int fragmentedAbove = utxoFragmentationThreshold,
   int maxInputs = consolidationMaxInputs,
-  int feesNano = minerFeeNano + argusFeeNano,
+  int feesNano = minerFeeNano,
   bool Function(CleanupSuggestion candidate)? viable,
 }) {
   if (maxInputs < 2) return null;

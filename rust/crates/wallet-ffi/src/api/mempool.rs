@@ -110,8 +110,7 @@ pub(crate) async fn gather_watched(
 
 /// The wallet's boxes for coin control and the UTXO tools: everything
 /// spendable under the user's policy — or confirmed boxes only, when
-/// `confirmed_only` — with mix reservations and mixed boxes still listed,
-/// as the node lists them; the spend itself applies those rules. Each entry
+/// `confirmed_only` — as the node lists them. Each entry
 /// carries its address, whether it is confirmed, and its exact serialized
 /// `size_bytes`, so storage rent is judged from this listing
 /// ([`super::storage_rent::box_rent_report`]) without reading the boxes a
@@ -353,7 +352,7 @@ fn erg_text(nano: u64) -> String {
 
 // ─── Transactions built elsewhere ────────────────────────────────────────
 
-/// Refuse a transaction a dApp page or an ErgoPay request built when it
+/// Refuse a transaction an ErgoPay request built when it
 /// spends a box a pending transaction already spends, or — while the wallet
 /// waits for confirmations — a box of this wallet that is still unconfirmed.
 ///
@@ -440,47 +439,6 @@ fn owned_tree(handle_id: u64, tree_hex: &str) -> bool {
         .unwrap_or(false),
         Err(_) => false,
     }
-}
-
-/// Refuse to broadcast a preparation whose stealth inputs a pending
-/// transaction already spends. Stealth boxes come from the explorer, which
-/// lists confirmed state only, and no wallet address sees a stealth spend.
-/// Checked here, just before submission, so the node learns which stealth
-/// boxes are the user's no earlier than the broadcast itself tells it.
-pub(crate) async fn check_stealth_inputs(
-    client: &ErgoNodeClient,
-    boxes: &[ErgoBox],
-    stealth_trees: &[String],
-) -> Result<(), String> {
-    if stealth_trees.is_empty() {
-        return Ok(());
-    }
-    for b in boxes {
-        let tree = b
-            .ergo_tree
-            .sigma_serialize_bytes()
-            .map(hex::encode)
-            .unwrap_or_default();
-        if !stealth_trees.iter().any(|t| t.eq_ignore_ascii_case(&tree)) {
-            continue;
-        }
-        let id = b.box_id().to_string();
-        let spent = client.mempool_spends(&id).await.map_err(|e| {
-            ArgusError::NodeError(format!(
-                "could not check the stealth coins against pending transactions: {e}"
-            ))
-            .to_json_string()
-        })?;
-        if spent {
-            return Err(ArgusError::TxBuildFailed(
-                "a pending transaction already spends these stealth coins. Nothing was sent; \
-                 wait for it to confirm, then refresh"
-                    .into(),
-            )
-            .to_json_string());
-        }
-    }
-    Ok(())
 }
 
 // ─── Sync reads ──────────────────────────────────────────────────────────

@@ -119,8 +119,7 @@ void main() {
         ..discovered = [
           {'index': 0, 'address': 'addr0', 'balance_nano_erg': 3200000000},
         ]
-        ..nextUnused = 1
-        ..stealthEnabled = false;
+        ..nextUnused = 1;
       c = WalletSyncController(gw);
     });
 
@@ -145,8 +144,7 @@ void main() {
       final failing = FailingDiscovery()
         ..pinnedIndex = 275
         ..maxIndex = 300
-        ..balances.addAll(gw.balances)
-        ..stealthEnabled = false;
+        ..balances.addAll(gw.balances);
       final controller = WalletSyncController(failing);
       await controller.hydrateAfterUnlock();
       expect(controller.historyAddresses, containsAll(['addr0', 'addr275']));

@@ -1,5 +1,4 @@
 import '../format.dart';
-import '../services/stealth_service.dart';
 import '../services/wallet_service.dart';
 
 /// A validation failure in the send form, phrased for the user.
@@ -55,7 +54,7 @@ List<Map<String, dynamic>> buildRecipients(
     final who = drafts.length > 1 ? 'Recipient ${i + 1}: ' : '';
     final address = d.address.trim();
     if (!looksLikeRecipient(address)) {
-      throw SendFormException('${who}not an Ergo or stealth address');
+      throw SendFormException('${who}not an Ergo address');
     }
     final nano = d.tokens.isNotEmpty && d.ergText.trim().isEmpty
         ? minBoxNano
@@ -69,10 +68,6 @@ List<Map<String, dynamic>> buildRecipients(
       'address': address,
       'amount_nano_erg': nano,
     };
-    // A stealth recipient keeps its published string here; the one-time
-    // payment address is derived just before the transaction is built, so
-    // every payment lands on a fresh, unlinkable script.
-    if (looksLikeStealthAddress(address)) entry['stealth'] = true;
     // Every token this recipient gets, summed where one is named twice and
     // checked against the holding as a whole.
     final wanted = <String, int>{};
@@ -133,14 +128,12 @@ List<Map<String, dynamic>> buildRecipients(
 int maxRecipientNanoErg({
   required int spendableNano,
   required int minerFeeNano,
-  required int appFeeNano,
   required int otherRecipientsNano,
   bool feePaidInToken = false,
   int changeReserveNano = minBoxNano,
 }) =>
     spendableNano -
     (feePaidInToken ? 0 : minerFeeNano) -
-    appFeeNano -
     otherRecipientsNano -
     changeReserveNano;
 
@@ -158,38 +151,3 @@ int totalNanoErg(List<Map<String, dynamic>> recipients) {
   }
   return total;
 }
-
-/// Replace every stealth recipient with a freshly derived one-time payment
-/// address, keeping the published string under `stealth_address` so the
-/// confirm sheet can show who is really being paid.
-///
-/// Call this once, immediately before preparing the transaction: each call
-/// draws new `r` and `y`, so two calls produce unlinkable addresses.
-Future<List<Map<String, dynamic>>> resolveStealthRecipients(
-  List<Map<String, dynamic>> recipients,
-) async {
-  final out = <Map<String, dynamic>>[];
-  for (final r in recipients) {
-    if (r['stealth'] != true) {
-      out.add(r);
-      continue;
-    }
-    final published = r['address'] as String;
-    final String payTo;
-    try {
-      payTo = await stealthPaymentAddress(published);
-    } catch (_) {
-      throw SendFormException(
-        'That stealth address is not valid (checksum failed)',
-      );
-    }
-    out.add(
-      {...r, 'address': payTo, 'stealth_address': published}..remove('stealth'),
-    );
-  }
-  return out;
-}
-
-/// True when any recipient is being paid through a stealth address.
-bool hasStealthRecipient(List<Map<String, dynamic>> recipients) =>
-    recipients.any((r) => r['stealth'] == true || r['stealth_address'] != null);

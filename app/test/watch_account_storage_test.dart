@@ -88,7 +88,7 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     for (final node in ['b', 'a']) {
       network.activeUrl = node;
-      network.setErgRate(fiatPerErg: 1, usdPerErg: 1);
+      network.setErgRate(1);
     }
     api.historyGate!.complete('[]');
     await refresh;

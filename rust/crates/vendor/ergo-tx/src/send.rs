@@ -4,7 +4,6 @@
 
 use std::collections::HashMap;
 
-use crate::dev_fee::{append_dev_fee_output, resolved_config, DevFeeConfig};
 use crate::eip12::{Eip12Asset, Eip12InputBox, Eip12Output, Eip12UnsignedTx};
 
 use citadel_core::constants::{MIN_BOX_VALUE_NANO as MIN_BOX_VALUE, TX_FEE_NANO as TX_FEE};
@@ -45,9 +44,6 @@ pub enum SendError {
     #[error("Total held amount of token {token_id} exceeds the representable range")]
     TokenTotalOverflow { token_id: String },
 
-    #[error("Citadel fee config error: {0}")]
-    DevFee(String),
-
     #[error("{0}")]
     ChangeBox(String),
 }
@@ -59,8 +55,6 @@ pub struct SendSummary {
     pub token_amount: Option<u64>,
     pub change_erg: i64,
     pub miner_fee: i64,
-    /// Citadel app fee in nanoERG (0 when disabled)
-    pub citadel_fee_nano: i64,
     pub input_count: usize,
 }
 
@@ -75,7 +69,6 @@ pub struct SendBuildResult {
 /// - `send_erg` is the ERG attached to the recipient output (must be >= MIN_BOX_VALUE).
 /// - Optional token is placed on the recipient output.
 /// - Leftover ERG/tokens go to `change_ergo_tree` (wallet primary address).
-/// - When enabled, appends Citadel app fee (0.011 ERG) before miner fee.
 pub fn build_send_tx(
     user_inputs: &[Eip12InputBox],
     recipient_ergo_tree: &str,
@@ -83,26 +76,6 @@ pub fn build_send_tx(
     send_erg: i64,
     send_token: Option<(&str, u64)>,
     current_height: i32,
-) -> Result<SendBuildResult, SendError> {
-    build_send_tx_with_fee(
-        user_inputs,
-        recipient_ergo_tree,
-        change_ergo_tree,
-        send_erg,
-        send_token,
-        current_height,
-        &resolved_config(),
-    )
-}
-
-pub fn build_send_tx_with_fee(
-    user_inputs: &[Eip12InputBox],
-    recipient_ergo_tree: &str,
-    change_ergo_tree: &str,
-    send_erg: i64,
-    send_token: Option<(&str, u64)>,
-    current_height: i32,
-    fee_cfg: &DevFeeConfig,
 ) -> Result<SendBuildResult, SendError> {
     if user_inputs.is_empty() {
         return Err(SendError::NoInputs);
@@ -151,9 +124,7 @@ pub fn build_send_tx_with_fee(
         }
     }
 
-    let citadel_fee = fee_cfg.budget();
-
-    let min_needed = send_erg + TX_FEE + citadel_fee;
+    let min_needed = send_erg + TX_FEE;
     if total_erg < min_needed {
         return Err(SendError::InsufficientErg {
             have: total_erg,
@@ -161,7 +132,7 @@ pub fn build_send_tx_with_fee(
         });
     }
 
-    let remainder = total_erg - send_erg - TX_FEE - citadel_fee;
+    let remainder = total_erg - send_erg - TX_FEE;
 
     // Subtract sent token from totals for change
     if let Some((token_id, amount)) = send_token {
@@ -242,8 +213,6 @@ pub fn build_send_tx_with_fee(
         0
     };
 
-    append_dev_fee_output(&mut outputs, fee_cfg, current_height)
-        .map_err(|e| SendError::DevFee(e.to_string()))?;
     outputs.push(Eip12Output::fee(effective_fee, current_height));
 
     let unsigned_tx = Eip12UnsignedTx {
@@ -260,7 +229,6 @@ pub fn build_send_tx_with_fee(
             token_amount: send_token.map(|(_, amt)| amt),
             change_erg,
             miner_fee: effective_fee,
-            citadel_fee_nano: citadel_fee,
             input_count: user_inputs.len(),
         },
     })
@@ -269,9 +237,7 @@ pub fn build_send_tx_with_fee(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dev_fee::{with_test_dev_fee, DevFeeConfig};
     use crate::eip12::Eip12Asset;
-    use citadel_core::constants::DEV_FEE_NANO;
     use std::collections::HashMap;
 
     const USER_TREE: &str = "0008cduser";
@@ -298,48 +264,6 @@ mod tests {
     }
 
     #[test]
-    fn max_budget_must_include_app_fee_before_selecting_inputs() {
-        let fee = DevFeeConfig::custom(USER_TREE.into(), 1_100_000);
-        let mut small = make_box("1072065", vec![]);
-        small.box_id = "small".into();
-        let inputs = vec![make_box("996727888", vec![]), small];
-        let balance = 997_799_953;
-        let amount = balance - TX_FEE - fee.budget() - MIN_BOX_VALUE;
-        let old =
-            crate::select_erg_boxes(&inputs, (amount + TX_FEE + MIN_BOX_VALUE) as u64).unwrap();
-        let error =
-            build_send_tx_with_fee(&old.boxes, RECIPIENT_TREE, USER_TREE, amount, None, 1, &fee)
-                .unwrap_err();
-        assert_eq!(
-            error.to_string(),
-            "Insufficient ERG: have 996727888 nanoERG, need 996799953 nanoERG"
-        );
-        let required = amount + TX_FEE + fee.budget() + MIN_BOX_VALUE;
-        let selected = crate::select_erg_boxes(&inputs, required as u64).unwrap();
-        assert_eq!(selected.total_erg, balance as u64);
-        let built = build_send_tx_with_fee(
-            &selected.boxes,
-            RECIPIENT_TREE,
-            USER_TREE,
-            amount,
-            None,
-            1,
-            &fee,
-        )
-        .unwrap();
-        assert_eq!(built.summary.change_erg, MIN_BOX_VALUE);
-        assert_eq!(
-            built
-                .unsigned_tx
-                .outputs
-                .iter()
-                .map(|o| o.value.parse::<i64>().unwrap())
-                .sum::<i64>(),
-            balance
-        );
-    }
-
-    #[test]
     fn send_erg_only() {
         let inputs = vec![make_box("10000000000", vec![])]; // 10 ERG
         let result = build_send_tx(
@@ -354,7 +278,6 @@ mod tests {
 
         assert_eq!(result.summary.recipient_erg, 2_000_000_000);
         assert_eq!(result.summary.miner_fee, TX_FEE);
-        assert_eq!(result.summary.citadel_fee_nano, 0);
         assert_eq!(
             result.summary.change_erg,
             10_000_000_000 - 2_000_000_000 - TX_FEE
@@ -362,50 +285,6 @@ mod tests {
         assert_eq!(result.unsigned_tx.outputs.len(), 3); // recipient + change + fee
         assert_eq!(result.unsigned_tx.outputs[0].ergo_tree, RECIPIENT_TREE);
         assert_eq!(result.unsigned_tx.outputs[1].ergo_tree, USER_TREE);
-    }
-
-    #[test]
-    fn send_erg_with_citadel_fee() {
-        with_test_dev_fee(DevFeeConfig::enabled_default(), || {
-            let inputs = vec![make_box("10000000000", vec![])];
-            let result = build_send_tx(
-                &inputs,
-                RECIPIENT_TREE,
-                USER_TREE,
-                2_000_000_000,
-                None,
-                50000,
-            )
-            .unwrap();
-
-            assert_eq!(result.summary.citadel_fee_nano, DEV_FEE_NANO);
-            assert_eq!(
-                result.summary.change_erg,
-                10_000_000_000 - 2_000_000_000 - TX_FEE - DEV_FEE_NANO
-            );
-            // recipient + change + citadel + miner
-            assert_eq!(result.unsigned_tx.outputs.len(), 4);
-            let fee_out = &result.unsigned_tx.outputs[2];
-            assert_eq!(fee_out.value, DEV_FEE_NANO.to_string());
-            assert_eq!(fee_out.ergo_tree, crate::dev_fee::DEFAULT_DEV_FEE_ERGO_TREE);
-        });
-    }
-
-    #[test]
-    fn send_insufficient_when_citadel_fee_enabled() {
-        with_test_dev_fee(DevFeeConfig::enabled_default(), || {
-            let send = 5_000_000_000i64;
-            // Exactly send + miner — missing citadel fee
-            let inputs = vec![make_box(&(send + TX_FEE).to_string(), vec![])];
-            let err =
-                build_send_tx(&inputs, RECIPIENT_TREE, USER_TREE, send, None, 50000).unwrap_err();
-            match err {
-                SendError::InsufficientErg { need, .. } => {
-                    assert_eq!(need, send + TX_FEE + DEV_FEE_NANO);
-                }
-                other => panic!("expected InsufficientErg, got {other:?}"),
-            }
-        });
     }
 
     #[test]
@@ -476,18 +355,16 @@ mod tests {
 
     #[test]
     fn a_wallet_with_more_tokens_than_a_box_holds_gets_split_change() {
-        let fee = DevFeeConfig::disabled();
         let ids: Vec<String> = (0..123).map(|i| format!("tok{i:04}")).collect();
         let assets: Vec<(&str, &str)> = ids.iter().map(|id| (id.as_str(), "7")).collect();
         let inputs = vec![make_box("5000000000", assets)];
-        let built = build_send_tx_with_fee(
+        let built = build_send_tx(
             &inputs,
             RECIPIENT_TREE,
             USER_TREE,
             1_000_000_000,
             None,
             1,
-            &fee,
         )
         .unwrap();
         let change: Vec<_> = built
@@ -519,21 +396,19 @@ mod tests {
 
     #[test]
     fn split_change_short_of_erg_is_a_token_change_error() {
-        let fee = DevFeeConfig::disabled();
         let ids: Vec<String> = (0..123).map(|i| format!("tok{i:04}")).collect();
         let assets: Vec<(&str, &str)> = ids.iter().map(|id| (id.as_str(), "7")).collect();
         let inputs = vec![make_box(
             &(1_000_000_000 + TX_FEE + 1_500_000).to_string(),
             assets,
         )];
-        let err = build_send_tx_with_fee(
+        let err = build_send_tx(
             &inputs,
             RECIPIENT_TREE,
             USER_TREE,
             1_000_000_000,
             None,
             1,
-            &fee,
         )
         .unwrap_err();
         match err {

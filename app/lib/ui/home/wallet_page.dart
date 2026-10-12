@@ -137,10 +137,10 @@ enum WalletPageTab { assets, activity, addresses, utxos }
 /// the wallet's medallion, the address it is shown as and what sits on its
 /// other addresses on pills of glass, and the round actions; a line on how
 /// current it is, and on anything that needs a look (fragmented boxes, a
-/// mix, a pin that cannot be derived); then tabs. Assets shows the holdings
+/// pin that cannot be derived); then tabs. Assets shows the holdings
 /// worth a glance and the last three transactions; Activity, Addresses and
-/// UTXOs each lead on to their tool. Protocols live in Discover, settings
-/// in Settings.
+/// UTXOs each lead on to their tool. Tools live in Discover, settings in
+/// Settings.
 class WalletPageView extends StatelessWidget {
   const WalletPageView({
     super.key,
@@ -157,8 +157,6 @@ class WalletPageView extends StatelessWidget {
     this.onOtherAddresses,
     this.onReceive,
     this.onPinIssue,
-    this.onMix,
-    this.onDismissMix,
     this.onRetry,
     this.onCopyAddress,
     this.onRefresh,
@@ -167,7 +165,7 @@ class WalletPageView extends StatelessWidget {
   final WalletPageData data;
   final VoidCallback? onToggleHidden;
 
-  /// Send, Receive, Swap or Send with offline signer. More opens its sheet
+  /// Send, Receive or Send with offline signer. More opens its sheet
   /// here and reports the pick through [onTool].
   final ValueChanged<WalletAction>? onAction;
   final ValueChanged<WalletTool>? onTool;
@@ -186,8 +184,6 @@ class WalletPageView extends StatelessWidget {
   /// The empty-activity line's link; defaults to the Receive action.
   final VoidCallback? onReceive;
   final VoidCallback? onPinIssue;
-  final VoidCallback? onMix;
-  final VoidCallback? onDismissMix;
 
   /// No node answers: look again.
   final VoidCallback? onRetry;
@@ -288,8 +284,6 @@ class WalletPageView extends StatelessWidget {
                 unpricedCount: data.unpricedCount,
                 pricesNote: data.pricesNote,
                 pending: wallet.pending,
-                pockets: wallet.pockets,
-                pocketsAsOf: wallet.pocketsAsOf,
                 hidden: hidden,
                 onToggleHidden: onToggleHidden,
                 onUnpriced: onAllAssets,
@@ -436,27 +430,6 @@ class WalletPageView extends StatelessWidget {
         semanticLabel: issue,
         leading: Icon(Icons.push_pin_outlined, size: 16, color: rustFor(context)),
         text: TextSpan(text: issue, style: TextStyle(color: rustFor(context))),
-      ));
-    }
-    if (data.mix case final mix?) {
-      lines.add(HomeLineRow(
-        inkKey: const Key('mix-strip'),
-        onTap: onMix,
-        semanticLabel: mix.text,
-        leading: Icon(Icons.blender_outlined, size: 16, color: mix.finished ? mossFor(context) : t.ink),
-        text: TextSpan(text: mix.text, style: TextStyle(color: t.ink)),
-        // A finished mix is announced until it is dismissed.
-        trailing: mix.finished && onDismissMix != null
-            ? Padding(
-                padding: const EdgeInsetsDirectional.only(end: homeGutter - 12),
-                child: IconButton(
-                  key: const Key('mix-strip-dismiss'),
-                  tooltip: 'Dismiss',
-                  onPressed: onDismissMix,
-                  icon: Icon(Icons.close, size: 18, color: t.muted),
-                ),
-              )
-            : null,
       ));
     }
     return lines;

@@ -1,6 +1,5 @@
 import 'widgets/error_sheet.dart';
 import 'widgets/tx_result_view.dart';
-import '../services/app_fee.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -10,18 +9,10 @@ import 'package:share_plus/share_plus.dart' show SharePlus, ShareParams, XFile;
 
 import '../format.dart';
 import '../services/contacts_service.dart';
-import '../services/route_display.dart';
-import '../services/route_quote_controller.dart';
-import '../services/token_router.dart';
-import '../services/dexy_service.dart';
 import '../services/ergopay_service.dart';
 import '../services/coin_control.dart';
-import '../services/mix_service.dart';
 import '../services/network_controller.dart';
-import '../services/pockets.dart';
-import '../services/stealth_service.dart';
 import '../services/storage_rent.dart';
-import '../services/wallet_sync_controller.dart';
 import '../services/wallet_service.dart';
 import '../theme/argus_theme.dart';
 import 'confirm_transaction_sheet.dart';
@@ -31,24 +22,8 @@ import 'scan_screen.dart';
 import 'send_recipients.dart';
 import 'widgets/held_token_picker.dart';
 import 'widgets/amount_entry.dart';
-import 'widgets/asset_picker_sheet.dart';
 import 'widgets/entry_dialogs.dart';
 import 'widgets/rent_hint.dart';
-
-/// One buy-and-send route line, e.g. `≈ 3.7196 ERG · Dexy FreeMint  ·  cheapest`.
-String routeQuoteLabel(RouteQuote quote, {required bool cheapest}) {
-  final bits = <String>[
-    if (quote.note != null) quote.note!,
-    if (quote.liquidityNano != null) liquidityLabel(quote.liquidityNano),
-    if (quote.priceImpactPct != null) '${quote.priceImpactPct!.toStringAsFixed(1)}% impact',
-  ];
-  return '≈ ${formatErg(quote.ergCostNano)} · ${quote.protocol} ${quote.path}'
-      '${bits.isEmpty ? '' : ' (${bits.join(', ')})'}'
-      '${cheapest ? '  ·  cheapest' : ''}';
-}
-
-/// Amount-field label for the buy-and-send flow.
-String buyAmountLabel(BuyableToken token) => '${token.name} amount to deliver';
 
 class SendScreen extends StatefulWidget {
   const SendScreen({
@@ -105,41 +80,18 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
   bool _sending = false;
   String? _resultTxId;
   late String? _assetId = widget.initialAssetId;
-  final _quotes = RouteQuoteController();
-  List<BuyableToken> _buyable = const [];
   Set<String> _selectedSpendAddresses = {};
-
-  /// Which pockets this send draws on. Public by default: stealth coins
-  /// are only spent when the user says so, so they are never linked to
-  /// ordinary ones by an automatic choice.
-  SpendFrom _spendFrom = SpendFrom.public;
 
   /// Boxes the user chose to spend. Empty means automatic selection.
   final Set<String> _chosenBoxIds = {};
   List<InputBoxInput> _boxes = const [];
   bool _loadingBoxes = false;
 
-  CoinSelection get _selection =>
-      summariseSelection(_boxes, _chosenBoxIds, mixedIds: mixService.mixedBoxIds.toSet());
+  CoinSelection get _selection => summariseSelection(_boxes, _chosenBoxIds);
 
-  /// Ids to spend. A per-box choice wins; otherwise a stealth-only send
-  /// names its boxes explicitly, so ordinary coins cannot be pulled in to
-  /// cover a shortfall and quietly link the two pockets.
-  List<String>? get _inputBoxIds {
-    if (_chosenBoxIds.isNotEmpty) {
-      return _selection.boxes.map((b) => b.boxId).toList();
-    }
-    if (_spendFrom == SpendFrom.stealth) {
-      final ids = walletSyncController.stealthRowBoxIds;
-      return ids.isEmpty ? null : ids;
-    }
-    return null;
-  }
-
-  /// The explorer body a send may draw stealth inputs from, or null when
-  /// this send is public-only.
-  String? get _stealthBoxesJson =>
-      _spendFrom.usesStealth ? stealthService.spendableBoxesJson : null;
+  /// Ids to spend: the per-box choice, or null for automatic selection.
+  List<String>? get _inputBoxIds =>
+      _chosenBoxIds.isEmpty ? null : _selection.boxes.map((b) => b.boxId).toList();
 
   Future<void> _openInputPicker() async {
     final spend = _selectedSpendAddresses.isNotEmpty
@@ -151,14 +103,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
     }
     setState(() => _loadingBoxes = true);
     try {
-      final own = await walletService.listUnspentBoxes(spend, nodeUrl: networkController.activeUrl);
-      // Only the chosen pockets' boxes are offered, so the picker cannot
-      // undo the decision made above it.
-      _boxes = eligibleBoxes(
-        from: _spendFrom,
-        publicBoxes: own,
-        stealthBoxes: stealthInputBoxes(stealthService.lastScan),
-      );
+      _boxes = await walletService.listUnspentBoxes(spend, nodeUrl: networkController.activeUrl);
     } catch (e) {
       if (!mounted) return;
       setState(() => _loadingBoxes = false);
@@ -208,9 +153,8 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
   /// neither the node nor the dashboard knows a height).
   RentParameters? _rentParameters;
 
-  /// Rent estimates by input. Every keystroke rebuilds the form, and a
-  /// stealth recipient costs a key derivation per estimate, so each input
-  /// is asked of the core once.
+  /// Rent estimates by input. Every keystroke rebuilds the form, so each
+  /// input is asked of the core once.
   final _rentEstimates = <String, OutputRentEstimate?>{};
 
 
@@ -218,10 +162,6 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
   @override
   void initState() {
     super.initState();
-    _quotes.addListener(_onQuotes);
-    buyableTokens().then((list) {
-      if (mounted) setState(() => _buyable = list);
-    }).catchError((_) {});
     final r = widget.initialRecipient;
     if (r != null && r.isNotEmpty) {
       _recipientCtrl.text = r;
@@ -241,8 +181,6 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
 
   @override
   void dispose() {
-    _quotes.removeListener(_onQuotes);
-    _quotes.dispose();
     _recipientCtrl.dispose();
     _amountCtrl.dispose();
     _tokenAmtCtrl.dispose();
@@ -262,43 +200,6 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
     return null;
   }
 
-  static const _buyPrefix = 'buy:';
-
-  /// Raw balance already held for [tokenId]; buy-and-send delivers it
-  /// alongside whatever it acquires.
-  int _heldFor(String tokenId) {
-    for (final t in _args.tokens) {
-      if (t.id == tokenId) return t.amount;
-    }
-    return 0;
-  }
-
-  /// A buy-and-send asset is selected: any shortfall is bought on the
-  /// cheapest route and forwarded with the held balance in one transaction.
-  BuyableToken? get _selectedBuy {
-    final id = _assetId;
-    if (id == null || !id.startsWith(_buyPrefix)) return null;
-    final tokenId = id.substring(_buyPrefix.length);
-    for (final b in _buyable) {
-      if (b.id == tokenId) return b;
-    }
-    // Picked before the list loaded: fall back to held-token metadata.
-    for (final t in _args.tokens) {
-      if (t.id == tokenId) return BuyableToken(id: t.id, name: t.label, decimals: t.decimals, protocol: '');
-    }
-    return null;
-  }
-
-  void _onQuotes() {
-    if (mounted) setState(() {});
-  }
-
-  void _scheduleQuotes() {
-    final buy = _selectedBuy;
-    if (buy == null) return;
-    _quotes.request(buy.id, _tokenAmtCtrl.text, decimals: buy.decimals, held: _heldFor(buy.id));
-  }
-
   List<String> get _allSpendAddresses {
     final args = _args;
     return args.historyAddresses.isNotEmpty
@@ -310,17 +211,10 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
       _recipientCtrl.text.trim().isNotEmpty &&
       looksLikeRecipient(_recipientCtrl.text.trim());
 
-  /// True when the typed recipient is a published stealth address, so the
-  /// form can explain that a one-time address is derived at send time.
-  bool get _recipientIsStealth =>
-      looksLikeStealthAddress(_recipientCtrl.text.trim());
-
   /// True when the recipient came from a trusted source (contact picker or
   /// scanned payment URI) rather than free-typed/pasted text, so the
   /// clipboard-hijack gate can be skipped.
   bool _recipientTrusted = false;
-
-  int? _amountNano() => parseErgToNano(_amountCtrl.text);
 
   String? get _contactForRecipient {
     final addr = _recipientCtrl.text.trim();
@@ -332,16 +226,9 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
   }
 
   void _applyMaxErg() {
-    final spendable = availableNano(
-      from: _spendFrom,
-      publicNano: _args.spendableNano,
-      stealthNano: walletSyncController.stealthNano,
-      stealthUnknown: walletSyncController.stealthBalanceUnknown,
-    );
+    final spendable = _args.spendableNano;
     if (spendable == null) {
-      _snack(_spendFrom.usesStealth && walletSyncController.stealthBalanceUnknown
-          ? 'Stealth balance is unknown until the scan succeeds'
-          : 'Spendable balance is unknown');
+      _snack('Spendable balance is unknown');
       return;
     }
     final otherRecipients = _extraRecipients.fold<int>(0, (sum, recipient) {
@@ -352,7 +239,6 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
     final max = maxRecipientNanoErg(
       spendableNano: _chosenBoxIds.isEmpty ? spendable : _selection.totalNanoErg,
       minerFeeNano: parseErgToNano(_feeCtrl.text) ?? minerFeeNano,
-      appFeeNano: argusFeeNano,
       otherRecipientsNano: otherRecipients,
       feePaidInToken: _feeTokenId != null,
     );
@@ -444,10 +330,6 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
 
   Future<void> _send() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedBuy != null) {
-      await _sendViaRoute();
-      return;
-    }
     final args = _args;
     final spend = _selectedSpendAddresses.isNotEmpty
         ? _selectedSpendAddresses.toList()
@@ -464,50 +346,16 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
       showErrorSheet(context, message: e.message);
       return;
     }
-    // Stealth recipients become fresh one-time payment addresses here, one
-    // per send, so the published string never reaches the chain.
-    final isStealthPayment = hasStealthRecipient(recipients);
-    if (isStealthPayment) {
-      try {
-        recipients = await resolveStealthRecipients(recipients);
-      } on SendFormException catch (e) {
-        if (!mounted) return;
-        showErrorSheet(context, message: e.message);
-        return;
-      }
-      if (!mounted) return;
-    }
-    final spendable = availableNano(
-      from: _spendFrom,
-      publicNano: args.spendableNano,
-      stealthNano: walletSyncController.stealthNano,
-      stealthUnknown: walletSyncController.stealthBalanceUnknown,
-    );
+    final spendable = args.spendableNano;
     final fee = parseErgToNano(_feeCtrl.text) ?? minerFeeNano;
     if (spendable != null && totalNanoErg(recipients) +
-        (_feeTokenId == null ? fee : 0) + argusFeeNano > spendable) {
+        (_feeTokenId == null ? fee : 0) > spendable) {
       _snack('Amount plus fee exceeds your ${formatErg(spendable, maxFrac: 4)}');
       return;
     }
 
-    // A send that spends stealth coins returns its change to a fresh
-    // stealth address of our own, so the remainder is not tied to any
-    // address of this wallet. Falls back to the ordinary change address
-    // when that cannot be built, and says so rather than doing it quietly.
-    var changeAddress =
+    final changeAddress =
         args.changeAddress.isEmpty ? args.senderAddress : args.changeAddress;
-    var stealthChange = false;
-    if (_spendFrom.usesStealth) {
-      final fresh = await stealthService.newSelfChangeAddress();
-      if (!mounted) return;
-      if (fresh != null) {
-        changeAddress = fresh;
-        stealthChange = true;
-      } else {
-        _snack('Could not build a stealth change address; change will go to '
-            'your wallet address');
-      }
-    }
     final isMulti = needsMultiBuilder(recipients);
     setState(() => _sending = true);
     try {
@@ -521,7 +369,6 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
           nodeUrl: networkController.activeUrl,
           feeNanoErg: parseErgToNano(_feeCtrl.text),
           inputBoxIds: _inputBoxIds,
-          stealthBoxesJson: _stealthBoxesJson,
           babelTokenId: _feeTokenId,
         );
       } else {
@@ -537,156 +384,14 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
           nodeUrl: networkController.activeUrl,
           feeNanoErg: parseErgToNano(_feeCtrl.text),
           inputBoxIds: _inputBoxIds,
-          stealthBoxesJson: _stealthBoxesJson,
           babelTokenId: _feeTokenId,
         );
       }
-      await _confirmAndSend(
-        preview: preview,
-        isMulti: isMulti,
-        stealthChange: stealthChange,
-        stealthRecipients: isStealthPayment
-            ? [
-                for (final r in recipients)
-                  if (r['stealth_address'] != null)
-                    r['stealth_address'] as String,
-              ]
-            : const [],
-      );
+      await _confirmAndSend(preview: preview, isMulti: isMulti);
     } catch (e) {
       if (!mounted) return;
       setState(() => _sending = false);
       showErrorSheet(context, title: 'Could not prepare the send', message: '$e');
-    }
-  }
-
-  /// Auto-buy via the cheapest Dexy route, delivering the tokens straight to
-  /// the recipient; ERG change returns to the wallet's change address.
-  Future<void> _sendViaRoute() async {
-    final buy = _selectedBuy!;
-    // The router builds its own transactions from address-derived inputs
-    // and has no way to carry a stealth secret, so it must never be
-    // reached while a stealth pocket is selected.
-    if (_spendFrom.usesStealth) {
-      showErrorSheet(
-        context,
-        title: 'Buying a token needs the public pocket',
-        message: 'Routes are built from your ordinary boxes. Switch Spend '
-            'from to Public, or sweep your stealth funds first.',
-      );
-      return;
-    }
-    final args = _args;
-    final spend = _selectedSpendAddresses.isNotEmpty
-        ? _selectedSpendAddresses.toList()
-        : _allSpendAddresses;
-    if (spend.isEmpty) {
-      _snack('No spendable addresses');
-      return;
-    }
-    final wanted = parseDecimalToBase(_tokenAmtCtrl.text, buy.decimals);
-    if (wanted == null || wanted <= 0) {
-      _snack('Enter a token amount');
-      return;
-    }
-    final held = _heldFor(buy.id);
-    // Nothing to acquire: hand the user the ordinary token send, which
-    // spends the balance they already hold.
-    if (shortfallFor(wanted: wanted, held: held) == 0) {
-      final outputErg = _amountNano();
-      if (outputErg == null || outputErg < minBoxNano) {
-        _amountCtrl.text = formatErg(minBoxNano, unit: false);
-      }
-      setState(() => _assetId = buy.id);
-      _snack('You already hold enough ${buy.name} — sending it directly. Review to continue.');
-      return;
-    }
-
-    final changeAddr = args.changeAddress.isNotEmpty ? args.changeAddress : args.senderAddress;
-
-    // The token send carries a user-supplied recipient too — run the same
-    // clipboard-hijack gate as the ordinary flow.
-    // A stealth recipient must become a one-time payment address here too:
-    // the router hands the recipient straight to the transaction builders.
-    String routeRecipient = _recipientCtrl.text.trim();
-    if (isStealthAddress(routeRecipient)) {
-      try {
-        routeRecipient = await stealthPaymentAddress(routeRecipient);
-      } on SendFormException catch (e) {
-        if (!mounted) return;
-        showErrorSheet(context, message: e.message);
-        return;
-      }
-      if (!mounted) return;
-    }
-    if (!_recipientTrusted) {
-      final clear = await _clipboardMatchesIntent(context, _recipientCtrl.text.trim());
-      if (!clear) return;
-    }
-
-    setState(() => _sending = true);
-    RouteBuild build;
-    try {
-      build = await tokenRouter.build(
-        buy.id,
-        wanted: wanted,
-        held: held,
-        recipient: routeRecipient,
-        changeAddress: changeAddr,
-        spendAddresses: spend,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _sending = false);
-      showErrorSheet(context, title: 'Could not build a route', message: e is NoRouteException ? e.message : '$e');
-      return;
-    }
-    if (!mounted) return;
-
-    String tok(int n) => '${formatTokenAmount(n, buy.decimals)} ${buy.name}';
-    final choice = await showConfirmTransactionChoice(
-      context,
-      title: 'Send ${buy.name}',
-      confirmLabel: 'Buy & send',
-      recipientAddress: _recipientCtrl.text.trim(),
-      rows: [
-        ConfirmTxRow('Recipient gets', tok(build.delivered), bold: true),
-        if (build.held > 0) ConfirmTxRow('From your wallet', tok(build.held)),
-        ConfirmTxRow('Bought', '${tok(build.acquired)} via ${build.protocol} ${build.path}'),
-        ConfirmTxRow('ERG paid', formatErg(build.ergCostNano)),
-        if (build.protocolFeeNano > 0) ConfirmTxRow('Protocol fee', formatErg(build.protocolFeeNano)),
-        if (build.priceImpactPct != null)
-          ConfirmTxRow('Price impact', '${build.priceImpactPct!.toStringAsFixed(2)}%', bold: build.priceImpactPct! > priceImpactWarnPct),
-        ConfirmTxRow('Miner fee', formatErg(build.minerFeeNano)),
-        argusFeeRow(),
-        if (build.changeNanoErg > 0) ConfirmTxRow('Change to you', formatErg(build.changeNanoErg)),
-      ],
-      detail: [
-        if (impactWarning(build.priceImpactPct) case final w?) w,
-        'You hold ${tok(held)}; the rest is bought on the cheapest route and forwarded in one transaction.',
-        networkController.activeUrl ?? 'Node not chosen yet',
-      ].join('  ·  '),
-    );
-    if (!mounted) return;
-    if (choice != ConfirmChoice.broadcast) {
-      setState(() => _sending = false);
-      return;
-    }
-    try {
-      final txId = await walletService.sendErg(preparationId: build.preparationId);
-      if (!mounted || ModalRoute.of(context)?.isCurrent != true) {
-        showTxResultSheet(receiptContext, txId: txId, headline: 'Sent!');
-        return;
-      }
-      HapticFeedback.mediumImpact();
-      setState(() {
-        _resultTxId = txId;
-        _sending = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _sending = false);
-      await showTxFailureSheet(context, e);
     }
   }
 
@@ -752,12 +457,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
   Future<void> _confirmAndSend({
     required SendPreview preview,
     required bool isMulti,
-    List<String> stealthRecipients = const [],
-    bool stealthChange = false,
   }) async {
-    // The clipboard gate compares against what the user typed; for a stealth
-    // payment the prepared recipient is a freshly derived one-time address
-    // that can never match, so the check would always fire.
     final clear = await _clipboardMatchesIntent(context, _recipientCtrl.text.trim(),
         others: _extraRecipients.map((e) => e.address).toSet());
     if (!clear) {
@@ -781,14 +481,6 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
       ),
       if (!isMulti && tokenId != null && tokenId.isNotEmpty)
         ConfirmTxRow('Token', _tokenLabel(preview.tokenAmount ?? 0, tokenId), bold: true),
-      if (stealthRecipients.isNotEmpty)
-        ConfirmTxRow(
-          'Stealth payment',
-          stealthRecipients.length == 1
-              ? shortStealth(stealthRecipients.single)
-              : '${stealthRecipients.length} stealth recipients',
-          bold: true,
-        ),
       if (preview.babel case final b?)
         ConfirmTxRow(
           'Miner fee paid in ${_tokenById(b.tokenId)?.label ?? 'token'}',
@@ -797,11 +489,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
         )
       else
         ConfirmTxRow('Miner fee', formatErg(preview.minerFee)),
-      ConfirmTxRow('Argus fee', formatErg(preview.appFeeNano)),
-      ConfirmTxRow(
-        stealthChange ? 'Change to a new stealth address' : 'Change to you',
-        formatErg(preview.changeNanoErg),
-      ),
+      ConfirmTxRow('Change to you', formatErg(preview.changeNanoErg)),
     ];
     final fiat = networkController.fiatText(preview.amountNanoErg);
     final choice = await showConfirmTransactionChoice(
@@ -929,73 +617,11 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
     );
   }
 
-  /// "Available 12.3456 ERG" under the amount field, for the chosen pocket.
+  /// "Available 12.3456 ERG" under the amount field.
   String? _availableLine() {
-    final available = availableNano(
-      from: _spendFrom,
-      publicNano: _args.spendableNano,
-      stealthNano: walletSyncController.stealthNano,
-      stealthUnknown: walletSyncController.stealthBalanceUnknown,
-    );
-    if (available == null) {
-      return _spendFrom.usesStealth && walletSyncController.stealthBalanceUnknown
-          ? 'Stealth balance unknown until the scan succeeds'
-          : null;
-    }
-    final suffix = _spendFrom == SpendFrom.public ? '' : ' from ${_spendFrom.label.toLowerCase()}';
-    return 'Available ${formatErg(available, maxFrac: 4)}$suffix';
-  }
-
-  /// The pocket chooser, shown only when there is a second pocket to pick.
-  Widget? _pocketSelector(BuildContext context) {
-    final stealth = walletSyncController.stealthNano;
-    if (stealth <= 0) return null;
-    final buyingToken = _selectedBuy != null;
-    final warning = spendFromWarning(_spendFrom);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('SPEND FROM',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: ArgusColors.of(context).muted,
-                    letterSpacing: 1,
-                    fontSize: 11.5,
-                  )),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 8,
-            children: [
-              for (final f in SpendFrom.values)
-                ChoiceChip(
-                  key: Key('spend-from-${f.name}'),
-                  label: Text(f.label),
-                  selected: _spendFrom == f,
-                  // Buying a token to send runs through the route builders,
-                  // which cannot spend a stealth box.
-                  onSelected: buyingToken && f.usesStealth
-                      ? null
-                      : (_) => setState(() {
-                            _spendFrom = f;
-                            // A pocket change invalidates a per-box choice
-                            // made against the previous set.
-                            _chosenBoxIds.clear();
-                          }),
-                ),
-            ],
-          ),
-          if (buyingToken) ...[
-            const SizedBox(height: 6),
-            Text('Buying a token to send uses your public boxes.',
-                style: TextStyle(fontSize: 12.5, color: ArgusColors.of(context).muted)),
-          ] else if (warning != null) ...[
-            const SizedBox(height: 6),
-            Text(warning, style: TextStyle(fontSize: 12.5, color: rustFor(context))),
-          ],
-        ],
-      ),
-    );
+    final available = _args.spendableNano;
+    if (available == null) return null;
+    return 'Available ${formatErg(available, maxFrac: 4)}';
   }
 
   String _advancedSummary() {
@@ -1035,7 +661,6 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
         _extraTokens.add(entry);
       }
       _tokenPage = 0;
-      _quotes.clear();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       for (final e in old) {
@@ -1215,106 +840,9 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
     );
   }
 
-  /// Current asset as a tappable field; opens the picker sheet.
-  Widget _assetPickerButton(TokenBalance? token, BuyableToken? buy) {
-    final label = buy != null
-        ? '${buy.name}${_heldFor(buy.id) > 0 ? '' : ' · buy & send'}'
-        : (token?.label ?? 'ERG');
-    final sub = buy != null
-        ? (buy.protocol.isEmpty ? 'From your wallet, topped up if short' : 'Bought via ${buy.protocol} if short')
-        : (token != null ? 'From your wallet' : 'Ergo');
-    return InkWell(
-      onTap: () async {
-        final extraIds = _extraTokens.map((e) => e.tokenId).toSet();
-        final choice = await showAssetPicker(
-          context,
-          held: const [],
-          buyable: _buyable.where((t) => !extraIds.contains(t.id)).toList(),
-          current: _assetId,
-        );
-        if (choice == null || !mounted) return;
-        setState(() {
-          _assetId = choice.assetId;
-          _tokenAmtCtrl.clear();
-          _quotes.clear();
-        });
-      },
-      borderRadius: BorderRadius.circular(buttonRadius),
-      child: InputDecorator(
-        decoration: const InputDecoration(labelText: 'ERG or buy and send', suffixIcon: Icon(Icons.expand_more)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-            Text(sub, style: TextStyle(fontSize: 12, color: ArgusColors.of(context).muted)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSwapSection(BuyableToken buy) {
-    final quotes = _quotes.quotes;
-    final held = _heldFor(buy.id);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 12),
-        TextFormField(
-          controller: _tokenAmtCtrl,
-          decoration: InputDecoration(
-            labelText: buyAmountLabel(buy),
-            helperText: held > 0
-                ? 'You hold ${formatTokenAmount(held, buy.decimals)} ${buy.name} — only the shortfall is bought.'
-                : "You don't hold ${buy.name} — it is bought automatically at the best rate.",
-          ),
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          onChanged: (_) => _scheduleQuotes(),
-          validator: (v) {
-            final n = parseDecimalToBase(v ?? '', buy.decimals);
-            if (n == null || n <= 0) return 'Enter an amount';
-            return null;
-          },
-        ),
-        const SizedBox(height: 12),
-        if (quotes == null)
-          Text('Enter an amount to see the ERG cost.', style: Theme.of(context).textTheme.bodySmall)
-        else if (quotes.isEmpty)
-          Text(
-            held > 0 && parseDecimalToBase(_tokenAmtCtrl.text, buy.decimals) != null &&
-                    shortfallFor(wanted: parseDecimalToBase(_tokenAmtCtrl.text, buy.decimals)!, held: held) == 0
-                ? 'You already hold this much — it will be sent directly.'
-                : 'No route available for this amount right now.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: rustFor(context)),
-          )
-        else ...[
-          for (final (i, q) in quotes.indexed)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
-                children: [
-                  Icon(i == 0 ? Icons.star : Icons.alt_route, size: 16, color: i == 0 ? accentOf(context) : null),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(routeQuoteLabel(q, cheapest: i == 0), style: Theme.of(context).textTheme.bodySmall),
-                  ),
-                ],
-              ),
-            ),
-          if (impactWarning(quotes.first.priceImpactPct) case final warning?)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(warning, style: TextStyle(fontSize: 12.5, color: rustFor(context))),
-            ),
-        ],
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final token = _selectedToken;
-    final swapVariant = _selectedBuy;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Send'),
@@ -1373,34 +901,10 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                       },
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) return 'Required';
-                        if (!looksLikeRecipient(v)) {
-                          return looksLikeStealthAddress(v.trim())
-                              ? 'Not a valid stealth address'
-                              : 'Not an Ergo or stealth address';
-                        }
+                        if (!looksLikeRecipient(v)) return 'Not an Ergo address';
                         return null;
                       },
                     ),
-                    if (_recipientIsStealth)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(Icons.visibility_off_outlined,
-                                size: 16, color: ArgusColors.of(context).muted),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Stealth address. A fresh one-time address is '
-                                'derived when you send, so nothing on chain '
-                                'links this payment to the recipient.',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     if (_recipientValid)
                       Align(
                         alignment: Alignment.centerLeft,
@@ -1413,63 +917,54 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                     const SizedBox(height: 24),
                     const SectionLabel('Asset'),
                     const SizedBox(height: 12),
-                    if (swapVariant == null) ...[
-                      Align(alignment: Alignment.centerLeft, child: FilledButton.icon(
-                        onPressed: () async {
-                          final ids = await showHeldTokenPicker(context, tokens: _args.tokens, selected: _heldAmounts.keys.toSet());
-                          if (ids != null && mounted) _selectHeld(ids);
+                    Align(alignment: Alignment.centerLeft, child: FilledButton.icon(
+                      onPressed: () async {
+                        final ids = await showHeldTokenPicker(context, tokens: _args.tokens, selected: _heldAmounts.keys.toSet());
+                        if (ids != null && mounted) _selectHeld(ids);
+                      },
+                      icon: const Icon(Icons.checklist),
+                      label: Text(_heldAmounts.isEmpty ? 'Choose tokens' : 'Choose tokens (${_heldAmounts.length})'),
+                    )),
+                    const SizedBox(height: 12),
+                    if (token == null)
+                      AmountEntry(
+                        controller: _amountCtrl,
+                        helperText: _availableLine(),
+                        onMax: _applyMaxErg,
+                        onChanged: (_) => setState(() {}),
+                        validator: (v) {
+                          final n = parseErgToNano(v ?? '');
+                          if (n == null || n < minBoxNano) return 'Minimum 0.001 ERG';
+                          return null;
                         },
-                        icon: const Icon(Icons.checklist),
-                        label: Text(_heldAmounts.isEmpty ? 'Choose tokens' : 'Choose tokens (${_heldAmounts.length})'),
-                      )),
-                      if (_heldAmounts.isEmpty && !_multiRecipient)
-                        _assetPickerButton(token, swapVariant),
-                    ] else _assetPickerButton(token, swapVariant),
-                    if (swapVariant != null)
-                      _buildSwapSection(swapVariant)
-                    else ...[
+                      ),
+                    _heldTokenRows(),
+                    // A token send may carry ERG too, and more tokens: they
+                    // all travel in the recipient's one box.
+                    if (token != null) ...[
                       const SizedBox(height: 12),
-                      if (_pocketSelector(context) case final sel?) sel,
-                      if (token == null)
-                        AmountEntry(
-                          controller: _amountCtrl,
-                          helperText: _availableLine(),
-                          onMax: _applyMaxErg,
-                          onChanged: (_) => setState(() {}),
-                          validator: (v) {
-                            final n = parseErgToNano(v ?? '');
-                            if (n == null || n < minBoxNano) return 'Minimum 0.001 ERG';
-                            return null;
-                          },
-                        ),
-                      _heldTokenRows(),
-                      // A token send may carry ERG too, and more tokens: they
-                      // all travel in the recipient's one box.
-                      if (token != null) ...[
-                        const SizedBox(height: 12),
-                        AmountEntry(
-                          controller: _amountCtrl,
-                          label: 'ERG to send with it (optional)',
-                          helperText: 'Blank funds the minimum ERG for these tokens. Review shows the exact amount. ${_availableLine() ?? ''}',
-                          onMax: _applyMaxErg,
-                          onChanged: (_) => setState(() {}),
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) return null;
-                            final n = parseErgToNano(v);
-                            if (n == null || n < minBoxNano) return 'Minimum 0.001 ERG';
-                            return null;
-                          },
-                        ),
-                        if (_rentHint(
-                          address: _recipientCtrl.text,
-                          erg: _amountCtrl,
-                          tokens: _mainRecipientTokens,
-                        ) case final hint?)
-                          hint,
-                      ],
+                      AmountEntry(
+                        controller: _amountCtrl,
+                        label: 'ERG to send with it (optional)',
+                        helperText: 'Blank funds the minimum ERG for these tokens. Review shows the exact amount. ${_availableLine() ?? ''}',
+                        onMax: _applyMaxErg,
+                        onChanged: (_) => setState(() {}),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return null;
+                          final n = parseErgToNano(v);
+                          if (n == null || n < minBoxNano) return 'Minimum 0.001 ERG';
+                          return null;
+                        },
+                      ),
+                      if (_rentHint(
+                        address: _recipientCtrl.text,
+                        erg: _amountCtrl,
+                        tokens: _mainRecipientTokens,
+                      ) case final hint?)
+                        hint,
                     ],
                     const SizedBox(height: 16),
-                    if (_multiRecipient && swapVariant == null)
+                    if (_multiRecipient)
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1500,7 +995,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                                       validator: (v) {
                                         if (v == null || v.trim().isEmpty) return 'Required';
                                         if (!looksLikeRecipient(v)) {
-                                          return 'Not an Ergo or stealth address';
+                                          return 'Not an Ergo address';
                                         }
                                         return null;
                                       },
@@ -1604,7 +1099,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                           ),
                         ],
                       )
-                    else if (swapVariant == null)
+                    else
                       TextButton.icon(
                         onPressed: () {
                           setState(() {
@@ -1625,7 +1120,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                       childrenPadding: const EdgeInsets.only(bottom: 8),
                       onExpansionChanged: (_) => setState(() {}),
                       children: [
-                        if (token != null && swapVariant == null) ...[
+                        if (token != null) ...[
                           TextFormField(
                             controller: _amountCtrl,
                             decoration: InputDecoration(
@@ -1797,13 +1292,11 @@ class _InputPickerSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = ArgusColors.of(context);
-    final mixed = mixService.mixedBoxIds.toSet();
-    final selection = summariseSelection(boxes, chosen, mixedIds: mixed);
+    final selection = summariseSelection(boxes, chosen);
     final check = checkSelection(
       selection: selection,
       amountNanoErg: amountNanoErg,
       feeNanoErg: feeNanoErg,
-      appFeeNanoErg: argusFeeNano,
     );
     final note = selectionPrivacyNote(selection);
     return SafeArea(
@@ -1826,7 +1319,7 @@ class _InputPickerSheet extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               chosen.isEmpty
-                  ? 'Argus will pick boxes for you. Choose some to control exactly what this transaction spends.'
+                  ? 'Celaut will pick boxes for you. Choose some to control exactly what this transaction spends.'
                   : selectionSummary(selection),
               style: TextStyle(fontSize: 12.5, color: colors.muted),
             ),
@@ -1861,10 +1354,7 @@ class _InputPickerSheet extends StatelessWidget {
                     subtitle: Text(
                       [
                         if (b.address != null && b.address!.isNotEmpty)
-                          shorten(b.address!, head: 6, tail: 4)
-                        else
-                          'stealth',
-                        if (mixed.contains(b.boxId)) 'mixed',
+                          shorten(b.address!, head: 6, tail: 4),
                         if (tokens > 0) '$tokens token${tokens == 1 ? '' : 's'}',
                         'block ${b.creationHeight}',
                       ].join(' · '),

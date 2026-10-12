@@ -20,9 +20,9 @@ final goodApk = signedApk(certA);
 final otherKeyApk = signedApk(certB);
 final unsignedApk = apk();
 
-const arm64 = 'argus-1.0.0-beta.2-arm64-v8a.apk';
-const x86 = 'argus-1.0.0-beta.2-x86_64.apk';
-const universal = 'argus-1.0.0-beta.2-universal.apk';
+const arm64 = 'chatui-1.0.0-beta.2-arm64-v8a.apk';
+const x86 = 'chatui-1.0.0-beta.2-x86_64.apk';
+const universal = 'chatui-1.0.0-beta.2-universal.apk';
 
 class Harness {
   Harness(this.root) : platform = FakePlatform(Directory('${root.path}/updates')) {
@@ -309,8 +309,8 @@ void main() {
       final request = h.gh.requests.single;
       expect(request.method, 'GET');
       expect(request.url, latestReleaseUri);
-      expect(request.url.toString(), 'https://api.github.com/repos/arkadianet/Argus/releases/latest');
-      expect(request.headers, {'user-agent': 'Argus'});
+      expect(request.url.toString(), 'https://api.github.com/repos/celaut-project/chatui/releases/latest');
+      expect(request.headers, {'user-agent': 'Celaut'});
       expect((request as http.Request).bodyBytes, isEmpty);
     });
 
@@ -320,7 +320,7 @@ void main() {
       final request = h.gh.fileRequests.single;
       expect(request.method, 'GET');
       expect(request.url.toString(), assetUrl(arm64));
-      expect(request.headers, {'user-agent': 'Argus'});
+      expect(request.headers, {'user-agent': 'Celaut'});
     });
 
     test('the client is closed after every request', () async {
@@ -644,7 +644,7 @@ void main() {
       expect(h.leftovers, isEmpty);
     });
 
-    test('a file larger than Argus will take is not even requested', () async {
+    test('a file larger than Celaut will take is not even requested', () async {
       h.publish('v1.0.0-beta.2');
       h.gh.releaseBody = releaseJson('v1.0.0-beta.2', assets: [
         {...assetJson(arm64, goodApk), 'size': maxApkBytes + 1},
@@ -653,7 +653,7 @@ void main() {
       await svc.checkNow();
       await svc.downloadAndVerify();
       expect(svc.stage, UpdateStage.failed);
-      expect(svc.stageMessage, contains('larger than Argus will accept'));
+      expect(svc.stageMessage, contains('larger than Celaut will accept'));
       expect(h.gh.fileRequests, isEmpty);
     });
 
@@ -667,7 +667,7 @@ void main() {
     });
 
     group('redirects', () {
-      const cdn = 'https://release-assets.githubusercontent.com/github-production-release-asset/1/argus.apk?sig=abc';
+      const cdn = 'https://release-assets.githubusercontent.com/github-production-release-asset/1/chatui.apk?sig=abc';
 
       test('the hand-off to the CDN is followed, one hop at a time', () async {
         final svc = await h.found();
@@ -678,13 +678,13 @@ void main() {
         expect(h.gh.asked.where((a) => a == assetUrl(arm64) || a == cdn), [assetUrl(arm64), cdn]);
         // Every hop is ours to follow, and carries the one header.
         expect(h.gh.fileRequests.every((r) => r.followRedirects == false), isTrue);
-        expect(h.gh.fileRequests.every((r) => r.headers.length == 1 && r.headers['user-agent'] == 'Argus'), isTrue);
+        expect(h.gh.fileRequests.every((r) => r.headers.length == 1 && r.headers['user-agent'] == 'Celaut'), isTrue);
       });
 
       test('a relative Location is resolved against the address that sent it', () async {
         final svc = await h.found();
-        h.gh.files[assetUrl(arm64)] = Served.redirect('/arkadianet/Argus/releases/moved/argus.apk', status: 301);
-        h.gh.files['https://github.com/arkadianet/Argus/releases/moved/argus.apk'] = Served.bytes(goodApk);
+        h.gh.files[assetUrl(arm64)] = Served.redirect('/celaut-project/chatui/releases/moved/chatui.apk', status: 301);
+        h.gh.files['https://github.com/celaut-project/chatui/releases/moved/chatui.apk'] = Served.bytes(goodApk);
         await svc.downloadAndVerify();
         expect(svc.stage, UpdateStage.verified, reason: svc.stageMessage);
       });
@@ -804,14 +804,14 @@ void main() {
         await svc.checkNow();
         expect(svc.checkError, isNull, reason: svc.checkError);
         expect(svc.available?.version.toString(), '1.0.0-beta.2');
-        expect(h.gh.requests.every((r) => r.headers.length == 1 && r.headers['user-agent'] == 'Argus'), isTrue);
+        expect(h.gh.requests.every((r) => r.headers.length == 1 && r.headers['user-agent'] == 'Celaut'), isTrue);
 
         h.gh.files[latestReleaseUri.toString()] = Served.redirect('https://evil.example/latest');
         await svc.checkNow();
         expect(svc.checkError, contains('redirected away from GitHub'));
         expect(h.gh.asked, isNot(contains('https://evil.example/latest')));
         // GitHub's download hosts are not where the API lives.
-        h.gh.files[latestReleaseUri.toString()] = Served.redirect('https://github.com/arkadianet/Argus/releases/latest');
+        h.gh.files[latestReleaseUri.toString()] = Served.redirect('https://github.com/celaut-project/chatui/releases/latest');
         await svc.checkNow();
         expect(svc.checkError, contains('redirected away from GitHub'));
       });
@@ -916,8 +916,8 @@ void main() {
       // The check starts first and is held at GitHub's door.
       h.gh.releaseGate = Completer<void>();
       h.publish('v1.0.0-beta.3', files: {
-        'argus-1.0.0-beta.3-arm64-v8a.apk': goodApk,
-        'argus-1.0.0-beta.3-universal.apk': goodApk,
+        'chatui-1.0.0-beta.3-arm64-v8a.apk': goodApk,
+        'chatui-1.0.0-beta.3-universal.apk': goodApk,
       });
       final check = svc.checkNow();
       await _until(() => h.gh.apiRequests.length == 2);
@@ -948,8 +948,8 @@ void main() {
       await svc.downloadAndVerify();
       expect(svc.stage, UpdateStage.verified);
       h.publish('v1.0.0-beta.3', files: {
-        'argus-1.0.0-beta.3-arm64-v8a.apk': goodApk,
-        'argus-1.0.0-beta.3-universal.apk': goodApk,
+        'chatui-1.0.0-beta.3-arm64-v8a.apk': goodApk,
+        'chatui-1.0.0-beta.3-universal.apk': goodApk,
       });
       await svc.checkNow();
       expect(svc.available!.version.toString(), '1.0.0-beta.3');
@@ -991,7 +991,7 @@ void main() {
       await svc.install();
       expect(h.platform.settingsOpened, 1);
       expect(h.platform.installed, isEmpty);
-      expect(svc.stageMessage, contains('Allow Argus to install apps'));
+      expect(svc.stageMessage, contains('Allow Celaut to install apps'));
 
       h.platform.allowInstall = true;
       await svc.install();

@@ -68,7 +68,7 @@ void main() {
         expect(s.atRiskCount, 0);
         expect(s.leftAtAddress, 1);
         expect(s.totalNano, BigInt.from(9001000000));
-        expect(s.afterFeesNano, BigInt.from(9001000000 - 2200000));
+        expect(s.afterFeesNano, BigInt.from(9001000000 - 1100000));
         expect(s.tokens, {'nft': BigInt.one});
       },
     );
@@ -268,9 +268,9 @@ void main() {
 
     test('the merged value must fund every box the tokens need', () {
       final s = suggestCleanup(boxes: nfts, rent: atRisk)!;
-      expect(s.afterFeesNano, BigInt.from(1800000));
-      // The builder would raise the layout to 2 mERG of floors.
-      expect(cleanupIsViable(s, measured(2000000, covered: true)), isFalse);
+      expect(s.afterFeesNano, BigInt.from(2900000));
+      // The builder would raise the layout to 3 mERG of floors.
+      expect(cleanupIsViable(s, measured(3000000, covered: true)), isFalse);
     });
 
     test('a cleanup for box count alone may leave rent to the review', () {

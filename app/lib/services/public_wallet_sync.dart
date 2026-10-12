@@ -6,7 +6,6 @@ import 'activity_classifier.dart' show reownActivity;
 import 'address_holdings.dart';
 import 'network_controller.dart';
 import 'pending_balance.dart';
-import 'stealth_change_book.dart';
 import 'wallet_database_service.dart';
 import 'wallet_service.dart';
 import 'wallet_sync_controller.dart';
@@ -15,9 +14,9 @@ import 'wallet_sync_controller.dart';
 const lockedWalletsExplainer =
     'Locked wallets refresh from public data every 5 minutes, covering only '
     'the addresses this app already knows. Unlock one to pick up new '
-    'addresses and stealth funds.';
+    'addresses.';
 
-/// Deliberately exposes no handle, discovery, derivation or stealth capability.
+/// Deliberately exposes no handle, discovery or derivation capability.
 abstract class PublicWalletGateway {
   Future<Map<String, dynamic>?> load(String id);
   Future<Map<String, dynamic>> balance(String address);
@@ -210,10 +209,8 @@ class PublicWalletSync extends ChangeNotifier {
             }
             amounts.removeWhere((_, amount) => amount <= 0);
           }
-          // Read against all the wallet's addresses, and the stealth
-          // addresses this wallet (and no other) sent its own change to.
-          await stealthChangeBook.load(entry.key);
-          final owned = {...addresses, ...stealthChangeBook.addressesFor(entry.key)};
+          // Read against all the wallet's addresses.
+          final owned = {...addresses};
           for (final address in addresses) {
             if (!valid()) return;
             for (final tx in await gateway.history(address)) {

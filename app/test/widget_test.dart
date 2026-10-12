@@ -7,6 +7,6 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(const ArgusApp());
     await tester.pump();
-    expect(find.text('Argus'), findsWidgets);
+    expect(find.text('Celaut'), findsWidgets);
   });
 }

@@ -22,8 +22,6 @@ class ReviewApi extends SessionApi {
     String? nodeUrl,
   }) async => '{"balances":{},"pending":null,"utxo_count":null}';
   @override
-  Future<void> crateApiInitApp() async {}
-  @override
   Future<String> crateApiGetBalance({
     required String address,
     String? nodeUrl,

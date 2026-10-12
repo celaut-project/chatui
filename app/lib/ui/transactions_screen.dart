@@ -5,9 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../format.dart';
-import '../services/mix_activity.dart';
-import '../services/stealth_service.dart';
-import '../services/mix_service.dart';
+import '../services/activity_classifier.dart' show compareActivityRows;
 import '../services/wallet_sync_controller.dart';
 import '../services/wallet_service.dart';
 import '../theme/argus_theme.dart';
@@ -57,9 +55,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   bool _hasMore = true;
   int _loadGeneration = 0;
 
-  /// The ids and heights the home sync last showed, stealth rows
-  /// included, so the list reloads when a transaction arrives or a
-  /// Pending row confirms, and not on every notification.
+  /// The ids and heights the home sync last showed, so the list reloads
+  /// when a transaction arrives or a Pending row confirms, and not on every
+  /// notification.
   String _syncSignature = '';
 
   /// A change that arrived while a load was running; replayed after it.
@@ -71,14 +69,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     super.initState();
     _syncSignature = _currentSignature();
     walletSyncController.addListener(_onSyncChanged);
-    mixService.addListener(_onSyncChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _reload());
   }
 
   @override
   void dispose() {
     walletSyncController.removeListener(_onSyncChanged);
-    mixService.removeListener(_onSyncChanged);
     super.dispose();
   }
 
@@ -87,11 +83,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   List<Map<String, dynamic>> _withLocal(List<Map<String, dynamic>> rows) {
     if (_args.watchOnly) return rows;
     final ids = {for (final row in rows) row['tx_id']};
-    final merged = mergeStealthActivity(mergeMixActivity([
+    final merged = [
       ...rows,
       for (final row in walletSyncController.recentTxs)
         if (!ids.contains(row['tx_id'])) row,
-    ], mixService.mixActivityRows()), walletSyncController.stealthRows);
+    ];
     merged.sort(compareActivityRows);
     return merged;
   }

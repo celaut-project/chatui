@@ -13,11 +13,11 @@ void main() {
       service.accounts.add(account);
       var notifications = 0;
       service.addListener(() => notifications++);
-      network.setErgRate(fiatPerErg: 1, usdPerErg: 1);
+      network.setErgRate(1);
       expect(account.snapshot, isNotNull);
       expect(notifications, 0);
       network.activeUrl = 'node-b';
-      network.setErgRate(fiatPerErg: 1, usdPerErg: 1);
+      network.setErgRate(1);
       expect(account.snapshot, isNull);
       expect(account.highestUsed, 3);
       expect(account.error, contains('Refresh'));

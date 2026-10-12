@@ -11,8 +11,6 @@ class AddressApi extends RustLibApi {
   String? preparedAddress;
   BigInt? preparedTokenAmount;
   @override
-  Future<void> crateApiInitApp() async {}
-  @override
   Future<String> crateApiColdPrepareAddress({
     required String address,
     required String recipient,

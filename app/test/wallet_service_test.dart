@@ -11,33 +11,16 @@ void main() {
       id: 'token',
       amount: 1,
       name: raw,
-      stealthAmount: 1,
     );
     expect(token.name, isNot(raw));
-    final copy = token.withHolding(5, stealthAmount: 2).withHolding(7);
+    final copy = token.withHolding(5).withHolding(7);
     expect(copy.originalName, raw);
     expect(copy.name, token.name);
     expect(copy.amount, 7);
-    expect(copy.stealthAmount, 2);
   });
 
   _displayAddressTests();
   group('SendPreview.fromJson', () {
-    test('reads the charged app fee from the preview, including zero', () {
-      for (final fee in [0, 1100000, 2200000]) {
-        final preview = SendPreview.fromJson({
-          'preparation_id': 1,
-          'recipient': '9test',
-          'amount_nano_erg': 1000000000,
-          'miner_fee': 1100000,
-          'change_nano_erg': 1000000,
-          'input_count': 1,
-          'citadel_fee_nano': fee,
-        });
-        expect(preview.appFeeNano, fee);
-      }
-    });
-
     final valid = {
       'preparation_id': 9,
       'recipient': '9abc',
