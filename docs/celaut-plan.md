@@ -14,7 +14,7 @@ Updated on 2026-10-12, master at `db3261f` plus the M1 PR.
 | M0: build from source, CI on master, debug APK in CI | Done. Merged in `5c3b2b3` (PR #1). CI run 38156157458 on master passed (rust, flutter, android) |
 | `celaut-proto` and the design notes (`docs/celaut/`) | Done. Merged from `celaut-crates` in `160d24c`. Make new PRs into master. Do not use `celaut-crates` again |
 | M0b: trimmed wallet and new identity | Done. Merged in PR #3 (section 5). Spanish is a separate PR after it |
-| `bee-rpc-over-grpc-rs` | M1a done. Tag `v0.1.0` (`a832abc`) has the whole API: frames, blocks, signal, skip, hashes and the generic bidi call over tonic. `celaut-wire` uses it as a git dependency. Its license is GPL-3.0-only (section 7, question 10) |
+| `bee-rpc-over-grpc-rs` | M1a done. Tag `v0.1.0` (`a832abc`) has the whole API: frames, blocks, signal, skip, hashes and the generic bidi call over tonic. `celaut-wire` uses it as a git dependency. Its license is GPL-3.0-only, and chatui is GPL-3.0-only too (section 7, question 10) |
 | M1: connect to a node and show its advertisement | Done, in review. `celaut-wire`, `celaut-client`, FFI function `celaut_peer_info` and the debug screen (Settings, Developer). The tests pass against the real nodo Gateway on a local port (see M1 in section 5). Not tested: the Android build outside CI, and a node on the internet |
 | M2 to M5 | Not started |
 | Open questions (section 7) | Answered on 2026-10-11 |
@@ -299,11 +299,10 @@ onion addresses for nodes are nodo work (decision 7 in section 7).
    prerelease. The updater ignores prereleases, so mark a release as latest only after
    the test on GrapheneOS.
 
-10. **License of bee-rpc (open, 2026-10-12):** `bee-rpc` is GPL-3.0-only
-    (`Cargo.toml` of `bee-rpc-over-grpc-rs`), and the workspace of chatui says MIT (it
-    comes from Argus). The app links `bee-rpc` into `libwallet_ffi.so`. A maintainer
-    must decide: relicense the Celaut crates and the app, change the license of
-    `bee-rpc`, or write another port.
+10. **License (decided, 2026-10-12):** `bee-rpc` is GPL-3.0-only and the app links it
+    into `libwallet_ffi.so`. Josemi decided that chatui is GPL-3.0-only. `LICENSE` has
+    the text, and `NOTICE.md` keeps the MIT notice of Argus, from which chatui is
+    forked. The workspace `license` is `GPL-3.0-only`.
 
 ## 8. Notes for `docs/celaut/wire.md`
 
