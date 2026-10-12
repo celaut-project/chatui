@@ -7,27 +7,27 @@ can run.
 
 ## 0. Status and next tasks
 
-Updated on 2026-10-11, master at `160d24c`.
+Updated on 2026-10-12, master at `db3261f` plus the M1 PR.
 
 | Item | Status |
 |---|---|
 | M0: build from source, CI on master, debug APK in CI | Done. Merged in `5c3b2b3` (PR #1). CI run 38156157458 on master passed (rust, flutter, android) |
 | `celaut-proto` and the design notes (`docs/celaut/`) | Done. Merged from `celaut-crates` in `160d24c`. Make new PRs into master. Do not use `celaut-crates` again |
-| M0b: trimmed wallet and new identity | Done on branch `m0b-trim-identity`, in review (section 5). Spanish is a separate PR after it |
-| `bee-rpc-over-grpc-rs` | Specification ready (`68d6f0e`): public API with `todo!()`, tests and vectors from the Python reference, agent guide and prompt. Port not started |
-| M1a, M1 to M5 | Not started |
+| M0b: trimmed wallet and new identity | Done. Merged in PR #3 (section 5). Spanish is a separate PR after it |
+| `bee-rpc-over-grpc-rs` | M1a done. Tag `v0.1.0` (`a832abc`) has the whole API: frames, blocks, signal, skip, hashes and the generic bidi call over tonic. `celaut-wire` uses it as a git dependency. Its license is GPL-3.0-only (section 7, question 10) |
+| M1: connect to a node and show its advertisement | Done, in review. `celaut-wire`, `celaut-client`, FFI function `celaut_peer_info` and the debug screen (Settings, Developer). The tests pass against the real nodo Gateway on a local port (see M1 in section 5). Not tested: the Android build outside CI, and a node on the internet |
+| M2 to M5 | Not started |
 | Open questions (section 7) | Answered on 2026-10-11 |
 
 Do the next tasks in this order. Each task is one PR into master.
 
-1. **M0b**, see section 5. It changes many files, so do it before the Celaut code.
-2. **wire.md corrections:** apply section 8 to `docs/celaut/wire.md`. This is a
-   small PR, and it can go in parallel with M0b.
+1. **M0b**, see section 5. Done (PR #3).
+2. **wire.md corrections:** section 8. Done (PR #2). The M1 PR adds the `ts` rule and
+   the signature scheme to wire.md.
 3. **bee-rpc in Rust** (M1a): the repo
-   [bee-rpc-protocol/bee-rpc-over-grpc-rs](https://github.com/bee-rpc-protocol/bee-rpc-over-grpc-rs)
-   has the skeleton. Its `PORTING.md` lists the steps. This work does not depend on M0b.
-4. **M1**, then **M2**. The protocol crates do not depend on M0b. You can start
-   `celaut-wire` before M0b is merged, but make the PR after M0b.
+   [bee-rpc-protocol/bee-rpc-over-grpc-rs](https://github.com/bee-rpc-protocol/bee-rpc-over-grpc-rs).
+   Done: tag `v0.1.0`.
+4. **M1**: done, in review. Then **M2**.
 5. **M3**, **M4**, then **M5**.
 
 Josemi answered all the open questions on 2026-10-11 (section 7). One task is left
@@ -167,14 +167,49 @@ generated from the Python v0.0.2 reference), and the interop tests with a Python
 peer pass.
 
 **M1: connect to a node and show its advertisement.** Uses the `bee-rpc` crate (git
-dependency, then a release). `celaut-wire` and the first part of `celaut-client`: TLS with the identity check, GenerateClient (with PoW),
-GetPeerInfo. Verify the `Peer` signature: Ed25519 over
-`"<public_key>|<ts>|<content_digest>"` (`nodo:protos/celaut.proto:725-731`, digest in
-`nodo:src/identity/node_identity.py`), `public_key` equal to the peer_id of the
-certificate, and `ts` greater than the last one seen. A debug screen: enter `host:port`, show peer_id, URIs, rates, payment
-contracts and resources. Check: an integration test against a nodo that we run
-ourselves (M1 starts no service, so a node without KVM can be enough if its Gateway
+dependency on the tag `v0.1.0`, then a release). `celaut-wire` and the first part of
+`celaut-client`: TLS with the identity check, GenerateClient (with PoW), GetPeerInfo.
+Verify the `Peer` signature: Ed25519 over `"<public_key>|<ts>|<content_digest>"`
+(`nodo:protos/celaut.proto:725-731`, digest in `nodo:src/identity/node_identity.py`),
+`public_key` equal to the peer_id of the certificate, and `ts` not older than the last
+one seen. A debug screen (Settings, Developer): enter `host:port`, show peer_id, URIs,
+rates, payment contracts and resources. Check: an integration test against a nodo that
+we run ourselves (M1 starts no service, so a node without KVM is enough if its Gateway
 starts); unit tests with fixed bee-rpc streams and a fixed certificate.
+
+Done in M1:
+
+- `celaut-wire`: the identity check (`IdentityVerifier`, a rustls `ServerCertVerifier`;
+  TLS 1.3 only, ring, no aws-lc), a tonic channel on it, the `Transport` trait, and
+  the typed calls `generate_client` and `get_peer_info`.
+- `celaut-client`: the proof of work, the port of `canonical_peer_content_digest`, the
+  check of the `Peer`, and a store of the last advertisement per peer_id (memory or one
+  JSON file). It keeps no client id: M1 uses it for one call and drops it.
+- FFI: `celaut_peer_info(host, port, expected_peer_id, store_path)`. The debug screen
+  passes no `store_path` yet, because the app has no data directory (`path_provider`
+  is not a dependency), so the app keeps the last `ts` values in memory.
+- Tests: known-answer vectors made with the nodo Python code
+  (`celaut-client/tests/vectors/generate.py`), certificates made with it
+  (`celaut-wire/tests/data/make_certs.py`), and a test that runs the real `Gateway()` of
+  nodo (`celaut-client/tests/nodo.rs`, `#[ignore]`, with instructions at the top of the
+  file). That test needs no root and no KVM: `nodo_gateway.py` serves the Gateway on a
+  local TLS port without firewall, manager or services.
+
+Facts from nodo dev `e3d12301` that differ from the first notes:
+
+- A node serves the same signed `Peer` again for up to 60 seconds
+  (`_SIGNED_PEER_TTL_S`, `nodo:src/gateway/utils.py`), so a second `GetPeerInfo` gives
+  the same `ts`. The client accepts an equal `ts` when the content digest is also equal
+  (the same message), and refuses an older `ts`, or an equal `ts` with another digest.
+- The node checks `Peer.signature_scheme` before the key (`speaks_our_signature_scheme`).
+  The client does the same: one component that names Ed25519 as nodo defines it.
+- The digest covers the expiry and the transport of each URI, the reputation proofs,
+  the scheme and every resource field with its presence. `benchmark` is sorted by the
+  text of each entry, and a repeated key stays (it is not "sorted by key").
+- GenerateClient: the client proposes a random UUID4 as `client_id`. With a proof of
+  work the node uses the id in the challenge, and the difficulty in the challenge
+  (the third field), not `PoWRequired.difficulty`. The client refuses a difficulty
+  above 6 (about 16 million hashes); nodo accepts up to 64.
 
 **M2: quote, start a service and call it through a tunnel, with no payment.**
 GetServiceEstimatedCost on each known node, the balancer, StartService, StopService,
@@ -263,6 +298,12 @@ onion addresses for nodes are nodo work (decision 7 in section 7).
    waits for the approval, signs them, runs `release_check.sh apks` and creates a
    prerelease. The updater ignores prereleases, so mark a release as latest only after
    the test on GrapheneOS.
+
+10. **License of bee-rpc (open, 2026-10-12):** `bee-rpc` is GPL-3.0-only
+    (`Cargo.toml` of `bee-rpc-over-grpc-rs`), and the workspace of chatui says MIT (it
+    comes from Argus). The app links `bee-rpc` into `libwallet_ffi.so`. A maintainer
+    must decide: relicense the Celaut crates and the app, change the license of
+    `bee-rpc`, or write another port.
 
 ## 8. Notes for `docs/celaut/wire.md`
 
