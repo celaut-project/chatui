@@ -3155,5 +3155,415 @@
         "type": "String"
       }
     }
+  },
+  "utxoLoadFailed": "Failed to load UTXOs: {error}",
+  "@utxoLoadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoSpreadOut": "Your boxes are spread over many addresses, and merging them would link those addresses. Consolidate does it anyway.",
+  "utxoNothingToClean": "Nothing to clean up right now",
+  "utxoConsolidateNeedsTwo": "Consolidation needs at least 2 boxes",
+  "utxoConsolidateTitle": "Consolidate UTXOs",
+  "utxoConsolidateInN": "Consolidate in {count} transactions",
+  "@utxoConsolidateInN": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoBoxesMerged": "Boxes merged",
+  "utxoInto": "Into",
+  "utxoTotalValueIn": "Total value in",
+  "utxoTokenTypesCarried": "Token types carried",
+  "utxoValueAfterFees": "Value after fees",
+  "utxoConsolidateOneDetail": "Every selected box is spent into one new box holding all its ERG and tokens.",
+  "utxoConsolidateManyDetail": "Ergo transactions are kept under {max} inputs each, so this runs as {count} transactions back to back. You can consolidate the results again afterwards.",
+  "@utxoConsolidateManyDetail": {
+    "placeholders": {
+      "max": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoSignBroadcast": "Sign & broadcast",
+  "utxoSignBroadcastN": "Sign & broadcast {count}",
+  "@utxoSignBroadcastN": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoStoppedAfter": "Stopped after {done} of {total}. Refresh boxes and check Activity before retrying.",
+  "@utxoStoppedAfter": {
+    "placeholders": {
+      "done": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoConsolidationSubmitted": "Consolidation submitted",
+  "utxoRefreshBeforeRetry": "Refresh boxes and check Activity before retrying.",
+  "utxoFewDust": "Fewer than two dust boxes to sweep",
+  "utxoNewRent": "{fee}, due {when}",
+  "@utxoNewRent": {
+    "placeholders": {
+      "fee": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoNewRentCapped": "{fee}, due {when}; it holds no more than that",
+  "@utxoNewRentCapped": {
+    "placeholders": {
+      "fee": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoSuggestedCleanup": "Suggested cleanup",
+  "utxoMergedAtAddress": "{count} of {total} at this address",
+  "@utxoMergedAtAddress": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoResultingBoxes": "Resulting boxes",
+  "utxoOneOrMore": "1 or more",
+  "utxoRentClocksRestarted": "Rent clocks restarted",
+  "utxoNewBoxRent": "New box rent",
+  "utxoCleanupDetail": "{count, plural, =1{Every listed box is spent into one new box at this address, holding all their ERG and tokens. A moved box starts a new 4-year storage-rent clock. Only boxes from this one address are merged, so no addresses are linked.} other{Every listed box is spent into {count} new boxes at this address, holding all their ERG and tokens. A moved box starts a new 4-year storage-rent clock. Only boxes from this one address are merged, so no addresses are linked.}}",
+  "@utxoCleanupDetail": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "utxoCleanupSubmitted": "Cleanup submitted",
+  "utxoAtRisk": "{count} at risk",
+  "@utxoAtRisk": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoDueWithin": "{count} due within {days} days",
+  "@utxoDueWithin": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoSplitTitle": "Split UTXO",
+  "utxoOutputsCreated": "Outputs Created",
+  "utxoBoxesN": "{count} boxes",
+  "@utxoBoxesN": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoAmountPerBox": "Amount per Box",
+  "utxoTokensN": "{count} tokens",
+  "@utxoTokensN": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoChangeReturned": "Change Returned",
+  "utxoMinerFeeTitle": "Miner Fee",
+  "utxoFeeByBuilder": "Fee is computed by the transaction builder.",
+  "utxoSignBroadcastSplit": "Sign & broadcast split",
+  "utxoSplitSubmitted": "Split submitted",
+  "utxoSeparateTitle": "Separate {count} token types",
+  "@utxoSeparateTitle": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoSourceBox": "Source box",
+  "utxoInputsSpent": "Inputs spent",
+  "utxoTokenBoxes": "Token boxes",
+  "utxoRawUnits": "{amount} ({raw} raw units)",
+  "@utxoRawUnits": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "raw": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoErgInTokenBoxes": "ERG in token boxes",
+  "utxoErgChange": "ERG change",
+  "utxoSeparateDetail": "Each token type keeps its full balance in a separate box at your source address. All remaining ERG is returned to your wallet.",
+  "utxoSignBroadcastSeparation": "Sign & broadcast separation",
+  "utxoSeparationSubmitted": "Token separation submitted",
+  "utxoRestructureTitle": "Restructure UTXOs",
+  "utxoInputsConsumed": "Inputs Consumed",
+  "utxoOutputsGenerated": "Outputs Generated",
+  "utxoTotalValueInTitle": "Total Value In",
+  "utxoAllocatedToOutputs": "Allocated to Outputs",
+  "utxoChangeOutput": "Change Output",
+  "utxoSignBroadcastRestructure": "Sign & broadcast restructure",
+  "utxoRestructureSubmitted": "Restructure submitted",
+  "utxoScreenTitle": "Wallet boxes",
+  "utxoLastConsolidation": "Last consolidation result",
+  "utxoRefreshBoxes": "Refresh boxes",
+  "utxoCount": "{count} UTXOs",
+  "@utxoCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoValueTokens": "{value} · {count} tokens",
+  "@utxoValueTokens": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoDustLine": "{count, plural, =1{1 dust box under {limit}.} other{{count} dust boxes under {limit}.}}",
+  "@utxoDustLine": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoOldestFirst": "Oldest boxes first. Automatic sends prefer older eligible boxes to reduce storage-rent risk; privacy rules and your manual selection still apply.",
+  "utxoConsolidate": "Consolidate",
+  "utxoSplit": "Split",
+  "utxoRestructure": "Restructure",
+  "utxoSeparateTokenTypes": "Separate token types",
+  "utxoSweepDust": "Sweep {count} dust boxes into one",
+  "@utxoSweepDust": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoSearchHint": "Search box ID or token...",
+  "utxoFilterAll": "All ({count})",
+  "@utxoFilterAll": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoFilterErgOnly": "ERG Only ({count})",
+  "@utxoFilterErgOnly": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoFilterTokens": "Tokens ({count})",
+  "@utxoFilterTokens": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoFilterDust": "Dust ({count})",
+  "@utxoFilterDust": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoFilterRent": "Rent ({count})",
+  "@utxoFilterRent": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoClearSelection": "Clear ({count})",
+  "@utxoClearSelection": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoSelectAll": "Select All",
+  "utxoNoMatch": "No UTXOs match criteria",
+  "utxoCopyBoxId": "Copy Box ID",
+  "utxoBoxIdCopied": "Box ID copied",
+  "utxoHeight": "H: {height}",
+  "@utxoHeight": {
+    "placeholders": {
+      "height": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoSplitEqual": "{count} boxes of {amount}",
+  "@utxoSplitEqual": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoSplitWithChange": "{count} boxes of {amount} · {change} change",
+  "@utxoSplitWithChange": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "change": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoSplitToken": "{count} boxes of {amount} {token}, each with {erg}",
+  "@utxoSplitToken": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "token": {
+        "type": "String"
+      },
+      "erg": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoSplitNotEnough": "Not enough ERG for {count} boxes after fees",
+  "@utxoSplitNotEnough": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoSplitEnterErg": "Enter an amount of at least 0.001 ERG that fits the selection",
+  "utxoSplitEnterToken": "Enter a token amount that fits the selection",
+  "utxoSplitFrom": "{count, plural, =1{From 1 box holding {total}.} other{From {count} boxes holding {total}.}}",
+  "@utxoSplitFrom": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoEqualParts": "Equal parts",
+  "utxoAmountEach": "Amount each",
+  "utxoHowManyBoxes": "HOW MANY BOXES",
+  "utxoCustom": "Custom",
+  "utxoTokenAvailable": "{token} · {amount} available",
+  "@utxoTokenAvailable": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoPerBox": "{token} per box",
+  "@utxoPerBox": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoErgPerBox": "ERG per box",
+  "utxoAdjustCount": "Adjust the count or amount until it fits the selection.",
+  "utxoSplitFeeNote": "Miner fee: {fee}. Remaining ERG and every token return to you as change.",
+  "@utxoSplitFeeNote": {
+    "placeholders": {
+      "fee": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoPreviewSplit": "Preview split",
+  "utxoCustomRestructure": "Custom Restructure",
+  "utxoAddOutput": "Add output",
+  "utxoDefineOutputs": "Define desired output boxes. Remainder returns to change.",
+  "utxoBoxErgAmount": "Box #{number} ERG Amount",
+  "@utxoBoxErgAmount": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoInvalidAmount": "Invalid amount: min 0.001 ERG per box",
+  "utxoPreviewRestructure": "Preview Restructure",
+  "utxoSelectedCount": "{count} Selected",
+  "@utxoSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
   }
 }

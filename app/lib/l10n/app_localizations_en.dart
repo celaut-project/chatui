@@ -4557,4 +4557,426 @@ class AppLocalizationsEn extends AppLocalizations {
   String sendBoxBlock(String height) {
     return 'block $height';
   }
+
+  @override
+  String utxoLoadFailed(String error) {
+    return 'Failed to load UTXOs: $error';
+  }
+
+  @override
+  String get utxoSpreadOut =>
+      'Your boxes are spread over many addresses, and merging them would link those addresses. Consolidate does it anyway.';
+
+  @override
+  String get utxoNothingToClean => 'Nothing to clean up right now';
+
+  @override
+  String get utxoConsolidateNeedsTwo => 'Consolidation needs at least 2 boxes';
+
+  @override
+  String get utxoConsolidateTitle => 'Consolidate UTXOs';
+
+  @override
+  String utxoConsolidateInN(String count) {
+    return 'Consolidate in $count transactions';
+  }
+
+  @override
+  String get utxoBoxesMerged => 'Boxes merged';
+
+  @override
+  String get utxoInto => 'Into';
+
+  @override
+  String get utxoTotalValueIn => 'Total value in';
+
+  @override
+  String get utxoTokenTypesCarried => 'Token types carried';
+
+  @override
+  String get utxoValueAfterFees => 'Value after fees';
+
+  @override
+  String get utxoConsolidateOneDetail =>
+      'Every selected box is spent into one new box holding all its ERG and tokens.';
+
+  @override
+  String utxoConsolidateManyDetail(String max, String count) {
+    return 'Ergo transactions are kept under $max inputs each, so this runs as $count transactions back to back. You can consolidate the results again afterwards.';
+  }
+
+  @override
+  String get utxoSignBroadcast => 'Sign & broadcast';
+
+  @override
+  String utxoSignBroadcastN(String count) {
+    return 'Sign & broadcast $count';
+  }
+
+  @override
+  String utxoStoppedAfter(String done, String total) {
+    return 'Stopped after $done of $total. Refresh boxes and check Activity before retrying.';
+  }
+
+  @override
+  String get utxoConsolidationSubmitted => 'Consolidation submitted';
+
+  @override
+  String get utxoRefreshBeforeRetry =>
+      'Refresh boxes and check Activity before retrying.';
+
+  @override
+  String get utxoFewDust => 'Fewer than two dust boxes to sweep';
+
+  @override
+  String utxoNewRent(String fee, String when) {
+    return '$fee, due $when';
+  }
+
+  @override
+  String utxoNewRentCapped(String fee, String when) {
+    return '$fee, due $when; it holds no more than that';
+  }
+
+  @override
+  String get utxoSuggestedCleanup => 'Suggested cleanup';
+
+  @override
+  String utxoMergedAtAddress(String count, String total) {
+    return '$count of $total at this address';
+  }
+
+  @override
+  String get utxoResultingBoxes => 'Resulting boxes';
+
+  @override
+  String get utxoOneOrMore => '1 or more';
+
+  @override
+  String get utxoRentClocksRestarted => 'Rent clocks restarted';
+
+  @override
+  String get utxoNewBoxRent => 'New box rent';
+
+  @override
+  String utxoCleanupDetail(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Every listed box is spent into $count new boxes at this address, holding all their ERG and tokens. A moved box starts a new 4-year storage-rent clock. Only boxes from this one address are merged, so no addresses are linked.',
+      one:
+          'Every listed box is spent into one new box at this address, holding all their ERG and tokens. A moved box starts a new 4-year storage-rent clock. Only boxes from this one address are merged, so no addresses are linked.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get utxoCleanupSubmitted => 'Cleanup submitted';
+
+  @override
+  String utxoAtRisk(String count) {
+    return '$count at risk';
+  }
+
+  @override
+  String utxoDueWithin(String count, String days) {
+    return '$count due within $days days';
+  }
+
+  @override
+  String get utxoSplitTitle => 'Split UTXO';
+
+  @override
+  String get utxoOutputsCreated => 'Outputs Created';
+
+  @override
+  String utxoBoxesN(String count) {
+    return '$count boxes';
+  }
+
+  @override
+  String get utxoAmountPerBox => 'Amount per Box';
+
+  @override
+  String utxoTokensN(String count) {
+    return '$count tokens';
+  }
+
+  @override
+  String get utxoChangeReturned => 'Change Returned';
+
+  @override
+  String get utxoMinerFeeTitle => 'Miner Fee';
+
+  @override
+  String get utxoFeeByBuilder => 'Fee is computed by the transaction builder.';
+
+  @override
+  String get utxoSignBroadcastSplit => 'Sign & broadcast split';
+
+  @override
+  String get utxoSplitSubmitted => 'Split submitted';
+
+  @override
+  String utxoSeparateTitle(String count) {
+    return 'Separate $count token types';
+  }
+
+  @override
+  String get utxoSourceBox => 'Source box';
+
+  @override
+  String get utxoInputsSpent => 'Inputs spent';
+
+  @override
+  String get utxoTokenBoxes => 'Token boxes';
+
+  @override
+  String utxoRawUnits(String amount, String raw) {
+    return '$amount ($raw raw units)';
+  }
+
+  @override
+  String get utxoErgInTokenBoxes => 'ERG in token boxes';
+
+  @override
+  String get utxoErgChange => 'ERG change';
+
+  @override
+  String get utxoSeparateDetail =>
+      'Each token type keeps its full balance in a separate box at your source address. All remaining ERG is returned to your wallet.';
+
+  @override
+  String get utxoSignBroadcastSeparation => 'Sign & broadcast separation';
+
+  @override
+  String get utxoSeparationSubmitted => 'Token separation submitted';
+
+  @override
+  String get utxoRestructureTitle => 'Restructure UTXOs';
+
+  @override
+  String get utxoInputsConsumed => 'Inputs Consumed';
+
+  @override
+  String get utxoOutputsGenerated => 'Outputs Generated';
+
+  @override
+  String get utxoTotalValueInTitle => 'Total Value In';
+
+  @override
+  String get utxoAllocatedToOutputs => 'Allocated to Outputs';
+
+  @override
+  String get utxoChangeOutput => 'Change Output';
+
+  @override
+  String get utxoSignBroadcastRestructure => 'Sign & broadcast restructure';
+
+  @override
+  String get utxoRestructureSubmitted => 'Restructure submitted';
+
+  @override
+  String get utxoScreenTitle => 'Wallet boxes';
+
+  @override
+  String get utxoLastConsolidation => 'Last consolidation result';
+
+  @override
+  String get utxoRefreshBoxes => 'Refresh boxes';
+
+  @override
+  String utxoCount(String count) {
+    return '$count UTXOs';
+  }
+
+  @override
+  String utxoValueTokens(String value, String count) {
+    return '$value · $count tokens';
+  }
+
+  @override
+  String utxoDustLine(int count, String limit) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count dust boxes under $limit.',
+      one: '1 dust box under $limit.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get utxoOldestFirst =>
+      'Oldest boxes first. Automatic sends prefer older eligible boxes to reduce storage-rent risk; privacy rules and your manual selection still apply.';
+
+  @override
+  String get utxoConsolidate => 'Consolidate';
+
+  @override
+  String get utxoSplit => 'Split';
+
+  @override
+  String get utxoRestructure => 'Restructure';
+
+  @override
+  String get utxoSeparateTokenTypes => 'Separate token types';
+
+  @override
+  String utxoSweepDust(String count) {
+    return 'Sweep $count dust boxes into one';
+  }
+
+  @override
+  String get utxoSearchHint => 'Search box ID or token...';
+
+  @override
+  String utxoFilterAll(String count) {
+    return 'All ($count)';
+  }
+
+  @override
+  String utxoFilterErgOnly(String count) {
+    return 'ERG Only ($count)';
+  }
+
+  @override
+  String utxoFilterTokens(String count) {
+    return 'Tokens ($count)';
+  }
+
+  @override
+  String utxoFilterDust(String count) {
+    return 'Dust ($count)';
+  }
+
+  @override
+  String utxoFilterRent(String count) {
+    return 'Rent ($count)';
+  }
+
+  @override
+  String utxoClearSelection(String count) {
+    return 'Clear ($count)';
+  }
+
+  @override
+  String get utxoSelectAll => 'Select All';
+
+  @override
+  String get utxoNoMatch => 'No UTXOs match criteria';
+
+  @override
+  String get utxoCopyBoxId => 'Copy Box ID';
+
+  @override
+  String get utxoBoxIdCopied => 'Box ID copied';
+
+  @override
+  String utxoHeight(String height) {
+    return 'H: $height';
+  }
+
+  @override
+  String utxoSplitEqual(String count, String amount) {
+    return '$count boxes of $amount';
+  }
+
+  @override
+  String utxoSplitWithChange(String count, String amount, String change) {
+    return '$count boxes of $amount · $change change';
+  }
+
+  @override
+  String utxoSplitToken(String count, String amount, String token, String erg) {
+    return '$count boxes of $amount $token, each with $erg';
+  }
+
+  @override
+  String utxoSplitNotEnough(String count) {
+    return 'Not enough ERG for $count boxes after fees';
+  }
+
+  @override
+  String get utxoSplitEnterErg =>
+      'Enter an amount of at least 0.001 ERG that fits the selection';
+
+  @override
+  String get utxoSplitEnterToken =>
+      'Enter a token amount that fits the selection';
+
+  @override
+  String utxoSplitFrom(int count, String total) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'From $count boxes holding $total.',
+      one: 'From 1 box holding $total.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get utxoEqualParts => 'Equal parts';
+
+  @override
+  String get utxoAmountEach => 'Amount each';
+
+  @override
+  String get utxoHowManyBoxes => 'HOW MANY BOXES';
+
+  @override
+  String get utxoCustom => 'Custom';
+
+  @override
+  String utxoTokenAvailable(String token, String amount) {
+    return '$token · $amount available';
+  }
+
+  @override
+  String utxoPerBox(String token) {
+    return '$token per box';
+  }
+
+  @override
+  String get utxoErgPerBox => 'ERG per box';
+
+  @override
+  String get utxoAdjustCount =>
+      'Adjust the count or amount until it fits the selection.';
+
+  @override
+  String utxoSplitFeeNote(String fee) {
+    return 'Miner fee: $fee. Remaining ERG and every token return to you as change.';
+  }
+
+  @override
+  String get utxoPreviewSplit => 'Preview split';
+
+  @override
+  String get utxoCustomRestructure => 'Custom Restructure';
+
+  @override
+  String get utxoAddOutput => 'Add output';
+
+  @override
+  String get utxoDefineOutputs =>
+      'Define desired output boxes. Remainder returns to change.';
+
+  @override
+  String utxoBoxErgAmount(String number) {
+    return 'Box #$number ERG Amount';
+  }
+
+  @override
+  String get utxoInvalidAmount => 'Invalid amount: min 0.001 ERG per box';
+
+  @override
+  String get utxoPreviewRestructure => 'Preview Restructure';
+
+  @override
+  String utxoSelectedCount(String count) {
+    return '$count Selected';
+  }
 }

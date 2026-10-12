@@ -16,6 +16,7 @@ import 'confirm_transaction_sheet.dart';
 import 'separate_tokens_sheet.dart';
 import 'widgets/soft_card.dart';
 import 'widgets/utxo_rent_widgets.dart';
+import '../l10n/l10n.dart';
 
 class UtxoManagementScreen extends StatefulWidget {
   const UtxoManagementScreen({super.key, this.openCleanup = false});
@@ -124,7 +125,7 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'Failed to load UTXOs: $e';
+        _error = context.l10n.utxoLoadFailed('$e');
         _loading = false;
       });
       if (propagateError) rethrow;
@@ -240,9 +241,8 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
       // rather than contradict the home screen.
       _snack(
         _boxes.length > utxoFragmentationThreshold
-            ? 'Your boxes are spread over many addresses, and merging them '
-                  'would link those addresses. Consolidate does it anyway.'
-            : 'Nothing to clean up right now',
+            ? context.l10n.utxoSpreadOut
+            : context.l10n.utxoNothingToClean,
       );
       return;
     }
@@ -312,7 +312,7 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
     final targets = _tools.consolidateTargets;
     final chunks = consolidationChunks(targets.map((b) => b.boxId).toList());
     if (chunks.isEmpty) {
-      _snack('Consolidation needs at least 2 boxes', isError: true);
+      _snack(context.l10n.utxoConsolidateNeedsTwo, isError: true);
       return;
     }
     final addrs = await _getWalletAddresses();
@@ -324,19 +324,19 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
 
     final confirmed = await showConfirmTransactionSheet(
       context,
-      title: chunks.length == 1 ? 'Consolidate UTXOs' : 'Consolidate in ${chunks.length} transactions',
+      title: chunks.length == 1 ? context.l10n.utxoConsolidateTitle : context.l10n.utxoConsolidateInN('${chunks.length}'),
       rows: [
-        ConfirmTxRow('Boxes merged', '${targets.length}'),
-        ConfirmTxRow('Into', '${chunks.length} ${chunks.length == 1 ? 'box' : 'boxes'}'),
-        ConfirmTxRow('Total value in', formatNanoErg(totalIn)),
-        if (tokenTypes > 0) ConfirmTxRow('Token types carried', '$tokenTypes'),
-        ConfirmTxRow('Miner fee', formatErg(minerFeeNano * chunks.length)),
-        ConfirmTxRow('Value after fees', formatNanoErg(totalIn - BigInt.from(fees)), bold: true),
+        ConfirmTxRow(context.l10n.utxoBoxesMerged, '${targets.length}'),
+        ConfirmTxRow(context.l10n.utxoInto, context.l10n.utxoBoxCount(chunks.length)),
+        ConfirmTxRow(context.l10n.utxoTotalValueIn, formatNanoErg(totalIn)),
+        if (tokenTypes > 0) ConfirmTxRow(context.l10n.utxoTokenTypesCarried, '$tokenTypes'),
+        ConfirmTxRow(context.l10n.commonMinerFee, formatErg(minerFeeNano * chunks.length)),
+        ConfirmTxRow(context.l10n.utxoValueAfterFees, formatNanoErg(totalIn - BigInt.from(fees)), bold: true),
       ],
       detail: chunks.length == 1
-          ? 'Every selected box is spent into one new box holding all its ERG and tokens.'
-          : 'Ergo transactions are kept under $consolidationMaxInputs inputs each, so this runs as ${chunks.length} transactions back to back. You can consolidate the results again afterwards.',
-      confirmLabel: chunks.length == 1 ? 'Sign & broadcast' : 'Sign & broadcast ${chunks.length}',
+          ? context.l10n.utxoConsolidateOneDetail
+          : context.l10n.utxoConsolidateManyDetail('$consolidationMaxInputs', '${chunks.length}'),
+      confirmLabel: chunks.length == 1 ? context.l10n.utxoSignBroadcast : context.l10n.utxoSignBroadcastN('${chunks.length}'),
     );
     if (!confirmed || !mounted) return;
 
@@ -364,8 +364,7 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
         showTxFailureSheet(
           context,
           e,
-          note:
-              'Stopped after ${submitted.length} of ${chunks.length}. Refresh boxes and check Activity before retrying.',
+          note: context.l10n.utxoStoppedAfter('${submitted.length}', '${chunks.length}'),
         );
       }
     } finally {
@@ -380,14 +379,14 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
           showTxResultSheet(
             receiptContext,
             txId: submitted.single,
-            headline: 'Consolidation submitted',
+            headline: appL10n.utxoConsolidationSubmitted,
             warning: bookkeepingWarning,
           );
       }
       final classified = failure == null ? null : classifyTxFailure(failure);
       final batchFailure = [
         if (classified != null)
-          '${classified.title}\n${classified.message}\nRefresh boxes and check Activity before retrying.',
+          '${classified.title}\n${classified.message}\n${appL10n.utxoRefreshBeforeRetry}',
         if (bookkeepingWarning != null) bookkeepingWarning,
       ].join('\n\n');
       if (mounted) {
@@ -415,7 +414,7 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
   Future<void> _sweepDust() async {
     final dust = _boxes.where((b) => b.valueNanoErg < BigInt.from(dustThresholdNano)).toList();
     if (dust.length < 2) {
-      _snack('Fewer than two dust boxes to sweep');
+      _snack(context.l10n.utxoFewDust);
       return;
     }
     _tools.clearSelection();
@@ -436,39 +435,35 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
     final tokenTypes = s.tokens.length;
     final resulting = estimate?.boxes.length ?? 1;
     final newRent = estimate != null && estimate.chargeable && parameters != null
-        ? '${formatErg(estimate.first.feeNano)}, due '
-            '${rentWhen(estimate.dueHeight - parameters.height, blockSeconds: parameters.blockSeconds)}'
-            '${estimate.covered ? '' : '; it holds no more than that'}'
+        ? (estimate.covered ? context.l10n.utxoNewRent : context.l10n.utxoNewRentCapped)(
+            formatErg(estimate.first.feeNano),
+            rentWhen(estimate.dueHeight - parameters.height, blockSeconds: parameters.blockSeconds))
         : null;
     final confirmed = await showConfirmTransactionSheet(
       context,
-      title: 'Suggested cleanup',
+      title: context.l10n.utxoSuggestedCleanup,
       rows: [
         ConfirmTxRow(
-          'Boxes merged',
+          context.l10n.utxoBoxesMerged,
           s.leftAtAddress > 0
-              ? '${s.boxes.length} of ${s.boxes.length + s.leftAtAddress} at this address'
+              ? context.l10n.utxoMergedAtAddress('${s.boxes.length}', '${s.boxes.length + s.leftAtAddress}')
               : '${s.boxes.length}',
         ),
-        ConfirmTxRow('Address', shorten(s.address, head: 8, tail: 6)),
+        ConfirmTxRow(context.l10n.commonAddress, shorten(s.address, head: 8, tail: 6)),
         ConfirmTxRow(
-          'Resulting boxes',
-          estimate == null && tokenTypes > 0 ? '1 or more' : '$resulting',
+          context.l10n.utxoResultingBoxes,
+          estimate == null && tokenTypes > 0 ? context.l10n.utxoOneOrMore : '$resulting',
           bold: true,
         ),
         if (s.rentResetCount > 0)
-          ConfirmTxRow('Rent clocks restarted', _rentResetLabel(s)),
-        if (tokenTypes > 0) ConfirmTxRow('Token types carried', '$tokenTypes'),
-        ConfirmTxRow('Total value in', formatNanoErg(s.totalNano)),
-        ConfirmTxRow('Miner fee', formatErg(minerFeeNano)),
-        ConfirmTxRow('Value after fees', formatNanoErg(s.afterFeesNano), bold: true),
-        if (newRent != null) ConfirmTxRow('New box rent', newRent),
+          ConfirmTxRow(context.l10n.utxoRentClocksRestarted, _rentResetLabel(s)),
+        if (tokenTypes > 0) ConfirmTxRow(context.l10n.utxoTokenTypesCarried, '$tokenTypes'),
+        ConfirmTxRow(context.l10n.utxoTotalValueIn, formatNanoErg(s.totalNano)),
+        ConfirmTxRow(context.l10n.commonMinerFee, formatErg(minerFeeNano)),
+        ConfirmTxRow(context.l10n.utxoValueAfterFees, formatNanoErg(s.afterFeesNano), bold: true),
+        if (newRent != null) ConfirmTxRow(context.l10n.utxoNewBoxRent, newRent),
       ],
-      detail:
-          'Every listed box is spent into ${resulting == 1 ? 'one new box' : '$resulting new boxes'} '
-          'at this address, holding all their ERG and tokens. A moved box '
-          'starts a new 4-year storage-rent clock. Only boxes from this one '
-          'address are merged, so no addresses are linked.',
+      detail: context.l10n.utxoCleanupDetail(resulting),
     );
     if (!confirmed || !mounted) return;
 
@@ -494,7 +489,7 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
         receiptContext,
         txId: txId,
         warning: warning,
-        headline: 'Cleanup submitted',
+        headline: appL10n.utxoCleanupSubmitted,
       );
     } catch (e) {
       if (mounted) showTxFailureSheet(context, e);
@@ -504,8 +499,8 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
   }
 
   String _rentResetLabel(CleanupSuggestion s) => [
-    if (s.atRiskCount > 0) '${s.atRiskCount} at risk',
-    if (s.dueSoonCount > 0) '${s.dueSoonCount} due within $rentSoonDays days',
+    if (s.atRiskCount > 0) context.l10n.utxoAtRisk('${s.atRiskCount}'),
+    if (s.dueSoonCount > 0) context.l10n.utxoDueWithin('${s.dueSoonCount}', '$rentSoonDays'),
   ].join(' · ');
 
   Future<void> _openSplitFlow() async {
@@ -565,20 +560,20 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
       final confirmed = await showConfirmTransactionSheet(
         context,
         preparationId: preview.preparationId,
-        title: 'Split UTXO',
+        title: context.l10n.utxoSplitTitle,
         rows: [
-          ConfirmTxRow('Outputs Created', '${preview.splitCount} boxes'),
+          ConfirmTxRow(context.l10n.utxoOutputsCreated, context.l10n.utxoBoxesN('${preview.splitCount}')),
           ConfirmTxRow(
-            'Amount per Box',
+            context.l10n.utxoAmountPerBox,
             isToken
-                ? '${preview.amountPerBox} tokens'
+                ? context.l10n.utxoTokensN('${preview.amountPerBox}')
                 : formatErg(preview.amountPerBox.toInt()),
           ),
-          ConfirmTxRow('Change Returned', formatErg(preview.changeNanoErg)),
-          ConfirmTxRow('Miner Fee', formatErg(preview.minerFee)),
+          ConfirmTxRow(context.l10n.utxoChangeReturned, formatErg(preview.changeNanoErg)),
+          ConfirmTxRow(context.l10n.utxoMinerFeeTitle, formatErg(preview.minerFee)),
         ],
-        detail: 'Fee is computed by the transaction builder.',
-        confirmLabel: 'Sign & broadcast split',
+        detail: context.l10n.utxoFeeByBuilder,
+        confirmLabel: context.l10n.utxoSignBroadcastSplit,
       );
 
       if (confirmed == true) {
@@ -596,7 +591,7 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
             receiptContext,
             txId: txId,
             warning: warning,
-            headline: 'Split submitted',
+            headline: appL10n.utxoSplitSubmitted,
           );
         } finally {
           if (mounted) setState(() => _busy = false);
@@ -637,28 +632,27 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
       final confirmed = await showConfirmTransactionChoice(
         context,
         preparationId: preview.preparationId,
-        title: 'Separate ${plan.assets.length} token types',
+        title: context.l10n.utxoSeparateTitle('${plan.assets.length}'),
         recipientAddress: plan.source.address,
         rows: [
           ConfirmTxRow(
-            'Source box',
+            context.l10n.utxoSourceBox,
             shorten(plan.source.boxId, head: 8, tail: 6),
           ),
-          ConfirmTxRow('Inputs spent', '${preview.inputCount} boxes'),
-          ConfirmTxRow('Token boxes', '${plan.assets.length}'),
+          ConfirmTxRow(context.l10n.utxoInputsSpent, context.l10n.utxoBoxesN('${preview.inputCount}')),
+          ConfirmTxRow(context.l10n.utxoTokenBoxes, '${plan.assets.length}'),
           for (final asset in plan.assets)
             ConfirmTxRow(
               walletService.cachedTokenMeta(asset.tokenId)?.label ??
                   shorten(asset.tokenId, head: 8, tail: 6),
-              '${_tokenAmount(asset)} (${asset.amount} raw units)',
+              context.l10n.utxoRawUnits(_tokenAmount(asset), '${asset.amount}'),
             ),
-          ConfirmTxRow('ERG in token boxes', formatErg(preview.allocatedErg)),
-          ConfirmTxRow('ERG change', formatErg(preview.changeNanoErg)),
-          ConfirmTxRow('Miner fee', formatErg(preview.minerFee)),
+          ConfirmTxRow(context.l10n.utxoErgInTokenBoxes, formatErg(preview.allocatedErg)),
+          ConfirmTxRow(context.l10n.utxoErgChange, formatErg(preview.changeNanoErg)),
+          ConfirmTxRow(context.l10n.commonMinerFee, formatErg(preview.minerFee)),
         ],
-        detail:
-            'Each token type keeps its full balance in a separate box at your source address. All remaining ERG is returned to your wallet.',
-        confirmLabel: 'Sign & broadcast separation',
+        detail: context.l10n.utxoSeparateDetail,
+        confirmLabel: context.l10n.utxoSignBroadcastSeparation,
       );
       if (confirmed != ConfirmChoice.broadcast || !mounted) return;
       setState(() => _busy = true);
@@ -675,7 +669,7 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
         receiptContext,
         txId: txId,
         warning: warning,
-        headline: 'Token separation submitted',
+        headline: appL10n.utxoSeparationSubmitted,
       );
     } catch (e) {
       if (mounted) showTxFailureSheet(context, e);
@@ -721,17 +715,17 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
       final confirmed = await showConfirmTransactionSheet(
         context,
         preparationId: preview.preparationId,
-        title: 'Restructure UTXOs',
+        title: context.l10n.utxoRestructureTitle,
         rows: [
-          ConfirmTxRow('Inputs Consumed', '${preview.inputCount} boxes'),
-          ConfirmTxRow('Outputs Generated', '${preview.outputCount} boxes'),
-          ConfirmTxRow('Total Value In', formatErg(preview.totalErgIn)),
-          ConfirmTxRow('Allocated to Outputs', formatErg(preview.allocatedErg)),
-          ConfirmTxRow('Change Output', formatErg(preview.changeNanoErg)),
-          ConfirmTxRow('Miner Fee', formatErg(preview.minerFee)),
+          ConfirmTxRow(context.l10n.utxoInputsConsumed, context.l10n.utxoBoxesN('${preview.inputCount}')),
+          ConfirmTxRow(context.l10n.utxoOutputsGenerated, context.l10n.utxoBoxesN('${preview.outputCount}')),
+          ConfirmTxRow(context.l10n.utxoTotalValueInTitle, formatErg(preview.totalErgIn)),
+          ConfirmTxRow(context.l10n.utxoAllocatedToOutputs, formatErg(preview.allocatedErg)),
+          ConfirmTxRow(context.l10n.utxoChangeOutput, formatErg(preview.changeNanoErg)),
+          ConfirmTxRow(context.l10n.utxoMinerFeeTitle, formatErg(preview.minerFee)),
         ],
-        detail: 'Fee is computed by the transaction builder.',
-        confirmLabel: 'Sign & broadcast restructure',
+        detail: context.l10n.utxoFeeByBuilder,
+        confirmLabel: context.l10n.utxoSignBroadcastRestructure,
       );
 
       if (confirmed == true) {
@@ -749,7 +743,7 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
             receiptContext,
             txId: txId,
             warning: warning,
-            headline: 'Restructure submitted',
+            headline: appL10n.utxoRestructureSubmitted,
           );
         } finally {
           if (mounted) setState(() => _busy = false);
@@ -802,17 +796,17 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Wallet boxes'),
+        title: Text(context.l10n.utxoScreenTitle),
         actions: [
           if (_consolidationIds != null)
             IconButton(
-              tooltip: 'Last consolidation result',
+              tooltip: context.l10n.utxoLastConsolidation,
               onPressed: _showConsolidationResult,
               icon: const Icon(Icons.receipt_long),
             ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh boxes',
+            tooltip: context.l10n.utxoRefreshBoxes,
             onPressed: _busy ? null : _loadBoxes,
           ),
         ],
@@ -834,7 +828,7 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
                         const SizedBox(height: 16),
                     FilledButton(
                       onPressed: _loadBoxes,
-                      child: const Text('Retry'),
+                      child: Text(context.l10n.commonRetry),
                     ),
                       ],
                     ),
@@ -875,14 +869,14 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '${_boxes.length} UTXOs',
+                                    context.l10n.utxoCount('${_boxes.length}'),
                                 style: Theme.of(
                                   context,
                                 ).textTheme.headlineSmall,
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    '${formatNanoErg(totalErgNano)} · $totalTokensCount tokens',
+                                    context.l10n.utxoValueTokens(formatNanoErg(totalErgNano), '$totalTokensCount'),
                                     style: Theme.of(context).textTheme.bodySmall,
                                   ),
                                 ],
@@ -912,12 +906,12 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '${health.hint}${dustCount > 0 ? ' $dustCount dust ${dustCount == 1 ? 'box' : 'boxes'} under ${formatErg(dustThresholdNano)}.' : ''}',
+                            '${health.hint}${dustCount > 0 ? ' ${context.l10n.utxoDustLine(dustCount, formatErg(dustThresholdNano))}' : ''}',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'Oldest boxes first. Automatic sends prefer older eligible boxes to reduce storage-rent risk; privacy rules and your manual selection still apply.',
+                            context.l10n.utxoOldestFirst,
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                           const SizedBox(height: 6),
@@ -943,7 +937,7 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
                               OutlinedButton.icon(
                                 style: inlineButtonStyle,
                                 icon: const Icon(Icons.merge_type, size: 16),
-                                label: const Text('Consolidate'),
+                                label: Text(context.l10n.utxoConsolidate),
                                 onPressed: _busy || _boxes.length < 2
                                     ? null
                                     : _openConsolidateFlow,
@@ -951,7 +945,7 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
                               OutlinedButton.icon(
                                 style: inlineButtonStyle,
                                 icon: const Icon(Icons.call_split, size: 16),
-                                label: const Text('Split'),
+                                label: Text(context.l10n.utxoSplit),
                                 onPressed: _busy || _boxes.isEmpty
                                     ? null
                                     : _openSplitFlow,
@@ -959,7 +953,7 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
                               OutlinedButton.icon(
                                 style: inlineButtonStyle,
                                 icon: const Icon(Icons.tune, size: 16),
-                                label: const Text('Restructure'),
+                                label: Text(context.l10n.utxoRestructure),
                                 onPressed: _busy || _boxes.isEmpty
                                     ? null
                                     : _openRestructureFlow,
@@ -972,7 +966,7 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
                               width: double.infinity,
                               child: OutlinedButton.icon(
                                 icon: const Icon(Icons.account_tree_outlined, size: 16),
-                                label: const Text('Separate token types'),
+                                label: Text(context.l10n.utxoSeparateTokenTypes),
                                 onPressed: _busy ? null : _openSeparateTokensFlow,
                               ),
                             ),
@@ -981,7 +975,7 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
                             const SizedBox(height: 8),
                             OutlinedButton.icon(
                               icon: const Icon(Icons.cleaning_services_outlined, size: 16),
-                              label: Text('Sweep $dustCount dust boxes into one'),
+                              label: Text(context.l10n.utxoSweepDust('$dustCount')),
                               onPressed: _busy ? null : _sweepDust,
                             ),
                           ],
@@ -998,7 +992,7 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
                       child: TextField(
                         controller: _searchCtrl,
                         decoration: InputDecoration(
-                          hintText: 'Search box ID or token...',
+                          hintText: context.l10n.utxoSearchHint,
                           prefixIcon: const Icon(Icons.search, size: 20),
                           isDense: true,
                           suffixIcon: _tools.search.isNotEmpty
@@ -1021,39 +1015,39 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Row(
                         children: [
-                          _filterChip(UtxoFilter.all, 'All (${_boxes.length})'),
+                          _filterChip(UtxoFilter.all, context.l10n.utxoFilterAll('${_boxes.length}')),
                           const SizedBox(width: 6),
                       _filterChip(
                         UtxoFilter.ergOnly,
-                        'ERG Only (${_boxes.where((b) => b.assets.isEmpty).length})',
+                        context.l10n.utxoFilterErgOnly('${_boxes.where((b) => b.assets.isEmpty).length}'),
                       ),
                           const SizedBox(width: 6),
                       _filterChip(
                         UtxoFilter.withTokens,
-                        'Tokens (${_boxes.where((b) => b.assets.isNotEmpty).length})',
+                        context.l10n.utxoFilterTokens('${_boxes.where((b) => b.assets.isNotEmpty).length}'),
                       ),
                           const SizedBox(width: 6),
                       _filterChip(
                         UtxoFilter.dust,
-                        'Dust (${_boxes.where((b) => b.valueNanoErg < BigInt.from(dustThresholdNano)).length})',
+                        context.l10n.utxoFilterDust('${_boxes.where((b) => b.valueNanoErg < BigInt.from(dustThresholdNano)).length}'),
                       ),
                           if (_rent != null) ...[
                             const SizedBox(width: 6),
                             _filterChip(
                               UtxoFilter.rent,
-                              'Rent (${_tools.rentFlaggedCount})',
+                              context.l10n.utxoFilterRent('${_tools.rentFlaggedCount}'),
                             ),
                           ],
                           const SizedBox(width: 12),
                           if (_selectedBoxIds.isNotEmpty) ...[
                             TextButton(
                               onPressed: _tools.clearSelection,
-                              child: Text('Clear (${_selectedBoxIds.length})'),
+                              child: Text(context.l10n.utxoClearSelection('${_selectedBoxIds.length}')),
                             ),
                           ] else ...[
                             TextButton(
                               onPressed: _tools.selectAllFiltered,
-                              child: const Text('Select All'),
+                              child: Text(context.l10n.utxoSelectAll),
                             ),
                           ],
                         ],
@@ -1065,10 +1059,10 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
 
                     // Boxes List
                     if (filtered.isEmpty)
-                      const SliverToBoxAdapter(
+                      SliverToBoxAdapter(
                         child: Padding(
-                          padding: EdgeInsets.fromLTRB(16, 32, 16, 80),
-                          child: Center(child: Text('No UTXOs match criteria')),
+                          padding: const EdgeInsets.fromLTRB(16, 32, 16, 80),
+                          child: Center(child: Text(context.l10n.utxoNoMatch)),
                         ),
                       )
                     else
@@ -1198,14 +1192,14 @@ class _UtxoCard extends StatelessWidget {
                               icon: const Icon(Icons.copy, size: 13),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
-                              tooltip: 'Copy Box ID',
+                              tooltip: context.l10n.utxoCopyBoxId,
                               onPressed: () {
                                 Clipboard.setData(
                                   ClipboardData(text: box.boxId),
                                 );
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Box ID copied'),
+                                  SnackBar(
+                                    content: Text(context.l10n.utxoBoxIdCopied),
                                   ),
                                 );
                               },
@@ -1217,7 +1211,7 @@ class _UtxoCard extends StatelessWidget {
                   ),
                   if (box.creationHeight > 0)
                     Text(
-                      'H: ${box.creationHeight}',
+                      context.l10n.utxoHeight('${box.creationHeight}'),
                       style: Theme.of(
                         context,
                       ).textTheme.bodySmall?.copyWith(fontSize: 11),
@@ -1261,7 +1255,7 @@ class _UtxoCard extends StatelessWidget {
               if (box.assets.length >= 2)
                 TextButton.icon(
                   icon: const Icon(Icons.account_tree_outlined, size: 16),
-                  label: const Text('Separate token types'),
+                  label: Text(context.l10n.utxoSeparateTokenTypes),
                   onPressed: onSeparateTokens,
                 ),
             ],
@@ -1351,14 +1345,15 @@ class _SplitConfigSheetState extends State<_SplitConfigSheet> {
         final per = _equalPerBox;
         if (per == null) return null;
         final change = _totalNano.toInt() - minerFeeNano - per * _count;
-        return '$_count boxes of ${formatErg(per, maxFrac: 4)}'
-            '${change > 0 ? ' · ${formatErg(change, maxFrac: 4)} change' : ''}';
+        return change > 0
+            ? context.l10n.utxoSplitWithChange('$_count', formatErg(per, maxFrac: 4), formatErg(change, maxFrac: 4))
+            : context.l10n.utxoSplitEqual('$_count', formatErg(per, maxFrac: 4));
       case _SplitMode.fixed:
         final per = parseErgToNano(_amountCtrl.text);
         if (per == null || per < minBoxNano) return null;
         final change = _totalNano.toInt() - minerFeeNano - per * _count;
         if (change < 0) return null;
-        return '$_count boxes of ${formatErg(per, maxFrac: 4)} · ${formatErg(change, maxFrac: 4)} change';
+        return context.l10n.utxoSplitWithChange('$_count', formatErg(per, maxFrac: 4), formatErg(change, maxFrac: 4));
       case _SplitMode.token:
         final id = _selectedTokenId;
         if (id == null) return null;
@@ -1367,8 +1362,7 @@ class _SplitConfigSheetState extends State<_SplitConfigSheet> {
         final total = _tokenTotal(id);
         final need = BigInt.from(per) * BigInt.from(_count);
         if (need > total) return null;
-        return '$_count boxes of ${formatTokenAmount(per, _tokenDecimals(id))} ${_tokenLabel(id)}, '
-            'each with ${formatErg(minBoxNano)}';
+        return context.l10n.utxoSplitToken('$_count', formatTokenAmount(per, _tokenDecimals(id)), _tokenLabel(id), formatErg(minBoxNano));
     }
   }
 
@@ -1377,9 +1371,9 @@ class _SplitConfigSheetState extends State<_SplitConfigSheet> {
     if (summary == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(switch (_mode) {
-          _SplitMode.equal => 'Not enough ERG for $_count boxes after fees',
-          _SplitMode.fixed => 'Enter an amount of at least 0.001 ERG that fits the selection',
-          _SplitMode.token => 'Enter a token amount that fits the selection',
+          _SplitMode.equal => context.l10n.utxoSplitNotEnough('$_count'),
+          _SplitMode.fixed => context.l10n.utxoSplitEnterErg,
+          _SplitMode.token => context.l10n.utxoSplitEnterToken,
         }),
       ));
       return;
@@ -1423,18 +1417,18 @@ class _SplitConfigSheetState extends State<_SplitConfigSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Split', style: Theme.of(context).textTheme.titleLarge),
+            Text(context.l10n.utxoSplit, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 4),
             Text(
-              'From ${_source.length} ${_source.length == 1 ? 'box' : 'boxes'} holding ${formatNanoErg(_totalNano)}.',
+              context.l10n.utxoSplitFrom(_source.length, formatNanoErg(_totalNano)),
               style: TextStyle(fontSize: 12.5, color: colors.muted),
             ),
             const SizedBox(height: 14),
             SegmentedButton<_SplitMode>(
               segments: [
-                const ButtonSegment(value: _SplitMode.equal, label: Text('Equal parts')),
-                const ButtonSegment(value: _SplitMode.fixed, label: Text('Amount each')),
-                if (_availableTokenIds.isNotEmpty) const ButtonSegment(value: _SplitMode.token, label: Text('Token')),
+                ButtonSegment(value: _SplitMode.equal, label: Text(context.l10n.utxoEqualParts)),
+                ButtonSegment(value: _SplitMode.fixed, label: Text(context.l10n.utxoAmountEach)),
+                if (_availableTokenIds.isNotEmpty) ButtonSegment(value: _SplitMode.token, label: Text(context.l10n.commonToken)),
               ],
               selected: {_mode},
               showSelectedIcon: false,
@@ -1444,7 +1438,7 @@ class _SplitConfigSheetState extends State<_SplitConfigSheet> {
               }),
             ),
             const SizedBox(height: 16),
-            Text('HOW MANY BOXES', style: Theme.of(context).textTheme.titleSmall?.copyWith(color: colors.muted)),
+            Text(context.l10n.utxoHowManyBoxes, style: Theme.of(context).textTheme.titleSmall?.copyWith(color: colors.muted)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -1463,7 +1457,7 @@ class _SplitConfigSheetState extends State<_SplitConfigSheet> {
                   child: TextField(
                     controller: _countCtrl,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Custom', isDense: true, hintText: '2–100'),
+                    decoration: InputDecoration(labelText: context.l10n.utxoCustom, isDense: true, hintText: '2–100'),
                     onChanged: (v) {
                       final n = int.tryParse(v);
                       if (n != null) _setCount(n);
@@ -1476,12 +1470,12 @@ class _SplitConfigSheetState extends State<_SplitConfigSheet> {
             if (_mode == _SplitMode.token) ...[
               DropdownButtonFormField<String>(
                 initialValue: _selectedTokenId,
-                decoration: const InputDecoration(labelText: 'Token', isDense: true),
+                decoration: InputDecoration(labelText: context.l10n.commonToken, isDense: true),
                 items: [
                   for (final id in _availableTokenIds)
                     DropdownMenuItem(
                       value: id,
-                      child: Text('${_tokenLabel(id)} · ${formatTokenAmount(_tokenTotal(id).toInt(), _tokenDecimals(id))} available'),
+                      child: Text(context.l10n.utxoTokenAvailable(_tokenLabel(id), formatTokenAmount(_tokenTotal(id).toInt(), _tokenDecimals(id)))),
                     ),
                 ],
                 onChanged: (id) => setState(() => _selectedTokenId = id),
@@ -1491,7 +1485,7 @@ class _SplitConfigSheetState extends State<_SplitConfigSheet> {
                 controller: _amountCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
-                  labelText: '${_selectedTokenId == null ? 'Token' : _tokenLabel(_selectedTokenId!)} per box',
+                  labelText: context.l10n.utxoPerBox(_selectedTokenId == null ? context.l10n.commonToken : _tokenLabel(_selectedTokenId!)),
                   isDense: true,
                 ),
                 onChanged: (_) => setState(() {}),
@@ -1500,7 +1494,7 @@ class _SplitConfigSheetState extends State<_SplitConfigSheet> {
               TextField(
                 controller: _amountCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'ERG per box', isDense: true, hintText: '1.0'),
+                decoration: InputDecoration(labelText: context.l10n.utxoErgPerBox, isDense: true, hintText: '1.0'),
                 onChanged: (_) => setState(() {}),
               ),
             ],
@@ -1510,17 +1504,17 @@ class _SplitConfigSheetState extends State<_SplitConfigSheet> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(color: colors.inset, borderRadius: BorderRadius.circular(12)),
               child: Text(
-                summary ?? 'Adjust the count or amount until it fits the selection.',
+                summary ?? context.l10n.utxoAdjustCount,
                 style: TextStyle(fontSize: 13, color: summary == null ? rustFor(context) : null),
               ),
             ),
             const SizedBox(height: 6),
             Text(
-              'Miner fee: ${formatErg(minerFeeNano)}. Remaining ERG and every token return to you as change.',
+              context.l10n.utxoSplitFeeNote(formatErg(minerFeeNano)),
               style: TextStyle(fontSize: 12, color: colors.muted),
             ),
             const SizedBox(height: 16),
-            FilledButton(onPressed: summary == null ? null : _submit, child: const Text('Preview split')),
+            FilledButton(onPressed: summary == null ? null : _submit, child: Text(context.l10n.utxoPreviewSplit)),
           ],
         ),
       ),
@@ -1592,19 +1586,19 @@ class _RestructureConfigSheetState extends State<_RestructureConfigSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Custom Restructure',
+                context.l10n.utxoCustomRestructure,
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               IconButton(
                 icon: const Icon(Icons.add),
-                tooltip: 'Add output',
+                tooltip: context.l10n.utxoAddOutput,
                 onPressed: _addOutput,
               ),
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Define desired output boxes. Remainder returns to change.',
+          Text(
+            context.l10n.utxoDefineOutputs,
           ),
           const SizedBox(height: 12),
           ConstrainedBox(
@@ -1624,7 +1618,7 @@ class _RestructureConfigSheetState extends State<_RestructureConfigSheet> {
                             decimal: true,
                           ),
                           decoration: InputDecoration(
-                            labelText: 'Box #${i + 1} ERG Amount',
+                            labelText: context.l10n.utxoBoxErgAmount('${i + 1}'),
                             isDense: true,
                           ),
                         ),
@@ -1648,8 +1642,8 @@ class _RestructureConfigSheetState extends State<_RestructureConfigSheet> {
                 final nano = parseErgToNano(c.text);
                 if (nano == null || nano < 1000000) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Invalid amount: min 0.001 ERG per box'),
+                    SnackBar(
+                      content: Text(context.l10n.utxoInvalidAmount),
                     ),
                   );
                   return;
@@ -1661,7 +1655,7 @@ class _RestructureConfigSheetState extends State<_RestructureConfigSheet> {
                 'selected_box_ids': widget.selectedBoxIds.toList(),
               });
             },
-            child: const Text('Preview Restructure'),
+            child: Text(context.l10n.utxoPreviewRestructure),
           ),
         ],
       ),
@@ -1690,10 +1684,10 @@ class UtxoSelectionActions extends StatelessWidget {
         runSpacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Text('$count Selected', style: const TextStyle(fontWeight: FontWeight.w600)),
+          Text(context.l10n.utxoSelectedCount('$count'), style: const TextStyle(fontWeight: FontWeight.w600)),
           if (count >= 2)
-            FilledButton(style: inlineButtonStyle, onPressed: onConsolidate, child: const Text('Consolidate')),
-          OutlinedButton(style: inlineButtonStyle, onPressed: onSplit, child: const Text('Split')),
+            FilledButton(style: inlineButtonStyle, onPressed: onConsolidate, child: Text(context.l10n.utxoConsolidate)),
+          OutlinedButton(style: inlineButtonStyle, onPressed: onSplit, child: Text(context.l10n.utxoSplit)),
         ],
       ),
     ),

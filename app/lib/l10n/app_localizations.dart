@@ -7391,6 +7391,648 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'block {height}'**
   String sendBoxBlock(String height);
+
+  /// No description provided for @utxoLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load UTXOs: {error}'**
+  String utxoLoadFailed(String error);
+
+  /// No description provided for @utxoSpreadOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Your boxes are spread over many addresses, and merging them would link those addresses. Consolidate does it anyway.'**
+  String get utxoSpreadOut;
+
+  /// No description provided for @utxoNothingToClean.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to clean up right now'**
+  String get utxoNothingToClean;
+
+  /// No description provided for @utxoConsolidateNeedsTwo.
+  ///
+  /// In en, this message translates to:
+  /// **'Consolidation needs at least 2 boxes'**
+  String get utxoConsolidateNeedsTwo;
+
+  /// No description provided for @utxoConsolidateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Consolidate UTXOs'**
+  String get utxoConsolidateTitle;
+
+  /// No description provided for @utxoConsolidateInN.
+  ///
+  /// In en, this message translates to:
+  /// **'Consolidate in {count} transactions'**
+  String utxoConsolidateInN(String count);
+
+  /// No description provided for @utxoBoxesMerged.
+  ///
+  /// In en, this message translates to:
+  /// **'Boxes merged'**
+  String get utxoBoxesMerged;
+
+  /// No description provided for @utxoInto.
+  ///
+  /// In en, this message translates to:
+  /// **'Into'**
+  String get utxoInto;
+
+  /// No description provided for @utxoTotalValueIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Total value in'**
+  String get utxoTotalValueIn;
+
+  /// No description provided for @utxoTokenTypesCarried.
+  ///
+  /// In en, this message translates to:
+  /// **'Token types carried'**
+  String get utxoTokenTypesCarried;
+
+  /// No description provided for @utxoValueAfterFees.
+  ///
+  /// In en, this message translates to:
+  /// **'Value after fees'**
+  String get utxoValueAfterFees;
+
+  /// No description provided for @utxoConsolidateOneDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Every selected box is spent into one new box holding all its ERG and tokens.'**
+  String get utxoConsolidateOneDetail;
+
+  /// No description provided for @utxoConsolidateManyDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Ergo transactions are kept under {max} inputs each, so this runs as {count} transactions back to back. You can consolidate the results again afterwards.'**
+  String utxoConsolidateManyDetail(String max, String count);
+
+  /// No description provided for @utxoSignBroadcast.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign & broadcast'**
+  String get utxoSignBroadcast;
+
+  /// No description provided for @utxoSignBroadcastN.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign & broadcast {count}'**
+  String utxoSignBroadcastN(String count);
+
+  /// No description provided for @utxoStoppedAfter.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped after {done} of {total}. Refresh boxes and check Activity before retrying.'**
+  String utxoStoppedAfter(String done, String total);
+
+  /// No description provided for @utxoConsolidationSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Consolidation submitted'**
+  String get utxoConsolidationSubmitted;
+
+  /// No description provided for @utxoRefreshBeforeRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh boxes and check Activity before retrying.'**
+  String get utxoRefreshBeforeRetry;
+
+  /// No description provided for @utxoFewDust.
+  ///
+  /// In en, this message translates to:
+  /// **'Fewer than two dust boxes to sweep'**
+  String get utxoFewDust;
+
+  /// No description provided for @utxoNewRent.
+  ///
+  /// In en, this message translates to:
+  /// **'{fee}, due {when}'**
+  String utxoNewRent(String fee, String when);
+
+  /// No description provided for @utxoNewRentCapped.
+  ///
+  /// In en, this message translates to:
+  /// **'{fee}, due {when}; it holds no more than that'**
+  String utxoNewRentCapped(String fee, String when);
+
+  /// No description provided for @utxoSuggestedCleanup.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggested cleanup'**
+  String get utxoSuggestedCleanup;
+
+  /// No description provided for @utxoMergedAtAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of {total} at this address'**
+  String utxoMergedAtAddress(String count, String total);
+
+  /// No description provided for @utxoResultingBoxes.
+  ///
+  /// In en, this message translates to:
+  /// **'Resulting boxes'**
+  String get utxoResultingBoxes;
+
+  /// No description provided for @utxoOneOrMore.
+  ///
+  /// In en, this message translates to:
+  /// **'1 or more'**
+  String get utxoOneOrMore;
+
+  /// No description provided for @utxoRentClocksRestarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Rent clocks restarted'**
+  String get utxoRentClocksRestarted;
+
+  /// No description provided for @utxoNewBoxRent.
+  ///
+  /// In en, this message translates to:
+  /// **'New box rent'**
+  String get utxoNewBoxRent;
+
+  /// No description provided for @utxoCleanupDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Every listed box is spent into one new box at this address, holding all their ERG and tokens. A moved box starts a new 4-year storage-rent clock. Only boxes from this one address are merged, so no addresses are linked.} other{Every listed box is spent into {count} new boxes at this address, holding all their ERG and tokens. A moved box starts a new 4-year storage-rent clock. Only boxes from this one address are merged, so no addresses are linked.}}'**
+  String utxoCleanupDetail(int count);
+
+  /// No description provided for @utxoCleanupSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleanup submitted'**
+  String get utxoCleanupSubmitted;
+
+  /// No description provided for @utxoAtRisk.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} at risk'**
+  String utxoAtRisk(String count);
+
+  /// No description provided for @utxoDueWithin.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} due within {days} days'**
+  String utxoDueWithin(String count, String days);
+
+  /// No description provided for @utxoSplitTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Split UTXO'**
+  String get utxoSplitTitle;
+
+  /// No description provided for @utxoOutputsCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Outputs Created'**
+  String get utxoOutputsCreated;
+
+  /// No description provided for @utxoBoxesN.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} boxes'**
+  String utxoBoxesN(String count);
+
+  /// No description provided for @utxoAmountPerBox.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount per Box'**
+  String get utxoAmountPerBox;
+
+  /// No description provided for @utxoTokensN.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tokens'**
+  String utxoTokensN(String count);
+
+  /// No description provided for @utxoChangeReturned.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Returned'**
+  String get utxoChangeReturned;
+
+  /// No description provided for @utxoMinerFeeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Miner Fee'**
+  String get utxoMinerFeeTitle;
+
+  /// No description provided for @utxoFeeByBuilder.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee is computed by the transaction builder.'**
+  String get utxoFeeByBuilder;
+
+  /// No description provided for @utxoSignBroadcastSplit.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign & broadcast split'**
+  String get utxoSignBroadcastSplit;
+
+  /// No description provided for @utxoSplitSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Split submitted'**
+  String get utxoSplitSubmitted;
+
+  /// No description provided for @utxoSeparateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Separate {count} token types'**
+  String utxoSeparateTitle(String count);
+
+  /// No description provided for @utxoSourceBox.
+  ///
+  /// In en, this message translates to:
+  /// **'Source box'**
+  String get utxoSourceBox;
+
+  /// No description provided for @utxoInputsSpent.
+  ///
+  /// In en, this message translates to:
+  /// **'Inputs spent'**
+  String get utxoInputsSpent;
+
+  /// No description provided for @utxoTokenBoxes.
+  ///
+  /// In en, this message translates to:
+  /// **'Token boxes'**
+  String get utxoTokenBoxes;
+
+  /// No description provided for @utxoRawUnits.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} ({raw} raw units)'**
+  String utxoRawUnits(String amount, String raw);
+
+  /// No description provided for @utxoErgInTokenBoxes.
+  ///
+  /// In en, this message translates to:
+  /// **'ERG in token boxes'**
+  String get utxoErgInTokenBoxes;
+
+  /// No description provided for @utxoErgChange.
+  ///
+  /// In en, this message translates to:
+  /// **'ERG change'**
+  String get utxoErgChange;
+
+  /// No description provided for @utxoSeparateDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Each token type keeps its full balance in a separate box at your source address. All remaining ERG is returned to your wallet.'**
+  String get utxoSeparateDetail;
+
+  /// No description provided for @utxoSignBroadcastSeparation.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign & broadcast separation'**
+  String get utxoSignBroadcastSeparation;
+
+  /// No description provided for @utxoSeparationSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Token separation submitted'**
+  String get utxoSeparationSubmitted;
+
+  /// No description provided for @utxoRestructureTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restructure UTXOs'**
+  String get utxoRestructureTitle;
+
+  /// No description provided for @utxoInputsConsumed.
+  ///
+  /// In en, this message translates to:
+  /// **'Inputs Consumed'**
+  String get utxoInputsConsumed;
+
+  /// No description provided for @utxoOutputsGenerated.
+  ///
+  /// In en, this message translates to:
+  /// **'Outputs Generated'**
+  String get utxoOutputsGenerated;
+
+  /// No description provided for @utxoTotalValueInTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Value In'**
+  String get utxoTotalValueInTitle;
+
+  /// No description provided for @utxoAllocatedToOutputs.
+  ///
+  /// In en, this message translates to:
+  /// **'Allocated to Outputs'**
+  String get utxoAllocatedToOutputs;
+
+  /// No description provided for @utxoChangeOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Output'**
+  String get utxoChangeOutput;
+
+  /// No description provided for @utxoSignBroadcastRestructure.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign & broadcast restructure'**
+  String get utxoSignBroadcastRestructure;
+
+  /// No description provided for @utxoRestructureSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Restructure submitted'**
+  String get utxoRestructureSubmitted;
+
+  /// No description provided for @utxoScreenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Wallet boxes'**
+  String get utxoScreenTitle;
+
+  /// No description provided for @utxoLastConsolidation.
+  ///
+  /// In en, this message translates to:
+  /// **'Last consolidation result'**
+  String get utxoLastConsolidation;
+
+  /// No description provided for @utxoRefreshBoxes.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh boxes'**
+  String get utxoRefreshBoxes;
+
+  /// No description provided for @utxoCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} UTXOs'**
+  String utxoCount(String count);
+
+  /// No description provided for @utxoValueTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} · {count} tokens'**
+  String utxoValueTokens(String value, String count);
+
+  /// No description provided for @utxoDustLine.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 dust box under {limit}.} other{{count} dust boxes under {limit}.}}'**
+  String utxoDustLine(int count, String limit);
+
+  /// No description provided for @utxoOldestFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Oldest boxes first. Automatic sends prefer older eligible boxes to reduce storage-rent risk; privacy rules and your manual selection still apply.'**
+  String get utxoOldestFirst;
+
+  /// No description provided for @utxoConsolidate.
+  ///
+  /// In en, this message translates to:
+  /// **'Consolidate'**
+  String get utxoConsolidate;
+
+  /// No description provided for @utxoSplit.
+  ///
+  /// In en, this message translates to:
+  /// **'Split'**
+  String get utxoSplit;
+
+  /// No description provided for @utxoRestructure.
+  ///
+  /// In en, this message translates to:
+  /// **'Restructure'**
+  String get utxoRestructure;
+
+  /// No description provided for @utxoSeparateTokenTypes.
+  ///
+  /// In en, this message translates to:
+  /// **'Separate token types'**
+  String get utxoSeparateTokenTypes;
+
+  /// No description provided for @utxoSweepDust.
+  ///
+  /// In en, this message translates to:
+  /// **'Sweep {count} dust boxes into one'**
+  String utxoSweepDust(String count);
+
+  /// No description provided for @utxoSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search box ID or token...'**
+  String get utxoSearchHint;
+
+  /// No description provided for @utxoFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All ({count})'**
+  String utxoFilterAll(String count);
+
+  /// No description provided for @utxoFilterErgOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'ERG Only ({count})'**
+  String utxoFilterErgOnly(String count);
+
+  /// No description provided for @utxoFilterTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Tokens ({count})'**
+  String utxoFilterTokens(String count);
+
+  /// No description provided for @utxoFilterDust.
+  ///
+  /// In en, this message translates to:
+  /// **'Dust ({count})'**
+  String utxoFilterDust(String count);
+
+  /// No description provided for @utxoFilterRent.
+  ///
+  /// In en, this message translates to:
+  /// **'Rent ({count})'**
+  String utxoFilterRent(String count);
+
+  /// No description provided for @utxoClearSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear ({count})'**
+  String utxoClearSelection(String count);
+
+  /// No description provided for @utxoSelectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select All'**
+  String get utxoSelectAll;
+
+  /// No description provided for @utxoNoMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No UTXOs match criteria'**
+  String get utxoNoMatch;
+
+  /// No description provided for @utxoCopyBoxId.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Box ID'**
+  String get utxoCopyBoxId;
+
+  /// No description provided for @utxoBoxIdCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Box ID copied'**
+  String get utxoBoxIdCopied;
+
+  /// No description provided for @utxoHeight.
+  ///
+  /// In en, this message translates to:
+  /// **'H: {height}'**
+  String utxoHeight(String height);
+
+  /// No description provided for @utxoSplitEqual.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} boxes of {amount}'**
+  String utxoSplitEqual(String count, String amount);
+
+  /// No description provided for @utxoSplitWithChange.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} boxes of {amount} · {change} change'**
+  String utxoSplitWithChange(String count, String amount, String change);
+
+  /// No description provided for @utxoSplitToken.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} boxes of {amount} {token}, each with {erg}'**
+  String utxoSplitToken(String count, String amount, String token, String erg);
+
+  /// No description provided for @utxoSplitNotEnough.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough ERG for {count} boxes after fees'**
+  String utxoSplitNotEnough(String count);
+
+  /// No description provided for @utxoSplitEnterErg.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an amount of at least 0.001 ERG that fits the selection'**
+  String get utxoSplitEnterErg;
+
+  /// No description provided for @utxoSplitEnterToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a token amount that fits the selection'**
+  String get utxoSplitEnterToken;
+
+  /// No description provided for @utxoSplitFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{From 1 box holding {total}.} other{From {count} boxes holding {total}.}}'**
+  String utxoSplitFrom(int count, String total);
+
+  /// No description provided for @utxoEqualParts.
+  ///
+  /// In en, this message translates to:
+  /// **'Equal parts'**
+  String get utxoEqualParts;
+
+  /// No description provided for @utxoAmountEach.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount each'**
+  String get utxoAmountEach;
+
+  /// No description provided for @utxoHowManyBoxes.
+  ///
+  /// In en, this message translates to:
+  /// **'HOW MANY BOXES'**
+  String get utxoHowManyBoxes;
+
+  /// No description provided for @utxoCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get utxoCustom;
+
+  /// No description provided for @utxoTokenAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'{token} · {amount} available'**
+  String utxoTokenAvailable(String token, String amount);
+
+  /// No description provided for @utxoPerBox.
+  ///
+  /// In en, this message translates to:
+  /// **'{token} per box'**
+  String utxoPerBox(String token);
+
+  /// No description provided for @utxoErgPerBox.
+  ///
+  /// In en, this message translates to:
+  /// **'ERG per box'**
+  String get utxoErgPerBox;
+
+  /// No description provided for @utxoAdjustCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust the count or amount until it fits the selection.'**
+  String get utxoAdjustCount;
+
+  /// No description provided for @utxoSplitFeeNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Miner fee: {fee}. Remaining ERG and every token return to you as change.'**
+  String utxoSplitFeeNote(String fee);
+
+  /// No description provided for @utxoPreviewSplit.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview split'**
+  String get utxoPreviewSplit;
+
+  /// No description provided for @utxoCustomRestructure.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom Restructure'**
+  String get utxoCustomRestructure;
+
+  /// No description provided for @utxoAddOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Add output'**
+  String get utxoAddOutput;
+
+  /// No description provided for @utxoDefineOutputs.
+  ///
+  /// In en, this message translates to:
+  /// **'Define desired output boxes. Remainder returns to change.'**
+  String get utxoDefineOutputs;
+
+  /// No description provided for @utxoBoxErgAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Box #{number} ERG Amount'**
+  String utxoBoxErgAmount(String number);
+
+  /// No description provided for @utxoInvalidAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid amount: min 0.001 ERG per box'**
+  String get utxoInvalidAmount;
+
+  /// No description provided for @utxoPreviewRestructure.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview Restructure'**
+  String get utxoPreviewRestructure;
+
+  /// No description provided for @utxoSelectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} Selected'**
+  String utxoSelectedCount(String count);
 }
 
 class _AppLocalizationsDelegate
