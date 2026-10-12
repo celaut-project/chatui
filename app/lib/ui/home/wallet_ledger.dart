@@ -16,6 +16,7 @@ import 'erg_price_feed.dart';
 import 'home_data.dart';
 import 'home_models.dart';
 import 'wallet_page.dart';
+import '../../l10n/l10n.dart';
 
 /// What the wallet tab's taps do. The home screen owns navigation, the
 /// unlock state and the other tabs, so it supplies these.
@@ -96,7 +97,7 @@ class WalletLedger extends StatelessWidget {
         final data = _data(holdings: holdings, identity: identity, addresses: addresses, shown: shown, hidden: hidden);
         void breakdown({required bool all}) => showAddressBreakdownSheet(
               context,
-              walletName: w?.name ?? 'This wallet',
+              walletName: w?.name ?? appL10n.commonThisWallet,
               holdings: addresses,
               identity: identity,
               hidden: hidden,
@@ -161,13 +162,13 @@ class WalletLedger extends StatelessWidget {
     ]);
     final online = networkController.activeUrl != null;
     final label = sync.statusLabel(online: online);
-    final state = label == 'Synced'
+    final state = label == appL10n.syncSynced
         ? SyncState.synced
         : sync.isStale
             ? SyncState.stale
             : sync.isSyncing
                 ? SyncState.syncing
-                : label == 'Offline'
+                : label == appL10n.commonOffline
                     ? SyncState.offline
                     : SyncState.partial;
     // Kept while the next sync is in flight: "Syncing… · 5m ago".
@@ -175,7 +176,7 @@ class WalletLedger extends StatelessWidget {
     return WalletPageData(
       wallet: WalletSummary(
         ref: WalletRef.seed(w?.walletId ?? sync.receiveAddress ?? ''),
-        name: w?.name ?? 'Wallet',
+        name: w?.name ?? appL10n.commonWallet,
         nanoErg: headline,
         loading: sync.balanceNano == null && sync.isSyncing,
         fiatValue: value.fiat,

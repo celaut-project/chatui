@@ -93,7 +93,7 @@ class DisplaySettingsPage extends StatelessWidget {
               ),
             ],
           ),
-          const SettingsNote(priceSourceBlurb),
+          SettingsNote(priceSourceBlurb),
         ],
       ),
     );

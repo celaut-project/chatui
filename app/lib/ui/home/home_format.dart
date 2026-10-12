@@ -113,13 +113,15 @@ String countLabel(int n, String singular, [String? plural]) =>
 String otherAddressLine(FundsElsewhere funds, {required bool hidden, bool compact = false}) {
   final parts = <String>[
     if (!hidden && funds.nanoErg != 0) '${summaryErg(funds.nanoErg)}${nbsp}ERG',
-    if (!hidden && funds.tokenCount > 0) countLabel(funds.tokenCount, 'token'),
+    if (!hidden && funds.tokenCount > 0)
+      appL10n.homeTokenCount(funds.tokenCount, groupThousands('${funds.tokenCount}')),
   ];
+  final t = appL10n;
   final where = compact && funds.addressCount == 1
-      ? 'on another address'
-      : 'on ${countLabel(funds.addressCount, 'other address', 'other addresses')}';
-  if (parts.isEmpty) return compact ? 'Funds $where' : 'incl. funds $where';
-  return compact ? '${parts.join(' · ')} $where' : 'incl.$nbsp${parts.join(' · ')} $where';
+      ? t.homeOnAnotherAddress
+      : t.homeOnOtherAddresses(funds.addressCount, groupThousands('${funds.addressCount}'));
+  if (parts.isEmpty) return compact ? t.homeFundsWhere(where) : t.homeInclFundsWhere(where);
+  return compact ? t.homePartsWhere(parts.join(' · '), where) : t.homeInclPartsWhere(parts.join(' · '), where);
 }
 
 /// What the mempool does to the balance above it: "+2.5 ERG pending ·
@@ -131,10 +133,11 @@ String otherAddressLine(FundsElsewhere funds, {required bool hidden, bool compac
 /// figures are set as every summary figure here is.
 String? pendingText(PendingBalance? pending, {required bool hidden}) {
   if (pending == null || !pending.hasPending) return null;
-  if (hidden) return '$maskedFigure${nbsp}ERG pending';
+  final t = appL10n;
+  if (hidden) return t.homeErgPendingFigure(maskedFigure);
   final delta = pending.pendingDeltaNano;
-  final lead = delta == 0 ? 'Pending' : '${signedSummaryAmount(BigInt.from(delta), 9)}${nbsp}ERG pending';
-  return '$lead · ${summaryErg(pending.confirmedNano)} confirmed';
+  final lead = delta == 0 ? t.commonPending : t.homeErgPendingFigure(signedSummaryAmount(BigInt.from(delta), 9));
+  return t.homePendingConfirmed(lead, summaryErg(pending.confirmedNano));
 }
 
 /// One leg of a transaction as a row shows it: "+2.5 ERG", "−69 COMET",

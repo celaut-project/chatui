@@ -12,6 +12,7 @@ import 'home_hero.dart';
 import 'home_models.dart';
 import 'home_style.dart';
 import 'home_widgets.dart';
+import '../../l10n/l10n.dart';
 
 /// One wallet on the overview: name and balance, then a line of facts and
 /// the balance's value. What it keeps on other addresses and what is
@@ -59,15 +60,15 @@ class OverviewWalletRow extends StatelessWidget {
     // figures: either tells an onlooker as much as an amount would.
     final String? holds;
     if (nano == null) {
-      holds = w.loading ? 'Loading…' : (w.unavailable ?? 'Balance unavailable');
+      holds = w.loading ? context.l10n.homeLoading : (w.unavailable ?? context.l10n.commonBalanceUnavailable);
     } else if (!hidden && empty) {
-      holds = 'Empty';
+      holds = context.l10n.homeEmpty;
     } else if (!hidden && tokens != null && tokens > 0) {
-      holds = countLabel(tokens, 'token');
+      holds = context.l10n.homeTokenCount(tokens, groupThousands('$tokens'));
     } else {
       holds = null;
     }
-    final asOf = w.asOf != null && nano != null ? 'as${nbsp}of$nbsp${w.asOf}' : null;
+    final asOf = w.asOf != null && nano != null ? context.l10n.homeAsOfCompact('${w.asOf}') : null;
 
     // Only the open wallet is marked: "Locked" on every other row would be
     // noise, and the eye and the Watched heading already mark a watched
@@ -80,7 +81,7 @@ class OverviewWalletRow extends StatelessWidget {
           child: Icon(Icons.lock_open_rounded, size: 14, color: mossFor(context)),
         ),
       ));
-      facts.add(TextSpan(text: 'Unlocked', style: TextStyle(color: mossFor(context))));
+      facts.add(TextSpan(text: context.l10n.homeUnlocked, style: TextStyle(color: mossFor(context))));
     }
     if (address != null) fact(address);
     if (holds != null) fact(holds);
@@ -116,18 +117,18 @@ class OverviewWalletRow extends StatelessWidget {
       onTap: onTap,
       onLongPress: onLongPress,
       semanticActions: semanticActions,
-      hint: 'Opens the wallet',
+      hint: context.l10n.homeOpensWallet,
       semanticLabel: spoken([
         w.name,
-        if (w.unlocked) 'unlocked',
-        if (w.watchOnly) 'watch-only',
+        if (w.unlocked) context.l10n.homeSpokenUnlocked,
+        if (w.watchOnly) context.l10n.homeSpokenWatchOnly,
         ?address,
-        if (nano != null) hidden ? 'balance hidden' : '$amount ERG',
-        if (fiat != null && !hidden) 'about ${fiatFigure(fiatValue!, currency, approximate: false)} ${currency.code}',
+        if (nano != null) hidden ? context.l10n.homeSpokenBalanceHidden : '$amount ERG',
+        if (fiat != null && !hidden) context.l10n.homeSpokenAbout(fiatFigure(fiatValue!, currency, approximate: false), currency.code),
         if (holds != null) holds.toLowerCase(),
         ?asOf,
-        if (pending != null) hidden ? 'something pending' : pending,
-        if (other != null) 'incl. $other',
+        if (pending != null) hidden ? context.l10n.homeSpokenSomethingPending : pending,
+        if (other != null) context.l10n.homeSpokenIncl(other),
       ].join(', ')),
       leading: WalletMark(name: w.name, kind: w.kind),
       // Each wallet's name in the serif, as its own page's title is.
@@ -203,7 +204,7 @@ class HomeAssetRow extends StatelessWidget {
         ],
       );
     } else if (!hidden && stale != null) {
-      detail = TextSpan(text: 'Price $stale', style: TextStyle(color: rustFor(context)));
+      detail = TextSpan(text: context.l10n.homePriceNote(stale), style: TextStyle(color: rustFor(context)));
     } else {
       // A name that only repeats the ticker ("SigUSD" under "SigUSD") says
       // nothing; the row keeps to one line instead.
@@ -215,17 +216,17 @@ class HomeAssetRow extends StatelessWidget {
       inkKey: Key('home-asset-${asset.id}'),
       onTap: hidden ? null : onTap,
       semanticLabel: hidden
-          ? 'Asset hidden'
+          ? context.l10n.homeAssetHidden
           : spoken([
               ticker,
-              if (asset.verified && !isErg) 'verified',
-              if (asset.caution) 'caution, named like a verified token',
+              if (asset.verified && !isErg) context.l10n.homeSpokenVerified,
+              if (asset.caution) context.l10n.homeSpokenCaution,
               if (unit != null)
-                'price ${fiatFigure(unit, currency, approximate: false)}'
-                    '${stale != null ? ', $stale' : change == null ? '' : ', ${change >= 0 ? 'up' : 'down'} ${change.abs().toStringAsFixed(1)}% over 24h'}'
+                '${context.l10n.homeSpokenPrice(fiatFigure(unit, currency, approximate: false))}'
+                    '${stale != null ? ', $stale' : change == null ? '' : ', ${(change >= 0 ? context.l10n.homeSpokenUp : context.l10n.homeSpokenDown)(change.abs().toStringAsFixed(1), '24h')}'}'
               else ...[
                 if (name.isNotEmpty && name != ticker) name,
-                if (stale != null) 'price $stale',
+                if (stale != null) context.l10n.homeSpokenPrice(stale),
               ],
               amount,
               if (value != null) 'about ${fiatFigure(value, currency, approximate: false)} ${currency.code}',
@@ -285,23 +286,24 @@ class HomeActivityRow extends StatelessWidget {
         ? maskedFigure
         : item.figure ?? (legs.isEmpty ? '0${nbsp}ERG' : legText(legs.first));
     final incoming = legs.isNotEmpty && legs.first.amount > BigInt.zero;
-    final more = legs.length > 2 ? ' + ${legs.length - 2}${nbsp}more' : '';
     final secondary = hidden
         ? null
         : item.figure != null
             ? item.subfigure
             : legs.length < 2
                 ? null
-                : '${legText(legs[1])}$more';
-    final when = [if (item.pending) 'Pending', if (item.time.isNotEmpty) item.time, ?item.counterparty];
+                : legs.length > 2
+                    ? context.l10n.homeLegsMore(legText(legs[1]), '${legs.length - 2}')
+                    : legText(legs[1]);
+    final when = [if (item.pending) context.l10n.commonPending, if (item.time.isNotEmpty) item.time, ?item.counterparty];
 
     return HomeRow(
       inkKey: Key('home-activity-${item.id}'),
       onTap: onTap,
       semanticLabel: spoken([
         item.title,
-        if (item.pending) 'pending',
-        if (hidden) 'amount hidden' else ...[primary, ?secondary],
+        if (item.pending) context.l10n.homeSpokenPending,
+        if (hidden) context.l10n.homeSpokenAmountHidden else ...[primary, ?secondary],
         ?item.counterparty,
         if (item.time.isNotEmpty) item.time,
       ].join(', ')),

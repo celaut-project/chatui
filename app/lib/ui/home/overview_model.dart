@@ -13,6 +13,7 @@ import '../../services/wallet_service.dart';
 import '../../services/wallet_sync_controller.dart';
 import '../../services/watch_account_service.dart';
 import '../../services/watch_only_service.dart';
+import '../../l10n/l10n.dart';
 
 enum WalletKind { seed, watchedAddress, watchedAccount }
 
@@ -325,8 +326,8 @@ OverviewEntry _lockedEntry(
     unavailable: known != null
         ? null
         : identity == null
-        ? 'Open to load'
-        : 'Not loaded yet',
+        ? appL10n.overviewOpenToLoad
+        : appL10n.overviewNotLoadedYet,
   );
 }
 
@@ -340,7 +341,7 @@ OverviewEntry _watchedAddressEntry(
   required int Function(String) decimals,
 }) => OverviewEntry(
   ref: WalletRef.watchedAddress(address),
-  name: label ?? 'Watched address',
+  name: label ?? appL10n.commonWatchedAddress,
   state: OverviewRowState.watched,
   address: address,
   balanceNano: holdings?.nanoErg,
@@ -351,7 +352,7 @@ OverviewEntry _watchedAddressEntry(
   ],
   tokensKnown: holdings != null,
   asOf: asOf,
-  unavailable: failed ? 'Balance unavailable' : null,
+  unavailable: failed ? appL10n.commonBalanceUnavailable : null,
   pending: holdings?.pending?.under(holdings.nanoErg),
 );
 
@@ -362,7 +363,7 @@ OverviewEntry _accountEntry(
   final snapshot = account.snapshot;
   return OverviewEntry(
     ref: WalletRef.watchedAccount(account.key),
-    name: account.label ?? 'Watched account',
+    name: account.label ?? appL10n.commonWatchedAccount,
     state: OverviewRowState.watched,
     address: snapshot != null && snapshot.addresses.isNotEmpty
         ? snapshot.addresses.first
@@ -375,7 +376,7 @@ OverviewEntry _accountEntry(
     ],
     tokensKnown: snapshot != null,
     unavailable: snapshot == null && !account.busy
-        ? (account.error ?? 'Balance unavailable')
+        ? (account.error ?? appL10n.commonBalanceUnavailable)
         : null,
     pending: snapshot?.pending?.under(snapshot.balance),
   );

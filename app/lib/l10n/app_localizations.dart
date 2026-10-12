@@ -8500,6 +8500,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Review separation'**
   String get separateReview;
+
+  /// No description provided for @homeOnAnotherAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'on another address'**
+  String get homeOnAnotherAddress;
+
+  /// No description provided for @homeOnOtherAddresses.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{on {n} other address} other{on {n} other addresses}}'**
+  String homeOnOtherAddresses(int count, String n);
+
+  /// No description provided for @homeFundsWhere.
+  ///
+  /// In en, this message translates to:
+  /// **'Funds {where}'**
+  String homeFundsWhere(String where);
+
+  /// No description provided for @homeInclFundsWhere.
+  ///
+  /// In en, this message translates to:
+  /// **'incl. funds {where}'**
+  String homeInclFundsWhere(String where);
+
+  /// No description provided for @homePartsWhere.
+  ///
+  /// In en, this message translates to:
+  /// **'{parts} {where}'**
+  String homePartsWhere(String parts, String where);
+
+  /// No description provided for @homeInclPartsWhere.
+  ///
+  /// In en, this message translates to:
+  /// **'incl. {parts} {where}'**
+  String homeInclPartsWhere(String parts, String where);
+
+  /// No description provided for @homeErgPendingFigure.
+  ///
+  /// In en, this message translates to:
+  /// **'{figure} ERG pending'**
+  String homeErgPendingFigure(String figure);
+
+  /// No description provided for @homePendingConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'{lead} · {confirmed} confirmed'**
+  String homePendingConfirmed(String lead, String confirmed);
+
+  /// No description provided for @homeLockedCaps.
+  ///
+  /// In en, this message translates to:
+  /// **'LOCKED'**
+  String get homeLockedCaps;
 }
 
 class _AppLocalizationsDelegate

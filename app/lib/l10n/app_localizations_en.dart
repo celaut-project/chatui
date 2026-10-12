@@ -5357,4 +5357,51 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get separateReview => 'Review separation';
+
+  @override
+  String get homeOnAnotherAddress => 'on another address';
+
+  @override
+  String homeOnOtherAddresses(int count, String n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'on $n other addresses',
+      one: 'on $n other address',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String homeFundsWhere(String where) {
+    return 'Funds $where';
+  }
+
+  @override
+  String homeInclFundsWhere(String where) {
+    return 'incl. funds $where';
+  }
+
+  @override
+  String homePartsWhere(String parts, String where) {
+    return '$parts $where';
+  }
+
+  @override
+  String homeInclPartsWhere(String parts, String where) {
+    return 'incl. $parts $where';
+  }
+
+  @override
+  String homeErgPendingFigure(String figure) {
+    return '$figure ERG pending';
+  }
+
+  @override
+  String homePendingConfirmed(String lead, String confirmed) {
+    return '$lead · $confirmed confirmed';
+  }
+
+  @override
+  String get homeLockedCaps => 'LOCKED';
 }

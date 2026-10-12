@@ -13,6 +13,7 @@ import 'home_style.dart';
 import 'home_widgets.dart';
 import 'wallet_actions.dart';
 import 'wallet_tools_sheet.dart';
+import '../../l10n/l10n.dart';
 
 /// One open wallet's frame: the way back to every wallet, its name and
 /// state, the tab it is on, and its tabs.
@@ -74,7 +75,7 @@ class WalletPageScreen extends StatelessWidget {
         leading: IconButton(
           key: const Key('wallet-back'),
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 22),
-          tooltip: 'All wallets',
+          tooltip: context.l10n.homeAllWallets,
           onPressed: onBack,
         ),
         titleSpacing: 0,
@@ -269,11 +270,11 @@ class WalletPageView extends StatelessWidget {
             clipBehavior: Clip.none,
             children: [
               HomeBalance(
-                label: 'Balance',
+                label: context.l10n.homeBalanceLabel,
                 labelExtra: switch (wallet.kind) {
                   WalletKind.seed => null,
-                  WalletKind.watchedAddress => 'Watched address',
-                  WalletKind.watchedAccount => 'Watched account',
+                  WalletKind.watchedAddress => context.l10n.commonWatchedAddress,
+                  WalletKind.watchedAccount => context.l10n.commonWatchedAccount,
                 },
                 figureKey: const Key('wallet-balance'),
                 pendingKey: const Key('wallet-balance-pending'),
@@ -312,7 +313,7 @@ class WalletPageView extends StatelessWidget {
             GlassPill(
               inkKey: const Key('funds-elsewhere'),
               onTap: onOtherAddresses,
-              hint: 'Shows each address and what it holds',
+              hint: context.l10n.homeOtherAddressesHint,
               semanticLabel: spoken(otherAddressLine(other, hidden: hidden)),
               leading: Icon(Icons.subdirectory_arrow_right, size: 20, color: t.muted),
               child: Text(otherAddressLine(other, hidden: hidden), maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -338,7 +339,7 @@ class WalletPageView extends StatelessWidget {
     final utxos = data.utxoCount;
     // Hidden balances keep the advice but not the count, which says how
     // much the wallet has been used.
-    final utxoText = utxos == null || hidden ? 'UTXOs' : '${groupThousands('$utxos')}${nbsp}UTXOs';
+    final utxoText = utxos == null || hidden ? context.l10n.homeUtxos : context.l10n.homeUtxoCount(groupThousands('$utxos'));
     final lines = <Widget>[];
     // Each part of a status line wraps as a whole: "Updated just" over
     // "now" reads as two statements.
@@ -346,7 +347,7 @@ class WalletPageView extends StatelessWidget {
     if (data.status case final status?) {
       final (word, dot, problem) = syncLook(context, status);
       final parts = [
-        if (status.blockHeight != null) 'Block$nbsp${formatWithCommas(status.blockHeight!)}',
+        if (status.blockHeight != null) context.l10n.homeBlock(formatWithCommas(status.blockHeight!)),
         // While fragmented the count leads its own line below.
         if (utxos != null && !hidden && !data.fragmented) utxoText,
         if (status.age != null) whole(status.age!),
@@ -354,7 +355,7 @@ class WalletPageView extends StatelessWidget {
       lines.add(HomeLineRow(
         inkKey: const Key('wallet-status'),
         onTap: onStatus,
-        hint: onStatus == null ? null : 'UTXO tools',
+        hint: onStatus == null ? null : context.l10n.homeUtxoTools,
         semanticLabel: spoken([word, ...parts].join(', ')),
         markWidth: 14,
         chevron: false,
@@ -402,23 +403,23 @@ class WalletPageView extends StatelessWidget {
       lines.add(HomeLineRow(
         inkKey: const Key('wallet-offline'),
         onTap: onRetry,
-        action: onRetry == null ? null : 'Retry',
-        semanticLabel: 'No reachable nodes${onRetry == null ? '' : '. Retry'}',
+        action: onRetry == null ? null : context.l10n.commonRetry,
+        semanticLabel: '${context.l10n.homeNoReachableNodes}${onRetry == null ? '' : '. ${context.l10n.commonRetry}'}',
         leading: Icon(Icons.wifi_off_outlined, size: 16, color: rustFor(context)),
-        text: TextSpan(text: 'No reachable nodes', style: TextStyle(color: rustFor(context))),
+        text: TextSpan(text: context.l10n.homeNoReachableNodes, style: TextStyle(color: rustFor(context))),
       ));
     }
     if (data.fragmented && utxos != null) {
       lines.add(HomeLineRow(
         inkKey: const Key('utxo-fragmented'),
         onTap: onTidyUp,
-        semanticLabel: '${spoken(utxoText)}, fragmented. Tidy up',
+        semanticLabel: context.l10n.homeSpokenFragmented(spoken(utxoText)),
         leading: Icon(Icons.grain, size: 18, color: rustFor(context)),
-        action: 'Tidy up',
+        action: context.l10n.homeTidyUp,
         text: TextSpan(
           children: [
             TextSpan(text: utxoText, style: TextStyle(color: t.ink)),
-            TextSpan(text: ' · Fragmented', style: TextStyle(color: rustFor(context), fontWeight: FontWeight.w700)),
+            TextSpan(text: ' · ${context.l10n.homeFragmented}', style: TextStyle(color: rustFor(context), fontWeight: FontWeight.w700)),
           ],
         ),
       ));
@@ -498,7 +499,7 @@ class WalletPageView extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsetsDirectional.only(end: homeGutter - 6),
             child: HomeLink(
-              text: hidden ? 'All assets' : 'All ${groupThousands('${data.assetCount}')} assets',
+              text: hidden ? context.l10n.homeAllAssets : context.l10n.homeAllAssetsCount(groupThousands('${data.assetCount}')),
               onPressed: onAllAssets,
               linkKey: const Key('wallet-all-assets'),
               quiet: true,
@@ -513,15 +514,20 @@ class WalletPageView extends StatelessWidget {
   List<Widget> _activity(BuildContext context, {bool all = false}) {
     final t = HomeText.of(context);
     final receive = onReceive ?? (onAction == null ? null : () => onAction!(WalletAction.receive));
-    final emptyAction = receive == null ? null : data.activityEmptyAction;
+    final emptyAction = receive == null
+        ? null
+        : data.activityEmptyAction == WalletPageData.showMyAddress
+            ? context.l10n.homeShowMyAddress
+            : data.activityEmptyAction;
+    final empty = data.activityEmpty ?? context.l10n.homeNoActivity;
     final shown = all ? data.activity : data.activity.take(activityLimit).toList();
     return [
       if (all)
         const SizedBox(height: 14)
       else
         HomeHeading(
-          title: 'Recent Activity',
-          action: data.activity.isEmpty || onAllActivity == null ? null : 'View all',
+          title: context.l10n.homeRecentActivity,
+          action: data.activity.isEmpty || onAllActivity == null ? null : context.l10n.homeViewAll,
           actionKey: const Key('wallet-all-activity'),
           onAction: onAllActivity,
         ),
@@ -535,9 +541,9 @@ class WalletPageView extends StatelessWidget {
           else if (data.activityLoading)
             HomeLineRow(
               inkKey: const Key('wallet-activity-loading'),
-              semanticLabel: 'Reading activity',
+              semanticLabel: context.l10n.homeReadingActivity,
               leading: const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-              text: const TextSpan(text: 'Reading activity…'),
+              text: TextSpan(text: context.l10n.homeReadingActivityEllipsis),
             )
           else if (data.activityError case final error?)
             HomeLineRow(
@@ -550,10 +556,10 @@ class WalletPageView extends StatelessWidget {
             HomeLineRow(
               inkKey: const Key('wallet-no-activity'),
               onTap: emptyAction == null ? null : receive,
-              semanticLabel: [data.activityEmpty, ?emptyAction].join('. '),
+              semanticLabel: [empty, ?emptyAction].join('. '),
               leading: Icon(Icons.inbox_outlined, size: 18, color: t.muted),
               action: emptyAction,
-              text: TextSpan(text: data.activityEmpty),
+              text: TextSpan(text: empty),
             ),
         ],
       ),
@@ -562,7 +568,7 @@ class WalletPageView extends StatelessWidget {
           alignment: AlignmentDirectional.centerEnd,
           child: Padding(
             padding: const EdgeInsetsDirectional.only(end: homeGutter - 6),
-            child: HomeLink(text: 'Full history', onPressed: onAllActivity, quiet: true),
+            child: HomeLink(text: context.l10n.homeFullHistory, onPressed: onAllActivity, quiet: true),
           ),
         ),
     ];
@@ -591,7 +597,7 @@ class WalletPageView extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Expanded(child: Text(watched.addressTitle, style: t.title)),
+                      Expanded(child: Text(watched.addressTitle ?? context.l10n.commonAddress, style: t.title)),
                       if (onCopyAddress != null)
                         HomeLink(text: 'Copy', onPressed: onCopyAddress, linkKey: const Key('watched-copy-address')),
                     ],
@@ -606,8 +612,9 @@ class WalletPageView extends StatelessWidget {
             )
           else if (address != null)
             HomeLineRow(
-              semanticLabel: spoken('${wallet.pinnedIndex != null ? 'Pinned address #${wallet.pinnedIndex}, ' : ''}'
-                  '${shorten(address, head: 8, tail: 6)}'),
+              semanticLabel: spoken(wallet.pinnedIndex != null
+                  ? context.l10n.homeSpokenPinnedAddress('${wallet.pinnedIndex}', shorten(address, head: 8, tail: 6))
+                  : shorten(address, head: 8, tail: 6)),
               leading: Icon(Icons.person_outline, size: 18, color: HomeTones.of(context).accent),
               text: TextSpan(
                 children: [
@@ -627,19 +634,19 @@ class WalletPageView extends StatelessWidget {
             HomeLineRow(
               inkKey: const Key('wallet-every-address'),
               onTap: () => onTool!(WalletTool.addresses),
-              semanticLabel: 'Every address and what it holds',
+              semanticLabel: context.l10n.homeEveryAddress,
               leading: Icon(Icons.account_tree_outlined, size: 18, color: t.muted),
-              text: TextSpan(text: 'Every address and what it holds', style: TextStyle(color: t.ink)),
+              text: TextSpan(text: context.l10n.homeEveryAddress, style: TextStyle(color: t.ink)),
             ),
           // Nothing known yet (a watched account before its first scan): the
           // tab says so rather than showing an empty pane.
           if (address == null && other == null && (wallet.watchOnly || onTool == null))
             HomeLineRow(
               inkKey: const Key('wallet-no-addresses'),
-              semanticLabel: 'No addresses read yet',
+              semanticLabel: context.l10n.homeNoAddresses,
               leading: Icon(Icons.account_tree_outlined, size: 18, color: t.muted),
               text: TextSpan(
-                text: wallet.watchOnly ? 'No addresses read yet. They appear after the first scan.' : 'No addresses read yet.',
+                text: wallet.watchOnly ? context.l10n.homeNoAddressesWatched : context.l10n.homeNoAddressesDot,
               ),
             ),
         ],
@@ -652,7 +659,7 @@ class WalletPageView extends StatelessWidget {
   List<Widget> _utxos(BuildContext context) {
     final t = HomeText.of(context);
     final utxos = data.utxoCount;
-    final count = utxos == null || data.hidden ? 'UTXOs' : '${groupThousands('$utxos')}${nbsp}UTXOs';
+    final count = utxos == null || data.hidden ? context.l10n.homeUtxos : context.l10n.homeUtxoCount(groupThousands('$utxos'));
     return [
       const SizedBox(height: 14),
       GlassCard(
@@ -660,24 +667,24 @@ class WalletPageView extends StatelessWidget {
         dividerIndent: glassGutter,
         children: [
           HomeLineRow(
-            semanticLabel: spoken('$count${data.fragmented ? ', fragmented' : ''}'),
+            semanticLabel: spoken(data.fragmented ? context.l10n.homeSpokenCountFragmented(count) : count),
             leading: Icon(Icons.grain, size: 18, color: data.fragmented ? rustFor(context) : t.muted),
             text: TextSpan(
               children: [
                 TextSpan(text: count, style: TextStyle(color: t.ink)),
                 if (data.fragmented)
-                  TextSpan(text: ' · Fragmented', style: TextStyle(color: rustFor(context))),
+                  TextSpan(text: ' · ${context.l10n.homeFragmented}', style: TextStyle(color: rustFor(context))),
               ],
             ),
-            action: data.fragmented && onTidyUp != null ? 'Tidy up' : null,
+            action: data.fragmented && onTidyUp != null ? context.l10n.homeTidyUp : null,
             onTap: data.fragmented ? onTidyUp : null,
           ),
           HomeLineRow(
             inkKey: const Key('wallet-utxo-tools'),
             onTap: onTool == null ? onStatus : () => onTool!(WalletTool.utxos),
-            semanticLabel: 'UTXO tools',
+            semanticLabel: context.l10n.homeUtxoTools,
             leading: Icon(Icons.tune, size: 18, color: t.muted),
-            text: TextSpan(text: 'UTXO tools', style: TextStyle(color: t.ink)),
+            text: TextSpan(text: context.l10n.homeUtxoTools, style: TextStyle(color: t.ink)),
           ),
         ],
       ),
@@ -702,10 +709,10 @@ class _WalletTabsState extends State<_WalletTabs> {
   WalletPageTab _tab = WalletPageTab.assets;
 
   static String _name(WalletPageTab tab) => switch (tab) {
-        WalletPageTab.assets => 'Assets',
-        WalletPageTab.activity => 'Activity',
-        WalletPageTab.addresses => 'Addresses',
-        WalletPageTab.utxos => 'UTXOs',
+        WalletPageTab.assets => appL10n.homeAssets,
+        WalletPageTab.activity => appL10n.navActivity,
+        WalletPageTab.addresses => appL10n.commonAddresses,
+        WalletPageTab.utxos => appL10n.homeUtxos,
       };
 
   @override

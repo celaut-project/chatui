@@ -4011,5 +4011,75 @@
     }
   },
   "separateStayNote": "Every token and all remaining ERG stay in your wallet. A remainder below 0.001 ERG is kept in the first token box.",
-  "separateReview": "Review separation"
+  "separateReview": "Review separation",
+  "homeOnAnotherAddress": "on another address",
+  "homeOnOtherAddresses": "{count, plural, =1{on {n} other address} other{on {n} other addresses}}",
+  "@homeOnOtherAddresses": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "homeFundsWhere": "Funds {where}",
+  "@homeFundsWhere": {
+    "placeholders": {
+      "where": {
+        "type": "String"
+      }
+    }
+  },
+  "homeInclFundsWhere": "incl. funds {where}",
+  "@homeInclFundsWhere": {
+    "placeholders": {
+      "where": {
+        "type": "String"
+      }
+    }
+  },
+  "homePartsWhere": "{parts} {where}",
+  "@homePartsWhere": {
+    "placeholders": {
+      "parts": {
+        "type": "String"
+      },
+      "where": {
+        "type": "String"
+      }
+    }
+  },
+  "homeInclPartsWhere": "incl. {parts} {where}",
+  "@homeInclPartsWhere": {
+    "placeholders": {
+      "parts": {
+        "type": "String"
+      },
+      "where": {
+        "type": "String"
+      }
+    }
+  },
+  "homeErgPendingFigure": "{figure} ERG pending",
+  "@homeErgPendingFigure": {
+    "placeholders": {
+      "figure": {
+        "type": "String"
+      }
+    }
+  },
+  "homePendingConfirmed": "{lead} · {confirmed} confirmed",
+  "@homePendingConfirmed": {
+    "placeholders": {
+      "lead": {
+        "type": "String"
+      },
+      "confirmed": {
+        "type": "String"
+      }
+    }
+  },
+  "homeLockedCaps": "LOCKED"
 }

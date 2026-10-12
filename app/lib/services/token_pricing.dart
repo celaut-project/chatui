@@ -7,10 +7,7 @@ import 'oracle_pool.dart';
 String get priceSourceLabel => appL10n.priceOraclePools;
 
 /// What [priceSourceLabel] prices, for the settings page.
-const priceSourceBlurb =
-    'On-chain: ERG from the SigmaUSD oracle pool (the ERG/USD oracle pool), gold from the Dexy gold oracle, '
-    'wrapped majors from the AVL multi-oracle. An old price is shown with its age, never as current. '
-    'Reads only your node. Other tokens have no price.';
+String get priceSourceBlurb => appL10n.priceSourceBlurb;
 
 /// DexyGold: one milligram of gold, priced from the gold oracles.
 const dexyGoldTokenId = '6122f7289e7bb2df2de273e09d4b2756cda6aeb0f40438dc9d257688f45183ad';

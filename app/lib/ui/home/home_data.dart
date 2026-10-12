@@ -82,7 +82,7 @@ ErgPriceView ergPriceView(ErgPriceHistory? history) {
       ? priceSourceLabel
       : staleAge == null
           ? via
-          : via.replaceFirst(', $staleAge old', '');
+          : via.replaceFirst(', ${appL10n.priceAgeOld(staleAge)}', '');
   // A stopped feed says its age; prices from an earlier read say when that
   // was only once they are old enough to matter, never "as of just now".
   final staleNote = staleAge != null

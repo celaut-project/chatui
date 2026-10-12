@@ -1397,5 +1397,14 @@
   "separatePlanLineChange": "{inputs, plural, =1{1 caja de entrada → {tokens} cajas de token + cambio en ERG} other{{inputs} cajas de entrada → {tokens} cajas de token + cambio en ERG}}",
   "separateChangeReturned": "ERG devueltos como cambio: {amount}",
   "separateStayNote": "Todos los tokens y los ERG restantes se quedan en tu billetera. Un resto menor de 0.001 ERG se guarda en la primera caja de token.",
-  "separateReview": "Revisar la separación"
+  "separateReview": "Revisar la separación",
+  "homeOnAnotherAddress": "en otra dirección",
+  "homeOnOtherAddresses": "{count, plural, =1{en {n} dirección más} other{en otras {n} direcciones}}",
+  "homeFundsWhere": "Fondos {where}",
+  "homeInclFundsWhere": "incl. fondos {where}",
+  "homePartsWhere": "{parts} {where}",
+  "homeInclPartsWhere": "incl. {parts} {where}",
+  "homeErgPendingFigure": "{figure} ERG pendientes",
+  "homePendingConfirmed": "{lead} · {confirmed} confirmados",
+  "homeLockedCaps": "BLOQUEADA"
 }

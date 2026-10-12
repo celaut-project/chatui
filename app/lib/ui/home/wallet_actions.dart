@@ -6,13 +6,14 @@ import '../../theme/argus_theme.dart';
 import 'home_models.dart';
 import 'home_style.dart';
 import 'home_widgets.dart';
+import '../../l10n/l10n.dart';
 
 /// Mark and words for each primary action.
 ({IconData icon, String label}) walletActionLook(WalletAction action) => switch (action) {
-      WalletAction.send => (icon: Icons.near_me_outlined, label: 'Send'),
-      WalletAction.sendOffline => (icon: Icons.qr_code_2, label: 'Send with offline signer'),
-      WalletAction.receive => (icon: Icons.arrow_downward_rounded, label: 'Receive'),
-      WalletAction.more => (icon: Icons.more_horiz, label: 'More'),
+      WalletAction.send => (icon: Icons.near_me_outlined, label: appL10n.homeActionSend),
+      WalletAction.sendOffline => (icon: Icons.qr_code_2, label: appL10n.homeActionSendOffline),
+      WalletAction.receive => (icon: Icons.arrow_downward_rounded, label: appL10n.homeActionReceive),
+      WalletAction.more => (icon: Icons.more_horiz, label: appL10n.homeActionMore),
     };
 
 /// Width an action's name needs under its button: a one-word name whole, a
