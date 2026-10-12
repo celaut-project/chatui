@@ -1,8 +1,8 @@
 name: release
 
-# A tag v<appVersion> builds the release APKs unsigned and puts them on a
-# draft prerelease. The release key never goes to CI: scripts/sign_release.sh
-# signs them locally and replaces the unsigned assets.
+# A tag v<appVersion> builds the release APKs unsigned. After a reviewer
+# approves the release environment, the publish job signs them with the key in
+# that environment's secrets and creates a prerelease.
 on:
   push:
     tags: ['v*']
@@ -102,22 +102,58 @@ jobs:
           path: dist/
           if-no-files-found: error
 
+  # The release environment holds the signing secrets. It accepts only tags
+  # v* and waits for a required reviewer before this job starts.
   publish:
     if: github.ref_type == 'tag'
     needs: build
     runs-on: ubuntu-24.04
+    environment: release
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@v5
         with:
           name: unsigned-apks
-          path: dist
-      - name: Create the draft prerelease
+          path: unsigned
+      - name: Check the unsigned APKs
+        working-directory: unsigned
+        run: sha256sum --check SHA256SUMS-unsigned
+      - name: Sign the APKs
+        env:
+          KEYSTORE_BASE64: ${{ secrets.CHATUI_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.CHATUI_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.CHATUI_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.CHATUI_KEY_PASSWORD }}
+        run: |
+          for v in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS; do
+            [ -n "${!v}" ] || { echo "The secret CHATUI_$v is not set in the release environment."; exit 1; }
+          done
+          export KEYSTORE_PASSWORD
+          export KEY_PASSWORD="${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
+          keystore="$RUNNER_TEMP/release.jks"
+          trap 'rm -f "$keystore"' EXIT
+          base64 --decode <<<"$KEYSTORE_BASE64" > "$keystore"
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner"
+          version="${GITHUB_REF_NAME#v}"
+          mkdir dist
+          for kind in universal arm64-v8a x86_64; do
+            "$apksigner" sign --ks "$keystore" --ks-key-alias "$KEY_ALIAS" \
+              --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEY_PASSWORD \
+              --out "dist/chatui-$version-$kind.apk" "unsigned/chatui-$version-$kind-unsigned.apk"
+          done
+          rm -f dist/*.idsig
+      - name: Check the signed APKs
+        run: scripts/release_check.sh apks dist
+      - name: Create the prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          (cd dist && sha256sum *.apk > SHA256SUMS)
           gh release create "$GITHUB_REF_NAME" dist/* \
-            --repo "$GITHUB_REPOSITORY" --verify-tag --draft --prerelease \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --prerelease \
             --title "chatui ${GITHUB_REF_NAME#v}" \
-            --notes "Unsigned build from CI. Sign it with scripts/sign_release.sh $GITHUB_REF_NAME before publishing."
+            --notes "Mark this release as latest after the test on GrapheneOS. The updater ignores prereleases."
