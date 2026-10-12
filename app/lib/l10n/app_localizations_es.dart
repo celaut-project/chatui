@@ -5348,4 +5348,87 @@ class AppLocalizationsEs extends AppLocalizations {
   String amountEnterFiat(String currency) {
     return 'Escribir $currency';
   }
+
+  @override
+  String get separateTitle => 'Separar tokens';
+
+  @override
+  String get separateIntro =>
+      'Mueve cada tipo de token, con todo su saldo, a una caja aparte en tu billetera. Esto usa una transacción.';
+
+  @override
+  String get separateNoSource => 'Ninguna caja tiene varios tipos de token.';
+
+  @override
+  String separateSourceItem(String box, String count, String value) {
+    return '$box · $count tokens · $value';
+  }
+
+  @override
+  String separateEachHolds(String min, String fee) {
+    return 'Cada caja de token tiene al menos $min. Comisión de minería: $fee.';
+  }
+
+  @override
+  String separateMinimumNeeded(String amount) {
+    return 'ERG mínimos necesarios: $amount';
+  }
+
+  @override
+  String get separateTokensToSeparate => 'Tokens que separar';
+
+  @override
+  String separateRawUnits(String tokenId, String amount) {
+    return '$tokenId\n$amount unidades base';
+  }
+
+  @override
+  String get separateAddFundingTitle => 'Añadir fondos en ERG';
+
+  @override
+  String get separateFundingNote =>
+      'Solo se muestran las cajas solo de ERG de la dirección de origen, primero las más antiguas. Elige las que quieras gastar.';
+
+  @override
+  String separateFundingItem(String box, String height) {
+    return '$box · Altura $height';
+  }
+
+  @override
+  String get separateHeightUnknown => 'desconocida';
+
+  @override
+  String separatePlanLine(int inputs, String tokens) {
+    String _temp0 = intl.Intl.pluralLogic(
+      inputs,
+      locale: localeName,
+      other: '$inputs cajas de entrada → $tokens cajas de token',
+      one: '1 caja de entrada → $tokens cajas de token',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String separatePlanLineChange(int inputs, String tokens) {
+    String _temp0 = intl.Intl.pluralLogic(
+      inputs,
+      locale: localeName,
+      other:
+          '$inputs cajas de entrada → $tokens cajas de token + cambio en ERG',
+      one: '1 caja de entrada → $tokens cajas de token + cambio en ERG',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String separateChangeReturned(String amount) {
+    return 'ERG devueltos como cambio: $amount';
+  }
+
+  @override
+  String get separateStayNote =>
+      'Todos los tokens y los ERG restantes se quedan en tu billetera. Un resto menor de 0.001 ERG se guarda en la primera caja de token.';
+
+  @override
+  String get separateReview => 'Revisar la separación';
 }

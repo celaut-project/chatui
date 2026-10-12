@@ -1380,5 +1380,22 @@
   "pickerSelect": "Elegir {token}",
   "pickerSelectedCount": "{count} elegidos",
   "amountEnterErg": "Escribir ERG",
-  "amountEnterFiat": "Escribir {currency}"
+  "amountEnterFiat": "Escribir {currency}",
+  "separateTitle": "Separar tokens",
+  "separateIntro": "Mueve cada tipo de token, con todo su saldo, a una caja aparte en tu billetera. Esto usa una transacción.",
+  "separateNoSource": "Ninguna caja tiene varios tipos de token.",
+  "separateSourceItem": "{box} · {count} tokens · {value}",
+  "separateEachHolds": "Cada caja de token tiene al menos {min}. Comisión de minería: {fee}.",
+  "separateMinimumNeeded": "ERG mínimos necesarios: {amount}",
+  "separateTokensToSeparate": "Tokens que separar",
+  "separateRawUnits": "{tokenId}\n{amount} unidades base",
+  "separateAddFundingTitle": "Añadir fondos en ERG",
+  "separateFundingNote": "Solo se muestran las cajas solo de ERG de la dirección de origen, primero las más antiguas. Elige las que quieras gastar.",
+  "separateFundingItem": "{box} · Altura {height}",
+  "separateHeightUnknown": "desconocida",
+  "separatePlanLine": "{inputs, plural, =1{1 caja de entrada → {tokens} cajas de token} other{{inputs} cajas de entrada → {tokens} cajas de token}}",
+  "separatePlanLineChange": "{inputs, plural, =1{1 caja de entrada → {tokens} cajas de token + cambio en ERG} other{{inputs} cajas de entrada → {tokens} cajas de token + cambio en ERG}}",
+  "separateChangeReturned": "ERG devueltos como cambio: {amount}",
+  "separateStayNote": "Todos los tokens y los ERG restantes se quedan en tu billetera. Un resto menor de 0.001 ERG se guarda en la primera caja de token.",
+  "separateReview": "Revisar la separación"
 }

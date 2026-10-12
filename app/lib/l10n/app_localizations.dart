@@ -8398,6 +8398,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enter {currency}'**
   String amountEnterFiat(String currency);
+
+  /// No description provided for @separateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Separate tokens'**
+  String get separateTitle;
+
+  /// No description provided for @separateIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Move each token type, with its full balance, into a separate box in your wallet. This uses one transaction.'**
+  String get separateIntro;
+
+  /// No description provided for @separateNoSource.
+  ///
+  /// In en, this message translates to:
+  /// **'No boxes contain multiple token types.'**
+  String get separateNoSource;
+
+  /// No description provided for @separateSourceItem.
+  ///
+  /// In en, this message translates to:
+  /// **'{box} · {count} tokens · {value}'**
+  String separateSourceItem(String box, String count, String value);
+
+  /// No description provided for @separateEachHolds.
+  ///
+  /// In en, this message translates to:
+  /// **'Each token box holds at least {min}. Miner fee {fee}.'**
+  String separateEachHolds(String min, String fee);
+
+  /// No description provided for @separateMinimumNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum ERG needed: {amount}'**
+  String separateMinimumNeeded(String amount);
+
+  /// No description provided for @separateTokensToSeparate.
+  ///
+  /// In en, this message translates to:
+  /// **'Tokens to separate'**
+  String get separateTokensToSeparate;
+
+  /// No description provided for @separateRawUnits.
+  ///
+  /// In en, this message translates to:
+  /// **'{tokenId}\n{amount} raw units'**
+  String separateRawUnits(String tokenId, String amount);
+
+  /// No description provided for @separateAddFundingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add ERG funding'**
+  String get separateAddFundingTitle;
+
+  /// No description provided for @separateFundingNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Only ERG-only boxes at the source address are listed, oldest first. Select any you want to spend.'**
+  String get separateFundingNote;
+
+  /// No description provided for @separateFundingItem.
+  ///
+  /// In en, this message translates to:
+  /// **'{box} · Height {height}'**
+  String separateFundingItem(String box, String height);
+
+  /// No description provided for @separateHeightUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'unknown'**
+  String get separateHeightUnknown;
+
+  /// No description provided for @separatePlanLine.
+  ///
+  /// In en, this message translates to:
+  /// **'{inputs, plural, =1{1 input box → {tokens} token boxes} other{{inputs} input boxes → {tokens} token boxes}}'**
+  String separatePlanLine(int inputs, String tokens);
+
+  /// No description provided for @separatePlanLineChange.
+  ///
+  /// In en, this message translates to:
+  /// **'{inputs, plural, =1{1 input box → {tokens} token boxes + ERG change} other{{inputs} input boxes → {tokens} token boxes + ERG change}}'**
+  String separatePlanLineChange(int inputs, String tokens);
+
+  /// No description provided for @separateChangeReturned.
+  ///
+  /// In en, this message translates to:
+  /// **'ERG returned as change: {amount}'**
+  String separateChangeReturned(String amount);
+
+  /// No description provided for @separateStayNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Every token and all remaining ERG stay in your wallet. A remainder below 0.001 ERG is kept in the first token box.'**
+  String get separateStayNote;
+
+  /// No description provided for @separateReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Review separation'**
+  String get separateReview;
 }
 
 class _AppLocalizationsDelegate

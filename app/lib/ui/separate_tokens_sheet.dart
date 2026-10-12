@@ -4,6 +4,7 @@ import '../format.dart';
 import '../services/utxo_plans.dart';
 import '../services/utxo_tools_controller.dart';
 import '../services/wallet_service.dart';
+import '../l10n/l10n.dart';
 
 /// Configure one transaction that moves every token type into its own box.
 /// This sheet only returns an allocation; the caller prepares and reviews it.
@@ -82,27 +83,27 @@ class _SeparateTokensSheetState extends State<SeparateTokensSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Separate tokens',
+              context.l10n.separateTitle,
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Move each token type, with its full balance, into a separate box in your wallet. This uses one transaction.',
+            Text(
+              context.l10n.separateIntro,
             ),
             const SizedBox(height: 16),
             if (source == null)
-              const Text('No boxes contain multiple token types.')
+              Text(context.l10n.separateNoSource)
             else ...[
               DropdownButtonFormField<String>(
                 initialValue: source.boxId,
                 isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Source box'),
+                decoration: InputDecoration(labelText: context.l10n.utxoSourceBox),
                 items: [
                   for (final box in _sources)
                     DropdownMenuItem(
                       value: box.boxId,
                       child: Text(
-                        '${shorten(box.boxId, head: 8, tail: 6)} · ${box.assets.length} tokens · ${formatNanoErg(box.valueNanoErg)}',
+                        context.l10n.separateSourceItem(shorten(box.boxId, head: 8, tail: 6), '${box.assets.length}', formatNanoErg(box.valueNanoErg)),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -114,16 +115,16 @@ class _SeparateTokensSheetState extends State<SeparateTokensSheet> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Each token box holds at least ${formatErg(minBoxNano)}. Miner fee ${formatErg(minerFeeNano)}.',
+                context.l10n.separateEachHolds(formatErg(minBoxNano), formatErg(minerFeeNano)),
               ),
               const SizedBox(height: 8),
               Text(
-                'Minimum ERG needed: ${formatErg(source.assets.map((a) => a.tokenId).toSet().length * minBoxNano + minerFeeNano)}',
+                context.l10n.separateMinimumNeeded(formatErg(source.assets.map((a) => a.tokenId).toSet().length * minBoxNano + minerFeeNano)),
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 12),
               Text(
-                'Tokens to separate',
+                context.l10n.separateTokensToSeparate,
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               const SizedBox(height: 8),
@@ -141,7 +142,7 @@ class _SeparateTokensSheetState extends State<SeparateTokensSheet> {
                               shorten(asset.tokenId, head: 8, tail: 6),
                         ),
                         subtitle: Text(
-                          '${asset.tokenId}\n${asset.amount} raw units',
+                          context.l10n.separateRawUnits(asset.tokenId, '${asset.amount}'),
                           style: const TextStyle(fontSize: 11),
                         ),
                       ),
@@ -151,11 +152,11 @@ class _SeparateTokensSheetState extends State<SeparateTokensSheet> {
               if (funding.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Text(
-                  'Add ERG funding',
+                  context.l10n.separateAddFundingTitle,
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
-                const Text(
-                  'Only ERG-only boxes at the source address are listed, oldest first. Select any you want to spend.',
+                Text(
+                  context.l10n.separateFundingNote,
                 ),
                 const SizedBox(height: 4),
                 ConstrainedBox(
@@ -170,7 +171,7 @@ class _SeparateTokensSheetState extends State<SeparateTokensSheet> {
                           value: _fundingIds.contains(box.boxId),
                           title: Text(formatNanoErg(box.valueNanoErg)),
                           subtitle: Text(
-                            '${shorten(box.boxId, head: 8, tail: 6)} · Height ${box.creationHeight > 0 ? box.creationHeight : "unknown"}',
+                            context.l10n.separateFundingItem(shorten(box.boxId, head: 8, tail: 6), box.creationHeight > 0 ? '${box.creationHeight}' : context.l10n.separateHeightUnknown),
                           ),
                           onChanged: (checked) => setState(() {
                             if (checked == true) {
@@ -192,13 +193,13 @@ class _SeparateTokensSheetState extends State<SeparateTokensSheet> {
                 )
               else if (plan != null) ...[
                 Text(
-                  '${plan.inputs.length} input ${plan.inputs.length == 1 ? "box" : "boxes"} → ${plan.assets.length} token boxes${plan.changeNano > BigInt.zero ? " + ERG change" : ""}',
+                  (plan.changeNano > BigInt.zero ? context.l10n.separatePlanLineChange : context.l10n.separatePlanLine)(plan.inputs.length, '${plan.assets.length}'),
                 ),
                 Text(
-                  'ERG returned as change: ${formatNanoErg(plan.changeNano)}',
+                  context.l10n.separateChangeReturned(formatNanoErg(plan.changeNano)),
                 ),
-                const Text(
-                  'Every token and all remaining ERG stay in your wallet. A remainder below 0.001 ERG is kept in the first token box.',
+                Text(
+                  context.l10n.separateStayNote,
                 ),
               ],
             ],
@@ -209,7 +210,7 @@ class _SeparateTokensSheetState extends State<SeparateTokensSheet> {
                 onPressed: plan == null
                     ? null
                     : () => Navigator.pop(context, plan),
-                child: const Text('Review separation'),
+                child: Text(context.l10n.separateReview),
               ),
             ),
           ],

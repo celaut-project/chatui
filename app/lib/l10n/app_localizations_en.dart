@@ -5275,4 +5275,86 @@ class AppLocalizationsEn extends AppLocalizations {
   String amountEnterFiat(String currency) {
     return 'Enter $currency';
   }
+
+  @override
+  String get separateTitle => 'Separate tokens';
+
+  @override
+  String get separateIntro =>
+      'Move each token type, with its full balance, into a separate box in your wallet. This uses one transaction.';
+
+  @override
+  String get separateNoSource => 'No boxes contain multiple token types.';
+
+  @override
+  String separateSourceItem(String box, String count, String value) {
+    return '$box · $count tokens · $value';
+  }
+
+  @override
+  String separateEachHolds(String min, String fee) {
+    return 'Each token box holds at least $min. Miner fee $fee.';
+  }
+
+  @override
+  String separateMinimumNeeded(String amount) {
+    return 'Minimum ERG needed: $amount';
+  }
+
+  @override
+  String get separateTokensToSeparate => 'Tokens to separate';
+
+  @override
+  String separateRawUnits(String tokenId, String amount) {
+    return '$tokenId\n$amount raw units';
+  }
+
+  @override
+  String get separateAddFundingTitle => 'Add ERG funding';
+
+  @override
+  String get separateFundingNote =>
+      'Only ERG-only boxes at the source address are listed, oldest first. Select any you want to spend.';
+
+  @override
+  String separateFundingItem(String box, String height) {
+    return '$box · Height $height';
+  }
+
+  @override
+  String get separateHeightUnknown => 'unknown';
+
+  @override
+  String separatePlanLine(int inputs, String tokens) {
+    String _temp0 = intl.Intl.pluralLogic(
+      inputs,
+      locale: localeName,
+      other: '$inputs input boxes → $tokens token boxes',
+      one: '1 input box → $tokens token boxes',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String separatePlanLineChange(int inputs, String tokens) {
+    String _temp0 = intl.Intl.pluralLogic(
+      inputs,
+      locale: localeName,
+      other: '$inputs input boxes → $tokens token boxes + ERG change',
+      one: '1 input box → $tokens token boxes + ERG change',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String separateChangeReturned(String amount) {
+    return 'ERG returned as change: $amount';
+  }
+
+  @override
+  String get separateStayNote =>
+      'Every token and all remaining ERG stay in your wallet. A remainder below 0.001 ERG is kept in the first token box.';
+
+  @override
+  String get separateReview => 'Review separation';
 }

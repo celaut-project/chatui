@@ -3917,5 +3917,99 @@
         "type": "String"
       }
     }
-  }
+  },
+  "separateTitle": "Separate tokens",
+  "separateIntro": "Move each token type, with its full balance, into a separate box in your wallet. This uses one transaction.",
+  "separateNoSource": "No boxes contain multiple token types.",
+  "separateSourceItem": "{box} · {count} tokens · {value}",
+  "@separateSourceItem": {
+    "placeholders": {
+      "box": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      },
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "separateEachHolds": "Each token box holds at least {min}. Miner fee {fee}.",
+  "@separateEachHolds": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "fee": {
+        "type": "String"
+      }
+    }
+  },
+  "separateMinimumNeeded": "Minimum ERG needed: {amount}",
+  "@separateMinimumNeeded": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "separateTokensToSeparate": "Tokens to separate",
+  "separateRawUnits": "{tokenId}\n{amount} raw units",
+  "@separateRawUnits": {
+    "placeholders": {
+      "tokenId": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "separateAddFundingTitle": "Add ERG funding",
+  "separateFundingNote": "Only ERG-only boxes at the source address are listed, oldest first. Select any you want to spend.",
+  "separateFundingItem": "{box} · Height {height}",
+  "@separateFundingItem": {
+    "placeholders": {
+      "box": {
+        "type": "String"
+      },
+      "height": {
+        "type": "String"
+      }
+    }
+  },
+  "separateHeightUnknown": "unknown",
+  "separatePlanLine": "{inputs, plural, =1{1 input box → {tokens} token boxes} other{{inputs} input boxes → {tokens} token boxes}}",
+  "@separatePlanLine": {
+    "placeholders": {
+      "inputs": {
+        "type": "int"
+      },
+      "tokens": {
+        "type": "String"
+      }
+    }
+  },
+  "separatePlanLineChange": "{inputs, plural, =1{1 input box → {tokens} token boxes + ERG change} other{{inputs} input boxes → {tokens} token boxes + ERG change}}",
+  "@separatePlanLineChange": {
+    "placeholders": {
+      "inputs": {
+        "type": "int"
+      },
+      "tokens": {
+        "type": "String"
+      }
+    }
+  },
+  "separateChangeReturned": "ERG returned as change: {amount}",
+  "@separateChangeReturned": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "separateStayNote": "Every token and all remaining ERG stay in your wallet. A remainder below 0.001 ERG is kept in the first token box.",
+  "separateReview": "Review separation"
 }
