@@ -23,6 +23,9 @@ use crate::error::ArgusError;
 /// spend gathers its inputs, and the pending summary the sync shows.
 pub mod mempool;
 
+/// Celaut nodes: connect to a node and show its advertisement (milestone M1).
+pub mod celaut;
+
 fn err_str<E: Into<ArgusError>>(e: E) -> String {
     e.into().to_json_string()
 }

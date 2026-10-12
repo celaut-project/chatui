@@ -7,6 +7,7 @@
 // ignore_for_file: argument_type_not_assignable
 
 import 'api.dart';
+import 'api/celaut.dart';
 import 'api/mempool.dart';
 import 'api/storage_rent.dart';
 import 'dart:async';
@@ -29,6 +30,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
+  double dco_decode_box_autoadd_f_64(dynamic raw);
+
+  @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
@@ -38,13 +42,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt dco_decode_box_autoadd_u_64(dynamic raw);
 
   @protected
+  CelautError dco_decode_celaut_error(dynamic raw);
+
+  @protected
+  CelautErrorKind dco_decode_celaut_error_kind(dynamic raw);
+
+  @protected
+  double dco_decode_f_64(dynamic raw);
+
+  @protected
   int dco_decode_i_32(dynamic raw);
 
   @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
+  KeyValueView dco_decode_key_value_view(dynamic raw);
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<KeyValueView> dco_decode_list_key_value_view(dynamic raw);
+
+  @protected
+  List<NodeResourcesView> dco_decode_list_node_resources_view(dynamic raw);
+
+  @protected
+  List<NodeUriView> dco_decode_list_node_uri_view(dynamic raw);
+
+  @protected
+  List<PaymentContractView> dco_decode_list_payment_contract_view(dynamic raw);
 
   @protected
   List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
@@ -53,7 +81,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  NodeResourcesView dco_decode_node_resources_view(dynamic raw);
+
+  @protected
+  NodeUriView dco_decode_node_uri_view(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
@@ -66,6 +103,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String>? dco_decode_opt_list_String(dynamic raw);
+
+  @protected
+  PaymentContractView dco_decode_payment_contract_view(dynamic raw);
+
+  @protected
+  PeerInfoView dco_decode_peer_info_view(dynamic raw);
+
+  @protected
+  int dco_decode_u_16(dynamic raw);
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -86,6 +132,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
+  double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
+
+  @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
@@ -95,13 +144,43 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
 
   @protected
+  CelautError sse_decode_celaut_error(SseDeserializer deserializer);
+
+  @protected
+  CelautErrorKind sse_decode_celaut_error_kind(SseDeserializer deserializer);
+
+  @protected
+  double sse_decode_f_64(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
+  KeyValueView sse_decode_key_value_view(SseDeserializer deserializer);
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<KeyValueView> sse_decode_list_key_value_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<NodeResourcesView> sse_decode_list_node_resources_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<NodeUriView> sse_decode_list_node_uri_view(SseDeserializer deserializer);
+
+  @protected
+  List<PaymentContractView> sse_decode_list_payment_contract_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
@@ -110,7 +189,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  NodeResourcesView sse_decode_node_resources_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  NodeUriView sse_decode_node_uri_view(SseDeserializer deserializer);
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
@@ -123,6 +213,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String>? sse_decode_opt_list_String(SseDeserializer deserializer);
+
+  @protected
+  PaymentContractView sse_decode_payment_contract_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PeerInfoView sse_decode_peer_info_view(SseDeserializer deserializer);
+
+  @protected
+  int sse_decode_u_16(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -143,6 +244,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
     SseSerializer serializer,
@@ -155,13 +259,52 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
 
   @protected
+  void sse_encode_celaut_error(CelautError self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_celaut_error_kind(
+    CelautErrorKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_f_64(double self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
   @protected
+  void sse_encode_key_value_view(KeyValueView self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_key_value_view(
+    List<KeyValueView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_node_resources_view(
+    List<NodeResourcesView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_node_uri_view(
+    List<NodeUriView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_payment_contract_view(
+    List<PaymentContractView> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
@@ -173,7 +316,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_node_resources_view(
+    NodeResourcesView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_node_uri_view(NodeUriView self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_i_64(
@@ -189,6 +344,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_list_String(List<String>? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_payment_contract_view(
+    PaymentContractView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_peer_info_view(PeerInfoView self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_u_16(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);
