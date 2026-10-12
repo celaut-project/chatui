@@ -26,6 +26,9 @@ pub mod mempool;
 /// Celaut nodes: connect to a node and show its advertisement (milestone M1).
 pub mod celaut;
 
+/// Celaut services: quotes, start, a local port for the tunnel, stop (milestone M2).
+pub mod celaut_service;
+
 fn err_str<E: Into<ArgusError>>(e: E) -> String {
     e.into().to_json_string()
 }
