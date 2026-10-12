@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import '../l10n/l10n.dart';
 import 'activity_classifier.dart' show reownActivity;
 import 'address_holdings.dart';
 import 'network_controller.dart';
@@ -11,10 +12,7 @@ import 'wallet_service.dart';
 import 'wallet_sync_controller.dart';
 
 /// Shown once per screen, never per row: locked rows carry only their age.
-const lockedWalletsExplainer =
-    'Locked wallets refresh from public data every 5 minutes, covering only '
-    'the addresses this app already knows. Unlock one to pick up new '
-    'addresses.';
+String get lockedWalletsExplainer => appL10n.syncLockedWalletsExplainer;
 
 /// Deliberately exposes no handle, discovery or derivation capability.
 abstract class PublicWalletGateway {

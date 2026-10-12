@@ -2,19 +2,14 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../bridge/api/mempool.dart' as mempool;
+import '../l10n/l10n.dart';
 
 /// Whether the wallet spends funds before they confirm, until the user says
 /// otherwise. This constant is the one place the default lives.
 const bool defaultSpendUnconfirmed = true;
 
 /// What the switch does, in plain words, for the note under it.
-const spendUnconfirmedNote =
-    'Off: money you receive, and the change from your own sends, waits for '
-    'one confirmation (the next block, usually a few minutes) before Celaut '
-    'spends it. On: it can '
-    'be spent at once, but if the transaction that brought it is dropped, '
-    'the one spending it fails too. Either way, coins a pending transaction '
-    'is already spending are never used again.';
+String get spendUnconfirmedNote => appL10n.spendUnconfirmedNote;
 
 /// Settings → Security → Spend unconfirmed funds.
 ///

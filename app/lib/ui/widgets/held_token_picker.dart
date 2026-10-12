@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/wallet_service.dart';
 import 'asset_tile.dart';
+import '../../l10n/l10n.dart';
 
 /// Selection is independent of the filtered and lazily mounted rows.
 class HeldTokenPicker extends StatefulWidget {
@@ -34,9 +35,9 @@ class _HeldTokenPickerState extends State<HeldTokenPicker> {
       child: Column(
         children: [
           ListTile(
-            title: const Text('Choose tokens'),
+            title: Text(context.l10n.sendChooseTokens),
             trailing: IconButton(
-              tooltip: 'Cancel',
+              tooltip: context.l10n.commonCancel,
               icon: const Icon(Icons.close),
               onPressed: () => Navigator.pop(context),
             ),
@@ -44,9 +45,9 @@ class _HeldTokenPickerState extends State<HeldTokenPicker> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: TextField(
-              decoration: const InputDecoration(
-                hintText: 'Search name or token id',
-                prefixIcon: Icon(Icons.search),
+              decoration: InputDecoration(
+                hintText: context.l10n.pickerSearchHint,
+                prefixIcon: const Icon(Icons.search),
               ),
               onChanged: (value) =>
                   setState(() => _query = value.trim().toLowerCase()),
@@ -54,7 +55,7 @@ class _HeldTokenPickerState extends State<HeldTokenPicker> {
           ),
           Expanded(
             child: tokens.isEmpty
-                ? const Center(child: Text('No tokens match that search.'))
+                ? Center(child: Text(context.l10n.pickerNoMatch))
                 : ListView.builder(
                     itemCount: tokens.length,
                     itemBuilder: (context, index) {
@@ -68,7 +69,7 @@ class _HeldTokenPickerState extends State<HeldTokenPicker> {
                           Checkbox(
                             value: _selected.contains(t.id),
                             onChanged: (_) => toggle(),
-                            semanticLabel: 'Select ${t.label}',
+                            semanticLabel: context.l10n.pickerSelect(t.label),
                           ),
                           Expanded(
                             child: AssetTile.token(
@@ -86,11 +87,11 @@ class _HeldTokenPickerState extends State<HeldTokenPicker> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Expanded(child: Text('${_selected.length} selected')),
+                Expanded(child: Text(context.l10n.pickerSelectedCount('${_selected.length}'))),
                 Expanded(
                   child: FilledButton(
                     onPressed: () => Navigator.pop(context, _selected),
-                    child: const Text('Done'),
+                    child: Text(context.l10n.commonDone),
                   ),
                 ),
               ],

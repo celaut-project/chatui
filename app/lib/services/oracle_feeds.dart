@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../l10n/l10n.dart';
+
 /// The single-rate oracle pools the pricer reads straight from the user's
 /// node, and how old each may be before its rate is no longer current.
 ///
@@ -25,13 +27,17 @@ import 'package:http/http.dart' as http;
 /// over every two to eight blocks, Dexy USD's about every seven, Dexy
 /// gold's about every thirty.
 enum OracleFeed {
-  sigmaUsd('011d3364de07e5a26f0c4eef0852cddb387039a921b7154ef3cab22c6eda887f', 'SigmaUSD oracle', 60),
-  dexyUsd('6a2b821b5727e85beb5e78b4efb9f0250d59cd48481d2ded2c23e91ba1d07c66', 'Dexy USD oracle', 60),
-  dexyGold('3c45f29a5165b030fdb5eaf5d81f8108f9d8f507b31487dd51f4ae08fe07cf4a', 'Dexy gold oracle', 90);
+  sigmaUsd('011d3364de07e5a26f0c4eef0852cddb387039a921b7154ef3cab22c6eda887f', 60),
+  dexyUsd('6a2b821b5727e85beb5e78b4efb9f0250d59cd48481d2ded2c23e91ba1d07c66', 60),
+  dexyGold('3c45f29a5165b030fdb5eaf5d81f8108f9d8f507b31487dd51f4ae08fe07cf4a', 90);
 
-  const OracleFeed(this.nft, this.label, this.staleAfterBlocks);
+  const OracleFeed(this.nft, this.staleAfterBlocks);
   final String nft;
-  final String label;
+  String get label => switch (this) {
+        sigmaUsd => appL10n.oracleSigmaUsd,
+        dexyUsd => appL10n.oracleDexyUsd,
+        dexyGold => appL10n.oracleDexyGold,
+      };
   final int staleAfterBlocks;
 }
 
@@ -98,8 +104,8 @@ Future<OracleReading?> fetchOracleReading(String node, OracleFeed feed, {http.Cl
 /// a block.
 String ageText(int blocks) {
   final minutes = blocks * 2;
-  if (minutes < 120) return '$minutes min';
+  if (minutes < 120) return appL10n.priceAgeMinutes('$minutes');
   final hours = minutes ~/ 60;
-  if (hours < 48) return '$hours h';
-  return '${hours ~/ 24} days';
+  if (hours < 48) return appL10n.priceAgeHours('$hours');
+  return appL10n.priceAgeDays('${hours ~/ 24}');
 }

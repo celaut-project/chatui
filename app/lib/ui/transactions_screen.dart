@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../format.dart';
+import '../l10n/l10n.dart';
 import '../services/activity_classifier.dart' show compareActivityRows;
 import '../services/wallet_sync_controller.dart';
 import '../services/wallet_service.dart';
@@ -146,7 +147,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         _txs = _withLocal(all);
         _loading = false;
         _loadingMore = false;
-        _error = page.partial ? 'Some addresses could not be checked. Activity is incomplete.' : null;
+        _error = page.partial ? appL10n.activityPartial : null;
       });
       _prefetchNames(all);
     } catch (e) {
@@ -156,7 +157,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         _loadingMore = false;
         _hasMore = true;
         _txs = _withLocal(_txs);
-        _error = 'Could not load activity: $e';
+        _error = appL10n.activityLoadFailed('$e');
       });
     }
   }
@@ -202,7 +203,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         _txs = _withLocal([..._txs, ...deduped]);
         _loadingMore = false;
         _retryMore = false;
-        _error = page.partial ? 'Some addresses could not be checked. Activity is incomplete.' : null;
+        _error = page.partial ? appL10n.activityPartial : null;
       });
       _prefetchNames(deduped);
     } catch (e) {
@@ -211,7 +212,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           _loadingMore = false;
           _hasMore = true;
           _retryMore = true;
-          _error = 'Could not load older activity: $e';
+          _error = appL10n.activityLoadMoreFailed('$e');
         });
       }
     }
@@ -249,7 +250,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   Future<void> _exportCsv() async {
     if (_txs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No transactions to export')),
+        SnackBar(content: Text(context.l10n.activityNoneToExport)),
       );
       return;
     }
@@ -265,7 +266,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export failed: $e')),
+        SnackBar(content: Text(context.l10n.activityExportFailed('$e'))),
       );
     }
   }
@@ -282,14 +283,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               child: Row(
                 children: [
                   Text(
-                    '${_txs.length}${_hasMore ? '+' : ''} transactions',
+                    context.l10n.activityCount('${_txs.length}${_hasMore ? '+' : ''}'),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const Spacer(),
                   TextButton.icon(
                     onPressed: _exportCsv,
                     icon: const Icon(Icons.file_download_outlined, size: 16),
-                    label: const Text('Export CSV'),
+                    label: Text(context.l10n.activityExportCsv),
                   ),
                 ],
               ),
@@ -300,12 +301,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Activity'),
+        title: Text(context.l10n.activityScreenTitle),
         actions: [
           if (_txs.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.file_download),
-              tooltip: 'Export CSV',
+              tooltip: context.l10n.activityExportCsv,
               onPressed: _exportCsv,
             ),
         ],
@@ -319,7 +320,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       padding: const EdgeInsets.all(20),
       child: Column(children: [
         SelectableText(_error!),
-        TextButton(onPressed: _retryMore ? _loadMore : _reload, child: const Text('Retry')),
+        TextButton(onPressed: _retryMore ? _loadMore : _reload, child: Text(context.l10n.commonRetry)),
       ]),
     ),
     Expanded(child: _listBody(context)),
@@ -333,9 +334,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           : _txs.isEmpty
               ? EmptyState(
                   icon: Icons.inbox_outlined,
-                  title: 'No activity yet',
-                  body: 'Transactions to and from this wallet will show up here, newest first.',
-                  actionLabel: 'Refresh',
+                  title: context.l10n.activityEmptyTitle,
+                  body: context.l10n.activityEmptyBody,
+                  actionLabel: context.l10n.activityRefresh,
                   onAction: _load,
                 )
               : RefreshIndicator(

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import '../../format.dart';
+import '../../l10n/l10n.dart';
 import '../../services/token_amounts.dart';
 import 'home_models.dart';
 
@@ -112,13 +113,15 @@ String countLabel(int n, String singular, [String? plural]) =>
 String otherAddressLine(FundsElsewhere funds, {required bool hidden, bool compact = false}) {
   final parts = <String>[
     if (!hidden && funds.nanoErg != 0) '${summaryErg(funds.nanoErg)}${nbsp}ERG',
-    if (!hidden && funds.tokenCount > 0) countLabel(funds.tokenCount, 'token'),
+    if (!hidden && funds.tokenCount > 0)
+      appL10n.homeTokenCount(funds.tokenCount, groupThousands('${funds.tokenCount}')),
   ];
+  final t = appL10n;
   final where = compact && funds.addressCount == 1
-      ? 'on another address'
-      : 'on ${countLabel(funds.addressCount, 'other address', 'other addresses')}';
-  if (parts.isEmpty) return compact ? 'Funds $where' : 'incl. funds $where';
-  return compact ? '${parts.join(' · ')} $where' : 'incl.$nbsp${parts.join(' · ')} $where';
+      ? t.homeOnAnotherAddress
+      : t.homeOnOtherAddresses(funds.addressCount, groupThousands('${funds.addressCount}'));
+  if (parts.isEmpty) return compact ? t.homeFundsWhere(where) : t.homeInclFundsWhere(where);
+  return compact ? t.homePartsWhere(parts.join(' · '), where) : t.homeInclPartsWhere(parts.join(' · '), where);
 }
 
 /// What the mempool does to the balance above it: "+2.5 ERG pending ·
@@ -130,10 +133,11 @@ String otherAddressLine(FundsElsewhere funds, {required bool hidden, bool compac
 /// figures are set as every summary figure here is.
 String? pendingText(PendingBalance? pending, {required bool hidden}) {
   if (pending == null || !pending.hasPending) return null;
-  if (hidden) return '$maskedFigure${nbsp}ERG pending';
+  final t = appL10n;
+  if (hidden) return t.homeErgPendingFigure(maskedFigure);
   final delta = pending.pendingDeltaNano;
-  final lead = delta == 0 ? 'Pending' : '${signedSummaryAmount(BigInt.from(delta), 9)}${nbsp}ERG pending';
-  return '$lead · ${summaryErg(pending.confirmedNano)} confirmed';
+  final lead = delta == 0 ? t.commonPending : t.homeErgPendingFigure(signedSummaryAmount(BigInt.from(delta), 9));
+  return t.homePendingConfirmed(lead, summaryErg(pending.confirmedNano));
 }
 
 /// One leg of a transaction as a row shows it: "+2.5 ERG", "−69 COMET",
@@ -155,19 +159,21 @@ String shortActivityTime(int? timestampMs, {DateTime? now}) {
   if (timestampMs == null || timestampMs <= 0) return '';
   final at = DateTime.fromMillisecondsSinceEpoch(timestampMs);
   final today = now ?? DateTime.now();
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  final t = appL10n;
   // Calendar days, not 24-hour spans: 11 pm the night before is
   // "Yesterday" at 8 am.
   final days = DateTime.utc(today.year, today.month, today.day)
       .difference(DateTime.utc(at.year, at.month, at.day))
       .inDays;
   if (days <= 0) {
-    final hour = at.hour % 12 == 0 ? 12 : at.hour % 12;
-    return '$hour:${at.minute.toString().padLeft(2, '0')}$nbsp${at.hour < 12 ? 'am' : 'pm'}';
+    return clockTime(at, space: nbsp);
   }
-  if (days == 1) return 'Yesterday';
-  final day = '${months[at.month - 1]}$nbsp${at.day}';
-  return at.year == today.year ? day : '$day, ${at.year}';
+  if (days == 1) return t.timeYesterday;
+  final month = monthShort(at.month);
+  final day = at.year == today.year
+      ? t.dateMonthDay(month, '${at.day}')
+      : t.dateMonthDayYear(month, '${at.day}', '${at.year}');
+  return day.replaceFirst(' ', nbsp);
 }
 
 /// Splits "25,529.34" into "25,529" and ".34" so the fraction can be set

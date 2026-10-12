@@ -1,6 +1,8 @@
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 
+import '../l10n/l10n.dart';
+
 /// Platform Keystore/Keychain for the sealed seed, PIN wrap, and optional wrap key.
 class SecureStorageService {
   static const _channel = MethodChannel('com.argus.wallet/secure_storage');
@@ -13,7 +15,7 @@ class SecureStorageService {
       });
       return true;
     } on PlatformException catch (e) {
-      throw _map(e, 'Failed to save');
+      throw _map(e, appL10n.secureSaveFailed);
     }
   }
 
@@ -25,7 +27,7 @@ class SecureStorageService {
       });
       return true;
     } on PlatformException catch (e) {
-      throw _map(e, 'Failed to save wrap key');
+      throw _map(e, appL10n.secureSaveWrapKeyFailed);
     }
   }
 
@@ -36,7 +38,7 @@ class SecureStorageService {
         if (walletId != null) 'walletId': walletId,
       });
     } on PlatformException catch (e) {
-      throw _map(e, 'Failed to save PIN wrap');
+      throw _map(e, appL10n.secureSavePinWrapFailed);
     }
   }
 
@@ -67,7 +69,7 @@ class SecureStorageService {
         walletId != null ? {'walletId': walletId} : null,
       );
     } on PlatformException catch (e) {
-      throw _map(e, 'Failed to load wrap key');
+      throw _map(e, appL10n.secureLoadWrapKeyFailed);
     }
   }
 
@@ -78,7 +80,7 @@ class SecureStorageService {
         walletId != null ? {'walletId': walletId} : null,
       );
     } on PlatformException catch (e) {
-      throw _map(e, 'Failed to load PIN wrap');
+      throw _map(e, appL10n.secureLoadPinWrapFailed);
     }
   }
 
@@ -89,7 +91,7 @@ class SecureStorageService {
         walletId != null ? {'walletId': walletId} : null,
       );
     } on PlatformException catch (e) {
-      throw _map(e, 'Failed to load');
+      throw _map(e, appL10n.secureLoadFailed);
     }
   }
 
@@ -100,7 +102,7 @@ class SecureStorageService {
         walletId != null ? {'walletId': walletId} : null,
       );
     } on PlatformException catch (e) {
-      throw SecureStorageException('Failed to delete wrap key: ${e.message}');
+      throw SecureStorageException(appL10n.secureDeleteWrapKeyFailed('${e.message}'));
     }
   }
 
@@ -111,7 +113,7 @@ class SecureStorageService {
         walletId != null ? {'walletId': walletId} : null,
       );
     } on PlatformException catch (e) {
-      throw SecureStorageException('Failed to delete wallet secrets: ${e.message}');
+      throw SecureStorageException(appL10n.secureDeleteSecretsFailed('${e.message}'));
     }
   }
 
@@ -119,7 +121,7 @@ class SecureStorageService {
     try {
       await _channel.invokeMethod('deleteWallet', {'walletId': walletId});
     } on PlatformException catch (e) {
-      throw SecureStorageException('Failed to delete wallet: ${e.message}');
+      throw SecureStorageException(appL10n.secureDeleteWalletFailed('${e.message}'));
     }
   }
 
@@ -130,7 +132,7 @@ class SecureStorageService {
         walletId != null ? {'walletId': walletId} : null,
       ) ?? false;
     } on PlatformException catch (e) {
-      throw SecureStorageException('Failed to check: ${e.message}');
+      throw SecureStorageException(appL10n.secureCheckFailed('${e.message}'));
     }
   }
 
@@ -141,7 +143,7 @@ class SecureStorageService {
         walletId != null ? {'walletId': walletId} : null,
       ) ?? false;
     } on PlatformException catch (e) {
-      throw _map(e, 'Failed to check PIN wrap');
+      throw _map(e, appL10n.secureCheckPinWrapFailed);
     }
   }
 
@@ -152,7 +154,7 @@ class SecureStorageService {
         walletId != null ? {'walletId': walletId} : null,
       ) ?? false;
     } on PlatformException catch (e) {
-      throw _map(e, 'Failed to check wrap key');
+      throw _map(e, appL10n.secureCheckWrapKeyFailed);
     }
   }
 
@@ -161,7 +163,7 @@ class SecureStorageService {
       return await _channel.invokeMethod<bool>('hasBiometric') ?? false;
     } on PlatformException catch (e) {
       if (e.code == 'BIOMETRIC') return false;
-      throw _map(e, 'Failed to check biometrics');
+      throw _map(e, appL10n.secureCheckBiometricsFailed);
     }
   }
 
@@ -176,7 +178,7 @@ class SecureStorageService {
       return null;
     } on PlatformException catch (e) {
       if (_isCancel(e)) return null;
-      throw _map(e, 'Biometric');
+      throw _map(e, appL10n.secureBiometric);
     }
   }
 
@@ -200,7 +202,7 @@ class SecureStorageService {
       }
       return (count: 0, until: 0);
     } on PlatformException catch (e) {
-      throw _map(e, 'Failed to load PIN gate');
+      throw _map(e, appL10n.secureLoadPinGateFailed);
     }
   }
 
@@ -209,7 +211,7 @@ class SecureStorageService {
     final now = DateTime.now().millisecondsSinceEpoch;
     if (gate.until > now) {
       final wait = ((gate.until - now) / 1000).ceil();
-      return 'Too many attempts. Try again in ${wait}s';
+      return appL10n.secureTooManyAttempts('$wait');
     }
     return null;
   }
@@ -232,7 +234,7 @@ class SecureStorageService {
     try {
       await _channel.invokeMethod('savePinGate', {'count': count, 'until': until});
     } on PlatformException catch (e) {
-      throw SecureStorageException('Failed to persist PIN gate: ${e.message}');
+      throw SecureStorageException(appL10n.securePersistPinGateFailed('${e.message}'));
     }
   }
 
@@ -242,7 +244,7 @@ class SecureStorageService {
       final result = await _channel.invokeMethod<List<dynamic>>('listWalletIds');
       return result?.map((e) => e.toString()).toList() ?? [];
     } on PlatformException catch (e) {
-      throw SecureStorageException('Failed to list wallets: ${e.message}');
+      throw SecureStorageException(appL10n.secureListWalletsFailed('${e.message}'));
     }
   }
 
@@ -286,7 +288,7 @@ class SecureStorageException implements Exception {
   SecureStorageException(this.message) : isBiometricChanged = false;
 
   SecureStorageException.biometricChanged()
-      : message = 'Biometric enrollment changed; re-enter mnemonic',
+      : message = appL10n.secureBiometricChanged,
         isBiometricChanged = true;
 
   @override

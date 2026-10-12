@@ -5,6 +5,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../format.dart';
+import '../l10n/l10n.dart';
 import '../services/address_label_service.dart';
 import '../services/session_lock.dart';
 import '../services/privacy_service.dart';
@@ -81,7 +82,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
         await sessionLock.run(() => Clipboard.setData(ClipboardData(text: a)));
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${shorten(a, head: 8, tail: 6)} copied')),
+            SnackBar(content: Text(context.l10n.receiveCopied(shorten(a, head: 8, tail: 6)))),
           );
         }
       },
@@ -117,22 +118,22 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
         privacyService.useUnusedChangeAddress(walletService.activeWalletId);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Receive')),
+      appBar: AppBar(title: Text(context.l10n.receiveTitle)),
       body: ListView(
         padding: EdgeInsets.fromLTRB(
                 28, 16, 28, 40 + MediaQuery.paddingOf(context).bottom),
         children: [
           SectionLabel(fresh
-              ? 'Unused address' : 'Receive address'),
+              ? context.l10n.receiveUnusedAddress : context.l10n.receiveAddress),
           const SizedBox(height: 8),
           Text(
             args.watchOnly
                 ? args.watchAccount
-                    ? 'Unused payment address. A new one is offered after payment. $watchAccountLimitations'
-                    : 'Payments to this address go to the watched wallet.'
+                    ? context.l10n.receiveWatchAccountNote(watchAccountLimitations)
+                    : context.l10n.receiveWatchedNote
                 : fresh
-                ? 'A new address is shown after this one is used.'
-                : 'This address stays the same. Turn on Fresh addresses in Settings to use a new one after each payment.',
+                ? context.l10n.receiveFreshNote
+                : context.l10n.receiveStaticNote,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 20),
@@ -140,7 +141,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
             key: const Key('receive-amount'),
             controller: _amountCtrl,
             decoration: InputDecoration(
-              labelText: 'Optional amount (ERG)',
+              labelText: context.l10n.receiveAmountLabel,
               hintText: '0.001',
               errorText: _amountError,
               suffixIcon: const Icon(Icons.tag),
@@ -199,7 +200,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                     TextButton.icon(
                       onPressed: () => _editLabel(address),
                       icon: const Icon(Icons.edit, size: 14),
-                      label: Text(label == null ? 'Add label' : 'Edit label'),
+                      label: Text(label == null ? context.l10n.receiveAddLabel : context.l10n.receiveEditLabel),
                     ),
                   ],
                 );
@@ -218,10 +219,10 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                 : () {
                     Clipboard.setData(ClipboardData(text: address));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Address copied')),
+                      SnackBar(content: Text(context.l10n.commonAddressCopied)),
                     );
                   },
-            child: const Text('Copy address'),
+            child: Text(context.l10n.receiveCopyAddress),
           ),
           const SizedBox(height: 12),
           OutlinedButton(
@@ -230,14 +231,14 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                 : () => sessionLock.run(
                       () => SharePlus.instance.share(ShareParams(text: _qrData)),
                     ),
-            child: const Text('Share'),
+            child: Text(context.l10n.receiveShare),
           ),
           if (!args.watchOnly && args.historyAddresses.where((a) => a != address).isNotEmpty) ...[
             const SizedBox(height: 28),
-            const SectionLabel('Used addresses'),
+            SectionLabel(context.l10n.receiveUsedAddresses),
             const SizedBox(height: 4),
             Text(
-              'Older addresses keep working; tap one to copy it.',
+              context.l10n.receiveUsedAddressesNote,
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
@@ -269,10 +270,10 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
   if (trimmed.isEmpty) return (payload: address, error: null);
   final nano = parseErgToNano(trimmed);
   if (nano == null) {
-    return (payload: address, error: 'Amount must be a decimal number, like 0.001');
+    return (payload: address, error: appL10n.receiveAmountInvalid);
   }
   if (nano <= 0) {
-    return (payload: address, error: 'Amount must be greater than zero');
+    return (payload: address, error: appL10n.receiveAmountNotPositive);
   }
   return (payload: 'ergo:$address?amount=${formatErg(nano, unit: false)}', error: null);
 }

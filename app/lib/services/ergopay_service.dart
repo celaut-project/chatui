@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import '../l10n/l10n.dart';
 import 'network_controller.dart';
 
 /// EIP-20 ErgoPay: a dApp hands the wallet a reduced transaction, either
@@ -132,15 +133,15 @@ class ErgoPayClient {
           .get(Uri.parse(url), headers: const {'accept': 'application/json'})
           .timeout(_timeout);
     } catch (e) {
-      throw ErgoPayException('Could not reach the dApp: $e');
+      throw ErgoPayException(appL10n.ergopayErrorUnreachable('$e'));
     }
     if (res.statusCode != 200) {
-      throw ErgoPayException('The dApp answered HTTP ${res.statusCode}');
+      throw ErgoPayException(appL10n.ergopayErrorHttp('${res.statusCode}'));
     }
     try {
       return ErgoPayRequest.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
     } catch (_) {
-      throw const ErgoPayException('The dApp sent an unreadable signing request');
+      throw ErgoPayException(appL10n.ergopayErrorUnreadable);
     }
   }
 
@@ -155,10 +156,10 @@ class ErgoPayClient {
           )
           .timeout(_timeout);
     } catch (e) {
-      throw ErgoPayException('Could not notify the dApp: $e');
+      throw ErgoPayException(appL10n.ergopayErrorNotify('$e'));
     }
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw ErgoPayException('The dApp rejected the reply (HTTP ${res.statusCode})');
+      throw ErgoPayException(appL10n.ergopayErrorReplyRejected('${res.statusCode}'));
     }
   }
 }

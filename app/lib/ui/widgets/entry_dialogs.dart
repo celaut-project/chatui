@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../format.dart';
+import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
 import '../pin_fields.dart';
 
@@ -33,8 +34,8 @@ class TextEntryDialog extends StatefulWidget {
     this.autofocus = true,
     this.submitOnEnter = false,
     this.stretch = false,
-    this.confirmLabel = 'Save',
-    this.cancelLabel = 'Cancel',
+    this.confirmLabel,
+    this.cancelLabel,
     this.fieldKey,
     this.confirmKey,
   });
@@ -62,8 +63,10 @@ class TextEntryDialog extends StatefulWidget {
 
   /// The intro and field take the dialog's full width.
   final bool stretch;
-  final String confirmLabel;
-  final String cancelLabel;
+
+  /// Save and Cancel when null.
+  final String? confirmLabel;
+  final String? cancelLabel;
   final Key? fieldKey;
   final Key? confirmKey;
 
@@ -114,12 +117,12 @@ class _TextEntryDialogState extends State<TextEntryDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text(w.cancelLabel),
+          child: Text(w.cancelLabel ?? context.l10n.commonCancel),
         ),
         FilledButton(
           key: w.confirmKey,
           onPressed: _submit,
-          child: Text(w.confirmLabel),
+          child: Text(w.confirmLabel ?? context.l10n.commonSave),
         ),
       ],
     );
@@ -135,13 +138,13 @@ Future<String?> showAddressLabelDialog(
 }) => showDialog<String>(
   context: context,
   builder: (ctx) => TextEntryDialog(
-    title: 'Address label',
+    title: ctx.l10n.labelDialogTitle,
     intro: SelectableText(
       shorten(address, head: 10, tail: 8),
       style: monoStyle(ctx, size: 11),
     ),
     initial: existing,
-    label: 'Label (optional)',
+    label: ctx.l10n.labelOptional,
     textCapitalization: TextCapitalization.words,
   ),
 );
@@ -161,24 +164,28 @@ class PinEntryDialog extends StatefulWidget {
     super.key,
     required this.title,
     this.askCurrent = false,
-    this.currentLabel = 'Current PIN',
+    this.currentLabel,
     this.pinLabel = 'PIN',
     this.askConfirm = false,
-    this.confirmLabel = 'Continue',
-    this.cancelLabel = 'Cancel',
+    this.confirmLabel,
+    this.cancelLabel,
   });
 
   final String title;
 
   /// A "Current PIN" field above the new one, for a change.
   final bool askCurrent;
-  final String currentLabel;
+
+  /// Current PIN when null.
+  final String? currentLabel;
   final String pinLabel;
 
   /// A second field that must repeat the PIN.
   final bool askConfirm;
-  final String confirmLabel;
-  final String cancelLabel;
+
+  /// Continue and Cancel when null.
+  final String? confirmLabel;
+  final String? cancelLabel;
 
   @override
   State<PinEntryDialog> createState() => _PinEntryDialogState();
@@ -213,7 +220,7 @@ class _PinEntryDialogState extends State<PinEntryDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (w.askCurrent) ...[
-            PinFields(pin: _current, label: w.currentLabel),
+            PinFields(pin: _current, label: w.currentLabel ?? context.l10n.entryCurrentPin),
             const SizedBox(height: 12),
           ],
           PinFields(
@@ -226,9 +233,9 @@ class _PinEntryDialogState extends State<PinEntryDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text(w.cancelLabel),
+          child: Text(w.cancelLabel ?? context.l10n.commonCancel),
         ),
-        FilledButton(onPressed: _submit, child: Text(w.confirmLabel)),
+        FilledButton(onPressed: _submit, child: Text(w.confirmLabel ?? context.l10n.entryContinue)),
       ],
     );
   }

@@ -13,6 +13,7 @@ import '../../theme/argus_theme.dart';
 import '../token_avatar.dart';
 import 'asset_tile.dart';
 import 'remote_preview.dart';
+import '../../l10n/l10n.dart';
 
 class TokenDetailSheet extends StatefulWidget {
   const TokenDetailSheet({
@@ -75,26 +76,25 @@ class _TokenDetailSheetState extends State<TokenDetailSheet>
     final host = Uri.tryParse(provider)?.host ?? '';
     if (host.isEmpty || host.runes.any((c) => c > 127)) {
       setState(
-        () => _error = 'Configure an ASCII/punycode HTTPS metadata provider',
+        () => _error = context.l10n.tokenMetaAsciiProvider,
       );
       return;
     }
     final yes = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Load metadata from $host'),
+        title: Text(context.l10n.tokenMetaLoadFrom(host)),
         content: Text(
-          'This provider can see your IP address and the token ID requested. '
-          'Issuer text may be misleading. No artwork will be downloaded.',
+          context.l10n.tokenMetaPrivacy,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Load metadata'),
+            child: Text(context.l10n.tokenMetaLoad),
           ),
         ],
       ),
@@ -122,8 +122,8 @@ class _TokenDetailSheetState extends State<TokenDetailSheet>
       if (mounted) {
         setState(
           () => _error = busy
-              ? 'Another metadata request is finishing — try again'
-              : 'Metadata unavailable from $host',
+              ? context.l10n.tokenMetaBusy
+              : context.l10n.tokenMetaUnavailableFrom(host),
         );
       }
     } finally {
@@ -140,10 +140,10 @@ class _TokenDetailSheetState extends State<TokenDetailSheet>
     ]),
     builder: (context, _) {
       if (_concealed || privacyService.hideBalances) {
-        return const SafeArea(
+        return SafeArea(
           child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text('Asset details hidden'),
+            padding: const EdgeInsets.all(24),
+            child: Text(context.l10n.tokenDetailsHidden),
           ),
         );
       }
@@ -163,11 +163,11 @@ class _TokenDetailSheetState extends State<TokenDetailSheet>
                 children: [
                   if (_error != null) Text(_error!),
                   if (networkController.activeUrl == null)
-                    const Text('Metadata unavailable offline'),
+                    Text(context.l10n.tokenMetaOffline),
                   if (_loading)
                     TextButton(
                       onPressed: walletService.clearSessionMetadata,
-                      child: const Text('Cancel metadata request'),
+                      child: Text(context.l10n.tokenMetaCancel),
                     ),
                   TextButton(
                     onPressed:
@@ -177,7 +177,7 @@ class _TokenDetailSheetState extends State<TokenDetailSheet>
                         ? null
                         : () => _load(node: true),
                     child: Text(
-                      'Load metadata from ${Uri.tryParse(networkController.activeUrl ?? "")?.host ?? "node"} (node)',
+                      context.l10n.tokenMetaLoadFromNode(Uri.tryParse(networkController.activeUrl ?? "")?.host ?? context.l10n.tokenMetaHostNode),
                     ),
                   ),
                   TextButton(
@@ -189,8 +189,8 @@ class _TokenDetailSheetState extends State<TokenDetailSheet>
                         : () => _load(),
                     child: Text(
                       _loading
-                          ? 'Loading metadata…'
-                          : 'Load metadata from ${Uri.tryParse(networkController.explorer)?.host ?? "provider"}',
+                          ? context.l10n.tokenMetaLoading
+                          : context.l10n.tokenMetaLoadFrom(Uri.tryParse(networkController.explorer)?.host ?? context.l10n.tokenMetaHostProvider),
                     ),
                   ),
                 ],
@@ -280,7 +280,7 @@ class _TokenDetailBody extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         verified != null
-                            ? 'Curated token · ${verified.project}'
+                            ? context.l10n.tokenCurated(verified.project)
                             : token.classification,
                         style: TextStyle(
                           fontSize: 12.5,
@@ -317,7 +317,7 @@ class _TokenDetailBody extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Caution: ${caution.note ?? 'this token is flagged.'}',
+                        context.l10n.tokenCaution(caution.note ?? context.l10n.tokenCautionDefault),
                         style: TextStyle(fontSize: 13, color: rustFor(context)),
                       ),
                     ),
@@ -342,7 +342,7 @@ class _TokenDetailBody extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'This token is named like ${impersonates.ticker}, but it is not the verified ${impersonates.ticker} from ${impersonates.project}. Check the id before trusting it.',
+                        context.l10n.tokenImpersonation(impersonates.ticker, impersonates.project),
                         style: TextStyle(fontSize: 13, color: rustFor(context)),
                       ),
                     ),
@@ -352,7 +352,7 @@ class _TokenDetailBody extends StatelessWidget {
             ],
             const SizedBox(height: 20),
             if (token.isCollectible || token.iconUrl != null) ...[
-              Text('Artwork', style: theme.textTheme.titleMedium),
+              Text(context.l10n.artworkTitle, style: theme.textTheme.titleMedium),
               const SizedBox(height: 10),
               if (token.iconUrl != null)
                 RemotePreview(
@@ -363,16 +363,15 @@ class _TokenDetailBody extends StatelessWidget {
                 )
               else
                 Text(switch (token.mediaState) {
-                  MediaState.absent => 'No media link in issuance metadata.',
-                  MediaState.unknown =>
-                    'Load metadata below to check for artwork.',
-                  MediaState.unsupported => 'Preview not supported',
-                  MediaState.notLoaded => 'Artwork link unavailable',
+                  MediaState.absent => context.l10n.artworkNoMediaLink,
+                  MediaState.unknown => context.l10n.artworkLoadBelow,
+                  MediaState.unsupported => context.l10n.artworkPreviewUnsupported,
+                  MediaState.notLoaded => context.l10n.artworkLinkUnavailable,
                 }),
               const SizedBox(height: 16),
             ],
             if (token.description != null) ...[
-              Text('Description', style: theme.textTheme.titleSmall),
+              Text(context.l10n.tokenDescription, style: theme.textTheme.titleSmall),
               const SizedBox(height: 6),
               Text(
                 issuerText(token.description, limit: 4096),
@@ -381,7 +380,7 @@ class _TokenDetailBody extends StatelessWidget {
               const SizedBox(height: 20),
             ],
             Text(
-              'YOU HOLD',
+              context.l10n.tokenYouHold,
               style: theme.textTheme.titleSmall?.copyWith(color: muted),
             ),
             const SizedBox(height: 4),
@@ -395,7 +394,7 @@ class _TokenDetailBody extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             Text(
-              'TOKEN ID',
+              context.l10n.tokenIdCaps,
               style: theme.textTheme.titleSmall?.copyWith(color: muted),
             ),
             const SizedBox(height: 6),
@@ -418,11 +417,11 @@ class _TokenDetailBody extends StatelessWidget {
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: token.id));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Token id copied')),
+                      SnackBar(content: Text(context.l10n.tokenIdCopied)),
                     );
                   },
                   icon: const Icon(Icons.copy, size: 16),
-                  label: const Text('Copy id'),
+                  label: Text(context.l10n.commonCopyId),
                 ),
                 TextButton.icon(
                   onPressed: () async {
@@ -434,18 +433,18 @@ class _TokenDetailBody extends StatelessWidget {
                     final yes = await showDialog<bool>(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        title: Text('Leave Celaut for ${uri.host}?'),
-                        content: const Text(
-                          'The explorer can see your IP address and this token ID.',
+                        title: Text(context.l10n.tokenLeaveFor(uri.host)),
+                        content: Text(
+                          context.l10n.tokenExplorerPrivacy,
                         ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(ctx, false),
-                            child: const Text('Cancel'),
+                            child: Text(context.l10n.commonCancel),
                           ),
                           TextButton(
                             onPressed: () => Navigator.pop(ctx, true),
-                            child: const Text('Open explorer'),
+                            child: Text(context.l10n.tokenOpenExplorer),
                           ),
                         ],
                       ),
@@ -457,13 +456,13 @@ class _TokenDetailBody extends StatelessWidget {
                       );
                   },
                   icon: const Icon(Icons.open_in_browser, size: 16),
-                  label: const Text('Explorer'),
+                  label: Text(context.l10n.tokenExplorer),
                 ),
               ],
             ),
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
-              title: const Text('Metadata & media details'),
+              title: Text(context.l10n.tokenMetaDetails),
               childrenPadding: const EdgeInsets.only(bottom: 12),
               expandedCrossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -471,39 +470,38 @@ class _TokenDetailBody extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   token.supplyEvidence == SupplyEvidence.originalEmission
-                      ? 'Original emission: ${token.emissionAmount} (provider reported)'
-                      : 'Original emission unavailable',
+                      ? context.l10n.tokenOriginalEmission('${token.emissionAmount}')
+                      : context.l10n.tokenOriginalEmissionUnavailable,
                 ),
                 Text(
                   scaled
-                      ? 'Decimals: ${token.decimals} · ${switch (token.decimalsEvidence) {
-                          DecimalsEvidence.valid => 'declared by the issuer',
-                          DecimalsEvidence.absent => 'none declared, so whole units',
-                          DecimalsEvidence.listed => 'from a token list',
-                          DecimalsEvidence.unknown || DecimalsEvidence.invalid => 'as last shown',
-                        }}'
-                      : 'Decimals unknown · amounts are shown in raw units',
+                      ? context.l10n.tokenDecimalsLine('${token.decimals}', switch (token.decimalsEvidence) {
+                          DecimalsEvidence.valid => context.l10n.tokenDecimalsDeclared,
+                          DecimalsEvidence.absent => context.l10n.tokenDecimalsNone,
+                          DecimalsEvidence.listed => context.l10n.tokenDecimalsListed,
+                          DecimalsEvidence.unknown || DecimalsEvidence.invalid => context.l10n.tokenDecimalsLastShown,
+                        })
+                      : context.l10n.tokenDecimalsUnknown,
                 ),
-                Text('Declared artwork kind: ${token.declaredAssetKind.name}'),
+                Text(context.l10n.tokenDeclaredKind(token.declaredAssetKind.name)),
                 if (token.source != null)
                   Text(
-                    'Metadata source: ${token.source}',
+                    context.l10n.tokenMetaSource('${token.source}'),
                     textDirection: TextDirection.ltr,
                   ),
                 const SizedBox(height: 8),
                 Text(switch (token.mediaState) {
-                  MediaState.absent => 'No media link in issuance metadata.',
-                  MediaState.unknown => 'Media metadata unavailable',
-                  MediaState.unsupported => 'Preview not supported',
-                  MediaState.notLoaded =>
-                    'Artwork is loaded only with your consent',
+                  MediaState.absent => context.l10n.artworkNoMediaLink,
+                  MediaState.unknown => context.l10n.artworkMediaUnavailable,
+                  MediaState.unsupported => context.l10n.artworkPreviewUnsupported,
+                  MediaState.notLoaded => context.l10n.artworkConsent,
                 }),
                 if (token.iconUrl != null) ...[
                   const SizedBox(height: 8),
                   Text(
                     token.issuanceHash == null
-                        ? 'Issuance media hash missing or invalid'
-                        : 'Issuance media hash: ${token.issuanceHash}',
+                        ? context.l10n.tokenMediaHashMissing
+                        : context.l10n.tokenMediaHash('${token.issuanceHash}'),
                     textDirection: TextDirection.ltr,
                   ),
                   const SizedBox(height: 8),
@@ -514,12 +512,12 @@ class _TokenDetailBody extends StatelessWidget {
                   TextButton(
                     onPressed: () =>
                         Clipboard.setData(ClipboardData(text: token.iconUrl!)),
-                    child: const Text('Copy media URI as text'),
+                    child: Text(context.l10n.tokenCopyMediaUri),
                   ),
                 ],
                 if (token.rawRegisters != null)
                   ExpansionTile(
-                    title: const Text('Original issuance registers (hex)'),
+                    title: Text(context.l10n.tokenIssuanceRegisters),
                     children: [
                       SelectableText(
                         token.rawRegisters!,
@@ -535,7 +533,7 @@ class _TokenDetailBody extends StatelessWidget {
                 key: const Key('token-send'),
                 onPressed: () => send(token),
                 icon: const Icon(Icons.north_east, size: 17),
-                label: Text('Send ${token.label}'),
+                label: Text(context.l10n.tokenSend(token.label)),
               ),
             ],
           ],
@@ -595,14 +593,14 @@ class _PriceLine extends StatelessWidget {
     final String text;
     if (price == null || unit == null) {
       text = tokenPricer.result.ergUsd == null
-          ? 'No price yet · $priceSourceLabel have not answered'
-          : 'No price · no oracle pool prices this token';
+          ? context.l10n.priceNoneYet(priceSourceLabel)
+          : context.l10n.priceNoPool;
     } else {
       text = [
-        '$unit each',
-        if (held != null) '$held held',
+        context.l10n.priceEach(unit),
+        if (held != null) context.l10n.priceHeld(held),
         price.via,
-        if (!price.countsInTotal) 'not counted in totals (stale)',
+        if (!price.countsInTotal) context.l10n.priceNotCounted,
       ].join(' · ');
     }
     return Text(text, style: TextStyle(fontSize: 12.5, color: muted));

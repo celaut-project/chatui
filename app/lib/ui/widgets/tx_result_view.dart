@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../services/network_controller.dart';
 import '../../services/wallet_service.dart';
 import '../../theme/argus_theme.dart';
+import '../../l10n/l10n.dart';
 
 /// A receipt for a submitted transaction, not a claim of chain confirmation.
 /// Callers own the wording and navigation; receipt actions stay shared.
@@ -51,7 +52,7 @@ class TxResultView extends StatelessWidget {
           const SizedBox(height: 8),
           const SizedBox(width: 48, child: Hairline(gold: true)),
           const SizedBox(height: 16),
-          const Text('Transaction ID'),
+          Text(context.l10n.txResultId),
           const SizedBox(height: 8),
           SelectableText(txId, style: monoStyle(context, size: 12)),
           if (warnings.isNotEmpty) ...[
@@ -68,11 +69,11 @@ class TxResultView extends StatelessWidget {
               await Clipboard.setData(ClipboardData(text: txId));
               if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Transaction ID copied')),
+                SnackBar(content: Text(context.l10n.txResultIdCopied)),
               );
             },
             icon: const Icon(Icons.copy, size: 16),
-            label: const Text('Copy id'),
+            label: Text(context.l10n.commonCopyId),
           ),
           TextButton.icon(
             onPressed: () => launchUrl(
@@ -80,10 +81,10 @@ class TxResultView extends StatelessWidget {
               mode: explorerLaunchMode,
             ),
             icon: const Icon(Icons.open_in_browser, size: 16),
-            label: const Text('View on explorer'),
+            label: Text(context.l10n.txViewOnExplorer),
           ),
           const SizedBox(height: 20),
-          FilledButton(onPressed: onDismiss, child: const Text('Done')),
+          FilledButton(onPressed: onDismiss, child: Text(context.l10n.commonDone)),
         ],
       ),
     );
@@ -106,8 +107,7 @@ Future<String?> txBookkeeping(Future<void> Function() update) async {
     await update();
     return null;
   } catch (e) {
-    return 'Transaction submitted, but local tracking could not be updated: $e. '
-        'Keep this transaction ID and check Activity before retrying.';
+    return appL10n.txBookkeepingFailed('$e');
   }
 }
 

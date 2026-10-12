@@ -2,6 +2,7 @@ import '../../services/activity_classifier.dart';
 import '../../services/address_holdings.dart';
 import '../../services/pending_balance.dart';
 import 'overview_model.dart';
+import '../../l10n/l10n.dart';
 
 export '../../services/activity_classifier.dart' show ActivityKind;
 export '../../services/address_holdings.dart' show FundsElsewhere;
@@ -353,7 +354,7 @@ class WatchedDetails {
     required this.status,
     this.error,
     this.notes = const [],
-    this.addressTitle = 'Address',
+    this.addressTitle,
     this.addressNote,
     this.canSend = true,
     this.canReceive = true,
@@ -365,7 +366,8 @@ class WatchedDetails {
 
   /// What this wallet can and cannot do, one sentence each.
   final List<String> notes;
-  final String addressTitle;
+  /// Null for "Address" in the language of the app.
+  final String? addressTitle;
   final String? addressNote;
 
   /// False while the action cannot work, e.g. before an account's first
@@ -386,8 +388,8 @@ class WalletPageData {
     this.activity = const [],
     this.activityLoading = false,
     this.activityError,
-    this.activityEmpty = 'No activity yet',
-    this.activityEmptyAction = 'Show my address',
+    this.activityEmpty,
+    this.activityEmptyAction = showMyAddress,
     this.utxoCount,
     this.fragmented = false,
     this.unpricedCount = 0,
@@ -424,9 +426,13 @@ class WalletPageData {
   final String? activityError;
 
   /// What an empty activity list says, and the link that goes with it
-  /// (the wallet's Receive), if any.
-  final String activityEmpty;
+  /// (the wallet's Receive), if any. Null and [showMyAddress] stand for
+  /// "No activity yet" and "Show my address" in the language of the app.
+  final String? activityEmpty;
   final String? activityEmptyAction;
+
+  /// The default [activityEmptyAction].
+  static const showMyAddress = 'Show my address';
 
   final int? utxoCount;
 
@@ -470,7 +476,7 @@ class WalletPageData {
           ? const [WalletToolEntry(WalletTool.addresses)]
           : [
               const WalletToolEntry(WalletTool.tokens),
-              WalletToolEntry(WalletTool.utxos, status: fragmented ? 'Fragmented' : null, warn: fragmented),
+              WalletToolEntry(WalletTool.utxos, status: fragmented ? appL10n.homeFragmented : null, warn: fragmented),
               const WalletToolEntry(WalletTool.addresses),
               const WalletToolEntry(WalletTool.lock),
             ]);

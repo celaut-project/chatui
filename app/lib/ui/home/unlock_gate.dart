@@ -7,6 +7,7 @@ import 'home_hero.dart';
 import 'home_scene.dart';
 import 'wallet_page.dart';
 import 'home_style.dart';
+import '../../l10n/l10n.dart';
 
 /// How a locked seed wallet can be opened on this device.
 enum UnlockMethod {
@@ -100,8 +101,8 @@ class UnlockGate extends StatelessWidget {
                 children: [
                   if (lastKnownNano != null)
                     HomeBalance(
-                      label: 'Balance',
-                      labelExtra: 'Locked',
+                      label: context.l10n.homeBalanceLabel,
+                      labelExtra: context.l10n.homeLocked,
                       nanoErg: lastKnownNano,
                       // No fiat value: it would be today's price on an old
                       // balance. The age says what the figure is.
@@ -118,7 +119,7 @@ class UnlockGate extends StatelessWidget {
                         children: [
                           Icon(Icons.lock_outline, size: 14, color: t.muted),
                           const SizedBox(width: 6),
-                          Text('LOCKED', style: t.label),
+                          Text(context.l10n.homeLockedCaps, style: t.label),
                         ],
                       ),
                     ),
@@ -130,7 +131,7 @@ class UnlockGate extends StatelessWidget {
                 IdentityPill(address: address!, pinnedIndex: pinnedIndex),
               ],
               const SizedBox(height: 14),
-              Text('Unlock to see activity, send and receive.', style: t.secondary.copyWith(color: t.ink, fontSize: 14.5)),
+              Text(context.l10n.homeUnlockPrompt, style: t.secondary.copyWith(color: t.ink, fontSize: 14.5)),
             ],
           ),
         ),
@@ -145,14 +146,14 @@ class UnlockGate extends StatelessWidget {
                   key: const Key('gate-unlock'),
                   onPressed: busy ? null : onUnlock,
                   icon: busy ? spinner : const Icon(Icons.fingerprint),
-                  label: const Text('Unlock'),
+                  label: Text(context.l10n.homeUnlock),
                 ),
                 const SizedBox(height: 8),
                 TextButton(
                   key: const Key('gate-use-pin'),
                   onPressed: busy ? null : onUsePin,
                   style: TextButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                  child: const Text('Use PIN'),
+                  child: Text(context.l10n.homeUsePin),
                 ),
               ] else if (showPin) ...[
                 PinFields(
@@ -166,24 +167,24 @@ class UnlockGate extends StatelessWidget {
                 FilledButton(
                   key: const Key('gate-unlock-pin'),
                   onPressed: busy ? null : onUnlockWithPin,
-                  child: busy ? spinner : const Text('Unlock'),
+                  child: busy ? spinner : Text(context.l10n.homeUnlock),
                 ),
                 if (method == UnlockMethod.biometric && onUseBiometrics != null) ...[
                   const SizedBox(height: 8),
                   TextButton(
                     onPressed: busy ? null : onUseBiometrics,
                     style: TextButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                    child: const Text('Use biometrics'),
+                    child: Text(context.l10n.homeUseBiometrics),
                   ),
                 ],
               ] else if (method == UnlockMethod.legacy)
                 FilledButton(
                   onPressed: busy ? null : onUnlockLegacy,
-                  child: busy ? spinner : const Text('Unlock and set PIN'),
+                  child: busy ? spinner : Text(context.l10n.homeUnlockAndSetPin),
                 )
               else
                 Text(
-                  "This wallet's keys are not stored on this device.",
+                  context.l10n.homeKeysNotHere,
                   textAlign: TextAlign.center,
                   style: t.secondary.copyWith(color: rustFor(context)),
                 ),

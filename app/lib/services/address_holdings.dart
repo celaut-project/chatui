@@ -1,4 +1,5 @@
 import '../format.dart';
+import '../l10n/l10n.dart';
 
 /// What one address of a wallet held in the balance read that produced the
 /// wallet's total.
@@ -161,13 +162,11 @@ FundsElsewhere? fundsElsewhere(
 /// "incl. 3.2 ERG · 4 tokens on 1 other address". With balances hidden it
 /// still says that funds sit elsewhere, but not how much.
 String fundsElsewhereLine(FundsElsewhere funds, {bool hidden = false}) {
-  final where =
-      'on ${funds.addressCount} other ${funds.addressCount == 1 ? 'address' : 'addresses'}';
-  if (hidden) return 'incl. funds $where';
+  final t = appL10n;
+  if (hidden) return t.holdingsFundsElsewhereHidden(funds.addressCount);
   final parts = <String>[
     if (funds.nanoErg > 0) formatErg(funds.nanoErg, maxFrac: 4),
-    if (funds.tokenCount > 0)
-      '${funds.tokenCount} ${funds.tokenCount == 1 ? 'token' : 'tokens'}',
+    if (funds.tokenCount > 0) t.holdingsTokenCount(funds.tokenCount),
   ];
-  return 'incl. ${parts.join(' · ')} $where';
+  return t.holdingsFundsElsewhere(parts.join(' · '), funds.addressCount);
 }

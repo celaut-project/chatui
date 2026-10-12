@@ -1,3 +1,5 @@
+import 'l10n/l10n.dart';
+
 String formatScaled(int amount, int decimals, {int? maxFrac}) {
   final sign = amount < 0 ? '-' : '';
   return _formatScaled(BigInt.from(amount.abs()), decimals, maxFrac, sign);
@@ -98,7 +100,7 @@ PaymentRequest? parseErgoUri(String raw) {
 }
 
 String formatHeight(int? height) {
-  if (height == null || height <= 0) return 'Unconfirmed';
+  if (height == null || height <= 0) return appL10n.formatUnconfirmed;
   return '#$height';
 }
 
@@ -125,7 +127,7 @@ String formatTxTime(int? timestampMs) {
 }
 
 String dayKey(int? timestampMs) {
-  if (timestampMs == null || timestampMs <= 0) return 'Unknown day';
+  if (timestampMs == null || timestampMs <= 0) return appL10n.dateUnknownDay;
   final dt = DateTime.fromMillisecondsSinceEpoch(timestampMs, isUtc: true).toLocal();
   return '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
 }
@@ -136,50 +138,46 @@ String formatActivityTime(int? timestampMs) {
   if (timestampMs == null || timestampMs <= 0) return '';
   final dt = DateTime.fromMillisecondsSinceEpoch(timestampMs, isUtc: true).toLocal();
   final now = DateTime.now();
-  const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-  ];
-  final hour12 = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-  final minute = dt.minute.toString().padLeft(2, '0');
-  final period = dt.hour < 12 ? 'am' : 'pm';
-  final time = '$hour12:$minute $period';
+  final t = appL10n;
+  final time = clockTime(dt);
   final todayStart = DateTime.utc(now.year, now.month, now.day);
   final dayStart = DateTime.utc(dt.year, dt.month, dt.day);
   final dayDiff = todayStart.difference(dayStart).inDays;
-  if (dayDiff == 0) return 'Today, $time';
-  if (dayDiff == 1) return 'Yesterday, $time';
+  if (dayDiff == 0) return t.timeToday(time);
+  if (dayDiff == 1) return t.timeYesterdayAt(time);
   if (dt.year != now.year) {
-    return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
+    return t.dateMonthDayYear(monthShort(dt.month), '${dt.day}', '${dt.year}');
   }
-  return '${months[dt.month - 1]} ${dt.day}, $time';
+  return t.dateMonthDayTime(monthShort(dt.month), '${dt.day}', time);
 }
 
 /// Human-readable relative time (e.g. "2 min ago", "1h ago", "yesterday").
 String formatRelativeTime(DateTime? when, {DateTime? now}) {
   if (when == null) return '';
+  final t = appL10n;
   final reference = now ?? DateTime.now();
   final diff = reference.difference(when);
-  if (diff.isNegative) return 'Just now';
-  if (diff.inSeconds < 5) return 'Just now';
-  if (diff.inMinutes < 1) return '${diff.inSeconds}s ago';
-  if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
-  if (diff.inHours < 24) return '${diff.inHours}h ago';
+  if (diff.isNegative) return t.timeJustNow;
+  if (diff.inSeconds < 5) return t.timeJustNow;
+  if (diff.inMinutes < 1) return t.timeSecondsAgo(diff.inSeconds);
+  if (diff.inMinutes < 60) return t.timeMinutesAgo(diff.inMinutes);
+  if (diff.inHours < 24) return t.timeHoursAgo(diff.inHours);
   final dayDiff = DateTime.utc(reference.year, reference.month, reference.day)
       .difference(DateTime.utc(when.year, when.month, when.day))
       .inDays;
-  if (dayDiff == 1) return 'Yesterday';
-  if (dayDiff < 7) return '${dayDiff} days ago';
-  return '${when.month}/${when.day}/${when.year}';
+  if (dayDiff == 1) return t.timeYesterday;
+  if (dayDiff < 7) return t.timeDaysAgo(dayDiff);
+  return t.dateNumeric('${when.month}', '${when.day}', '${when.year}');
 }
 
 /// Relative age of the last successful sync: 'just now', '3m ago', '2h ago',
 /// '3d ago'. Empty when there has been none.
 String formatSyncAge(DateTime? at, {DateTime? now}) {
   if (at == null) return '';
+  final t = appL10n;
   final diff = (now ?? DateTime.now()).difference(at);
-  if (diff.inMinutes < 1) return 'just now';
-  if (diff.inHours < 1) return '${diff.inMinutes}m ago';
-  if (diff.inDays < 1) return '${diff.inHours}h ago';
-  return '${diff.inDays}d ago';
+  if (diff.inMinutes < 1) return t.syncAgeJustNow;
+  if (diff.inHours < 1) return t.syncAgeMinutes(diff.inMinutes);
+  if (diff.inDays < 1) return t.syncAgeHours(diff.inHours);
+  return t.syncAgeDays(diff.inDays);
 }

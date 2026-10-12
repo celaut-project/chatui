@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
 import '../format.dart';
+import '../l10n/l10n.dart';
 import '../services/network_controller.dart';
 import '../services/token_issuance.dart';
 import '../services/wallet_service.dart';
@@ -27,8 +28,8 @@ class _TokenToolsScreenState extends State<TokenToolsScreen> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Tokens'),
-          bottom: const TabBar(tabs: [Tab(text: 'Issue'), Tab(text: 'Burn')]),
+          title: Text(context.l10n.commonTokens),
+          bottom: TabBar(tabs: [Tab(text: context.l10n.tokenIssue), Tab(text: context.l10n.tokenBurn)]),
         ),
         body: const TabBarView(children: [_IssueTab(), _BurnTab()]),
       ),
@@ -109,19 +110,18 @@ class _IssueTabState extends State<_IssueTab>
       final tokenId = prepared['token_id'] as String;
       final ok = await showConfirmTransactionSheet(
         context,
-        title: _nft ? 'Issue an NFT' : 'Issue a token',
-        confirmLabel: 'Issue',
-        detail: 'The new token lands in this wallet. Its name, description and '
-            'decimals are written on chain and cannot be changed afterwards.',
+        title: _nft ? context.l10n.tokenIssueNftTitle : context.l10n.tokenIssueTokenTitle,
+        confirmLabel: context.l10n.tokenIssue,
+        detail: context.l10n.tokenIssueDetail,
         rows: [
-          ConfirmTxRow('Name', _name.text.trim(), bold: true),
-          ConfirmTxRow('Supply', _nft ? '1 (NFT)' : '${formatTokenAmountGrouped(amount.toInt(), _decimalsValue)} · ${_decimalsValue} decimals'),
-          if (_description.text.trim().isNotEmpty) ConfirmTxRow('Description', _description.text.trim()),
-          if (_nft) ConfirmTxRow('Kind', _kind),
-          if (_nft && _url.text.trim().isNotEmpty) ConfirmTxRow('Link', _url.text.trim()),
-          ConfirmTxRow('Token id', shorten(tokenId, head: 10, tail: 8)),
-          ConfirmTxRow('Box value', formatErg((prepared['box_value'] as num).toInt())),
-          ConfirmTxRow('Miner fee', formatErg((prepared['miner_fee'] as num).toInt())),
+          ConfirmTxRow(context.l10n.commonName, _name.text.trim(), bold: true),
+          ConfirmTxRow(context.l10n.tokenSupply, _nft ? '1 (NFT)' : context.l10n.tokenSupplyDecimals(_decimalsValue, formatTokenAmountGrouped(amount.toInt(), _decimalsValue))),
+          if (_description.text.trim().isNotEmpty) ConfirmTxRow(context.l10n.tokenDescription, _description.text.trim()),
+          if (_nft) ConfirmTxRow(context.l10n.tokenKind, _kind),
+          if (_nft && _url.text.trim().isNotEmpty) ConfirmTxRow(context.l10n.tokenLink, _url.text.trim()),
+          ConfirmTxRow(context.l10n.tokenIdRow, shorten(tokenId, head: 10, tail: 8)),
+          ConfirmTxRow(context.l10n.tokenBoxValue, formatErg((prepared['box_value'] as num).toInt())),
+          ConfirmTxRow(context.l10n.commonMinerFee, formatErg((prepared['miner_fee'] as num).toInt())),
         ],
         preparationId: (prepared['preparation_id'] as num).toInt(),
       );
@@ -137,9 +137,8 @@ class _IssueTabState extends State<_IssueTab>
       showTxResultSheet(
         receiptContext,
         txId: txId,
-        headline: 'Token issuance submitted',
-        note:
-            'The token ID remains on the issuance screen. The token appears in your assets after confirmation.',
+        headline: appL10n.tokenIssuanceSubmitted,
+        note: appL10n.tokenIssuanceNote,
       );
     } catch (e) {
       if (mounted) showTxFailureSheet(context, e);
@@ -166,29 +165,29 @@ class _IssueTabState extends State<_IssueTab>
             ),
             const SizedBox(height: 12),
             Text(
-              '${_name.text.trim()} issuance submitted',
+              context.l10n.tokenNamedIssuanceSubmitted(_name.text.trim()),
               style: Theme.of(context).textTheme.titleLarge,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'It appears in your assets once the transaction confirms. The token id is what other wallets and sites know it by.',
+              context.l10n.tokenIssuedExplainer,
               style: TextStyle(color: muted),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            const Text('Token ID', textAlign: TextAlign.center),
+            Text(context.l10n.tokenIdLabel, textAlign: TextAlign.center),
             SoftCard(
               padding: const EdgeInsets.all(14),
               child: Row(
                 children: [
                   Expanded(child: SelectableText(issued, style: monoStyle(context, size: 11))),
                   IconButton(
-                    tooltip: 'Copy token id',
+                    tooltip: context.l10n.tokenCopyId,
                     icon: const Icon(Icons.copy, size: 18),
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: issued));
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Token id copied')));
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.tokenIdCopied)));
                     },
                   ),
                 ],
@@ -199,13 +198,12 @@ class _IssueTabState extends State<_IssueTab>
               onPressed: () => showTxResultSheet(
                 receiptContext,
                 txId: _issuedTxId!,
-                headline: 'Token issuance submitted',
-                note:
-                    'The token ID remains on the issuance screen. The token appears in your assets after confirmation.',
+                headline: context.l10n.tokenIssuanceSubmitted,
+                note: context.l10n.tokenIssuanceNote,
               ),
-              child: const Text('View transaction receipt'),
+              child: Text(context.l10n.tokenViewReceipt),
             ),
-            const Text('Transaction ID'),
+            Text(context.l10n.tokenTransactionId),
             SelectableText(_issuedTxId!, style: monoStyle(context, size: 11)),
             OutlinedButton(
               onPressed: () => setState(() {
@@ -215,7 +213,7 @@ class _IssueTabState extends State<_IssueTab>
                   c.clear();
                 }
               }),
-              child: const Text('Issue another'),
+              child: Text(context.l10n.tokenIssueAnother),
             ),
           ],
         ),
@@ -226,15 +224,14 @@ class _IssueTabState extends State<_IssueTab>
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       children: [
         Text(
-          'A token is created by a transaction from this wallet. Its id is fixed by that '
-          'transaction, and its name, description and decimals are written once, on chain.',
+          context.l10n.tokenIssueIntro,
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 16),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('NFT'),
-          subtitle: const Text('A single unit with a content hash and a link'),
+          subtitle: Text(context.l10n.nftSubtitle),
           value: _nft,
           onChanged: (v) => setState(() {
             _nft = v;
@@ -248,7 +245,7 @@ class _IssueTabState extends State<_IssueTab>
         TextField(
           key: const Key('issue-name'),
           controller: _name,
-          decoration: const InputDecoration(labelText: 'Name'),
+          decoration: InputDecoration(labelText: context.l10n.commonName),
           textCapitalization: TextCapitalization.words,
           onChanged: (_) => setState(() {}),
         ),
@@ -256,7 +253,7 @@ class _IssueTabState extends State<_IssueTab>
         TextField(
           key: const Key('issue-description'),
           controller: _description,
-          decoration: const InputDecoration(labelText: 'Description (optional)'),
+          decoration: InputDecoration(labelText: context.l10n.tokenDescriptionOptional),
           maxLines: 2,
           onChanged: (_) => setState(() {}),
         ),
@@ -270,7 +267,7 @@ class _IssueTabState extends State<_IssueTab>
                 child: TextField(
                   key: const Key('issue-amount'),
                   controller: _amount,
-                  decoration: const InputDecoration(labelText: 'Supply', helperText: 'Whole units, decimals allowed'),
+                  decoration: InputDecoration(labelText: context.l10n.tokenSupply, helperText: context.l10n.tokenSupplyHelper),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   onChanged: (_) => setState(() {}),
                 ),
@@ -281,7 +278,7 @@ class _IssueTabState extends State<_IssueTab>
                 child: TextField(
                   key: const Key('issue-decimals'),
                   controller: _decimals,
-                  decoration: const InputDecoration(labelText: 'Decimals', helperText: '0 to 18'),
+                  decoration: InputDecoration(labelText: context.l10n.tokenDecimals, helperText: context.l10n.tokenDecimalsHelper),
                   keyboardType: TextInputType.number,
                   onChanged: (_) => setState(() {}),
                 ),
@@ -291,11 +288,11 @@ class _IssueTabState extends State<_IssueTab>
         if (_nft) ...[
           DropdownButtonFormField<String>(
             initialValue: _kind,
-            decoration: const InputDecoration(labelText: 'Kind'),
-            items: const [
-              DropdownMenuItem(value: 'picture', child: Text('Picture')),
-              DropdownMenuItem(value: 'audio', child: Text('Audio')),
-              DropdownMenuItem(value: 'video', child: Text('Video')),
+            decoration: InputDecoration(labelText: context.l10n.tokenKind),
+            items: [
+              DropdownMenuItem(value: 'picture', child: Text(context.l10n.nftKindPicture)),
+              DropdownMenuItem(value: 'audio', child: Text(context.l10n.nftKindAudio)),
+              DropdownMenuItem(value: 'video', child: Text(context.l10n.nftKindVideo)),
             ],
             onChanged: (v) => setState(() => _kind = v ?? 'picture'),
           ),
@@ -303,7 +300,7 @@ class _IssueTabState extends State<_IssueTab>
           TextField(
             key: const Key('issue-hash'),
             controller: _hash,
-            decoration: const InputDecoration(labelText: 'Content SHA-256 (hex, optional)', helperText: '64 hex characters'),
+            decoration: InputDecoration(labelText: context.l10n.nftHashLabel, helperText: context.l10n.nftHashHelper),
             style: monoStyle(context, size: 12),
             onChanged: (_) => setState(() {}),
           ),
@@ -311,7 +308,7 @@ class _IssueTabState extends State<_IssueTab>
           TextField(
             key: const Key('issue-url'),
             controller: _url,
-            decoration: const InputDecoration(labelText: 'Link (optional)', helperText: 'https:// or ipfs://'),
+            decoration: InputDecoration(labelText: context.l10n.nftLinkLabel, helperText: context.l10n.nftLinkHelper),
             keyboardType: TextInputType.url,
             onChanged: (_) => setState(() {}),
           ),
@@ -320,12 +317,12 @@ class _IssueTabState extends State<_IssueTab>
         if (problem != null && _name.text.isNotEmpty)
           Text(problem, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12)),
         const SizedBox(height: 16),
-        Text('Costs 0.001 ERG for the token box plus the miner fee.', style: TextStyle(color: muted, fontSize: 12)),
+        Text(context.l10n.tokenIssueCost, style: TextStyle(color: muted, fontSize: 12)),
         const SizedBox(height: 12),
         FilledButton(
           key: const Key('issue-continue'),
           onPressed: _working || problem != null ? null : _issue,
-          child: Text(_working ? 'Preparing…' : 'Issue'),
+          child: Text(_working ? context.l10n.tokenPreparing : context.l10n.tokenIssue),
         ),
       ],
     );
@@ -372,11 +369,11 @@ class _BurnTabState extends State<_BurnTab>
       } else {
         n = parseDecimalToBase(e.value.text, t.decimals);
       }
-      if (n == null || n <= 0) return (null, 'Enter how much ${t.label} to burn');
-      if (n > t.amount) return (null, 'You hold ${formatTokenAmount(t.amount, t.decimals)} ${t.label}');
+      if (n == null || n <= 0) return (null, context.l10n.tokenBurnEnterAmount(t.label));
+      if (n > t.amount) return (null, context.l10n.tokenBurnYouHold(formatTokenAmount(t.amount, t.decimals), t.label));
       out[e.key] = n;
     }
-    if (out.isEmpty) return (null, 'Pick a token to burn');
+    if (out.isEmpty) return (null, context.l10n.tokenBurnPick);
     return (out, null);
   }
 
@@ -388,7 +385,7 @@ class _BurnTabState extends State<_BurnTab>
       return;
     }
     if (_confirmWord.text.trim() != burnConfirmWord) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Type $burnConfirmWord to go on')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.tokenBurnTypeToGoOn(burnConfirmWord))));
       return;
     }
     final args = WalletRouteArgs.of(context);
@@ -408,15 +405,14 @@ class _BurnTabState extends State<_BurnTab>
       }
       final ok = await showConfirmTransactionSheet(
         context,
-        title: 'Burn tokens',
-        confirmLabel: 'Burn for good',
-        detail: 'These units are left out of every output of the transaction and stop '
-            'existing. Nobody, including Celaut, can bring them back.',
+        title: context.l10n.tokenBurnTitle,
+        confirmLabel: context.l10n.tokenBurnForGood,
+        detail: context.l10n.tokenBurnDetail,
         rows: [
           for (final b in (prepared['burned'] as List).cast<Map>())
-            ConfirmTxRow('Burn', label(b['token_id'] as String, (b['amount'] as num).toInt()), bold: true),
-          ConfirmTxRow('Miner fee', formatErg((prepared['miner_fee'] as num).toInt())),
-          ConfirmTxRow('Back to you', formatErg((prepared['change_nano_erg'] as num).toInt())),
+            ConfirmTxRow(context.l10n.tokenBurn, label(b['token_id'] as String, (b['amount'] as num).toInt()), bold: true),
+          ConfirmTxRow(context.l10n.commonMinerFee, formatErg((prepared['miner_fee'] as num).toInt())),
+          ConfirmTxRow(context.l10n.tokenBurnBackToYou, formatErg((prepared['change_nano_erg'] as num).toInt())),
         ],
         preparationId: (prepared['preparation_id'] as num).toInt(),
       );
@@ -433,7 +429,7 @@ class _BurnTabState extends State<_BurnTab>
       showTxResultSheet(
         receiptContext,
         txId: txId,
-        headline: 'Token burn submitted',
+        headline: appL10n.tokenBurnSubmitted,
       );
     } catch (e) {
       if (mounted) showTxFailureSheet(context, e);
@@ -462,9 +458,7 @@ class _BurnTabState extends State<_BurnTab>
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Burning destroys tokens permanently. It is not a send: the units leave '
-                  'the chain rather than move to anyone. Use it for tokens you are sure you '
-                  'never want back, such as spam or a supply you mean to cut.',
+                  context.l10n.tokenBurnWarning,
                   style: theme.textTheme.bodyMedium,
                 ),
               ),
@@ -473,9 +467,9 @@ class _BurnTabState extends State<_BurnTab>
         ),
         const SizedBox(height: 16),
         if (held.isEmpty)
-          Text('This wallet holds no tokens.', style: TextStyle(color: muted))
+          Text(context.l10n.tokenBurnNoTokens, style: TextStyle(color: muted))
         else ...[
-          Text('Tokens in this wallet', style: theme.textTheme.titleSmall),
+          Text(context.l10n.tokenBurnInWallet, style: theme.textTheme.titleSmall),
           const SizedBox(height: 6),
           for (final t in held)
             CheckboxListTile(
@@ -483,7 +477,7 @@ class _BurnTabState extends State<_BurnTab>
               contentPadding: EdgeInsets.zero,
               controlAffinity: ListTileControlAffinity.leading,
               title: Text(t.label),
-              subtitle: Text('${formatTokenAmountGrouped(t.amount, t.decimals)} held · ${shorten(t.id, head: 8, tail: 6)}',
+              subtitle: Text(context.l10n.tokenBurnHeldRow(formatTokenAmountGrouped(t.amount, t.decimals), shorten(t.id, head: 8, tail: 6)),
                   style: TextStyle(color: muted, fontSize: 12)),
               value: _picked.containsKey(t.id),
               onChanged: (v) => setState(() {
@@ -503,13 +497,13 @@ class _BurnTabState extends State<_BurnTab>
                   controller: ctl,
                   enabled: !(t.amount == 1 && t.decimals == 0),
                   decoration: InputDecoration(
-                    labelText: (t.amount == 1 && t.decimals == 0) ? '${t.label}: the one unit' : '${t.label} to burn',
-                    helperText: (t.amount == 1 && t.decimals == 0) ? null : 'Of ${formatTokenAmount(t.amount, t.decimals)}',
+                    labelText: (t.amount == 1 && t.decimals == 0) ? context.l10n.tokenBurnOneUnit(t.label) : context.l10n.tokenBurnAmountLabel(t.label),
+                    helperText: (t.amount == 1 && t.decimals == 0) ? null : context.l10n.tokenBurnOf(formatTokenAmount(t.amount, t.decimals)),
                     suffixIcon: (t.amount == 1 && t.decimals == 0)
                         ? null
                         : TextButton(
                             onPressed: () => setState(() => ctl.text = formatTokenAmount(t.amount, t.decimals)),
-                            child: const Text('ALL'),
+                            child: Text(context.l10n.tokenBurnAll),
                           ),
                   ),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -522,7 +516,7 @@ class _BurnTabState extends State<_BurnTab>
           TextField(
             key: const Key('burn-confirm-word'),
             controller: _confirmWord,
-            decoration: InputDecoration(labelText: 'Type $burnConfirmWord to confirm'),
+            decoration: InputDecoration(labelText: context.l10n.tokenBurnTypeToConfirm(burnConfirmWord)),
             textCapitalization: TextCapitalization.characters,
             onChanged: (_) => setState(() {}),
           ),
@@ -531,7 +525,7 @@ class _BurnTabState extends State<_BurnTab>
             key: const Key('burn-continue'),
             style: FilledButton.styleFrom(backgroundColor: theme.colorScheme.error, foregroundColor: theme.colorScheme.onError),
             onPressed: _working || !ready ? null : () => _burn(held),
-            child: Text(_working ? 'Preparing…' : 'Burn'),
+            child: Text(_working ? context.l10n.tokenPreparing : context.l10n.tokenBurn),
           ),
         ],
       ],

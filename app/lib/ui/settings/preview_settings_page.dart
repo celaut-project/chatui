@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/l10n.dart';
 import '../../services/preview/preview_service.dart';
 
 class PreviewSettingsPage extends StatefulWidget {
@@ -29,8 +30,8 @@ class _PreviewSettingsPageState extends State<PreviewSettingsPage> {
       if (mounted)
         setState(
           () => _message = previewSettings.gateway == null
-              ? 'No gateway configured. Previews are unavailable.'
-              : 'Gateway saved. Each artwork still requires consent.',
+              ? context.l10n.previewNoGateway
+              : context.l10n.previewGatewaySaved,
         );
     } catch (e) {
       if (mounted) setState(() => _message = '$e');
@@ -41,7 +42,7 @@ class _PreviewSettingsPageState extends State<PreviewSettingsPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Remote previews')),
+    appBar: AppBar(title: Text(context.l10n.previewSettingsTitle)),
     body: ListenableBuilder(
       listenable: previewSettings,
       builder: (context, _) => ListView(
@@ -49,10 +50,8 @@ class _PreviewSettingsPageState extends State<PreviewSettingsPage> {
         children: [
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Never load remote previews'),
-            subtitle: const Text(
-              'Disables loading and clears open previews. Image decoding has no enforceable total allocation ceiling and an active native decode cannot be interrupted. Use this switch to avoid decoder memory or security risks.',
-            ),
+            title: Text(context.l10n.previewNeverTitle),
+            subtitle: Text(context.l10n.previewNeverSubtitle),
             value: previewSettings.never,
             onChanged: (value) async {
               try {
@@ -63,27 +62,27 @@ class _PreviewSettingsPageState extends State<PreviewSettingsPage> {
             },
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Only IPFS artwork can be displayed. Issuer-selected hosts are refused because the issuer would choose who learns you looked. There is no default gateway or fallback.',
-          ),
+          Text(context.l10n.previewSettingsIpfsOnly),
           const SizedBox(height: 16),
           TextField(
             controller: _gateway,
             autocorrect: false,
             enableSuggestions: false,
-            decoration: const InputDecoration(
-              labelText: 'Your HTTPS IPFS gateway',
-              helperText: 'Origin only, port 443. Leave empty to remove.',
+            decoration: InputDecoration(
+              labelText: context.l10n.previewGatewayFieldLabel,
+              helperText: context.l10n.previewGatewayFieldHelper,
             ),
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Saving resolves the gateway hostname to check that its addresses are public. Loading checks again and connects only to that address. The gateway can see your IP and which artwork you request.',
-          ),
+          Text(context.l10n.previewGatewayCheckInfo),
           const SizedBox(height: 12),
           FilledButton(
             onPressed: _saving ? null : _save,
-            child: Text(_saving ? 'Checking gateway…' : 'Save gateway'),
+            child: Text(
+              _saving
+                  ? context.l10n.previewCheckingGateway
+                  : context.l10n.previewSaveGateway,
+            ),
           ),
           if (_message != null) Text(_message!),
         ],

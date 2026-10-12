@@ -1,96 +1,75 @@
 import '../bridge/api/celaut.dart';
+import '../l10n/l10n.dart';
 
-/// Every text that the Celaut screens show, in one place. The Spanish PR replaces
-/// this file with localized texts.
+/// Every text that the Celaut screens show, in one place. The texts are in
+/// lib/l10n/app_*.arb (keys `celaut…`); a new text needs a key in each ARB
+/// file and a getter here.
 class CelautStrings {
   const CelautStrings._();
 
   // Settings
-  static const developerGroup = 'Developer';
-  static const developerScope = 'App-wide';
-  static const nodeRowTitle = 'Celaut node';
-  static const nodeRowSubtitle = 'Connect to a node and show its advertisement';
+  static String get developerGroup => appL10n.celautDeveloperGroup;
+  static String get developerScope => appL10n.celautDeveloperScope;
+  static String get nodeRowTitle => appL10n.celautNodeRowTitle;
+  static String get nodeRowSubtitle => appL10n.celautNodeRowSubtitle;
 
   // Screen
-  static const screenTitle = 'Celaut node';
-  static const intro = 'Connect to a Celaut node and check who it is. The app checks the '
-      'identity in its certificate and the signature of its advertisement. '
-      'Nothing is started and nothing is paid.';
-  static const addressLabel = 'Node address';
-  static const addressHint = 'host:port';
-  static const expectedLabel = 'Expected peer id (optional)';
-  static const expectedHint = '64 hexadecimal characters';
-  static const connect = 'Connect';
-  static const connecting = 'Connecting…';
+  static String get screenTitle => appL10n.celautScreenTitle;
+  static String get intro => appL10n.celautIntro;
+  static String get addressLabel => appL10n.celautAddressLabel;
+  static String get addressHint => appL10n.celautAddressHint;
+  static String get expectedLabel => appL10n.celautExpectedLabel;
+  static String get expectedHint => appL10n.celautExpectedHint;
+  static String get connect => appL10n.celautConnect;
+  static String get connecting => appL10n.celautConnecting;
 
   // Result
-  static const identityTitle = 'Identity';
-  static const peerIdLabel = 'Peer id';
-  static const advertisedLabel = 'Advertised at';
-  static const urisTitle = 'Addresses';
-  static const ratesTitle = 'Rates';
-  static const contractsTitle = 'Payment contracts';
-  static const resourcesTitle = 'Resources';
-  static const proofsLabel = 'Reputation proofs';
-  static const noUris = 'The node advertises no address.';
-  static const noRates = 'The node advertises no rates.';
-  static const noContracts =
-      'The node advertises no payment contract. It cannot be paid yet.';
-  static const noResources = 'The node gives no data about its resources.';
-  static const ratesNote = 'Rates are in MU.';
-  static const verifiedNote =
-      'The certificate and the signature were checked. This node is who it says it is.';
+  static String get identityTitle => appL10n.celautIdentityTitle;
+  static String get peerIdLabel => appL10n.celautPeerIdLabel;
+  static String get advertisedLabel => appL10n.celautAdvertisedLabel;
+  static String get urisTitle => appL10n.celautUrisTitle;
+  static String get ratesTitle => appL10n.celautRatesTitle;
+  static String get contractsTitle => appL10n.celautContractsTitle;
+  static String get resourcesTitle => appL10n.celautResourcesTitle;
+  static String get proofsLabel => appL10n.celautProofsLabel;
+  static String get noUris => appL10n.celautNoUris;
+  static String get noRates => appL10n.celautNoRates;
+  static String get noContracts => appL10n.celautNoContracts;
+  static String get noResources => appL10n.celautNoResources;
+  static String get ratesNote => appL10n.celautRatesNote;
+  static String get verifiedNote => appL10n.celautVerifiedNote;
 
   // Input errors
-  static const addressEmpty = 'Enter the address of the node as host:port.';
-  static const addressInvalid =
-      'This address is not valid. Use host:port, for example 203.0.113.7:8090.';
-  static const portInvalid = 'The port must be a number from 1 to 65535.';
-  static const expectedInvalid =
-      'The peer id must be 64 hexadecimal characters, or empty.';
+  static String get addressEmpty => appL10n.celautAddressEmpty;
+  static String get addressInvalid => appL10n.celautAddressInvalid;
+  static String get portInvalid => appL10n.celautPortInvalid;
+  static String get expectedInvalid => appL10n.celautExpectedInvalid;
 
   // Errors of the connection and of the checks
-  static const errorTitle = 'Cannot show this node';
+  static String get errorTitle => appL10n.celautErrorTitle;
 
   static String errorText(CelautErrorKind kind) => switch (kind) {
-        CelautErrorKind.invalidInput =>
-          'The address is not valid. Check the host and the port.',
-        CelautErrorKind.unreachable =>
-          'The app cannot connect to this address. Check the address and the network, '
-              'and check that the node is running.',
-        CelautErrorKind.timeout =>
-          'The node did not answer in time. Try again, or check the address.',
-        CelautErrorKind.identityMismatch =>
-          'The identity of this node is not the one that was expected. The address may '
-              'now belong to another node. The app did not trust it.',
-        CelautErrorKind.badCertificate =>
-          'The certificate of this server has no valid Celaut identity. It may not be '
-              'a Celaut node. The app did not trust it.',
-        CelautErrorKind.badSignature =>
-          'The signature of the node advertisement is not valid. The app did not '
-              'trust it.',
-        CelautErrorKind.staleTimestamp =>
-          'This advertisement is older than one that the app accepted before. Someone '
-              'may be replaying an old message. The app did not trust it.',
-        CelautErrorKind.unsupportedScheme =>
-          'The node signs with a scheme that this app does not support.',
-        CelautErrorKind.proofOfWork =>
-          'The node asks for more work than the app does for a new client, or it did '
-              'not accept the work.',
-        CelautErrorKind.protocol =>
-          'The node refused the request or sent an answer that the app cannot use.',
-        CelautErrorKind.storage =>
-          'The app cannot read or write its list of known advertisements.',
+        CelautErrorKind.invalidInput => appL10n.celautErrorInvalidInput,
+        CelautErrorKind.unreachable => appL10n.celautErrorUnreachable,
+        CelautErrorKind.timeout => appL10n.celautErrorTimeout,
+        CelautErrorKind.identityMismatch => appL10n.celautErrorIdentityMismatch,
+        CelautErrorKind.badCertificate => appL10n.celautErrorBadCertificate,
+        CelautErrorKind.badSignature => appL10n.celautErrorBadSignature,
+        CelautErrorKind.staleTimestamp => appL10n.celautErrorStaleTimestamp,
+        CelautErrorKind.unsupportedScheme => appL10n.celautErrorUnsupportedScheme,
+        CelautErrorKind.proofOfWork => appL10n.celautErrorProofOfWork,
+        CelautErrorKind.protocol => appL10n.celautErrorProtocol,
+        CelautErrorKind.storage => appL10n.celautErrorStorage,
       };
 
-  static String detailLabel(String detail) => 'Detail: $detail';
+  static String detailLabel(String detail) => appL10n.celautDetailLabel(detail);
 
   // Values
   static String cores(double value) {
     final text = value == value.roundToDouble()
         ? value.toStringAsFixed(0)
         : value.toStringAsFixed(2);
-    return '$text ${value == 1 ? 'core' : 'cores'}';
+    return appL10n.celautCores(value == 1 ? 1 : 2, text);
   }
 
   static String bytes(int value) {
@@ -105,11 +84,11 @@ class CelautStrings {
     return '$text ${units[unit]}';
   }
 
-  static const memoryLabel = 'Memory';
-  static const diskLabel = 'Disk';
-  static const cpuLabel = 'CPU';
-  static const benchmarkLabel = 'Benchmark';
-  static const noExpiry = 'no expiry given';
-  static String expires(String when) => 'valid until $when';
-  static String perUnit(String mu) => '$mu MU per base unit';
+  static String get memoryLabel => appL10n.celautMemoryLabel;
+  static String get diskLabel => appL10n.celautDiskLabel;
+  static String get cpuLabel => appL10n.celautCpuLabel;
+  static String get benchmarkLabel => appL10n.celautBenchmarkLabel;
+  static String get noExpiry => appL10n.celautNoExpiry;
+  static String expires(String when) => appL10n.celautExpires(when);
+  static String perUnit(String mu) => appL10n.celautPerUnit(mu);
 }

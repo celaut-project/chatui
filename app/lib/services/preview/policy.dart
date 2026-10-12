@@ -2,6 +2,8 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 
+import '../../l10n/l10n.dart';
+
 class PreviewFailure implements Exception {
   const PreviewFailure(this.message);
   final String message;
@@ -25,13 +27,13 @@ Uri gatewayOrigin(String value) {
       uri.hasFragment ||
       (uri.path.isNotEmpty && uri.path != '/')) {
     refuse(
-      'Use an HTTPS gateway origin on port 443, without credentials, path or query.',
+      appL10n.previewGatewayOriginRule,
     );
   }
   final host = uri.host.replaceAll('[', '').replaceAll(']', '');
   final literal = InternetAddress.tryParse(host);
   if (literal != null && !publicAddress(literal))
-    refuse('Gateway address is not public.');
+    refuse(appL10n.previewGatewayNotPublic);
   if (literal == null &&
       (!host.contains('.') ||
           host.endsWith('.') ||
@@ -45,7 +47,7 @@ Uri gatewayOrigin(String value) {
             'test',
             'invalid',
           ].any((s) => host == s || host.endsWith('.$s')))) {
-    refuse('Use a public gateway hostname.');
+    refuse(appL10n.previewGatewayPublicHostname);
   }
   return uri.replace(path: '');
 }
@@ -81,7 +83,7 @@ List<int> _base(String text, String alphabet) {
   var n = BigInt.zero;
   for (final c in text.split('')) {
     final digit = alphabet.indexOf(c);
-    if (digit < 0) refuse('Malformed IPFS CID.');
+    if (digit < 0) refuse(appL10n.previewCidMalformed);
     n = n * BigInt.from(alphabet.length) + BigInt.from(digit);
   }
   final bytes = <int>[];
@@ -97,25 +99,25 @@ List<int> _base(String text, String alphabet) {
 List<String> ipfsPath(String raw) {
   if (!raw.startsWith('ipfs://') || raw.length > 2048) {
     refuse(
-      'Only IPFS artwork can be displayed. Issuer hosts are refused because the issuer would choose who learns you looked.',
+      appL10n.previewOnlyIpfs,
     );
   }
   final parts = raw.substring(7).split('/');
   final cid = parts.first;
-  if (cid.length > 160 || cid.isEmpty) refuse('Malformed IPFS CID.');
+  if (cid.length > 160 || cid.isEmpty) refuse(appL10n.previewCidMalformed);
   if (cid.startsWith('Qm')) {
     final b = _base(
       cid,
       '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz',
     );
     if (cid.length != 46 || b.length != 34 || b[0] != 0x12 || b[1] != 32)
-      refuse('Malformed IPFS CID.');
+      refuse(appL10n.previewCidMalformed);
   } else if (cid.startsWith('b')) {
     final bytes = <int>[];
     var bits = 0, buffer = 0;
     for (final c in cid.substring(1).split('')) {
       final v = 'abcdefghijklmnopqrstuvwxyz234567'.indexOf(c);
-      if (v < 0) refuse('Malformed IPFS CID.');
+      if (v < 0) refuse(appL10n.previewCidMalformed);
       buffer = (buffer << 5) | v;
       bits += 5;
       if (bits >= 8) {
@@ -124,7 +126,7 @@ List<String> ipfsPath(String raw) {
         buffer &= (1 << bits) - 1;
       }
     }
-    if (bits >= 5 || buffer != 0) refuse('Noncanonical IPFS CID.');
+    if (bits >= 5 || buffer != 0) refuse(appL10n.previewCidNoncanonical);
     var offset = 0;
     int varint() {
       var value = 0, shift = 0;
@@ -132,28 +134,28 @@ List<String> ipfsPath(String raw) {
         final b = bytes[offset++];
         value |= (b & 127) << shift;
         if (b < 128) {
-          if (shift > 0 && b == 0) refuse('Noncanonical IPFS CID.');
+          if (shift > 0 && b == 0) refuse(appL10n.previewCidNoncanonical);
           return value;
         }
         shift += 7;
       }
-      refuse('Malformed IPFS CID.');
+      refuse(appL10n.previewCidMalformed);
     }
 
     if (varint() != 1 || varint() == 0 || varint() == 0)
-      refuse('Unsupported IPFS CID.');
+      refuse(appL10n.previewCidUnsupported);
     final length = varint();
     if (length < 1 || length > 64 || bytes.length - offset != length)
-      refuse('Malformed IPFS CID.');
+      refuse(appL10n.previewCidMalformed);
   } else {
-    refuse('Use a CIDv0 or lowercase base32 CIDv1 IPFS URI.');
+    refuse(appL10n.previewCidFormat);
   }
   for (final part in parts.skip(1)) {
     if (part.isEmpty ||
         part == '.' ||
         part == '..' ||
         !RegExp(r'^[A-Za-z0-9_.-]+$').hasMatch(part))
-      refuse('Unsupported IPFS path.');
+      refuse(appL10n.previewPathUnsupported);
   }
   return ['ipfs', ...parts];
 }
@@ -166,12 +168,12 @@ class CheckedImage {
 
 void _dimensions(int w, int h) {
   if (w < 1 || h < 1 || w > 4096 || h > 4096 || w * h > 8000000)
-    refuse('Image dimensions exceed 4096 per axis or 8 megapixels.');
+    refuse(appL10n.previewImageDimensions);
 }
 
 /// Header-only inspection: no image codec or pixel allocation is invoked here.
 CheckedImage inspectImage(Uint8List bytes, String mime, String? hash) {
-  if (bytes.length > maxPreviewBytes) refuse('Artwork exceeds 5 MiB.');
+  if (bytes.length > maxPreviewBytes) refuse(appL10n.previewArtworkTooLarge);
   final data = ByteData.sublistView(bytes);
   var w = 0, h = 0;
   final png =
@@ -192,13 +194,13 @@ CheckedImage inspectImage(Uint8List bytes, String mime, String? hash) {
     var ihdr = false, idat = false, end = false;
     while (pos + 12 <= bytes.length) {
       final length = data.getUint32(pos);
-      if (length > bytes.length - pos - 12) refuse('Malformed PNG.');
+      if (length > bytes.length - pos - 12) refuse(appL10n.previewPngMalformed);
       final type = String.fromCharCodes(bytes.sublist(pos + 4, pos + 8));
       if (type == 'acTL' || type == 'fcTL' || type == 'fdAT')
-        refuse('Animated PNG is unsupported.');
-      if (!ihdr && type != 'IHDR') refuse('Malformed PNG.');
+        refuse(appL10n.previewPngAnimated);
+      if (!ihdr && type != 'IHDR') refuse(appL10n.previewPngMalformed);
       if (type == 'IHDR') {
-        if (ihdr || length != 13) refuse('Malformed PNG.');
+        if (ihdr || length != 13) refuse(appL10n.previewPngMalformed);
         ihdr = true;
         w = data.getUint32(pos + 8);
         h = data.getUint32(pos + 12);
@@ -211,26 +213,26 @@ CheckedImage inspectImage(Uint8List bytes, String mime, String? hash) {
         break;
       }
     }
-    if (!ihdr || !idat || !end) refuse('Malformed PNG.');
+    if (!ihdr || !idat || !end) refuse(appL10n.previewPngMalformed);
   } else if (jpeg && mime == 'image/jpeg') {
     var pos = 2;
     var sof = false, scan = false;
     while (pos < bytes.length) {
-      if (bytes[pos++] != 255) refuse('Malformed JPEG.');
+      if (bytes[pos++] != 255) refuse(appL10n.previewJpegMalformed);
       while (pos < bytes.length && bytes[pos] == 255) {
         pos++;
       }
-      if (pos + 2 >= bytes.length) refuse('Malformed JPEG.');
+      if (pos + 2 >= bytes.length) refuse(appL10n.previewJpegMalformed);
       final marker = bytes[pos++];
       final length = data.getUint16(pos);
-      if (length < 2 || pos + length > bytes.length) refuse('Malformed JPEG.');
+      if (length < 2 || pos + length > bytes.length) refuse(appL10n.previewJpegMalformed);
       if (marker >= 0xc0 &&
           marker <= 0xcf &&
           marker != 0xc4 &&
           marker != 0xc8 &&
           marker != 0xcc) {
         if (sof || (marker != 0xc0 && marker != 0xc2) || length < 8)
-          refuse('Unsupported JPEG frame.');
+          refuse(appL10n.previewJpegFrame);
         sof = true;
         h = data.getUint16(pos + 3);
         w = data.getUint16(pos + 5);
@@ -242,23 +244,23 @@ CheckedImage inspectImage(Uint8List bytes, String mime, String? hash) {
       }
       pos += length;
     }
-    if (!sof || !scan) refuse('Malformed JPEG.');
+    if (!sof || !scan) refuse(appL10n.previewJpegMalformed);
     // Forbid later frame headers and DNL (which could change dimensions).
     for (var i = pos; i + 1 < bytes.length; i++) {
       if (bytes[i] != 255) continue;
       final m = bytes[i + 1];
       if (m == 0xdc ||
           (m >= 0xc0 && m <= 0xcf && m != 0xc4 && m != 0xc8 && m != 0xcc))
-        refuse('Unsupported JPEG frame.');
+        refuse(appL10n.previewJpegFrame);
     }
   } else {
     refuse(
-      'Only static PNG and JPEG with matching bytes and MIME are supported.',
+      appL10n.previewFormatMismatch,
     );
   }
   final validHash = hash != null && RegExp(r'^[a-fA-F0-9]{64}$').hasMatch(hash);
   final digest = sha256.convert(bytes).toString();
   if (validHash && digest != hash.toLowerCase())
-    refuse('Content differs from issuance hash.');
+    refuse(appL10n.previewHashMismatch);
   return CheckedImage(w, h, validHash);
 }

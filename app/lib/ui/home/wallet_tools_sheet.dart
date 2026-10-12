@@ -4,29 +4,30 @@ import '../../theme/argus_theme.dart';
 import 'home_models.dart';
 import 'home_style.dart';
 import 'home_widgets.dart';
+import '../../l10n/l10n.dart';
 
 /// Mark, name and one line for each tool behind More. The lines are short
 /// forms of the Discover explainers, which stay the full account.
 ({IconData icon, String title, String blurb}) walletToolLook(WalletTool tool) => switch (tool) {
       WalletTool.tokens => (
           icon: Icons.token_outlined,
-          title: 'Tokens',
-          blurb: 'Issue tokens and NFTs, or burn tokens.',
+          title: appL10n.commonTokens,
+          blurb: appL10n.homeToolTokensBlurb,
         ),
       WalletTool.utxos => (
           icon: Icons.grid_view_outlined,
-          title: 'UTXO management',
-          blurb: 'Consolidate, split and tidy up your boxes.',
+          title: appL10n.homeUtxoManagement,
+          blurb: appL10n.homeToolUtxosBlurb,
         ),
       WalletTool.addresses => (
           icon: Icons.account_tree_outlined,
-          title: 'Addresses',
-          blurb: 'Each address of this wallet and what it holds.',
+          title: appL10n.commonAddresses,
+          blurb: appL10n.homeToolAddressesBlurb,
         ),
       WalletTool.lock => (
           icon: Icons.lock_outline,
-          title: 'Lock wallet',
-          blurb: 'Opening it again asks for your PIN or fingerprint.',
+          title: appL10n.homeToolLock,
+          blurb: appL10n.homeToolLockBlurb,
         ),
     };
 
@@ -127,7 +128,7 @@ class WalletToolsSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            HomeSheetHeader(title: 'More', subject: walletName),
+            HomeSheetHeader(title: context.l10n.homeActionMore, subject: walletName),
             for (final entry in main) _row(context, entry),
             if (lock.isNotEmpty) ...[
               const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: HomeRule()),
@@ -188,23 +189,23 @@ enum AddWalletChoice {
 ({IconData icon, String title, String blurb}) addWalletLook(AddWalletChoice choice) => switch (choice) {
       AddWalletChoice.create => (
           icon: Icons.add,
-          title: 'Create a new wallet',
-          blurb: 'A fresh recovery phrase, kept on this phone.',
+          title: appL10n.overviewAddCreate,
+          blurb: appL10n.overviewAddCreateBlurb,
         ),
       AddWalletChoice.restore => (
           icon: Icons.settings_backup_restore,
-          title: 'Restore a wallet',
-          blurb: 'From its 12, 15 or 24-word recovery phrase.',
+          title: appL10n.overviewAddRestore,
+          blurb: appL10n.overviewAddRestoreBlurb,
         ),
       AddWalletChoice.watchAddress => (
           icon: Icons.visibility_outlined,
-          title: 'Watch an address',
-          blurb: 'Balance and activity, without its keys.',
+          title: appL10n.watchAddressTitle,
+          blurb: appL10n.overviewAddWatchAddressBlurb,
         ),
       AddWalletChoice.watchAccount => (
           icon: Icons.account_tree_outlined,
-          title: 'Watch an account',
-          blurb: 'Every address of an extended public key (xpub).',
+          title: appL10n.overviewAddWatchAccount,
+          blurb: appL10n.overviewAddWatchAccountBlurb,
         ),
     };
 
@@ -234,7 +235,7 @@ class AddWalletSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const HomeSheetHeader(title: 'Add a wallet'),
+            HomeSheetHeader(title: context.l10n.overviewAddWallet),
             for (final choice in AddWalletChoice.values)
               HomeRow(
                 inkKey: Key(choice.keyName),

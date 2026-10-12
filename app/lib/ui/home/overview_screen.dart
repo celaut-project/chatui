@@ -11,6 +11,7 @@ import 'home_style.dart';
 import 'home_widgets.dart';
 import 'wallet_actions.dart';
 import 'wallet_tools_sheet.dart';
+import '../../l10n/l10n.dart';
 
 /// The launch screen: every wallet on this phone, seed and watched alike,
 /// under the total across them.
@@ -105,7 +106,7 @@ class OverviewScreen extends StatelessWidget {
                   children: [
                     const CelautWordmark(size: 24),
                     Text(
-                      'Decentralized compute',
+                      context.l10n.overviewTagline,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: t.secondary.copyWith(fontSize: 14, letterSpacing: 1),
@@ -120,7 +121,7 @@ class OverviewScreen extends StatelessWidget {
           IconButton(
             key: const Key('overview-settings'),
             icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
+            tooltip: context.l10n.commonSettings,
             onPressed: onSettings,
           ),
           const SizedBox(width: 8),
@@ -219,7 +220,7 @@ class OverviewView extends StatelessWidget {
       currency: data.currency,
       hidden: data.hidden,
       onTap: onOpenWallet == null ? null : () => onOpenWallet!(w.ref),
-      semanticActions: stop == null ? null : {const CustomSemanticsAction(label: 'Stop watching'): () => stop(w.ref)},
+      semanticActions: stop == null ? null : {CustomSemanticsAction(label: context.l10n.commonStopWatching): () => stop(w.ref)},
     );
     if (stop == null) return row;
     final t = HomeText.of(context);
@@ -243,7 +244,7 @@ class OverviewView extends StatelessWidget {
               children: [
                 Icon(Icons.visibility_off_outlined, size: 20, color: rustFor(context)),
                 const SizedBox(width: 8),
-                Text('Stop watching', style: t.primary.copyWith(color: rustFor(context))),
+                Text(context.l10n.commonStopWatching, style: t.primary.copyWith(color: rustFor(context))),
               ],
             ),
           ),
@@ -310,7 +311,7 @@ class OverviewView extends StatelessWidget {
               children: [
                 if (message != null) Padding(padding: const EdgeInsets.only(bottom: 8), child: message),
                 HomeBalance(
-                  label: 'Total balance',
+                  label: context.l10n.overviewTotalBalance,
                   figureKey: const Key('overview-total'),
                   pendingKey: const Key('overview-total-pending'),
                   nanoErg: data.totalNano,
@@ -353,12 +354,12 @@ class OverviewView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 HomeSectionHeader(
-                  title: 'Wallets',
+                  title: context.l10n.overviewWallets,
                   count: '${data.wallets.length}',
                   trailing: RingButton(
                     key: const Key('overview-add-wallet'),
                     icon: Icons.add,
-                    tooltip: 'Add a wallet',
+                    tooltip: context.l10n.overviewAddWallet,
                     onPressed: () => _add(context),
                   ),
                 ),
@@ -375,12 +376,12 @@ class OverviewView extends StatelessWidget {
               children: [
                 const SizedBox(height: 14),
                 HomeSectionHeader(
-                  title: 'Watched addresses',
+                  title: context.l10n.overviewWatchedAddresses,
                   count: '${data.watched.length}',
                   trailing: RingButton(
                     key: data.wallets.isEmpty ? const Key('overview-add-wallet') : const Key('overview-add-watched'),
                     icon: Icons.add,
-                    tooltip: 'Watch an address or account',
+                    tooltip: context.l10n.overviewWatchTooltip,
                     onPressed: () => _add(context),
                   ),
                 ),
@@ -464,13 +465,12 @@ class OverviewNotice extends StatelessWidget {
 Future<void> showPrototypeNotice(BuildContext context) => showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Prototype software'),
-        content: const Text(
-          'Celaut is an unaudited prototype. Transactions on Ergo are '
-          'irreversible — use only funds you can afford to lose.',
+        title: Text(context.l10n.overviewPrototypeTitle),
+        content: Text(
+          context.l10n.overviewPrototypeBody,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Got it')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.l10n.overviewGotIt)),
         ],
       ),
     );
@@ -492,7 +492,7 @@ class PrototypeNote extends StatelessWidget {
     // At large text the link moves under the words instead of squeezing
     // them into a column a few words wide.
     final stacked = homeLargeText(context);
-    final text = Text('Unaudited prototype. Use only funds you can afford to lose.', style: t.secondary);
+    final text = Text(context.l10n.overviewPrototypeNote, style: t.secondary);
     final link = TextButton(
       key: const Key('overview-learn-more'),
       onPressed: onLearnMore ?? () => showPrototypeNotice(context),
@@ -503,7 +503,7 @@ class PrototypeNote extends StatelessWidget {
         alignment: AlignmentDirectional.centerStart,
         textStyle: t.link,
       ),
-      child: const Text('Learn more'),
+      child: Text(context.l10n.overviewLearnMore),
     );
     final shield = SizedBox(
       width: homeMarkSize,
@@ -553,12 +553,11 @@ class _Welcome extends StatelessWidget {
         if (notice != null) ...[notice!, const SizedBox(height: 24)],
         Semantics(
           header: true,
-          child: Text('Your wallets live here', style: Theme.of(context).textTheme.headlineSmall),
+          child: Text(context.l10n.overviewWelcomeTitle, style: Theme.of(context).textTheme.headlineSmall),
         ),
         const SizedBox(height: 8),
         Text(
-          'No wallets yet. Create a new wallet, restore one from its recovery phrase, '
-          'or watch an address or an account without its keys. Each one opens from this screen.',
+          context.l10n.overviewWelcomeBody,
           style: t.secondary.copyWith(fontSize: 15, height: 1.45),
         ),
         const SizedBox(height: 28),
@@ -566,18 +565,18 @@ class _Welcome extends StatelessWidget {
           key: Key(AddWalletChoice.create.keyName),
           onPressed: add(AddWalletChoice.create),
           icon: const Icon(Icons.add, size: 20),
-          label: const Text('Create a wallet'),
+          label: Text(context.l10n.overviewCreateWallet),
         ),
         const SizedBox(height: 12),
         OutlinedButton.icon(
           key: Key(AddWalletChoice.restore.keyName),
           onPressed: add(AddWalletChoice.restore),
           icon: const Icon(Icons.settings_backup_restore, size: 20),
-          label: const Text('Restore from recovery phrase'),
+          label: Text(context.l10n.overviewRestoreWallet),
         ),
         const SizedBox(height: 8),
-        quiet(AddWalletChoice.watchAddress, Icons.visibility_outlined, 'Watch an address'),
-        quiet(AddWalletChoice.watchAccount, Icons.account_tree_outlined, 'Watch an account (xpub)'),
+        quiet(AddWalletChoice.watchAddress, Icons.visibility_outlined, context.l10n.watchAddressTitle),
+        quiet(AddWalletChoice.watchAccount, Icons.account_tree_outlined, context.l10n.overviewWatchAccountXpub),
         const SizedBox(height: 36),
         PrototypeNote(onLearnMore: onLearnMore, inset: false),
       ],

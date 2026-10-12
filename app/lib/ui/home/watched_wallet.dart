@@ -25,6 +25,7 @@ import 'overview_model.dart';
 import 'wallet_nav_bar.dart';
 import 'wallet_page.dart';
 import 'watched_actions.dart';
+import '../../l10n/l10n.dart';
 
 /// What a watched wallet's page shows, read from public data only: the
 /// node's balance and history for a watched address, the last scan for a
@@ -167,7 +168,7 @@ class WatchedWalletSource extends ChangeNotifier {
           updatedAt = DateTime.now();
           await _hydrate(_raw, generation);
         } catch (e) {
-          if (generation == _generation) error = 'Balance unavailable: $e';
+          if (generation == _generation) error = appL10n.watchBalanceUnavailable('$e');
         }
       }(),
       () async {
@@ -177,11 +178,11 @@ class WatchedWalletSource extends ChangeNotifier {
           recent = history.rows.take(5).toList();
           activityLoaded = true;
           activityError = history.partial
-              ? 'Some activity could not be read.'
+              ? appL10n.watchActivityPartial
               : null;
         } catch (e) {
           if (generation == _generation)
-            activityError = 'Could not load activity.';
+            activityError = appL10n.watchActivityFailed;
         }
       }(),
     ]);
@@ -359,7 +360,7 @@ class _WatchedWalletPageState extends State<WatchedWalletPage> {
       await _source.refresh();
       if (!mounted) return;
       if (_source.account!.snapshot == null) {
-        _snack('Account refresh unavailable. Try again.');
+        _snack(appL10n.watchAccountRefreshRetry);
         return;
       }
     }
@@ -390,7 +391,7 @@ class _WatchedWalletPageState extends State<WatchedWalletPage> {
 
   Future<void> _copyAddress(String address) async {
     await Clipboard.setData(ClipboardData(text: address));
-    _snack('Address copied');
+    _snack(appL10n.commonAddressCopied);
   }
 
   @override
@@ -404,13 +405,13 @@ class _WatchedWalletPageState extends State<WatchedWalletPage> {
         listenable: _source,
         builder: (context, _) => WalletPageScreen(
           title: _tab == WalletTab.wallet ? widget.name : walletTabLook(_tab).label,
-          subtitle: _tab == WalletTab.wallet ? (_source.isAccount ? 'Watched account' : 'Watched address') : null,
+          subtitle: _tab == WalletTab.wallet ? (_source.isAccount ? context.l10n.commonWatchedAccount : context.l10n.commonWatchedAddress) : null,
           immersive: _tab == WalletTab.wallet,
           onBack: widget.onClose,
           actions: [
             if (_tab == WalletTab.wallet)
               IconButton(
-                tooltip: _source.isAccount ? 'Rescan account' : 'Refresh',
+                tooltip: _source.isAccount ? context.l10n.watchRescanAccount : context.l10n.watchRefresh,
                 icon: _source.loading
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.refresh),
@@ -421,19 +422,19 @@ class _WatchedWalletPageState extends State<WatchedWalletPage> {
             if (_tab == WalletTab.wallet)
               PopupMenuButton<_WatchedMenu>(
                 key: const Key('watched-menu'),
-                tooltip: 'More options',
+                tooltip: context.l10n.watchMoreOptions,
                 icon: const Icon(Icons.more_vert),
                 onSelected: _menu,
-                itemBuilder: (_) => const [
+                itemBuilder: (_) => [
                   PopupMenuItem(
-                    key: Key('watched-menu-rename'),
+                    key: const Key('watched-menu-rename'),
                     value: _WatchedMenu.rename,
-                    child: ListTile(leading: Icon(Icons.edit_outlined), title: Text('Rename')),
+                    child: ListTile(leading: const Icon(Icons.edit_outlined), title: Text(context.l10n.watchRename)),
                   ),
                   PopupMenuItem(
-                    key: Key('watched-menu-stop'),
+                    key: const Key('watched-menu-stop'),
                     value: _WatchedMenu.stop,
-                    child: ListTile(leading: Icon(Icons.visibility_off_outlined), title: Text('Stop watching')),
+                    child: ListTile(leading: const Icon(Icons.visibility_off_outlined), title: Text(context.l10n.commonStopWatching)),
                   ),
                 ],
               ),
@@ -470,9 +471,9 @@ class _WatchedWalletPageState extends State<WatchedWalletPage> {
     if (args == null) {
       return EmptyState(
         icon: Icons.account_tree_outlined,
-        title: 'Account not scanned',
-        body: 'Refresh the account to read its addresses and activity.',
-        actionLabel: 'Refresh account',
+        title: context.l10n.watchNotScannedTitle,
+        body: context.l10n.watchNotScannedBody,
+        actionLabel: context.l10n.watchRefreshAccount,
         onAction: _source.refresh,
       );
     }
@@ -573,34 +574,32 @@ WalletPageData watchedPageData(
     activity: [for (final (i, tx) in shown.indexed) activityRow(tx, id: activityRowId(tx, i))],
     activityLoading: !s.activityLoaded && s.loading,
     activityError: s.recent.isEmpty ? s.activityError : null,
-    activityEmpty: s.ready ? 'No activity yet' : 'Refresh the account to read its activity.',
-    activityEmptyAction: s.ready ? 'Show its address' : null,
+    activityEmpty: s.ready ? null : appL10n.watchRefreshToReadActivity,
+    activityEmptyAction: s.ready ? appL10n.watchShowItsAddress : null,
     unpricedCount: value.unpriced,
     pricesNote: pricesNote(),
     hidden: hidden,
     pendingCount: s.recent.where(isPendingTx).length,
     watched: WatchedDetails(
       status: [
-        'Watch-only · cannot sign here',
+        appL10n.watchStatusWatchOnly,
         if (s.loading)
-          s.isAccount ? 'Scanning…' : 'Refreshing…'
+          s.isAccount ? appL10n.watchScanning : appL10n.watchRefreshing
         else if (s.updatedAt != null)
-          'Updated ${formatSyncAge(s.updatedAt)}',
+          appL10n.watchUpdated(formatSyncAge(s.updatedAt)),
       ],
       error: s.error,
       notes: s.isAccount
-          ? const [
+          ? [
               watchAccountLimitations,
-              'Discovery stops after 20 unused addresses. Payments beyond a larger gap can be missed.',
+              appL10n.watchGapNote,
             ]
-          : const [
-              'Cannot sign locally. Send with an offline signer; change returns to this same address. A watched account tracks more addresses.',
+          : [
+              appL10n.watchAddressNote,
             ],
-      addressTitle: s.isAccount ? 'First address' : 'Address',
+      addressTitle: s.isAccount ? appL10n.watchFirstAddress : null,
       addressNote: s.isAccount
-          ? 'Check this matches the first address in the wallet the key came from: '
-              'an extended key has no checksum. '
-              '${s.historyAddresses.length} addresses scanned.'
+          ? appL10n.watchFirstAddressNote(s.historyAddresses.length)
           : null,
       canSend: s.ready,
       // An account without a complete scan has no unused address it can
@@ -620,7 +619,7 @@ class WatchedAssetsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Assets')),
+      appBar: AppBar(title: Text(context.l10n.homeAssets)),
       body: ListenableBuilder(
         listenable: Listenable.merge([
           source,

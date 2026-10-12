@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../build_info.dart';
+import '../../l10n/l10n.dart';
 import '../../services/apk_signature.dart';
 import '../../services/update_service.dart';
 import '../../theme/argus_theme.dart';
@@ -51,13 +52,14 @@ class _UpdateCardState extends State<UpdateCard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Update available',
+                        context.l10n.updateAvailableTitle,
                         style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Celaut ${release.version}'
-                        '${published == null ? '' : ' · ${_date(published.toLocal())}'}',
+                        published == null
+                            ? context.l10n.updateCardVersion('${release.version}')
+                            : context.l10n.updateCardVersionDate('${release.version}', _date(published.toLocal())),
                         style: TextStyle(fontSize: 12.5, color: colors.muted),
                       ),
                     ],
@@ -73,7 +75,7 @@ class _UpdateCardState extends State<UpdateCard> {
                   key: const Key('update-notes-toggle'),
                   onPressed: () => setState(() => _notesOpen = !_notesOpen),
                   icon: Icon(_notesOpen ? Icons.expand_less : Icons.expand_more, size: 18),
-                  label: Text(_notesOpen ? 'Hide release notes' : 'Release notes'),
+                  label: Text(_notesOpen ? context.l10n.updateHideNotes : context.l10n.updateReleaseNotes),
                 ),
               ),
               // Plain text on purpose: GitHub serves markdown, which is shown
@@ -102,6 +104,7 @@ class _UpdateCardState extends State<UpdateCard> {
   Widget _actions(BuildContext context) {
     final colors = ArgusColors.of(context);
     final small = TextStyle(fontSize: 12.5, color: colors.muted);
+    final t = context.l10n;
     switch (_u.stage) {
       case UpdateStage.downloading:
         final total = _u.totalBytes;
@@ -110,7 +113,7 @@ class _UpdateCardState extends State<UpdateCard> {
           children: [
             LinearProgressIndicator(
               key: const Key('update-progress'),
-              semanticsLabel: 'Download progress',
+              semanticsLabel: t.updateDownloadProgress,
               value: total == null || total == 0 ? null : (_u.downloadedBytes / total).clamp(0.0, 1.0),
             ),
             const SizedBox(height: 8),
@@ -119,15 +122,15 @@ class _UpdateCardState extends State<UpdateCard> {
                 Expanded(
                   child: Text(
                     total == null
-                        ? 'Downloading…'
-                        : 'Downloading ${formatDownloadSize(_u.downloadedBytes)} of ${formatDownloadSize(total)}',
+                        ? t.updateDownloading
+                        : t.updateDownloadingOf(formatDownloadSize(_u.downloadedBytes), formatDownloadSize(total)),
                     style: small,
                   ),
                 ),
                 TextButton(
                   key: const Key('update-cancel'),
                   onPressed: _u.cancelDownload,
-                  child: const Text('Cancel'),
+                  child: Text(t.commonCancel),
                 ),
               ],
             ),
@@ -137,9 +140,9 @@ class _UpdateCardState extends State<UpdateCard> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const LinearProgressIndicator(key: Key('update-progress'), semanticsLabel: 'Checking the download'),
+            LinearProgressIndicator(key: const Key('update-progress'), semanticsLabel: t.updateCheckingDownload),
             const SizedBox(height: 8),
-            Text('Checking the download against this app\'s signing key…', style: small),
+            Text(t.updateCheckingAgainstKey, style: small),
           ],
         );
       case UpdateStage.verified:
@@ -154,8 +157,9 @@ class _UpdateCardState extends State<UpdateCard> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'The signing certificate matches this app'
-                    '${signer == null ? '' : ' (SHA-256 ${formatFingerprint(signer).substring(0, 11)}…)'}.',
+                    signer == null
+                        ? t.updateCertMatches
+                        : t.updateCertMatchesWith(formatFingerprint(signer).substring(0, 11)),
                     key: const Key('update-verified'),
                     style: const TextStyle(fontSize: 13),
                   ),
@@ -165,7 +169,7 @@ class _UpdateCardState extends State<UpdateCard> {
             const SizedBox(height: 4),
             // What was and was not checked: the certificate the file names, and
             // GitHub's checksum. The signature itself is Android's to verify.
-            Text('Android checks the signature itself when it installs.', style: small),
+            Text(t.updateAndroidChecksSignature, style: small),
             if (_u.stageMessage != null) ...[
               const SizedBox(height: 8),
               Text(_u.stageMessage!, style: small),
@@ -174,7 +178,7 @@ class _UpdateCardState extends State<UpdateCard> {
             FilledButton(
               key: const Key('update-install'),
               onPressed: _u.install,
-              child: const Text('Install'),
+              child: Text(t.updateInstall),
             ),
           ],
         );
@@ -190,6 +194,7 @@ class _UpdateCardState extends State<UpdateCard> {
     final rejected = _u.stage == UpdateStage.rejected;
     final message = _u.stageMessage;
     final canDownload = _u.installSupported && asset != null;
+    final t = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -218,31 +223,27 @@ class _UpdateCardState extends State<UpdateCard> {
           FilledButton(
             key: const Key('update-download'),
             onPressed: _u.downloadAndVerify,
-            child: Text(rejected || _u.stage == UpdateStage.failed ? 'Try again' : 'Download and verify'),
+            child: Text(rejected || _u.stage == UpdateStage.failed ? t.updateTryAgain : t.updateDownloadAndVerify),
           ),
           const SizedBox(height: 8),
           Text(
-            '${asset.name} · ${formatDownloadSize(asset.size)}. Before anything is installed, Celaut checks the file '
-            'against the checksum GitHub lists and against the key this app is signed with.',
+            t.updateAssetNote(asset.name, formatDownloadSize(asset.size)),
             style: small,
           ),
         ] else ...[
           OutlinedButton(
             key: const Key('update-open-releases'),
             onPressed: () => launchUrl(Uri.parse(releasesUrl), mode: LaunchMode.externalApplication),
-            child: const Text('Open the releases page'),
+            child: Text(t.updateOpenReleasesPage),
           ),
           if (_u.installSupported && asset == null) ...[
             const SizedBox(height: 8),
-            Text('This release has no APK for your phone.', style: small),
+            Text(t.updateNoApkForPhone, style: small),
           ],
         ],
       ],
     );
   }
 
-  static String _date(DateTime at) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${at.day} ${months[at.month - 1]} ${at.year}';
-  }
+  static String _date(DateTime at) => appL10n.dateDayMonthYear(monthShort(at.month), '${at.day}', '${at.year}');
 }

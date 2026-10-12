@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:argus_wallet/l10n/l10n.dart';
 import 'package:argus_wallet/theme/argus_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -92,7 +93,12 @@ Future<void> pumpRender(
   double? height,
   bool settle = true,
   bool reduceMotion = false,
+  Locale? locale,
 }) async {
+  if (locale != null) {
+    setAppLocale(locale);
+    addTearDown(() => setAppLocale(const Locale('en')));
+  }
   tester.view.physicalSize = Size(renderSize.width, height ?? renderSize.height) * renderPixelRatio;
   tester.view.devicePixelRatio = renderPixelRatio;
   tester.view.padding = const FakeViewPadding(top: _statusBar * renderPixelRatio);
@@ -103,6 +109,9 @@ Future<void> pumpRender(
       key: _boundary,
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
+        locale: locale,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: renderTheme(palette),
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(textScale), disableAnimations: reduceMotion),

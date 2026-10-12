@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../services/explorer_presets.dart';
 import '../../services/network_controller.dart';
 import '../../theme/argus_theme.dart';
@@ -50,8 +51,9 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
       builder: (context, _) {
         final colors = ArgusColors.of(context);
         final nodes = networkController.nodes;
+        final t = context.l10n;
         return SettingsPage(
-          title: 'Network',
+          title: t.networkTitle,
           children: [
             SoftCard(
               child: Row(
@@ -60,7 +62,7 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Connected node', style: TextStyle(fontSize: 12.5, color: colors.muted)),
+                        Text(t.networkConnectedNode, style: TextStyle(fontSize: 12.5, color: colors.muted)),
                         const SizedBox(height: 4),
                         Text(networkController.statusLabel, style: Theme.of(context).textTheme.titleMedium),
                       ],
@@ -68,13 +70,13 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
                   ),
                   TextButton(
                     onPressed: networkController.probing ? null : networkController.probe,
-                    child: Text(networkController.probing ? 'Checking…' : 'Check nodes'),
+                    child: Text(networkController.probing ? t.networkChecking : t.networkCheckNodes),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 24),
-            const SectionLabel('Nodes', scope: 'App-wide'),
+            SectionLabel(t.networkNodes, scope: t.settingsScopeAppWide),
             const SizedBox(height: 10),
             SoftCard(
               padding: EdgeInsets.zero,
@@ -88,9 +90,9 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
                     child: TextField(
                       controller: _nodeCtrl,
                       decoration: InputDecoration(
-                        labelText: 'Add node URL',
-                        hintText: 'https://host  or  1.2.3.4:9053',
-                        suffixIcon: IconButton(tooltip: 'Add', onPressed: _addNode, icon: const Icon(Icons.add)),
+                        labelText: t.networkAddNodeLabel,
+                        hintText: t.networkAddNodeHint,
+                        suffixIcon: IconButton(tooltip: t.networkAdd, onPressed: _addNode, icon: const Icon(Icons.add)),
                       ),
                       onSubmitted: (_) => _addNode(),
                     ),
@@ -99,10 +101,8 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
               ),
             ),
             const SizedBox(height: 8),
-            const SettingsNote(
-              'Tap a node to use it. Automatic picks the reachable node with extraIndex and the smallest index lag. Built-in nodes are HTTPS; you can add http://ip:port for a node you run or trust, unencrypted.',
-            ),
-            const SectionLabel('Find more nodes', scope: 'App-wide'),
+            SettingsNote(t.networkNodesNote),
+            SectionLabel(t.networkFindMoreNodes, scope: t.settingsScopeAppWide),
             const SizedBox(height: 10),
             SoftCard(
               padding: EdgeInsets.zero,
@@ -116,10 +116,10 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
                         Expanded(
                           child: Text(
                             networkController.discovering
-                                ? 'Asking every node for its peers and checking each…'
+                                ? t.networkDiscovering
                                 : networkController.lastSearch != null
                                     ? nodeSearchSummary(networkController.lastSearch!)
-                                    : 'Peers of your nodes that publish an HTTPS API.',
+                                    : t.networkDiscoverIntro,
                             style: TextStyle(fontSize: 12.5, color: colors.muted),
                           ),
                         ),
@@ -127,7 +127,7 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
                           onPressed: networkController.discovering
                               ? null
                               : networkController.discoverNodes,
-                          child: Text(networkController.discovering ? 'Searching…' : 'Search'),
+                          child: Text(networkController.discovering ? t.networkSearching : t.networkSearch),
                         ),
                       ],
                     ),
@@ -137,7 +137,7 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
               ),
             ),
             const SizedBox(height: 24),
-            const SectionLabel('Open in explorer', scope: 'App-wide'),
+            SectionLabel(t.networkOpenInExplorer, scope: t.settingsScopeAppWide),
             const SizedBox(height: 10),
             SoftCard(
               padding: EdgeInsets.zero,
@@ -155,9 +155,9 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
                   _choiceRow(
                     context,
                     on: networkController.explorerSiteId == customExplorerSiteId,
-                    title: 'Custom',
+                    title: t.networkCustom,
                     subtitle: networkController.explorerWeb == null
-                        ? 'A website using the Ergo Platform explorer paths'
+                        ? t.networkCustomSiteSubtitle
                         : Uri.tryParse(networkController.explorerWeb!)?.host ??
                             networkController.explorerWeb!,
                     onTap: () => networkController.setExplorerSite(customExplorerSiteId),
@@ -168,10 +168,10 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
                       child: TextField(
                         controller: _explorerWebCtrl,
                         decoration: InputDecoration(
-                          labelText: 'Explorer website',
+                          labelText: t.networkExplorerWebsite,
                           hintText: 'https://explorer.example',
                           suffixIcon: IconButton(
-                            tooltip: 'Save',
+                            tooltip: t.commonSave,
                             onPressed: () => networkController.setExplorerWeb(_explorerWebCtrl.text),
                             icon: const Icon(Icons.check),
                           ),
@@ -183,10 +183,8 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
               ),
             ),
             const SizedBox(height: 8),
-            const SettingsNote(
-              'Where transaction and token links open. This changes no data the wallet reads.',
-            ),
-            const SectionLabel('Explorer API', scope: 'App-wide'),
+            SettingsNote(t.networkExplorerSiteNote),
+            SectionLabel(t.networkExplorerApi, scope: t.settingsScopeAppWide),
             const SizedBox(height: 10),
             SoftCard(
               padding: EdgeInsets.zero,
@@ -204,8 +202,8 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
                   _choiceRow(
                     context,
                     on: !explorerApiSites.any((s) => s.api == networkController.explorer),
-                    title: 'Custom',
-                    subtitle: 'Any server speaking the Ergo Platform explorer API',
+                    title: t.networkCustom,
+                    subtitle: t.networkCustomApiSubtitle,
                     onTap: null,
                   ),
                   Padding(
@@ -213,10 +211,10 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
                     child: TextField(
                       controller: _explorerCtrl,
                       decoration: InputDecoration(
-                        labelText: 'Explorer API URL',
+                        labelText: t.networkExplorerApiUrl,
                         hintText: 'https://api.sigmaspace.io',
                         suffixIcon: IconButton(
-                          tooltip: 'Save',
+                          tooltip: t.commonSave,
                           onPressed: () => networkController.setExplorer(_explorerCtrl.text),
                           icon: const Icon(Icons.check),
                         ),
@@ -228,9 +226,7 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
               ),
             ),
             const SizedBox(height: 8),
-            const SettingsNote(
-              'The data source for token metadata when nodes lack it. ErgExplorer and Kadia use their own APIs, so they cannot be chosen here.',
-            ),
+            SettingsNote(t.networkExplorerApiNote),
           ],
         );
       },
@@ -299,11 +295,11 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Automatic', style: Theme.of(context).textTheme.titleMedium),
+                  Text(context.l10n.networkAutomatic, style: Theme.of(context).textTheme.titleMedium),
                   Text(
                     auto
-                        ? (host == null ? 'Best reachable extraIndex node' : 'Using $host')
-                        : 'Best reachable extraIndex node',
+                        ? (host == null ? context.l10n.networkBestReachable : context.l10n.networkUsingHost(host))
+                        : context.l10n.networkBestReachable,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -319,7 +315,10 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
     final host = Uri.tryParse(p.url)?.host ?? p.url;
     final lag = p.indexLag;
     final detail = [
-      if (p.extraIndex == true) (lag != null && lag > 2 ? 'extraIndex, lag $lag' : 'extraIndex') else 'no extraIndex',
+      if (p.extraIndex == true)
+        (lag != null && lag > 2 ? context.l10n.networkExtraIndexLag('$lag') : 'extraIndex')
+      else
+        context.l10n.networkNoExtraIndex,
       if (p.height != null) '#${p.height}',
     ].join('  ·  ');
     return Padding(
@@ -335,7 +334,7 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
               ],
             ),
           ),
-          TextButton(onPressed: () => networkController.addNode(p.url), child: const Text('Add')),
+          TextButton(onPressed: () => networkController.addNode(p.url), child: Text(context.l10n.networkAdd)),
         ],
       ),
     );
@@ -377,12 +376,12 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
             ),
           ),
           IconButton(
-            tooltip: n.enabled ? 'Disable' : 'Enable',
+            tooltip: n.enabled ? context.l10n.networkDisable : context.l10n.networkEnable,
             onPressed: isLastEnabled ? null : () => networkController.toggleNode(i),
             icon: Icon(n.enabled ? Icons.visibility : Icons.visibility_off, size: 20),
           ),
           IconButton(
-            tooltip: 'Remove',
+            tooltip: context.l10n.commonRemove,
             onPressed: isLastEnabled ? null : () => networkController.removeNode(i),
             icon: const Icon(Icons.close, size: 20),
           ),

@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import '../l10n/l10n.dart';
 import 'address_holdings.dart';
 import 'network_controller.dart';
 import 'pending_balance.dart';
@@ -436,14 +437,15 @@ class WalletSyncController extends ChangeNotifier {
 
   /// Reserves success for a completed wallet sync, even when a node is online.
   String statusLabel({required bool online}) {
+    final t = appL10n;
     if (publicSnapshotOnly)
-      return 'Public data · known addresses only';
-    if (isSyncing) return 'Syncing…';
-    if (isStale) return 'Out of sync';
-    if (!online) return 'Offline';
-    if (phase == SyncPhase.historyPartial) return 'History incomplete';
-    if (phase == SyncPhase.synced && lastSyncedAt != null) return 'Synced';
-    return 'Not synced';
+      return t.syncPublicKnownOnly;
+    if (isSyncing) return t.syncSyncing;
+    if (isStale) return t.syncOutOfSync;
+    if (!online) return t.commonOffline;
+    if (phase == SyncPhase.historyPartial) return t.syncHistoryIncomplete;
+    if (phase == SyncPhase.synced && lastSyncedAt != null) return t.syncSynced;
+    return t.syncNotSynced;
   }
 
   /// Transactions this app broadcast recently, by id: when, and the
@@ -1148,8 +1150,7 @@ class WalletSyncController extends ChangeNotifier {
   String _cacheKey(String receive) => _gw.activeWalletId ?? receive;
 
   static String _pinIssueFor(int index) =>
-      "Pinned index $index can't be derived "
-      '(max ${WalletService.maxAddressIndex}). Reset it in Settings.';
+      appL10n.syncPinIssue('$index', '${WalletService.maxAddressIndex}');
 
   static List<Map<String, dynamic>> _mapList(dynamic raw) =>
       (raw as List? ?? const [])

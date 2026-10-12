@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
+import '../../l10n/l10n.dart';
 import '../../services/network_controller.dart';
 import '../../services/privacy_service.dart';
 import '../../services/preview/preview_service.dart';
@@ -107,27 +108,27 @@ class _ArtworkPreviewViewerState extends State<ArtworkPreviewViewer>
     child: Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          tooltip: 'Close artwork',
+          tooltip: context.l10n.artworkClose,
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.close),
         ),
         title: Text(
-          _image == null ? 'Artwork' : widget.label,
+          _image == null ? context.l10n.artworkTitle : widget.label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
           if (_image != null)
             IconButton(
-              tooltip: 'Reset zoom',
+              tooltip: context.l10n.artworkResetZoom,
               onPressed: () => _transformation.value = Matrix4.identity(),
               icon: const Icon(Icons.fit_screen_outlined),
             ),
         ],
       ),
       body: _image == null
-          ? const Center(
-              child: Text('Preview hidden. Reopen asset details to view it.'),
+          ? Center(
+              child: Text(context.l10n.artworkPreviewHidden),
             )
           : Column(
               children: [
@@ -154,7 +155,7 @@ class _ArtworkPreviewViewerState extends State<ArtworkPreviewViewer>
                       children: [
                         Text(widget.integrity),
                         const SizedBox(height: 4),
-                        const Text('Pinch or scroll to zoom. Drag to move.'),
+                        Text(context.l10n.artworkZoomHint),
                       ],
                     ),
                   ),

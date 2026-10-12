@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../build_info.dart';
 import '../../format.dart';
+import '../../l10n/l10n.dart';
 import '../../services/apk_signature.dart';
 import '../../services/update_service.dart';
 import '../../theme/argus_theme.dart';
@@ -37,20 +38,23 @@ class _AboutPageState extends State<AboutPage> {
   Future<void> _setChecking(bool value) async {
     final saved = await _updates.setEnabled(value);
     if (!saved && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not save the setting.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.aboutSaveSettingFailed)));
     }
   }
 
   /// One line on where the last check stands.
   String _checkStatus() {
     final u = _updates;
-    if (u.checking) return 'Asking GitHub…';
+    final t = context.l10n;
+    if (u.checking) return t.aboutAskingGithub;
     if (u.checkError != null) return u.checkError!;
     final at = u.lastChecked;
-    if (at == null) return 'Not checked yet';
+    if (at == null) return t.aboutNotCheckedYet;
     final when = formatRelativeTime(at);
     final lower = when.isEmpty ? when : '${when[0].toLowerCase()}${when.substring(1)}';
-    return '${u.available == null ? 'Up to date' : 'Version ${u.available!.version} is available'} · checked $lower';
+    return u.available == null
+        ? t.aboutUpToDateChecked(lower)
+        : t.aboutVersionAvailableChecked('${u.available!.version}', lower);
   }
 
   @override
@@ -58,7 +62,7 @@ class _AboutPageState extends State<AboutPage> {
     return ListenableBuilder(
       listenable: _updates,
       builder: (context, _) => SettingsPage(
-        title: 'About',
+        title: context.l10n.aboutTitle,
         children: [
           const SizedBox(height: 16),
           const Center(child: CellMark(size: 64)),
@@ -66,20 +70,20 @@ class _AboutPageState extends State<AboutPage> {
           const CelautWordmark(size: 28, textAlign: TextAlign.center),
           const SizedBox(height: 6),
           Text(
-            '$appVersion · build $appBuildNumber',
+            context.l10n.aboutVersionBuild(appVersion, '$appBuildNumber'),
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 28),
           UpdateCard(updates: _updates),
           SettingsGroup(
-            title: 'Updates',
-            scope: 'App-wide',
+            title: context.l10n.aboutUpdatesGroup,
+            scope: context.l10n.settingsScopeAppWide,
             children: [
               SettingsRow(
                 icon: Icons.update,
-                title: 'Check for updates',
-                subtitle: 'Asks GitHub once a day. GitHub sees your IP address.',
+                title: context.l10n.aboutCheckForUpdates,
+                subtitle: context.l10n.aboutCheckForUpdatesSubtitle,
                 trailing: Switch(
                   key: const Key('update-check-toggle'),
                   value: _updates.enabled,
@@ -89,7 +93,7 @@ class _AboutPageState extends State<AboutPage> {
               ),
               SettingsRow(
                 icon: Icons.refresh,
-                title: 'Check now',
+                title: context.l10n.aboutCheckNow,
                 subtitle: _checkStatus(),
                 trailing: _updates.checking
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
@@ -98,30 +102,25 @@ class _AboutPageState extends State<AboutPage> {
               ),
             ],
           ),
-          const SettingsNote(
-            'Off by default. When on, Celaut asks api.github.com for the latest release once a day as it starts. '
-            '"Check now" does the same on request, even with this off. Nothing else is sent: no account, token, '
-            'app version or device identifier. A download comes from github.com and is checked against this '
-            'app\'s signing key before Android is asked to install it.',
-          ),
+          SettingsNote(context.l10n.aboutUpdatesNote),
           SettingsGroup(
-            title: 'This build',
+            title: context.l10n.aboutThisBuild,
             children: [
-              const SettingsRow(
+              SettingsRow(
                 icon: Icons.shield_outlined,
-                title: 'Unaudited prototype',
-                subtitle: 'Transactions on Ergo are irreversible. Use only funds you can afford to lose.',
+                title: context.l10n.aboutUnauditedTitle,
+                subtitle: context.l10n.aboutUnauditedSubtitle,
               ),
               _SigningKeyRow(fingerprints: _signingKey),
               SettingsRow(
                 icon: Icons.new_releases_outlined,
-                title: 'Releases and notes',
-                subtitle: 'What changed in each alpha, and the latest APK.',
+                title: context.l10n.aboutReleasesTitle,
+                subtitle: context.l10n.aboutReleasesSubtitle,
                 onTap: () => launchUrl(Uri.parse(releasesUrl), mode: LaunchMode.externalApplication),
               ),
               SettingsRow(
                 icon: Icons.description_outlined,
-                title: 'Open-source licenses',
+                title: context.l10n.aboutLicenses,
                 onTap: () => showLicensePage(
                   context: context,
                   applicationName: 'Celaut',
@@ -130,9 +129,7 @@ class _AboutPageState extends State<AboutPage> {
               ),
             ],
           ),
-          const SettingsNote(
-            'Celaut is a light client: it talks to public Ergo nodes over HTTPS and never sends your keys anywhere.',
-          ),
+          SettingsNote(context.l10n.aboutLightClientNote),
         ],
       ),
     );
@@ -179,17 +176,17 @@ class _SigningKeyRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Signing certificate', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                    Text(context.l10n.aboutSigningCertificate, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
                     const SizedBox(height: 2),
                     Text(
-                      'SHA-256 of the key this build is signed with. An update must be signed with the same one.',
+                      context.l10n.aboutSigningCertificateSubtitle,
                       style: TextStyle(fontSize: 12.5, color: colors.muted),
                     ),
                     const SizedBox(height: 8),
                     if (!done)
-                      Text('Reading…', style: TextStyle(fontSize: 12.5, color: colors.muted))
+                      Text(context.l10n.aboutReading, style: TextStyle(fontSize: 12.5, color: colors.muted))
                     else if (prints == null)
-                      Text('Not available on this device.', style: TextStyle(fontSize: 12.5, color: colors.muted))
+                      Text(context.l10n.aboutNotAvailableOnDevice, style: TextStyle(fontSize: 12.5, color: colors.muted))
                     else
                       for (final hex in prints)
                         Padding(
@@ -205,12 +202,12 @@ class _SigningKeyRow extends StatelessWidget {
               ),
               if (prints != null)
                 IconButton(
-                  tooltip: 'Copy',
+                  tooltip: context.l10n.commonCopy,
                   icon: const Icon(Icons.copy_outlined, size: 18),
                   onPressed: () async {
                     await Clipboard.setData(ClipboardData(text: prints.map(formatFingerprint).join('\n')));
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fingerprint copied')));
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.aboutFingerprintCopied)));
                     }
                   },
                 ),

@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import '../../l10n/l10n.dart';
 import '../../services/network_controller.dart';
 import '../../services/privacy_service.dart';
 import '../../services/preview/policy.dart';
@@ -120,7 +121,7 @@ class _RemotePreviewState extends State<RemotePreview>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
+              child: Text(ctx.l10n.commonCancel),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
@@ -147,10 +148,9 @@ class _RemotePreviewState extends State<RemotePreview>
     );
     try {
       final yes = await _consent(
-        'Load preview through ${Uri.parse(gateway).host}?',
-        'This gateway can see your IP address and which artwork was requested. '
-            'Up to 5 MiB will be downloaded. Artwork may contain unsolicited or misleading content.',
-        'Load preview',
+        context.l10n.previewLoadThroughTitle(Uri.parse(gateway).host),
+        context.l10n.previewLoadConsentBody,
+        context.l10n.previewLoad,
       );
       job.check();
       if (!yes) return;
@@ -163,9 +163,9 @@ class _RemotePreviewState extends State<RemotePreview>
       if (!source.info.matchesHash) {
         if (!mounted) return;
         withoutIntegrity = await _consent(
-          'Issuance hash missing or invalid',
-          'The format and dimensions passed the preview checks, but these bytes cannot be compared with an issuance hash.',
-          'View without integrity check',
+          context.l10n.previewHashMissingTitle,
+          context.l10n.previewHashMissingBody,
+          context.l10n.previewViewWithoutIntegrity,
         );
         job.check();
         if (!withoutIntegrity) return;
@@ -182,15 +182,15 @@ class _RemotePreviewState extends State<RemotePreview>
         _image?.dispose();
         _image = image;
         _message = source.info.matchesHash
-            ? 'Matches issuance hash'
-            : 'Viewed without integrity check';
+            ? context.l10n.previewMatchesHash
+            : context.l10n.previewViewedWithoutIntegrity;
       });
     } catch (e) {
       if (mounted && identical(_job, job) && _allowed)
         setState(
           () => _message = e is PreviewFailure
               ? e.message
-              : 'Preview could not be loaded.',
+              : context.l10n.previewLoadFailed,
         );
     } finally {
       if (mounted && identical(_job, job)) setState(() => _loading = false);
@@ -232,7 +232,7 @@ class _RemotePreviewState extends State<RemotePreview>
     if (token.declaredAssetKind != DeclaredAssetKind.picture ||
         token.metadataState == MetadataState.invalid ||
         token.metadataState == MetadataState.conflict) {
-      unavailable ??= 'Preview not supported for this metadata.';
+      unavailable ??= context.l10n.previewMetadataUnsupported;
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,13 +240,11 @@ class _RemotePreviewState extends State<RemotePreview>
         if (unavailable != null)
           Text(unavailable)
         else if (previewSettings.never)
-          const Text('Remote previews disabled.')
+          Text(context.l10n.previewDisabled)
         else if (previewSettings.gateway == null)
-          const Text('No gateway configured. Previews are unavailable.')
+          Text(context.l10n.previewNoGateway)
         else if (!_allowed)
-          const Text(
-            'Previews unavailable while locked, hidden, offline or outside this session.',
-          )
+          Text(context.l10n.previewUnavailableNow)
         else ...[
           if (_image != null)
             ClipRRect(
@@ -266,12 +264,12 @@ class _RemotePreviewState extends State<RemotePreview>
                 TextButton.icon(
                   onPressed: _expand,
                   icon: const Icon(Icons.fullscreen, size: 20),
-                  label: const Text('View artwork'),
+                  label: Text(context.l10n.previewViewArtwork),
                 ),
                 TextButton.icon(
                   onPressed: () => setState(_clear),
                   icon: const Icon(Icons.visibility_off_outlined, size: 18),
-                  label: const Text('Hide preview'),
+                  label: Text(context.l10n.previewHide),
                 ),
               ],
             ),
@@ -279,7 +277,9 @@ class _RemotePreviewState extends State<RemotePreview>
             OutlinedButton.icon(
               onPressed: _loading ? null : _load,
               icon: const Icon(Icons.image_outlined, size: 18),
-              label: Text(_loading ? 'Loading preview…' : 'Load preview'),
+              label: Text(
+                _loading ? context.l10n.previewLoading : context.l10n.previewLoad,
+              ),
             ),
           if (_loading)
             TextButton(
@@ -287,7 +287,7 @@ class _RemotePreviewState extends State<RemotePreview>
                 _clear();
                 setState(() {});
               },
-              child: const Text('Cancel preview'),
+              child: Text(context.l10n.previewCancel),
             ),
         ],
         TextButton(
@@ -297,7 +297,7 @@ class _RemotePreviewState extends State<RemotePreview>
               builder: (_) => const PreviewSettingsPage(),
             ),
           ),
-          child: const Text('Remote preview settings'),
+          child: Text(context.l10n.previewSettingsLink),
         ),
       ],
     );

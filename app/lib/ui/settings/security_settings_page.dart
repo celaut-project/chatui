@@ -2,6 +2,7 @@ import '../widgets/error_sheet.dart';
 import 'package:flutter/material.dart';
 
 import '../../bridge/argus_error.dart';
+import '../../l10n/l10n.dart';
 import '../../services/privacy_service.dart';
 import '../../services/secure_storage.dart';
 import '../../services/session_lock.dart';
@@ -58,22 +59,24 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
   }
 
   Future<void> _disableBiometric() async {
+    final t = context.l10n;
     setState(() => _busy = true);
     try {
       await SecureStorageService.deleteWrapKey(walletId: _walletId);
       await _load();
-      _snack('Biometric unlock disabled');
+      _snack(t.securityBiometricDisabled);
     } catch (_) {
-      _snack('Could not disable biometrics');
+      _snack(t.securityBiometricDisableFailed);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
   Future<void> _enableBiometric() async {
+    final t = context.l10n;
     final entry = await showDialog<PinEntry>(
       context: context,
-      builder: (_) => const PinEntryDialog(title: 'Confirm PIN'),
+      builder: (_) => PinEntryDialog(title: t.pinConfirm),
     );
     if (entry == null) return;
     final entered = entry.pin;
@@ -89,7 +92,7 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
         return;
       }
     } on SecureStorageException {
-      _snack('Could not check PIN lockout');
+      _snack(t.securityPinLockoutCheckFailed);
       return;
     }
     setState(() => _busy = true);
@@ -104,36 +107,37 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
       });
       if (!mounted) return;
       if (!saved) {
-        _snack('No PIN-protected wallet found.');
+        _snack(t.securityNoPinWalletFound);
         return;
       }
       setState(() => _canBiometric = true);
-      _snack('Biometric unlock enabled');
+      _snack(t.securityBiometricEnabled);
     } on ArgusException catch (e) {
       if (isIncorrectPin(e)) {
         try {
           await SecureStorageService.recordPinFailure();
         } catch (_) {}
-        _snack('Incorrect PIN');
+        _snack(t.pinIncorrect);
       } else {
-        _snack('Could not enable biometrics');
+        _snack(t.securityBiometricEnableFailed);
       }
     } catch (_) {
-      _snack('Could not enable biometrics');
+      _snack(t.securityBiometricEnableFailed);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
   Future<void> _changePin() async {
+    final t = context.l10n;
     final entry = await showDialog<PinEntry>(
       context: context,
-      builder: (_) => const PinEntryDialog(
-        title: 'Change PIN',
+      builder: (_) => PinEntryDialog(
+        title: t.securityChangePin,
         askCurrent: true,
-        pinLabel: 'New PIN',
+        pinLabel: t.securityNewPin,
         askConfirm: true,
-        confirmLabel: 'Change',
+        confirmLabel: t.securityChange,
       ),
     );
     if (entry == null) return;
@@ -146,7 +150,7 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
       return;
     }
     if (next != confirm) {
-      _snack('PINs do not match');
+      _snack(t.pinMismatch);
       return;
     }
     setState(() => _busy = true);
@@ -155,7 +159,7 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
       await sessionLock.run(() async {
         final pinWrap = await SecureStorageService.loadPinWrap(walletId: _walletId);
         if (pinWrap == null) {
-          _snack('No PIN-protected wallet found');
+          _snack(t.securityNoPinWallet);
           return;
         }
         final blocked = await SecureStorageService.pinBlockedMessage();
@@ -169,11 +173,11 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
         changed = true;
       });
       if (changed) {
-        _snack('PIN changed');
+        _snack(t.securityPinChanged);
         try {
           await SecureStorageService.clearPinGate();
         } catch (_) {
-          _snack('PIN changed but lockout state could not be reset');
+          _snack(t.securityPinChangedLockoutNotReset);
         }
       }
     } on ArgusException catch (e) {
@@ -181,31 +185,35 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
         try {
           await SecureStorageService.recordPinFailure();
         } catch (_) {}
-        _snack('Incorrect PIN');
+        _snack(t.pinIncorrect);
       } else {
         showErrorSheet(context, code: e.code, message: e.message);
       }
     } catch (_) {
-      _snack('Could not change PIN');
+      _snack(t.securityChangePinFailed);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
-  static const _graceOptions = [
-    (0, 'Immediately'),
-    (2, 'After 2 seconds'),
-    (30, 'After 30 seconds'),
-    (60, 'After 1 minute'),
-    (300, 'After 5 minutes'),
-  ];
+  List<(int, String)> get _graceOptions {
+    final t = context.l10n;
+    return [
+      (0, t.securityLockImmediately),
+      (2, t.securityLockAfterSeconds(2)),
+      (30, t.securityLockAfterSeconds(30)),
+      (60, t.securityLockAfterMinutes(1)),
+      (300, t.securityLockAfterMinutes(5)),
+    ];
+  }
 
   Future<void> _pickGrace() async {
+    final t = context.l10n;
     final current = sessionLock.grace.inSeconds;
     final picked = await showDialog<int>(
       context: context,
       builder: (ctx) => SimpleDialog(
-        title: const Text('Lock when backgrounded'),
+        title: Text(t.securityLockWhenBackgrounded),
         children: [
           for (final (secs, label) in _graceOptions)
             SimpleDialogOption(
@@ -224,7 +232,7 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
     try {
       await sessionLock.setGrace(Duration(seconds: picked));
     } catch (_) {
-      _snack('Could not update auto-lock');
+      _snack(t.securityAutoLockUpdateFailed);
     }
     if (mounted) setState(() => _graceKey++);
   }
@@ -232,49 +240,50 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
   @override
   Widget build(BuildContext context) {
     final unlocked = walletService.isUnlocked;
+    final t = context.l10n;
     final graceLabel = _graceOptions
         .firstWhere((o) => o.$1 == sessionLock.grace.inSeconds, orElse: () => (0, '${sessionLock.grace.inSeconds}s'))
         .$2;
     return SettingsPage(
-      title: 'Security',
+      title: t.securityTitle,
       children: [
         SettingsGroup(
-          title: 'Auto-lock',
-          scope: 'App-wide',
+          title: t.securityAutoLock,
+          scope: t.settingsScopeAppWide,
           children: [
             SettingsRow(
               key: ValueKey(_graceKey),
               icon: Icons.timer_outlined,
-              title: 'Lock when backgrounded',
+              title: t.securityLockWhenBackgrounded,
               subtitle: graceLabel,
               onTap: _pickGrace,
             ),
           ],
         ),
         SettingsGroup(
-          title: 'Unlock',
-          scope: 'This wallet',
+          title: t.securityUnlockGroup,
+          scope: t.commonThisWallet,
           children: [
             if (!unlocked)
-              const SettingsRow(
+              SettingsRow(
                 icon: Icons.lock_outline,
-                title: 'Unlock the wallet first',
-                subtitle: 'Biometric and PIN settings need an unlocked wallet.',
+                title: t.securityUnlockFirst,
+                subtitle: t.securityUnlockFirstSubtitle,
               )
             else if (_loadFailed)
               SettingsRow(
                 icon: Icons.refresh,
-                title: 'Retry unlock settings',
-                subtitle: 'Could not read the current setup.',
+                title: t.securityRetryUnlockSettings,
+                subtitle: t.securityReadSetupFailed,
                 onTap: _busy ? null : _load,
               )
             else ...[
               SettingsRow(
                 icon: Icons.fingerprint,
-                title: 'Biometric unlock',
+                title: t.securityBiometricUnlock,
                 subtitle: _canBiometric
-                    ? 'On. The PIN still unwraps the key.'
-                    : (_hasPin ? 'Off' : 'Set a PIN when you create or restore a wallet.'),
+                    ? t.securityBiometricOn
+                    : (_hasPin ? t.securityOff : t.securitySetPinHint),
                 trailing: _hasPin
                     ? Switch(
                         value: _canBiometric,
@@ -285,27 +294,25 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
               if (_hasPin)
                 SettingsRow(
                   icon: Icons.lock_reset,
-                  title: 'Change PIN',
+                  title: t.securityChangePin,
                   onTap: _busy ? null : _changePin,
                 ),
             ],
           ],
         ),
-        const SettingsNote(
-          'Five wrong PINs lock the gate for a while. Celaut never stores the PIN; it only unwraps the key that decrypts the seed.',
-        ),
+        SettingsNote(t.securityPinNote),
         ListenableBuilder(
           listenable: privacyService,
           builder: (context, _) => SettingsGroup(
-            title: 'Screen',
-            scope: 'App-wide',
+            title: t.securityScreen,
+            scope: t.settingsScopeAppWide,
             children: [
               SettingsRow(
                 icon: Icons.screenshot_monitor_outlined,
-                title: 'Block screenshots',
+                title: t.securityBlockScreenshots,
                 subtitle: privacyService.blockScreenshots
-                    ? 'Screens cannot be captured or recorded'
-                    : 'Off: you can capture screens to report issues',
+                    ? t.securityScreenshotsBlocked
+                    : t.securityScreenshotsAllowed,
                 trailing: Switch(
                   value: privacyService.blockScreenshots,
                   onChanged: (v) => privacyService.setBlockScreenshots(v),
@@ -314,21 +321,19 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
             ],
           ),
         ),
-        const SettingsNote(
-          'Seed phrase screens always block capture, whatever this setting says.',
-        ),
+        SettingsNote(t.securitySeedScreensNote),
         ListenableBuilder(
           listenable: spendPolicy,
           builder: (context, _) => SettingsGroup(
-            title: 'Spending',
-            scope: 'App-wide',
+            title: t.securitySpending,
+            scope: t.settingsScopeAppWide,
             children: [
               SettingsRow(
                 icon: Icons.hourglass_bottom_rounded,
-                title: 'Spend unconfirmed funds',
+                title: t.securitySpendUnconfirmed,
                 subtitle: spendPolicy.spendUnconfirmed
-                    ? 'On: received funds and change can be spent at once'
-                    : 'Off: received funds and change wait for 1 confirmation',
+                    ? t.securitySpendUnconfirmedOn
+                    : t.securitySpendUnconfirmedOff,
                 trailing: Switch(
                   key: const Key('spend-unconfirmed-switch'),
                   value: spendPolicy.spendUnconfirmed,
@@ -336,7 +341,7 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
                     try {
                       await spendPolicy.setSpendUnconfirmed(v);
                     } catch (_) {
-                      _snack('Could not save the spending setting');
+                      _snack(t.securitySpendingSaveFailed);
                     }
                   },
                 ),
@@ -344,7 +349,7 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
             ],
           ),
         ),
-        const SettingsNote(spendUnconfirmedNote),
+        SettingsNote(spendUnconfirmedNote),
       ],
     );
   }

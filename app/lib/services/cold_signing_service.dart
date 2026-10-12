@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../bridge/api.dart' as api;
+import '../l10n/l10n.dart';
 
 /// The native session owns the collector, immutable review and verification gate.
 /// Keeping this controller alive preserves progress while the camera is closed.
@@ -128,7 +129,7 @@ class ColdSigningController extends ChangeNotifier {
   Future<void> finish(BigInt? handle) => _run(() async {
     if (!complete || stage != ColdStage.scan) return;
     if (!hot && handle == null)
-      throw StateError('Unlock the seed wallet before reviewing.');
+      throw StateError(appL10n.coldUnlockBeforeReview);
     try {
       if (hot) {
         transactionId = await backend.verify(session);
@@ -147,9 +148,7 @@ class ColdSigningController extends ChangeNotifier {
   Future<void> sign(BigInt? currentHandle) => _run(() async {
     if (hot || stage != ColdStage.review) return;
     if (currentHandle == null || currentHandle != reviewedHandle) {
-      throw StateError(
-        'Wallet locked or changed. Reset and review with the selected wallet.',
-      );
+      throw StateError(appL10n.coldWalletLockedOrChanged);
     }
     await backend.sign(session, currentHandle);
     qrPages = await backend.pages(session);
@@ -160,10 +159,10 @@ class ColdSigningController extends ChangeNotifier {
         stage != ColdStage.verified ||
         transactionId == null ||
         refused) {
-      throw StateError('Refusing broadcast: no verified response.');
+      throw StateError(appL10n.coldRefusingBroadcast);
     }
     final id = await backend.broadcast(session);
-    if (id != transactionId) throw StateError('Node transaction ID mismatch.');
+    if (id != transactionId) throw StateError(appL10n.coldTxIdMismatch);
     stage = ColdStage.broadcast;
   });
 }

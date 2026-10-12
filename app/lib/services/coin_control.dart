@@ -1,4 +1,5 @@
 import '../format.dart';
+import '../l10n/l10n.dart';
 import 'wallet_service.dart';
 
 /// What a hand-picked set of boxes covers, and what spending it together
@@ -98,9 +99,10 @@ CoinSelectionCheck checkSelection({
 String? selectionPrivacyNote(CoinSelection selection) {
   if (selection.count < 2) return null;
   if (!selection.linksAddresses) return null;
-  return 'These ${selection.count} boxes sit on ${selection.addresses.length} '
-      'different addresses. Spending them together publicly links those '
-      'addresses to one wallet.';
+  return appL10n.coinPrivacyNote(
+    '${selection.count}',
+    '${selection.addresses.length}',
+  );
 }
 
 /// One line for a selection that spends boxes still confirming, or null.
@@ -110,22 +112,18 @@ String? selectionPrivacyNote(CoinSelection selection) {
 String? selectionConfirmationNote(CoinSelection selection) {
   final n = selection.unconfirmedCount;
   if (n == 0) return null;
-  final which = n == 1 ? 'One of these boxes is' : '$n of these boxes are';
-  final them = n == 1 ? 'it' : 'them';
-  return '$which still confirming. This transaction can confirm only after '
-      'the one that created $them, and fails if that one is dropped.';
+  return appL10n.coinConfirmationNote(n);
 }
 
 /// Human summary of what the chosen boxes hold.
 String selectionSummary(CoinSelection selection) {
-  if (selection.isEmpty) return 'No boxes chosen — Celaut will pick them.';
+  if (selection.isEmpty) return appL10n.coinSelectionNone;
   final parts = <String>[
-    '${selection.count} box${selection.count == 1 ? '' : 'es'}',
+    appL10n.utxoBoxCount(selection.count),
     formatErg(selection.totalNanoErg, maxFrac: 4),
   ];
   if (selection.tokens.isNotEmpty) {
-    parts.add('${selection.tokens.length} token'
-        '${selection.tokens.length == 1 ? '' : 's'}');
+    parts.add(appL10n.utxoTokenCount(selection.tokens.length));
   }
   return parts.join(' · ');
 }

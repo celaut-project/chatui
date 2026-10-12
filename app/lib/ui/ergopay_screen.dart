@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../bridge/argus_error.dart';
 import '../format.dart';
+import '../l10n/l10n.dart';
 import '../services/address_label_service.dart';
 import '../services/ergopay_service.dart';
 import '../services/ergopay_summary.dart';
@@ -36,7 +37,7 @@ class ErgoPayScreen extends StatefulWidget {
 
 class _ErgoPayScreenState extends State<ErgoPayScreen> with TxReceiptOwner {
   _Stage _stage = _Stage.loading;
-  String _status = 'Contacting the dApp…';
+  String _status = appL10n.ergopayStatusContacting;
   String? _error;
   ErgoPayRequest? _request;
   ErgoPaySummary? _summary;
@@ -56,7 +57,7 @@ class _ErgoPayScreenState extends State<ErgoPayScreen> with TxReceiptOwner {
     try {
       final parsed = parseErgoPayLink(widget.link);
       if (parsed == null) {
-        _fail('This is not an ErgoPay link.');
+        _fail(context.l10n.ergopayNotALink);
         return;
       }
       final ErgoPayRequest request;
@@ -73,7 +74,7 @@ class _ErgoPayScreenState extends State<ErgoPayScreen> with TxReceiptOwner {
             }
             url = parsed.withAddress(chosen);
           }
-          setState(() => _status = 'Contacting the dApp…');
+          setState(() => _status = context.l10n.ergopayStatusContacting);
           request = await (widget.client ?? ergoPayClient).fetch(url);
       }
       if (!mounted) return;
@@ -81,8 +82,7 @@ class _ErgoPayScreenState extends State<ErgoPayScreen> with TxReceiptOwner {
 
       final wanted = request.address;
       if (wanted != null && !await walletService.ownsAddress(wanted)) {
-        _fail('This request is for ${shorten(wanted, head: 8, tail: 6)}, '
-            'which is not an address of this wallet.');
+        _fail(context.l10n.ergopayWrongAddress(shorten(wanted, head: 8, tail: 6)));
         return;
       }
       final tx = request.reducedTx;
@@ -91,7 +91,7 @@ class _ErgoPayScreenState extends State<ErgoPayScreen> with TxReceiptOwner {
         return;
       }
       _reducedTx = tx;
-      setState(() => _status = 'Reading the transaction…');
+      setState(() => _status = context.l10n.ergopayStatusReading);
       final json = await walletService.describeReducedTransaction(
         tx,
         nodeUrl: networkController.activeUrl,
@@ -144,7 +144,7 @@ class _ErgoPayScreenState extends State<ErgoPayScreen> with TxReceiptOwner {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Text(
-                'Which address should the dApp use?',
+                ctx.l10n.ergopayPickAddressTitle,
                 style: Theme.of(ctx).textTheme.titleLarge,
               ),
             ),
@@ -153,7 +153,7 @@ class _ErgoPayScreenState extends State<ErgoPayScreen> with TxReceiptOwner {
                 title: Text(shorten(a, head: 12, tail: 10), style: monoStyle(ctx, size: 12)),
                 subtitle: addressLabelService.labelFor(a) != null
                     ? Text(addressLabelService.labelFor(a)!)
-                    : (a == args.senderAddress ? const Text('Main address') : null),
+                    : (a == args.senderAddress ? Text(ctx.l10n.ergopayMainAddress) : null),
                 onTap: () => Navigator.pop(ctx, a),
               ),
           ],
@@ -170,23 +170,23 @@ class _ErgoPayScreenState extends State<ErgoPayScreen> with TxReceiptOwner {
     final recipient = summary.recipients.isNotEmpty ? summary.recipients.first.address : null;
     final choice = await showConfirmTransactionChoice(
       context,
-      title: 'Sign for dApp',
+      title: context.l10n.ergopaySignTitle,
       rows: summary.confirmRows(tokens: _args.tokens),
       recipientAddress: recipient,
       detail: [
         if (request?.message != null) request!.message!,
-        networkController.activeUrl ?? 'Node not chosen yet',
+        networkController.activeUrl ?? context.l10n.ergopayNodeNotChosen,
       ].join('  ·  '),
     );
     if (!mounted || choice != ConfirmChoice.broadcast) return;
     setState(() {
       _stage = _Stage.signing;
-      _status = 'Signing…';
+      _status = context.l10n.ergopayStatusSigning;
     });
     try {
       final signed = await sessionLock.run(() => walletService.signReducedTransaction(tx));
       if (!mounted) return;
-      setState(() => _status = 'Broadcasting…');
+      setState(() => _status = context.l10n.ergopayStatusBroadcasting);
       final txId = await walletService.submitSignedTransaction(
         signed,
         nodeUrl: networkController.activeUrl,
@@ -194,7 +194,7 @@ class _ErgoPayScreenState extends State<ErgoPayScreen> with TxReceiptOwner {
       _txId = txId;
       final replyTo = request?.replyTo;
       if (replyTo != null) {
-        if (mounted) setState(() => _status = 'Telling the dApp…');
+        if (mounted) setState(() => _status = context.l10n.ergopayStatusNotifying);
         try {
           await (widget.client ?? ergoPayClient).reply(replyTo, txId);
         } catch (e) {
@@ -206,7 +206,7 @@ class _ErgoPayScreenState extends State<ErgoPayScreen> with TxReceiptOwner {
         showTxResultSheet(
           receiptContext,
           txId: txId,
-          headline: 'Signed and sent',
+          headline: appL10n.ergopaySignedAndSent,
           warning: _replyError,
         );
         return;
@@ -287,11 +287,11 @@ class _ErgoPayScreenState extends State<ErgoPayScreen> with TxReceiptOwner {
           _messageCard(),
           const SizedBox(height: 12),
           Text(
-            'The dApp did not send a transaction to sign.',
+            context.l10n.ergopayNoTransaction,
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 24),
-          FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+          FilledButton(onPressed: () => Navigator.pop(context), child: Text(context.l10n.commonClose)),
         ],
       );
 
@@ -306,7 +306,7 @@ class _ErgoPayScreenState extends State<ErgoPayScreen> with TxReceiptOwner {
         const OfflineBanner(),
         _messageCard(),
         if (_request?.message != null) const SizedBox(height: 16),
-        const SectionLabel('This transaction'),
+        SectionLabel(context.l10n.ergopayThisTransaction),
         const SizedBox(height: 10),
         SoftCard(
           child: Column(
@@ -334,7 +334,7 @@ class _ErgoPayScreenState extends State<ErgoPayScreen> with TxReceiptOwner {
         ),
         if (s.recipients.isNotEmpty) ...[
           const SizedBox(height: 20),
-          const SectionLabel('To'),
+          SectionLabel(context.l10n.txTo),
           const SizedBox(height: 10),
           SoftCard(
             padding: EdgeInsets.zero,
@@ -385,9 +385,9 @@ class _ErgoPayScreenState extends State<ErgoPayScreen> with TxReceiptOwner {
           ),
         ],
         const SizedBox(height: 28),
-        FilledButton(onPressed: _confirmAndSign, child: const Text('Review & sign')),
+        FilledButton(onPressed: _confirmAndSign, child: Text(context.l10n.ergopayReviewAndSign)),
         const SizedBox(height: 10),
-        OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Decline')),
+        OutlinedButton(onPressed: () => Navigator.pop(context), child: Text(context.l10n.ergopayDecline)),
       ],
     );
   }
@@ -395,10 +395,10 @@ class _ErgoPayScreenState extends State<ErgoPayScreen> with TxReceiptOwner {
   Widget _done() => Center(
     child: TxResultView(
       txId: _txId!,
-      headline: 'Signed and sent',
+      headline: context.l10n.ergopaySignedAndSent,
       warning: _replyError == null
           ? null
-          : 'The transaction is on the network, but the dApp could not be notified: $_replyError',
+          : context.l10n.ergopayNotifyFailed(_replyError!),
       explorerLaunchMode: LaunchMode.externalApplication,
       onDismiss: () => Navigator.pop(context, _txId),
     ),
@@ -412,9 +412,9 @@ class _ErgoPayScreenState extends State<ErgoPayScreen> with TxReceiptOwner {
             children: [
               const Icon(Icons.link_off, size: 48, color: rust),
               const SizedBox(height: 16),
-              SelectableText(_error ?? 'Something went wrong', textAlign: TextAlign.center),
+              SelectableText(_error ?? context.l10n.errorSomethingWentWrong, textAlign: TextAlign.center),
               const SizedBox(height: 24),
-              FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+              FilledButton(onPressed: () => Navigator.pop(context), child: Text(context.l10n.commonClose)),
             ],
           ),
         ),

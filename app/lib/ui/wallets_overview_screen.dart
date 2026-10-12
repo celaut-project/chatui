@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../format.dart';
+import '../l10n/l10n.dart';
 import '../services/erg_price_history.dart';
 import '../services/network_controller.dart';
 import '../services/privacy_service.dart';
@@ -99,12 +100,12 @@ class WalletsOverviewScreen extends StatelessWidget {
           // With no node the line looks again; otherwise it opens the
           // network settings.
           onNetwork: offline ? networkController.probe : onNetwork,
-          networkAction: offline ? 'Retry' : null,
+          networkAction: offline ? context.l10n.commonRetry : null,
           onRefresh: _refresh,
           footnote: data.wallets.isEmpty
               ? null
               : [
-                  if (data.wallets.length > 1) 'Long-press a wallet to change the order.',
+                  if (data.wallets.length > 1) context.l10n.overviewReorderHint,
                   lockedWalletsExplainer,
                 ].join(' '),
           notice: notice,

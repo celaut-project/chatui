@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../bridge/argus_error.dart';
 import '../format.dart';
+import '../l10n/l10n.dart';
 import '../services/address_label_service.dart';
 import '../services/deep_link_controller.dart';
 import '../services/ergopay_service.dart';
@@ -183,7 +184,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       _notice = '${e.code}: ${e.message}';
       _noticeIsError = true;
     } catch (e) {
-      _notice = 'Error: $e';
+      _notice = context.l10n.dashboardStartupError('$e');
       _noticeIsError = true;
     }
     // No unlock and no biometric prompt here: the app opens on the overview,
@@ -242,8 +243,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (!_walletUnlocked && link != null) {
         setState(() {
           _notice = isErgoPayLink(link)
-              ? 'Unlock a wallet to continue with the ErgoPay request.'
-              : 'Unlock a wallet to open what the notification is about.';
+              ? context.l10n.dashboardUnlockForErgoPay
+              : context.l10n.dashboardUnlockForNotification;
           _noticeIsError = false;
         });
       }
@@ -310,7 +311,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
     final pay = parseErgoUri(raw);
     if (pay == null) {
-      _snack('Not an Ergo address or ErgoPay link');
+      _snack(context.l10n.dashboardScanNotErgo);
       return;
     }
     Navigator.push(
@@ -458,7 +459,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       showErrorSheet(context, code: e.code, message: e.message);
     } catch (e) {
       if (!mounted) return;
-      _snack('Could not open wallet: $e');
+      _snack(context.l10n.dashboardOpenFailed('$e'));
     }
   }
 
@@ -508,7 +509,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       });
     }
     await _overview.loadWallets();
-    _snack('"$name" removed');
+    _snack(context.l10n.dashboardWalletRemoved(name));
   }
 
   /// [removed] is no longer watched. Its page closes only if it is still
@@ -517,7 +518,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   void _onWatchedRemoved(WalletRef removed) {
     if (!mounted) return;
     if (_open == removed) _closeWallet();
-    _snack('Stopped watching');
+    _snack(context.l10n.dashboardStoppedWatching);
   }
 
   Future<void> _openCreate() =>
@@ -632,7 +633,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     });
     if (!ok) {
       debugPrint('argus: address derivation failed after unlock');
-      _snack('Unlocked, but no address could be derived');
+      _snack(context.l10n.dashboardNoAddressDerived);
       return;
     }
     notificationService.requestPermission();
@@ -649,7 +650,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       }
       return true;
     } on SecureStorageException {
-      _snack('Could not check PIN lockout');
+      _snack(context.l10n.dashboardPinLockoutCheckFailed);
       return false;
     }
   }
@@ -689,7 +690,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         final json = await SecureStorageService.loadEncryptedSeed(walletId: walletId);
         final pinWrap = await SecureStorageService.loadPinWrap(walletId: walletId);
         if (json == null || pinWrap == null) {
-          _setGateStatus('No PIN-protected wallet found.', error: true);
+          _setGateStatus(context.l10n.dashboardNoPinWallet, error: true);
           return;
         }
         final wrapKey = await walletService.unwrapKeyWithPin(pinWrap, _pinCtrl.text);
@@ -727,15 +728,15 @@ class _DashboardScreenState extends State<DashboardScreen>
         if (wrapKey == null) {
           if (!await SecureStorageService.hasWrapKey(walletId: walletId)) {
             _canBiometric = false;
-            _setGateStatus('Biometric unlock is not set up for this wallet. Use its PIN.');
+            _setGateStatus(context.l10n.dashboardBiometricNotSetUp);
           } else {
-            _setGateStatus('Biometric unlock cancelled. Tap Unlock to try again, or use your PIN.');
+            _setGateStatus(context.l10n.dashboardBiometricCancelled);
           }
           return;
         }
         final json = await SecureStorageService.loadEncryptedSeed(walletId: walletId);
         if (json == null) {
-          _setGateStatus('Wallet data not found on this device.', error: true);
+          _setGateStatus(context.l10n.dashboardWalletDataMissing, error: true);
           return;
         }
         await _lockOtherWallet(walletId);
@@ -758,7 +759,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         final json = await SecureStorageService.loadEncryptedSeed(walletId: walletId);
         final wrapKey = await SecureStorageService.loadWrapKey(walletId: walletId);
         if (json == null || wrapKey == null) {
-          _setGateStatus('No wallet found. Create or restore.', error: true);
+          _setGateStatus(context.l10n.dashboardNoWalletFound, error: true);
           return;
         }
         await _lockOtherWallet(walletId);
@@ -784,11 +785,11 @@ class _DashboardScreenState extends State<DashboardScreen>
   Future<String?> _askNewPin() async {
     final entry = await showDialog<PinEntry>(
       context: context,
-      builder: (_) => const PinEntryDialog(
-        title: 'Set a PIN',
+      builder: (_) => PinEntryDialog(
+        title: context.l10n.dashboardSetPinTitle,
         askConfirm: true,
-        cancelLabel: 'Later',
-        confirmLabel: 'Save',
+        cancelLabel: context.l10n.dashboardLater,
+        confirmLabel: context.l10n.commonSave,
       ),
     );
     if (entry == null) return null;
@@ -838,11 +839,11 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   bool _guardUnlocked() {
     if (!walletService.isUnlocked || !_walletUnlocked) {
-      _snack('Unlock the wallet first');
+      _snack(context.l10n.dashboardUnlockFirst);
       return false;
     }
     if (_sync.receiveAddress == null) {
-      _snack('Address is still loading');
+      _snack(context.l10n.dashboardAddressLoading);
       return false;
     }
     return true;
@@ -905,16 +906,16 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   String _walletName(String? walletId) =>
-      (walletId == null ? null : _overview.wallet(walletId)?.name) ?? 'Wallet';
+      (walletId == null ? null : _overview.wallet(walletId)?.name) ?? context.l10n.commonWallet;
 
   String _watchedName(WalletRef ref) {
     if (ref.kind == WalletKind.watchedAddress) {
-      return addressLabelService.labelFor(ref.id) ?? 'Watched address';
+      return addressLabelService.labelFor(ref.id) ?? context.l10n.commonWatchedAddress;
     }
     for (final a in watchAccountService.accounts) {
-      if (a.key == ref.id) return a.label ?? 'Watched account';
+      if (a.key == ref.id) return a.label ?? context.l10n.commonWatchedAccount;
     }
-    return 'Watched account';
+    return context.l10n.commonWatchedAccount;
   }
 
   bool get _balanceHidden => privacyService.hideBalances;
@@ -1012,7 +1013,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Widget _seedPage(String walletId) {
     final info = _overview.wallet(walletId);
-    final name = info?.name ?? 'Wallet';
+    final name = info?.name ?? context.l10n.commonWallet;
     final unlocked = _walletUnlocked && _walletId == walletId;
     final owns = unlocked && _sync.ownsWallet(walletId);
     final tab = _tabOrder[_tab];
@@ -1026,7 +1027,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         // The wallet's own page, open or locked, lies under a clear header
         // with its state beneath its name.
         immersive: !owns || tab == WalletTab.wallet,
-        subtitle: !owns || tab == WalletTab.wallet ? (unlocked ? 'Unlocked' : 'Locked') : null,
+        subtitle: !owns || tab == WalletTab.wallet ? (unlocked ? context.l10n.homeUnlocked : context.l10n.homeLocked) : null,
         subtitleLive: unlocked,
         onBack: _closeWallet,
         actions: [
@@ -1034,13 +1035,13 @@ class _DashboardScreenState extends State<DashboardScreen>
             IconButton(
               key: const Key('wallet-scan'),
               icon: const Icon(Icons.qr_code_scanner),
-              tooltip: 'Scan a QR code',
+              tooltip: context.l10n.dashboardScanQrTooltip,
               onPressed: _scan,
             ),
             IconButton(
               key: const Key('wallet-menu'),
               icon: const Icon(Icons.more_vert),
-              tooltip: 'Wallet settings',
+              tooltip: context.l10n.dashboardWalletSettingsTooltip,
               onPressed: _openSettings,
             ),
           ],
@@ -1073,7 +1074,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     final known = _overview.lastKnown(walletId);
     final ready = _methodsFor == walletId && _walletId == walletId;
     return UnlockGate(
-      name: info?.name ?? 'Wallet',
+      name: info?.name ?? context.l10n.commonWallet,
       address: info?.displayAddress,
       pinnedIndex: info?.pinnedAddressIndex,
       lastKnownNano: known?.balanceNano,

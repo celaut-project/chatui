@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../bridge/api.dart' as api;
+import '../l10n/l10n.dart';
 
 Future<({Map<String, int?> balances, String? error})> readWatchBalances(
   List<String> addresses,
@@ -24,7 +25,7 @@ Future<({Map<String, int?> balances, String? error})> readWatchBalances(
     balances: Map.fromEntries(entries),
     error: errors.isEmpty
         ? null
-        : 'Some watched balances are unavailable.\n${errors.join('\n')}',
+        : appL10n.watchSomeUnavailable(errors.join('\n')),
   );
 }
 
@@ -90,7 +91,7 @@ class WatchOnlyService extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     if (!await prefs.setString(_key, jsonEncode(_addresses))) {
       await prefs.reload();
-      throw StateError('Could not save watched addresses. Please try again.');
+      throw StateError(appL10n.watchSaveAddressesFailed);
     }
     notifyListeners();
   }

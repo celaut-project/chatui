@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../format.dart';
+import '../../l10n/l10n.dart';
 import '../../services/activity_classifier.dart';
 import '../../services/token_metadata.dart';
 import '../../services/wallet_service.dart';
@@ -66,7 +67,7 @@ class ActivityTile extends StatelessWidget {
       style: TextStyle(fontSize: 12, color: muted),
     );
     final status = Text(
-      confirmed ? 'Confirmed' : 'Pending',
+      confirmed ? context.l10n.txConfirmed : context.l10n.commonPending,
       style: TextStyle(
         fontSize: 12,
         color: confirmed ? moss : ArgusColors.of(context).accentText,

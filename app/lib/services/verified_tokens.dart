@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'rosen_tokens.dart';
 
 /// A token whose id was checked against the chain: name, decimals and
@@ -12,8 +13,8 @@ class VerifiedToken {
     required this.project,
     required this.decimals,
     this.status = TokenStatus.verified,
-    this.note,
-  });
+    String Function()? note,
+  }) : _note = note;
 
   final String id;
   final String ticker;
@@ -23,7 +24,8 @@ class VerifiedToken {
 
   /// Verified tokens get a check; cautioned ones a warning with [note].
   final TokenStatus status;
-  final String? note;
+  String? get note => _note?.call();
+  final String Function()? _note;
 
   bool get isVerified => status == TokenStatus.verified;
 }
@@ -62,7 +64,7 @@ const curatedTokens = <VerifiedToken>[
     project: 'anetaBTC',
     decimals: 6,
     status: TokenStatus.caution,
-    note: 'The anetaBTC project was abandoned by its team and holders were left without the promised product. Treat NETA as having no backing.',
+    note: _netaNote,
   ),
   VerifiedToken(id: '0cd8c9f416e5b1ca9f986a7f10a84191dfb85941619e49e53c0dc30ebf83324b', ticker: 'COMET', name: 'COMET', project: 'COMET', decimals: 0),
   VerifiedToken(id: '00b1e236b60b95c2c6f8007a9d89bc460fc9e78f98b09faec9449007b40bccf3', ticker: 'EGIO', name: 'ErgoGames.io', project: 'ErgoGames', decimals: 4),
@@ -71,6 +73,8 @@ const curatedTokens = <VerifiedToken>[
   VerifiedToken(id: 'b0b312cde931c8bbdac0dac5bfd8e2c03bf4611275dc967988c8d15bd5ec20e0', ticker: 'Bober', name: 'Bober', project: 'Bober', decimals: 3),
   VerifiedToken(id: 'e8b20745ee9d18817305f32eb21015831a48f02d40980de6e849f886dca7f807', ticker: 'Flux', name: 'Flux', project: 'Flux', decimals: 8),
 ];
+
+String _netaNote() => appL10n.verifiedNetaNote;
 
 /// Curated entries first, then Rosen's map; a curated entry wins on the
 /// same id so the NETA caution and project names stay as written here.

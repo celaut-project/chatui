@@ -3,17 +3,16 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../bridge/api.dart' as api;
+import '../l10n/l10n.dart';
 import 'activity_classifier.dart' show reownActivity;
 import 'wallet_service.dart';
 import 'network_controller.dart';
 import 'pending_balance.dart';
 
-const watchAccountLimitations =
-    'Public payment addresses only. Cannot sign locally; sending requires an offline signer.';
-const watchAccountDisclosure =
-    'An extended public key lets anyone holding it derive and link every public payment address in this account forever. Only import a key you intend to share with this device. $watchAccountLimitations';
-const watchAccountExpected =
-    'Expected an Ergo Wallet App extended public key: 156 hex characters starting 0488b21e (mainnet), depth 4 external chain /0 or depth 3 account 0. Base58 xpub and testnet are not supported.';
+String get watchAccountLimitations => appL10n.watchLimitations;
+String get watchAccountDisclosure =>
+    appL10n.watchDisclosure(watchAccountLimitations);
+String get watchAccountExpected => appL10n.watchExpected;
 
 class WatchAccount {
   WatchAccount(this.key, {this.highestUsed = -1, this.label});
@@ -96,7 +95,7 @@ Future<WatchAccountSnapshot> scanWatchAccount({
   for (var start = 0; start < maxAddresses; start += gap) {
     final count = (maxAddresses - start).clamp(0, gap);
     final batch = await derive(start, count);
-    if (batch.length != count) throw StateError('Incomplete derivation');
+    if (batch.length != count) throw StateError(appL10n.watchIncompleteDerivation);
     for (
       var offset = 0;
       offset < batch.length;
@@ -165,9 +164,7 @@ Future<WatchAccountSnapshot> scanWatchAccount({
       }
     }
   }
-  throw StateError(
-    'Scan incomplete after $maxAddresses addresses; no unused receive address confirmed.',
-  );
+  throw StateError(appL10n.watchScanIncomplete('$maxAddresses'));
 }
 
 class WatchAccountService extends ChangeNotifier {
@@ -187,7 +184,7 @@ class WatchAccountService extends ChangeNotifier {
     _nodeGeneration++;
     for (final account in accounts) {
       account.snapshot = null;
-      account.error = 'Node changed. Refresh the account before receiving.';
+      account.error = appL10n.watchNodeChanged;
     }
     notifyListeners();
   }
@@ -278,7 +275,7 @@ class WatchAccountService extends ChangeNotifier {
     );
     if (!saved) {
       await prefs.reload();
-      throw StateError('Could not save watched accounts. Please try again.');
+      throw StateError(appL10n.watchSaveAccountsFailed);
     }
     notifyListeners();
   }
@@ -311,13 +308,13 @@ class WatchAccountService extends ChangeNotifier {
       );
       if (!accounts.contains(account)) return;
       if (_network.activeUrl != node || _nodeGeneration != generation)
-        throw StateError('Node changed during scan; refresh again.');
+        throw StateError(appL10n.watchNodeChangedDuringScan);
       account.snapshot = result;
       account.highestUsed = result.highestUsed;
       await _save();
     } catch (e) {
       account.snapshot = null;
-      account.error = 'Account refresh unavailable: $e';
+      account.error = appL10n.watchAccountRefreshUnavailable('$e');
     } finally {
       account.busy = false;
       notifyListeners();

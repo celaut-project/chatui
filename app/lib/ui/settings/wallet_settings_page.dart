@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../format.dart';
+import '../../l10n/l10n.dart';
 import '../../services/privacy_service.dart';
 import '../../services/wallet_service.dart';
 import '../../theme/argus_theme.dart';
@@ -67,6 +68,7 @@ class _WalletSettingsPageState extends State<WalletSettingsPage> {
   }
 
   Future<void> _rename() async {
+    final t = context.l10n;
     try {
       final w = await _info();
       if (w == null || !mounted) return;
@@ -76,28 +78,25 @@ class _WalletSettingsPageState extends State<WalletSettingsPage> {
         widget.onChanged?.call();
       }
     } catch (_) {
-      _snack('Could not rename wallet');
+      _snack(t.walletSettingsRenameFailed);
     }
   }
 
   Future<void> _remove() async {
     final id = _walletId;
     if (id == null) return;
+    final t = context.l10n;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Remove $_name?'),
-        content: const Text(
-          'This removes the wallet from this device. Celaut does not keep a '
-          'copy of the recovery phrase; the paper you wrote when creating '
-          'this wallet is the only way back in.',
-        ),
+        title: Text(t.walletSettingsRemoveTitle(_name)),
+        content: Text(t.walletSettingsRemoveBody),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t.commonCancel)),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: rust, foregroundColor: bone),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Remove'),
+            child: Text(t.commonRemove),
           ),
         ],
       ),
@@ -107,7 +106,7 @@ class _WalletSettingsPageState extends State<WalletSettingsPage> {
     try {
       await walletService.deleteWallet(id);
     } catch (_) {
-      _snack('Could not remove wallet');
+      _snack(t.walletSettingsRemoveFailed);
       return;
     }
     onRemoved?.call(id);
@@ -115,30 +114,29 @@ class _WalletSettingsPageState extends State<WalletSettingsPage> {
   }
 
   Future<void> _pinAddressIndex() async {
+    final t = context.l10n;
     final entered = await showDialog<String>(
       context: context,
       builder: (_) => TextEntryDialog(
-        title: 'Pin address index',
-        intro: const Text('Derive the address at this index and use it as the primary '
-            'address for send and receive. Index 0 resets to the default. '
-            'The balance still counts every address of the wallet.'),
+        title: t.walletSettingsPinIndexTitle,
+        intro: Text(t.walletSettingsPinIndexIntro),
         introGap: 12,
-        label: 'Index',
+        label: t.walletSettingsIndexLabel,
         hint: '0',
         helper: '0–${WalletService.maxAddressIndex}',
         keyboardType: TextInputType.number,
-        confirmLabel: 'Pin',
+        confirmLabel: t.walletSettingsPin,
       ),
     );
     if (entered == null) return;
     final text = entered.trim();
     final index = int.tryParse(text);
     if (index == null || index < 0) {
-      _snack('Invalid index');
+      _snack(t.walletSettingsInvalidIndex);
       return;
     }
     if (index > WalletService.maxAddressIndex) {
-      _snack("This wallet can't derive past index ${WalletService.maxAddressIndex}");
+      _snack(t.walletSettingsIndexTooHigh('${WalletService.maxAddressIndex}'));
       return;
     }
     final wid = _walletId;
@@ -146,38 +144,39 @@ class _WalletSettingsPageState extends State<WalletSettingsPage> {
     final addr = await walletService.tryDeriveAddress(index);
     if (!mounted) return;
     if (addr == null) {
-      _snack("Wallet can't derive index $index");
+      _snack(t.walletSettingsCannotDerive('$index'));
       return;
     }
     await walletService.setPinnedAddressIndex(wid, index, address: addr);
     _refresh();
     widget.onChanged?.call();
-    _snack('Pinned index $index · ${shorten(addr, head: 10, tail: 8)}');
+    _snack(t.walletSettingsPinnedIndex('$index', shorten(addr, head: 10, tail: 8)));
   }
 
   @override
   Widget build(BuildContext context) {
     final unlocked = walletService.isUnlocked;
+    final t = context.l10n;
     return ListenableBuilder(
       listenable: privacyService,
       builder: (context, _) => SettingsPage(
         title: _name,
         children: [
           SettingsGroup(
-            title: 'Wallet',
-            scope: 'This wallet',
+            title: t.commonWallet,
+            scope: t.commonThisWallet,
             children: [
               SettingsRow(
                 icon: Icons.edit_outlined,
-                title: 'Name',
+                title: t.commonName,
                 subtitle: _name,
                 onTap: _rename,
               ),
             ],
           ),
           SettingsGroup(
-            title: 'Addresses',
-            scope: 'This wallet',
+            title: t.commonAddresses,
+            scope: t.commonThisWallet,
             children: [
               FutureBuilder<int>(
                 future: _pinnedIndexFuture,
@@ -189,15 +188,15 @@ class _WalletSettingsPageState extends State<WalletSettingsPage> {
                     icon: Icons.push_pin_outlined,
                     danger: outOfRange,
                     title: outOfRange
-                        ? "Pinned index #$pinned can't be derived"
-                        : (isPinned ? 'Primary address: index #$pinned' : 'Primary address: index 0'),
+                        ? t.walletSettingsPinnedOutOfRange('$pinned')
+                        : (isPinned ? t.walletSettingsPrimaryPinned('$pinned') : t.walletSettingsPrimaryDefault),
                     subtitle: outOfRange
-                        ? 'This wallet derives up to index ${WalletService.maxAddressIndex}. Unpin or choose a lower index.'
-                        : 'Receive and change default to this address until it is used.',
+                        ? t.walletSettingsOutOfRangeHint('${WalletService.maxAddressIndex}')
+                        : t.walletSettingsPrimaryHint,
                     trailing: isPinned
                         ? IconButton(
                             icon: const Icon(Icons.clear, size: 18),
-                            tooltip: 'Unpin',
+                            tooltip: t.walletSettingsUnpin,
                             onPressed: () async {
                               final wid = _walletId;
                               if (wid == null) return;
@@ -213,44 +212,44 @@ class _WalletSettingsPageState extends State<WalletSettingsPage> {
               ),
               SettingsRow(
                 icon: Icons.shuffle,
-                title: 'Fresh addresses',
-                subtitle: 'Receive and change on a new address each time, like Nautilus. Off: everything uses your pinned or first address.',
+                title: t.walletSettingsFreshAddresses,
+                subtitle: t.walletSettingsFreshAddressesSubtitle,
                 trailing: Switch(
                   value: privacyService.useUnusedChangeAddress(_walletId),
                   onChanged: (v) async {
                     final wid = _walletId;
                     if (wid == null) {
-                      _snack('Unlock a wallet to change this setting');
+                      _snack(t.walletSettingsUnlockToChange);
                       return;
                     }
                     try {
                       await privacyService.setUnusedChangeAddress(v, walletId: wid);
                     } catch (_) {
-                      _snack('Could not update privacy setting');
+                      _snack(t.walletSettingsPrivacySaveFailed);
                     }
                   },
                 ),
               ),
             ],
           ),
-          const SectionLabel('Backup'),
+          SectionLabel(t.walletSettingsBackup),
           const SizedBox(height: 10),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text(
-              'Celaut does not keep a copy of the recovery phrase. The paper you wrote at create or restore is the only way back in.',
+              t.walletSettingsBackupNote,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
           const SizedBox(height: 24),
           SettingsGroup(
-            title: 'Remove',
-            scope: 'This wallet',
+            title: t.commonRemove,
+            scope: t.commonThisWallet,
             children: [
               SettingsRow(
                 icon: Icons.delete_outline,
-                title: 'Remove wallet',
-                subtitle: 'From this device only. Keep the recovery phrase.',
+                title: t.walletSettingsRemoveWallet,
+                subtitle: t.walletSettingsRemoveWalletSubtitle,
                 danger: true,
                 onTap: _remove,
               ),

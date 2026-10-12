@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
 import 'home_models.dart';
 
@@ -8,11 +9,11 @@ import 'home_models.dart';
       WalletTab.wallet => (
           icon: Icons.account_balance_wallet_outlined,
           selected: Icons.account_balance_wallet,
-          label: 'Wallet',
+          label: appL10n.commonWallet,
         ),
-      WalletTab.activity => (icon: Icons.bar_chart_rounded, selected: Icons.bar_chart_rounded, label: 'Activity'),
-      WalletTab.discover => (icon: Icons.explore_outlined, selected: Icons.explore, label: 'Discover'),
-      WalletTab.settings => (icon: Icons.settings_outlined, selected: Icons.settings, label: 'Settings'),
+      WalletTab.activity => (icon: Icons.bar_chart_rounded, selected: Icons.bar_chart_rounded, label: appL10n.navActivity),
+      WalletTab.discover => (icon: Icons.explore_outlined, selected: Icons.explore, label: appL10n.navDiscover),
+      WalletTab.settings => (icon: Icons.settings_outlined, selected: Icons.settings, label: appL10n.commonSettings),
     };
 
 /// The open wallet's tabs: Wallet, Activity, Discover, Settings.
@@ -96,7 +97,7 @@ class WalletNavBar extends StatelessWidget {
                   selectedIcon: _icon(context, tab, walletTabLook(tab).selected),
                   label: walletTabLook(tab).label,
                   tooltip: tab == WalletTab.activity && pendingCount > 0
-                      ? 'Activity, $pendingCount pending'
+                      ? context.l10n.navActivityPending(pendingCount)
                       : walletTabLook(tab).label,
                 ),
             ],

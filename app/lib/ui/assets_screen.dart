@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../format.dart';
+import '../l10n/l10n.dart';
 import '../services/network_controller.dart';
 import '../services/privacy_service.dart';
 import '../services/token_metadata.dart';
@@ -65,17 +66,16 @@ class _AssetsScreenState extends State<AssetsScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('Assets'),
+      title: Text(context.l10n.assetsTitle),
       actions: [
         if (_collectibles)
           IconButton(
-            tooltip: _grid ? 'Show collectible list' : 'Show collectible grid',
+            tooltip: _grid ? context.l10n.assetsShowList : context.l10n.assetsShowGrid,
             icon: Icon(_grid ? Icons.view_list_outlined : Icons.grid_view),
             onPressed: () => setState(() => _grid = !_grid),
           ),
         IconButton(
-          tooltip:
-              'Clear collectible cache (saved holdings keep their metadata)',
+          tooltip: context.l10n.assetsClearCache,
           icon: const Icon(Icons.delete_outline),
           onPressed: walletService.clearCollectibleData,
         ),
@@ -120,13 +120,13 @@ class _AssetsScreenState extends State<AssetsScreen> {
                       runSpacing: 8,
                       children: [
                         ChoiceChip(
-                          label: const Text('All'),
+                          label: Text(context.l10n.assetsAll),
                           selected: !_collectibles,
                           onSelected: (_) =>
                               setState(() => _collectibles = false),
                         ),
                         ChoiceChip(
-                          label: const Text('Collectibles'),
+                          label: Text(context.l10n.assetsCollectibles),
                           selected: _collectibles,
                           onSelected: (_) =>
                               setState(() => _collectibles = true),
@@ -137,11 +137,11 @@ class _AssetsScreenState extends State<AssetsScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: SegmentedButton<bool>(
-                        segments: const [
-                          ButtonSegment(value: false, label: Text('All')),
+                        segments: [
+                          ButtonSegment(value: false, label: Text(context.l10n.assetsAll)),
                           ButtonSegment(
                             value: true,
-                            label: Text('Collectibles'),
+                            label: Text(context.l10n.assetsCollectibles),
                           ),
                         ],
                         selected: {_collectibles},
@@ -153,12 +153,12 @@ class _AssetsScreenState extends State<AssetsScreen> {
                   TextField(
                     controller: _search,
                     decoration: InputDecoration(
-                      labelText: 'Search name or token ID',
+                      labelText: context.l10n.assetsSearchLabel,
                       prefixIcon: const Icon(Icons.search, size: 20),
                       suffixIcon: _query.isEmpty
                           ? null
                           : IconButton(
-                              tooltip: 'Clear search',
+                              tooltip: context.l10n.assetsClearSearch,
                               onPressed: _clearSearch,
                               icon: const Icon(Icons.close, size: 18),
                             ),
@@ -171,17 +171,19 @@ class _AssetsScreenState extends State<AssetsScreen> {
                   if (!hidden)
                     Text(
                       _collectibles
-                          ? '$collectibleCount identified ${collectibleCount == 1 ? 'collectible' : 'collectibles'} · previews load only when you choose'
-                          : '${holdings.length} token IDs${unknown > 0 ? ' · $unknown with incomplete metadata' : ''}',
+                          ? context.l10n.assetsCollectibleCount(collectibleCount)
+                          : unknown > 0
+                          ? context.l10n.assetsTokenIdCountIncomplete('${holdings.length}', '$unknown')
+                          : context.l10n.assetsTokenIdCount('${holdings.length}'),
                       style: TextStyle(color: ArgusColors.of(context).muted),
                     ),
                   if (live.publicSnapshotOnly)
-                    const Text('Public holdings only'),
+                    Text(context.l10n.assetsPublicOnly),
                   if (live.balanceNano == null)
-                    const Text('Holdings not loaded'),
+                    Text(context.l10n.assetsNotLoaded),
                   if (live.lastSyncedAt != null)
                     Text(
-                      'Holdings last synced ${formatSyncAge(live.lastSyncedAt)}',
+                      context.l10n.assetsLastSynced(formatSyncAge(live.lastSyncedAt)),
                     ),
                   PendingBalanceLine(pending: live.pending, hidden: hidden),
                 ],
@@ -189,7 +191,7 @@ class _AssetsScreenState extends State<AssetsScreen> {
             ),
             Expanded(
               child: hidden
-                  ? const Center(child: Text('Assets hidden'))
+                  ? Center(child: Text(context.l10n.assetsHidden))
                   : rows.isEmpty && (_collectibles || _query.isNotEmpty)
                   ? _EmptyAssets(
                       searching: _query.isNotEmpty,
@@ -266,19 +268,19 @@ class _EmptyAssets extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               searching
-                  ? 'No assets match your search'
-                  : 'No identified collectibles in loaded holdings',
+                  ? context.l10n.assetsNoMatch
+                  : context.l10n.assetsNoCollectibles,
               textAlign: TextAlign.center,
             ),
             if (searching)
               TextButton(
                 onPressed: onClearSearch,
-                child: const Text('Clear search'),
+                child: Text(context.l10n.assetsClearSearch),
               )
             else if (unknown > 0) ...[
               const SizedBox(height: 8),
-              const Text(
-                'Some tokens have incomplete metadata. Open them in All to inspect their details.',
+              Text(
+                context.l10n.assetsIncompleteHint,
                 textAlign: TextAlign.center,
               ),
             ],
@@ -339,9 +341,9 @@ class _CollectibleCard extends StatelessWidget {
                   ),
                   if (cautionedToken(token.id) != null) ...[
                     const SizedBox(width: 4),
-                    const Tooltip(
-                      message: 'Caution: this token is flagged',
-                      child: Icon(
+                    Tooltip(
+                      message: context.l10n.tokenCautionFlagged,
+                      child: const Icon(
                         Icons.warning_amber_rounded,
                         size: 18,
                         color: rust,
@@ -362,7 +364,7 @@ class _CollectibleCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'Held: ${holdingAmountText(token)}',
+                      context.l10n.assetsHeld(holdingAmountText(token)),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontSize: 12),
