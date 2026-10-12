@@ -87,7 +87,7 @@ class _NodeConnectScreenState extends State<NodeConnectScreen> {
     return SettingsPage(
       title: CelautStrings.screenTitle,
       children: [
-        const SettingsNote(CelautStrings.intro),
+        SettingsNote(CelautStrings.intro),
         SoftCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -112,7 +112,7 @@ class _NodeConnectScreenState extends State<NodeConnectScreen> {
                 controller: _expectedCtrl,
                 autocorrect: false,
                 enableSuggestions: false,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: CelautStrings.expectedLabel,
                   hintText: CelautStrings.expectedHint,
                 ),
@@ -176,7 +176,7 @@ class _NodeConnectScreenState extends State<NodeConnectScreen> {
           for (final r in info.rates) _pairRow(context, r.key, r.value),
         ],
       ),
-      if (info.rates.isNotEmpty) const SettingsNote(CelautStrings.ratesNote),
+      if (info.rates.isNotEmpty) SettingsNote(CelautStrings.ratesNote),
       if (info.rates.isEmpty) const SizedBox(height: 24),
       SectionLabel(CelautStrings.contractsTitle),
       const SizedBox(height: 10),

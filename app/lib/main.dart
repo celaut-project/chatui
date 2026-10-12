@@ -1,7 +1,9 @@
 import 'services/preview/preview_service.dart';
 import 'services/watch_account_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'l10n/l10n.dart';
 import 'services/address_label_service.dart';
 import 'services/contacts_service.dart';
 import 'services/deep_link_channel.dart';
@@ -116,8 +118,16 @@ class _ArgusAppState extends State<ArgusApp> with WidgetsBindingObserver {
       listenable: themeController,
       builder: (context, _) {
         return MaterialApp(
-          title: 'Celaut',
+          onGenerateTitle: (context) => context.l10n.appTitle,
           navigatorKey: navigatorKey,
+          // The device language when the app has it, else English.
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
           debugShowCheckedModeBanner: false,
           theme: themeController.lightTheme,
           darkTheme: themeController.darkTheme,
@@ -127,19 +137,23 @@ class _ArgusAppState extends State<ArgusApp> with WidgetsBindingObserver {
           // Every route sees live wallet context through WalletArgsScope, so
           // a pushed screen's balances update instead of freezing at push
           // time. Route arguments still carry per-route data (a transaction).
-          builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(context).copyWith(
-              textScaler:
-                  MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 1.6),
-            ),
-            child: ListenableBuilder(
-              listenable: walletSyncController,
-              builder: (context, _) => WalletArgsScope(
-                args: walletSyncController.routeArgs,
-                child: child!,
+          builder: (context, child) {
+            // Code without a BuildContext reads its texts from appL10n.
+            setAppLocale(Localizations.localeOf(context));
+            return MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler:
+                    MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 1.6),
               ),
-            ),
-          ),
+              child: ListenableBuilder(
+                listenable: walletSyncController,
+                builder: (context, _) => WalletArgsScope(
+                  args: walletSyncController.routeArgs,
+                  child: child!,
+                ),
+              ),
+            );
+          },
           onGenerateRoute: (settings) {
             final page = appPage(settings.name);
             if (page == null) return null;

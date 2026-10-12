@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import '../../format.dart';
+import '../../l10n/l10n.dart';
 import '../../services/token_amounts.dart';
 import 'home_models.dart';
 
@@ -155,19 +156,21 @@ String shortActivityTime(int? timestampMs, {DateTime? now}) {
   if (timestampMs == null || timestampMs <= 0) return '';
   final at = DateTime.fromMillisecondsSinceEpoch(timestampMs);
   final today = now ?? DateTime.now();
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  final t = appL10n;
   // Calendar days, not 24-hour spans: 11 pm the night before is
   // "Yesterday" at 8 am.
   final days = DateTime.utc(today.year, today.month, today.day)
       .difference(DateTime.utc(at.year, at.month, at.day))
       .inDays;
   if (days <= 0) {
-    final hour = at.hour % 12 == 0 ? 12 : at.hour % 12;
-    return '$hour:${at.minute.toString().padLeft(2, '0')}$nbsp${at.hour < 12 ? 'am' : 'pm'}';
+    return clockTime(at, space: nbsp);
   }
-  if (days == 1) return 'Yesterday';
-  final day = '${months[at.month - 1]}$nbsp${at.day}';
-  return at.year == today.year ? day : '$day, ${at.year}';
+  if (days == 1) return t.timeYesterday;
+  final month = monthShort(at.month);
+  final day = at.year == today.year
+      ? t.dateMonthDay(month, '${at.day}')
+      : t.dateMonthDayYear(month, '${at.day}', '${at.year}');
+  return day.replaceFirst(' ', nbsp);
 }
 
 /// Splits "25,529.34" into "25,529" and ".34" so the fraction can be set

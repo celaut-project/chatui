@@ -1,0 +1,291 @@
+{
+  "@@locale": "en",
+  "appTitle": "Celaut",
+  "commonCancel": "Cancel",
+  "commonSave": "Save",
+  "commonRetry": "Retry",
+  "commonRemove": "Remove",
+  "commonDone": "Done",
+  "commonCopy": "Copy",
+  "commonCopyId": "Copy id",
+  "commonClose": "Close",
+  "commonName": "Name",
+  "commonAddress": "Address",
+  "commonAddresses": "Addresses",
+  "commonAddressCopied": "Address copied",
+  "commonMinerFee": "Miner fee",
+  "commonWallet": "Wallet",
+  "commonThisWallet": "This wallet",
+  "commonToken": "Token",
+  "commonTokens": "Tokens",
+  "commonContacts": "Contacts",
+  "commonSettings": "Settings",
+  "commonPending": "Pending",
+  "commonOffline": "Offline",
+  "commonBalanceUnavailable": "Balance unavailable",
+  "commonNotAnErgoAddress": "Not an Ergo address",
+  "commonWatchedAccount": "Watched account",
+  "commonWatchedAddress": "Watched address",
+  "commonStopWatching": "Stop watching",
+  "monthShort1": "Jan",
+  "monthShort2": "Feb",
+  "monthShort3": "Mar",
+  "monthShort4": "Apr",
+  "monthShort5": "May",
+  "monthShort6": "Jun",
+  "monthShort7": "Jul",
+  "monthShort8": "Aug",
+  "monthShort9": "Sep",
+  "monthShort10": "Oct",
+  "monthShort11": "Nov",
+  "monthShort12": "Dec",
+  "clockTime": "{hour12}:{minute}{space}{period}",
+  "@clockTime": {
+    "description": "A time of day. English uses a 12-hour clock with am or pm; Spanish a 24-hour clock.",
+    "placeholders": {
+      "hour12": {
+        "type": "String"
+      },
+      "hour24": {
+        "type": "String"
+      },
+      "minute": {
+        "type": "String"
+      },
+      "space": {
+        "type": "String"
+      },
+      "period": {
+        "type": "String"
+      }
+    }
+  },
+  "clockAm": "am",
+  "clockPm": "pm",
+  "dateMonthDay": "{month} {day}",
+  "@dateMonthDay": {
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "dateMonthDayYear": "{month} {day}, {year}",
+  "@dateMonthDayYear": {
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      },
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "dateMonthDayTime": "{month} {day}, {time}",
+  "@dateMonthDayTime": {
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "dateDayMonthYear": "{day} {month} {year}",
+  "@dateDayMonthYear": {
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      },
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "dateNumeric": "{month}/{day}/{year}",
+  "@dateNumeric": {
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      },
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "timeToday": "Today, {time}",
+  "@timeToday": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeYesterdayAt": "Yesterday, {time}",
+  "@timeYesterdayAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeYesterday": "Yesterday",
+  "timeJustNow": "Just now",
+  "timeSecondsAgo": "{count}s ago",
+  "@timeSecondsAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeMinutesAgo": "{count} min ago",
+  "@timeMinutesAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeHoursAgo": "{count}h ago",
+  "@timeHoursAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeDaysAgo": "{count} days ago",
+  "@timeDaysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncAgeJustNow": "just now",
+  "syncAgeMinutes": "{count}m ago",
+  "@syncAgeMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncAgeHours": "{count}h ago",
+  "@syncAgeHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncAgeDays": "{count}d ago",
+  "@syncAgeDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dateUnknownDay": "Unknown day",
+  "celautDeveloperGroup": "Developer",
+  "celautDeveloperScope": "App-wide",
+  "celautNodeRowTitle": "Celaut node",
+  "celautNodeRowSubtitle": "Connect to a node and show its advertisement",
+  "celautScreenTitle": "Celaut node",
+  "celautIntro": "Connect to a Celaut node and check who it is. The app checks the identity in its certificate and the signature of its advertisement. Nothing is started and nothing is paid.",
+  "celautAddressLabel": "Node address",
+  "celautAddressHint": "host:port",
+  "celautExpectedLabel": "Expected peer id (optional)",
+  "celautExpectedHint": "64 hexadecimal characters",
+  "celautConnect": "Connect",
+  "celautConnecting": "Connecting…",
+  "celautIdentityTitle": "Identity",
+  "celautPeerIdLabel": "Peer id",
+  "celautAdvertisedLabel": "Advertised at",
+  "celautUrisTitle": "Addresses",
+  "celautRatesTitle": "Rates",
+  "celautContractsTitle": "Payment contracts",
+  "celautResourcesTitle": "Resources",
+  "celautProofsLabel": "Reputation proofs",
+  "celautNoUris": "The node advertises no address.",
+  "celautNoRates": "The node advertises no rates.",
+  "celautNoContracts": "The node advertises no payment contract. It cannot be paid yet.",
+  "celautNoResources": "The node gives no data about its resources.",
+  "celautRatesNote": "Rates are in MU.",
+  "celautVerifiedNote": "The certificate and the signature were checked. This node is who it says it is.",
+  "celautAddressEmpty": "Enter the address of the node as host:port.",
+  "celautAddressInvalid": "This address is not valid. Use host:port, for example 203.0.113.7:8090.",
+  "celautPortInvalid": "The port must be a number from 1 to 65535.",
+  "celautExpectedInvalid": "The peer id must be 64 hexadecimal characters, or empty.",
+  "celautErrorTitle": "Cannot show this node",
+  "celautErrorInvalidInput": "The address is not valid. Check the host and the port.",
+  "celautErrorUnreachable": "The app cannot connect to this address. Check the address and the network, and check that the node is running.",
+  "celautErrorTimeout": "The node did not answer in time. Try again, or check the address.",
+  "celautErrorIdentityMismatch": "The identity of this node is not the one that was expected. The address may now belong to another node. The app did not trust it.",
+  "celautErrorBadCertificate": "The certificate of this server has no valid Celaut identity. It may not be a Celaut node. The app did not trust it.",
+  "celautErrorBadSignature": "The signature of the node advertisement is not valid. The app did not trust it.",
+  "celautErrorStaleTimestamp": "This advertisement is older than one that the app accepted before. Someone may be replaying an old message. The app did not trust it.",
+  "celautErrorUnsupportedScheme": "The node signs with a scheme that this app does not support.",
+  "celautErrorProofOfWork": "The node asks for more work than the app does for a new client, or it did not accept the work.",
+  "celautErrorProtocol": "The node refused the request or sent an answer that the app cannot use.",
+  "celautErrorStorage": "The app cannot read or write its list of known advertisements.",
+  "celautDetailLabel": "Detail: {detail}",
+  "@celautDetailLabel": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "celautCores": "{count, plural, =1{{value} core} other{{value} cores}}",
+  "@celautCores": {
+    "description": "CPU cores. count is 1 when the value is exactly one, else 2; value is the formatted number.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "celautMemoryLabel": "Memory",
+  "celautDiskLabel": "Disk",
+  "celautCpuLabel": "CPU",
+  "celautBenchmarkLabel": "Benchmark",
+  "celautNoExpiry": "no expiry given",
+  "celautExpires": "valid until {when}",
+  "@celautExpires": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "celautPerUnit": "{mu} MU per base unit",
+  "@celautPerUnit": {
+    "placeholders": {
+      "mu": {
+        "type": "String"
+      }
+    }
+  }
+}
