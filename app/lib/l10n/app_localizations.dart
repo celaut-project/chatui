@@ -7572,12 +7572,6 @@ abstract class AppLocalizations {
   /// **'{count} at risk'**
   String utxoAtRisk(String count);
 
-  /// No description provided for @utxoDueWithin.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} due within {days} days'**
-  String utxoDueWithin(String count, String days);
-
   /// No description provided for @utxoSplitTitle.
   ///
   /// In en, this message translates to:
@@ -8033,6 +8027,377 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} Selected'**
   String utxoSelectedCount(String count);
+
+  /// No description provided for @rentDueWithin.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 due within {days} days} other{{count} due within {days} days}}'**
+  String rentDueWithin(int count, String days);
+
+  /// No description provided for @rentBlock.
+  ///
+  /// In en, this message translates to:
+  /// **'block {height}'**
+  String rentBlock(String height);
+
+  /// No description provided for @rentAtRiskNow.
+  ///
+  /// In en, this message translates to:
+  /// **'At risk: it holds no more than its {fee} rent, so it can be collected now, tokens included.'**
+  String rentAtRiskNow(String fee);
+
+  /// No description provided for @rentAtRiskFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'At risk: it holds no more than its {fee} rent. From {block} ({when}) it can be collected whole, tokens included.'**
+  String rentAtRiskFrom(String fee, String block, String when);
+
+  /// No description provided for @rentWholeNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Rent would take this whole box ({whole}); it can be collected now.'**
+  String rentWholeNow(String whole);
+
+  /// No description provided for @rentWholeFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Rent would take this whole box ({whole}), from {block} ({when}).'**
+  String rentWholeFrom(String whole, String block, String when);
+
+  /// No description provided for @rentChargeableNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage rent of {fee} can be charged now (due {block}).'**
+  String rentChargeableNow(String fee, String block);
+
+  /// No description provided for @rentDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage rent of {fee} due {when} ({block}).'**
+  String rentDue(String fee, String when, String block);
+
+  /// No description provided for @rentIntoOne.
+  ///
+  /// In en, this message translates to:
+  /// **'into one'**
+  String get rentIntoOne;
+
+  /// No description provided for @rentIntoCount.
+  ///
+  /// In en, this message translates to:
+  /// **'into {count}'**
+  String rentIntoCount(String count);
+
+  /// No description provided for @rentIntoOneOrMore.
+  ///
+  /// In en, this message translates to:
+  /// **'into one or more'**
+  String get rentIntoOneOrMore;
+
+  /// No description provided for @rentFewerBoxes.
+  ///
+  /// In en, this message translates to:
+  /// **'Fewer boxes keep every send small and cheap.'**
+  String get rentFewerBoxes;
+
+  /// No description provided for @rentMovingRestarts.
+  ///
+  /// In en, this message translates to:
+  /// **'Moving old boxes also restarts their 4-year storage-rent clock.'**
+  String get rentMovingRestarts;
+
+  /// No description provided for @rentMergeBoxes.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge {count} boxes at {address} {into}.'**
+  String rentMergeBoxes(String count, String address, String into);
+
+  /// No description provided for @rentMergeBoxesOf.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge {count} of {total} boxes at {address} {into}.'**
+  String rentMergeBoxesOf(
+    String count,
+    String total,
+    String address,
+    String into,
+  );
+
+  /// No description provided for @rentCleanupFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee {fee}. Only this address\'s boxes move, so no addresses are linked.'**
+  String rentCleanupFee(String fee);
+
+  /// No description provided for @rentReviewCleanup.
+  ///
+  /// In en, this message translates to:
+  /// **'Review cleanup'**
+  String get rentReviewCleanup;
+
+  /// No description provided for @rentCantCover.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 box can\'t cover its storage rent} other{{count} boxes can\'t cover their storage rent}}'**
+  String rentCantCover(int count);
+
+  /// No description provided for @rentFallsDue.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 falls due within {days} days} other{{count} fall due within {days} days}}'**
+  String rentFallsDue(int count, String days);
+
+  /// No description provided for @rentReasonAnd.
+  ///
+  /// In en, this message translates to:
+  /// **'{first} and {second}'**
+  String rentReasonAnd(String first, String second);
+
+  /// No description provided for @rentReasonMoving.
+  ///
+  /// In en, this message translates to:
+  /// **'{reason}. Moving them starts a new 4-year rent clock.'**
+  String rentReasonMoving(String reason);
+
+  /// No description provided for @rentChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking storage rent…'**
+  String get rentChecking;
+
+  /// No description provided for @rentUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage rent unavailable: your node could not be read. Refresh to try again.'**
+  String get rentUnavailable;
+
+  /// No description provided for @rentNotChecked.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage rent not checked yet.'**
+  String get rentNotChecked;
+
+  /// No description provided for @rentAtRiskCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 box at risk of collection} other{{count} boxes at risk of collection}}'**
+  String rentAtRiskCount(int count);
+
+  /// No description provided for @rentUnmeasured.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 box could not be measured.} other{{count} boxes could not be measured.}}'**
+  String rentUnmeasured(int count);
+
+  /// No description provided for @rentRateLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate {rate}.'**
+  String rentRateLine(String rate);
+
+  /// No description provided for @rentErgOnlyWhole.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 ERG-only box is worth no more than its rent, which would take it whole.} other{{count} ERG-only boxes are worth no more than their rent, which would take them whole.}}'**
+  String rentErgOnlyWhole(int count);
+
+  /// No description provided for @rentLeadParts.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage rent: {parts}.'**
+  String rentLeadParts(String parts);
+
+  /// No description provided for @rentLeadAllCovered.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage rent: nothing due within {days} days, and every box covers its rent.'**
+  String rentLeadAllCovered(String days);
+
+  /// No description provided for @rentLeadAllMeasuredCovered.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage rent: nothing due within {days} days, and every measured box covers its rent.'**
+  String rentLeadAllMeasuredCovered(String days);
+
+  /// No description provided for @rentLeadNoTokenRisk.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage rent: no box with tokens is at risk, and nothing else is due within {days} days.'**
+  String rentLeadNoTokenRisk(String days);
+
+  /// No description provided for @rentLeadNoMeasuredTokenRisk.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage rent: no measured box with tokens is at risk, and nothing else is due within {days} days.'**
+  String rentLeadNoMeasuredTokenRisk(String days);
+
+  /// No description provided for @confirmSignBroadcast.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign & broadcast'**
+  String get confirmSignBroadcast;
+
+  /// No description provided for @confirmWarnBroadcast.
+  ///
+  /// In en, this message translates to:
+  /// **'This will sign and broadcast a transaction to the network. It cannot be undone once confirmed.'**
+  String get confirmWarnBroadcast;
+
+  /// No description provided for @confirmWarnPage.
+  ///
+  /// In en, this message translates to:
+  /// **'This will sign a transaction and hand it to the page, which broadcasts it. Once broadcast it cannot be undone.'**
+  String get confirmWarnPage;
+
+  /// No description provided for @confirmTo.
+  ///
+  /// In en, this message translates to:
+  /// **'TO'**
+  String get confirmTo;
+
+  /// No description provided for @confirmDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get confirmDetails;
+
+  /// No description provided for @confirmSignOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign only'**
+  String get confirmSignOnly;
+
+  /// No description provided for @confirmTxDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction details'**
+  String get confirmTxDetails;
+
+  /// No description provided for @rentHintDefaultRate.
+  ///
+  /// In en, this message translates to:
+  /// **' at the default rate'**
+  String get rentHintDefaultRate;
+
+  /// No description provided for @rentHintCharge.
+  ///
+  /// In en, this message translates to:
+  /// **'Ergo charges storage rent on boxes left unmoved for 4 years: about {fee}{rate} for this {bytes}-byte box.'**
+  String rentHintCharge(String fee, String rate, String bytes);
+
+  /// No description provided for @rentHintCovers.
+  ///
+  /// In en, this message translates to:
+  /// **'This amount covers it.'**
+  String get rentHintCovers;
+
+  /// No description provided for @rentHintLess.
+  ///
+  /// In en, this message translates to:
+  /// **'A box holding less can be collected whole, tokens included.'**
+  String get rentHintLess;
+
+  /// No description provided for @rentHintExtraBoxes.
+  ///
+  /// In en, this message translates to:
+  /// **'These tokens need {count} boxes; the extra ones carry only their minimum ERG.'**
+  String rentHintExtraBoxes(String count);
+
+  /// No description provided for @rentHintSuggested.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggested {amount}'**
+  String rentHintSuggested(String amount);
+
+  /// No description provided for @rentHintUseSuggested.
+  ///
+  /// In en, this message translates to:
+  /// **'Use suggested'**
+  String get rentHintUseSuggested;
+
+  /// No description provided for @txResultId.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction ID'**
+  String get txResultId;
+
+  /// No description provided for @txResultIdCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction ID copied'**
+  String get txResultIdCopied;
+
+  /// No description provided for @txViewOnExplorer.
+  ///
+  /// In en, this message translates to:
+  /// **'View on explorer'**
+  String get txViewOnExplorer;
+
+  /// No description provided for @txBookkeepingFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction submitted, but local tracking could not be updated: {error}. Keep this transaction ID and check Activity before retrying.'**
+  String txBookkeepingFailed(String error);
+
+  /// No description provided for @txBatchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Consolidation result'**
+  String get txBatchTitle;
+
+  /// No description provided for @txBatchSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total} transactions submitted'**
+  String txBatchSubmitted(String done, String total);
+
+  /// No description provided for @txBatchStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped early after {done} of {total}. No further batches were attempted.'**
+  String txBatchStopped(String done, String total);
+
+  /// No description provided for @txBatchItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction {number}'**
+  String txBatchItem(String number);
+
+  /// No description provided for @pickerSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search name or token id'**
+  String get pickerSearchHint;
+
+  /// No description provided for @pickerNoMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No tokens match that search.'**
+  String get pickerNoMatch;
+
+  /// No description provided for @pickerSelect.
+  ///
+  /// In en, this message translates to:
+  /// **'Select {token}'**
+  String pickerSelect(String token);
+
+  /// No description provided for @pickerSelectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String pickerSelectedCount(String count);
+
+  /// No description provided for @amountEnterErg.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter ERG'**
+  String get amountEnterErg;
+
+  /// No description provided for @amountEnterFiat.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter {currency}'**
+  String amountEnterFiat(String currency);
 }
 
 class _AppLocalizationsDelegate

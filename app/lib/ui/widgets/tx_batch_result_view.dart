@@ -5,6 +5,7 @@ import '../../theme/argus_theme.dart';
 import '../../services/wallet_service.dart';
 import 'tx_result_view.dart';
 import 'tx_explorer_link.dart';
+import '../../l10n/l10n.dart';
 
 /// A receipt of acknowledged submissions, not a claim of chain confirmation.
 class TxBatchResultView extends StatelessWidget {
@@ -28,14 +29,14 @@ class TxBatchResultView extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'Consolidation result',
+          context.l10n.txBatchTitle,
           style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 12),
-        Text('${txIds.length} of $plannedCount transactions submitted'),
+        Text(context.l10n.txBatchSubmitted('${txIds.length}', '$plannedCount')),
         if (txIds.length < plannedCount)
           Text(
-            'Stopped early after ${txIds.length} of $plannedCount. No further batches were attempted.',
+            context.l10n.txBatchStopped('${txIds.length}', '$plannedCount'),
           ),
         if (failure != null) ...[
           const SizedBox(height: 12),
@@ -43,7 +44,7 @@ class TxBatchResultView extends StatelessWidget {
         ],
         for (var i = 0; i < txIds.length; i++) ...[
           const Divider(height: 24),
-          Text('Transaction ${i + 1}'),
+          Text(context.l10n.txBatchItem('${i + 1}')),
           SelectableText(txIds[i], style: monoStyle(context, size: 12)),
           if (walletService.broadcastWarning(txIds[i]) case final warning?)
             SelectableText(warning, style: TextStyle(color: rustFor(context))),
@@ -51,16 +52,16 @@ class TxBatchResultView extends StatelessWidget {
             key: ValueKey('copy-${txIds[i]}'),
             onPressed: () => Clipboard.setData(ClipboardData(text: txIds[i])),
             icon: const Icon(Icons.copy, size: 16),
-            label: const Text('Copy id'),
+            label: Text(context.l10n.commonCopyId),
           ),
           TxExplorerLink(
             key: ValueKey('explorer-${txIds[i]}'),
             txId: txIds[i],
-            label: 'View on explorer',
+            label: context.l10n.txViewOnExplorer,
           ),
         ],
         const SizedBox(height: 20),
-        FilledButton(onPressed: onDismiss, child: const Text('Done')),
+        FilledButton(onPressed: onDismiss, child: Text(context.l10n.commonDone)),
       ],
     ),
   );

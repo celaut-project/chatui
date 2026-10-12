@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../format.dart';
 import '../../services/storage_rent.dart';
 import '../../theme/argus_theme.dart';
+import '../../l10n/l10n.dart';
 
 /// Storage-rent note under the ERG amount of a recipient that receives
 /// tokens: what the new box will owe after four years untouched, and the
@@ -27,18 +28,16 @@ class RentHint extends StatelessWidget {
     } else {
       final rate = estimate.parameters.factorFromNode
           ? ''
-          : ' at the default rate';
+          : context.l10n.rentHintDefaultRate;
       // Unrounded: a voted factor can make any nanoERG amount.
       final fee = formatErg(first.feeNano);
       text = [
-        'Ergo charges storage rent on boxes left unmoved for 4 years: about '
-            '$fee$rate for this ${first.sizeBytes}-byte box.',
+        context.l10n.rentHintCharge(fee, rate, '${first.sizeBytes}'),
         estimate.covered && !estimate.belowSuggestion
-            ? 'This amount covers it.'
-            : 'A box holding less can be collected whole, tokens included.',
+            ? context.l10n.rentHintCovers
+            : context.l10n.rentHintLess,
         if (estimate.boxes.length > 1)
-          'These tokens need ${estimate.boxes.length} boxes; the extra ones '
-              'carry only their minimum ERG.',
+          context.l10n.rentHintExtraBoxes('${estimate.boxes.length}'),
       ].join(' ');
     }
     final warn = estimate.chargeable && !estimate.covered;
@@ -82,7 +81,7 @@ class RentHint extends StatelessWidget {
                   alignment: WrapAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Suggested ${formatErg(suggested, maxFrac: 4)}',
+                      context.l10n.rentHintSuggested(formatErg(suggested, maxFrac: 4)),
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -96,7 +95,7 @@ class RentHint extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                       ),
                       onPressed: onUseSuggested,
-                      child: const Text('Use suggested'),
+                      child: Text(context.l10n.rentHintUseSuggested),
                     ),
                   ],
                 ),

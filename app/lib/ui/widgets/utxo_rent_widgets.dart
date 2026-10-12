@@ -4,6 +4,7 @@ import '../../format.dart';
 import '../../services/storage_rent.dart';
 import '../../services/utxo_plans.dart';
 import '../../theme/argus_theme.dart';
+import '../../l10n/l10n.dart';
 
 /// When a box's storage rent falls due, what it costs, and whether the
 /// box can pay it.
@@ -36,7 +37,7 @@ class BoxRentLine extends StatelessWidget {
       rent.blocksUntilDue,
       blockSeconds: parameters.blockSeconds,
     );
-    final block = 'block ${formatWithCommas(rent.dueHeight)}';
+    final block = context.l10n.rentBlock(formatWithCommas(rent.dueHeight));
     // What a collector takes from a box worth no more than its rent: all of
     // it.
     final whole = formatErg(rent.chargeNano);
@@ -49,39 +50,37 @@ class BoxRentLine extends StatelessWidget {
       BoxRent(atRisk: true, collectableNow: true) when hasTokens => (
         Icons.warning_amber_rounded,
         rustFor(context),
-        'At risk: it holds no more than its $fee rent, so it can be '
-            'collected now, tokens included.',
+        context.l10n.rentAtRiskNow(fee),
       ),
       BoxRent(atRisk: true) when hasTokens => (
         Icons.warning_amber_rounded,
         rustFor(context),
-        'At risk: it holds no more than its $fee rent. From $block '
-            '($when) it can be collected whole, tokens included.',
+        context.l10n.rentAtRiskFrom(fee, block, when),
       ),
       BoxRent(atRisk: true, collectableNow: true) => (
         Icons.hourglass_bottom,
         colors.muted,
-        'Rent would take this whole box ($whole); it can be collected now.',
+        context.l10n.rentWholeNow(whole),
       ),
       BoxRent(atRisk: true) => (
         Icons.hourglass_bottom,
         colors.muted,
-        'Rent would take this whole box ($whole), from $block ($when).',
+        context.l10n.rentWholeFrom(whole, block, when),
       ),
       BoxRent(collectableNow: true) => (
         Icons.schedule,
         colors.accentText,
-        'Storage rent of $fee can be charged now (due $block).',
+        context.l10n.rentChargeableNow(fee, block),
       ),
       BoxRent(dueSoon: true) => (
         Icons.schedule,
         colors.accentText,
-        'Storage rent of $fee due $when ($block).',
+        context.l10n.rentDue(fee, when, block),
       ),
       _ => (
         Icons.hourglass_bottom,
         colors.muted,
-        'Storage rent of $fee due $when ($block).',
+        context.l10n.rentDue(fee, when, block),
       ),
     };
     return Row(
@@ -129,16 +128,15 @@ class CleanupSuggestionCard extends StatelessWidget {
     final s = suggestion;
     final n = s.boxes.length;
     final into = switch (resultingBoxes) {
-      1 => 'into one',
-      final int count => 'into $count',
-      null => s.tokens.isEmpty ? 'into one' : 'into one or more',
+      1 => context.l10n.rentIntoOne,
+      final int count => context.l10n.rentIntoCount('$count'),
+      null => s.tokens.isEmpty ? context.l10n.rentIntoOne : context.l10n.rentIntoOneOrMore,
     };
-    final of = s.leftAtAddress > 0 ? ' of ${n + s.leftAtAddress}' : '';
     final reasons = <String>[
       if (s.forRent) _rentReason(s),
-      if (fragmented) 'Fewer boxes keep every send small and cheap.',
+      if (fragmented) context.l10n.rentFewerBoxes,
       if (!s.forRent)
-        'Moving old boxes also restarts their 4-year storage-rent clock.',
+        context.l10n.rentMovingRestarts,
     ];
     final bodySmall = Theme.of(context).textTheme.bodySmall;
     return Container(
@@ -165,7 +163,7 @@ class CleanupSuggestionCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Suggested cleanup',
+                  context.l10n.utxoSuggestedCleanup,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
@@ -173,7 +171,9 @@ class CleanupSuggestionCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Merge $n$of boxes at ${shorten(s.address, head: 6, tail: 4)} $into.',
+            s.leftAtAddress > 0
+                ? context.l10n.rentMergeBoxesOf('$n', '${n + s.leftAtAddress}', shorten(s.address, head: 6, tail: 4), into)
+                : context.l10n.rentMergeBoxes('$n', shorten(s.address, head: 6, tail: 4), into),
             style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
           ),
           for (final reason in reasons) ...[
@@ -182,13 +182,13 @@ class CleanupSuggestionCard extends StatelessWidget {
           ],
           const SizedBox(height: 4),
           Text(
-            'Fee ${formatErg(s.feesNano)}. Only this address\'s boxes move, so no addresses are linked.',
+            context.l10n.rentCleanupFee(formatErg(s.feesNano)),
             style: bodySmall?.copyWith(color: colors.muted),
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
             icon: const Icon(Icons.merge_type, size: 18),
-            label: const Text('Review cleanup'),
+            label: Text(context.l10n.rentReviewCleanup),
             onPressed: onReview,
           ),
         ],
@@ -198,14 +198,12 @@ class CleanupSuggestionCard extends StatelessWidget {
 
   static String _rentReason(CleanupSuggestion s) {
     final parts = <String>[
-      if (s.atRiskCount > 0)
-        s.atRiskCount == 1
-            ? '1 box can\'t cover its storage rent'
-            : '${s.atRiskCount} boxes can\'t cover their storage rent',
-      if (s.dueSoonCount > 0)
-        '${s.dueSoonCount} ${s.dueSoonCount == 1 ? 'falls' : 'fall'} due within $rentSoonDays days',
+      if (s.atRiskCount > 0) appL10n.rentCantCover(s.atRiskCount),
+      if (s.dueSoonCount > 0) appL10n.rentFallsDue(s.dueSoonCount, '$rentSoonDays'),
     ];
-    return '${parts.join(' and ')}. Moving them starts a new 4-year rent clock.';
+    return appL10n.rentReasonMoving(
+      parts.length == 2 ? appL10n.rentReasonAnd(parts[0], parts[1]) : parts.join(),
+    );
   }
 }
 
@@ -259,41 +257,34 @@ class RentSummaryLine extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 1.5),
             ),
             const SizedBox(width: 8),
-            Expanded(child: Text('Checking storage rent…', style: style)),
+            Expanded(child: Text(context.l10n.rentChecking, style: style)),
           ],
         );
       }
       return Text(
         failed
-            ? 'Storage rent unavailable: your node could not be read. Refresh to try again.'
-            : 'Storage rent not checked yet.',
+            ? context.l10n.rentUnavailable
+            : context.l10n.rentNotChecked,
         style: style,
       );
     }
     final parts = [
-      if (atRisk > 0)
-        '$atRisk ${atRisk == 1 ? 'box' : 'boxes'} at risk of collection',
-      if (dueSoon > 0) '$dueSoon due within $rentSoonDays days',
+      if (atRisk > 0) context.l10n.rentAtRiskCount(atRisk),
+      if (dueSoon > 0) context.l10n.rentDueWithin(dueSoon, '$rentSoonDays'),
     ];
     final missing = unmeasured == 0
         ? ''
-        : ' $unmeasured ${unmeasured == 1 ? 'box' : 'boxes'} could not be measured.';
-    final rate = 'Rate ${parameters.rateLabel}.$missing';
+        : ' ${context.l10n.rentUnmeasured(unmeasured)}';
+    final rate = '${context.l10n.rentRateLine(parameters.rateLabel)}$missing';
     final dust = wholeErgOnly == 0
         ? ''
-        : wholeErgOnly == 1
-        ? '1 ERG-only box is worth no more than its rent, which would take '
-              'it whole. '
-        : '$wholeErgOnly ERG-only boxes are worth no more than their rent, '
-              'which would take them whole. ';
-    final measured = unmeasured == 0 ? '' : 'measured ';
+        : '${context.l10n.rentErgOnlyWhole(wholeErgOnly)} ';
+    final measured = unmeasured != 0;
     final lead = parts.isNotEmpty
-        ? 'Storage rent: ${parts.join(' · ')}.'
+        ? context.l10n.rentLeadParts(parts.join(' · '))
         : wholeErgOnly == 0
-        ? 'Storage rent: nothing due within $rentSoonDays days, and every '
-              '${measured}box covers its rent.'
-        : 'Storage rent: no ${measured}box with tokens is at risk, and '
-              'nothing else is due within $rentSoonDays days.';
+        ? (measured ? context.l10n.rentLeadAllMeasuredCovered : context.l10n.rentLeadAllCovered)('$rentSoonDays')
+        : (measured ? context.l10n.rentLeadNoMeasuredTokenRisk : context.l10n.rentLeadNoTokenRisk)('$rentSoonDays');
     return Text.rich(
       TextSpan(
         children: [

@@ -4,6 +4,7 @@ import '../../format.dart';
 import '../../services/network_controller.dart';
 import '../../services/wallet_service.dart';
 import '../../theme/argus_theme.dart';
+import '../../l10n/l10n.dart';
 
 /// ERG text for a typed fiat amount at [rate] (fiat per ERG). Empty stays
 /// empty; unparsable is null.
@@ -32,7 +33,7 @@ class AmountEntry extends StatefulWidget {
   const AmountEntry({
     super.key,
     required this.controller,
-    this.label = 'Amount',
+    this.label,
     this.helperText,
     this.onChanged,
     this.onMax,
@@ -40,7 +41,7 @@ class AmountEntry extends StatefulWidget {
   });
 
   final TextEditingController controller;
-  final String label;
+  final String? label;
   final String? helperText;
   final ValueChanged<String>? onChanged;
   final VoidCallback? onMax;
@@ -120,7 +121,7 @@ class _AmountEntryState extends State<AmountEntry> {
       children: [
         Row(
           children: [
-            Expanded(child: Text(widget.label, style: Theme.of(context).textTheme.titleSmall?.copyWith(color: colors.muted))),
+            Expanded(child: Text(widget.label ?? context.l10n.sendAmount, style: Theme.of(context).textTheme.titleSmall?.copyWith(color: colors.muted))),
             if (rate != null)
               TextButton.icon(
                 onPressed: _toggle,
@@ -129,7 +130,7 @@ class _AmountEntryState extends State<AmountEntry> {
                   minimumSize: const Size(0, 32),
                 ),
                 icon: const Icon(Icons.swap_vert, size: 16),
-                label: Text(_fiatMode ? 'Enter ERG' : 'Enter ${networkController.fiatCode.toUpperCase()}'),
+                label: Text(_fiatMode ? context.l10n.amountEnterErg : context.l10n.amountEnterFiat(networkController.fiatCode.toUpperCase())),
               ),
           ],
         ),
@@ -166,7 +167,7 @@ class _AmountEntryState extends State<AmountEntry> {
             if (widget.onMax != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 2, left: 4),
-                child: TextButton(onPressed: widget.onMax, child: const Text('MAX')),
+                child: TextButton(onPressed: widget.onMax, child: Text(context.l10n.sendMax)),
               ),
           ],
         ),

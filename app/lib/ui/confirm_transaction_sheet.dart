@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/argus_theme.dart';
 import 'widgets/tx_details.dart';
+import '../l10n/l10n.dart';
 
 /// A single summary line shown inside the confirmation sheet.
 class ConfirmTxRow {
@@ -25,7 +26,7 @@ class ConfirmTransactionSheet extends StatefulWidget {
     super.key,
     required this.title,
     required this.rows,
-    this.confirmLabel = 'Sign & broadcast',
+    this.confirmLabel,
     this.broadcasts = true,
     this.detail,
     this.recipientAddress,
@@ -36,7 +37,7 @@ class ConfirmTransactionSheet extends StatefulWidget {
 
   final String title;
   final List<ConfirmTxRow> rows;
-  final String confirmLabel;
+  final String? confirmLabel;
 
   /// Whether Argus broadcasts after signing; false when a dApp page does.
   final bool broadcasts;
@@ -90,10 +91,8 @@ class _ConfirmTransactionSheetState extends State<ConfirmTransactionSheet> {
                   Expanded(
                     child: Text(
                       widget.broadcasts
-                          ? 'This will sign and broadcast a transaction to the '
-                              'network. It cannot be undone once confirmed.'
-                          : 'This will sign a transaction and hand it to the page, '
-                              'which broadcasts it. Once broadcast it cannot be undone.',
+                          ? context.l10n.confirmWarnBroadcast
+                          : context.l10n.confirmWarnPage,
                       style: theme.textTheme.bodySmall
                           ?.copyWith(color: rustFor(context)),
                     ),
@@ -104,7 +103,7 @@ class _ConfirmTransactionSheetState extends State<ConfirmTransactionSheet> {
             if (widget.recipientAddress != null) ...[
               const SizedBox(height: 18),
               Text(
-                'TO',
+                context.l10n.confirmTo,
                 style: theme.textTheme.titleSmall?.copyWith(color: muted),
               ),
               const SizedBox(height: 6),
@@ -147,7 +146,7 @@ class _ConfirmTransactionSheetState extends State<ConfirmTransactionSheet> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        widget.expandableTitle ?? 'Details',
+                        widget.expandableTitle ?? context.l10n.confirmDetails,
                         style: theme.textTheme.bodyMedium?.copyWith(color: muted),
                       ),
                     ],
@@ -163,7 +162,7 @@ class _ConfirmTransactionSheetState extends State<ConfirmTransactionSheet> {
                   child: OutlinedButton(
                     onPressed: () =>
                         Navigator.pop(context, ConfirmChoice.cancel),
-                    child: const Text('Cancel'),
+                    child: Text(context.l10n.commonCancel),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -176,7 +175,7 @@ class _ConfirmTransactionSheetState extends State<ConfirmTransactionSheet> {
                     ),
                     onPressed: () =>
                         Navigator.pop(context, ConfirmChoice.broadcast),
-                    child: Text(widget.confirmLabel),
+                    child: Text(widget.confirmLabel ?? context.l10n.confirmSignBroadcast),
                   ),
                 ),
               ],
@@ -188,7 +187,7 @@ class _ConfirmTransactionSheetState extends State<ConfirmTransactionSheet> {
                   onPressed: () =>
                       Navigator.pop(context, ConfirmChoice.signOnly),
                   icon: const Icon(Icons.draw_outlined, size: 16),
-                  label: const Text('Sign only'),
+                  label: Text(context.l10n.confirmSignOnly),
                 ),
               ),
             ],
@@ -225,7 +224,7 @@ Future<ConfirmChoice> showConfirmTransactionChoice(
   BuildContext context, {
   required String title,
   required List<ConfirmTxRow> rows,
-  String confirmLabel = 'Sign & broadcast',
+  String? confirmLabel,
   String? detail,
   String? recipientAddress,
   bool allowSignOnly = false,
@@ -237,7 +236,7 @@ Future<ConfirmChoice> showConfirmTransactionChoice(
   // Every wallet-built transaction can show its whole shape on request.
   if (expandable == null && preparationId != null) {
     expandable = TxDetailsExpander(preparationId: preparationId);
-    expandableTitle ??= 'Transaction details';
+    expandableTitle ??= context.l10n.confirmTxDetails;
   }
   final result = await showModalBottomSheet<ConfirmChoice>(
     context: context,
@@ -267,7 +266,7 @@ Future<bool> showConfirmTransactionSheet(
   BuildContext context, {
   required String title,
   required List<ConfirmTxRow> rows,
-  String confirmLabel = 'Sign & broadcast',
+  String? confirmLabel,
   String? detail,
   int? preparationId,
 }) async {

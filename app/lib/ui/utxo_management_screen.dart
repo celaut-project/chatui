@@ -500,7 +500,7 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
 
   String _rentResetLabel(CleanupSuggestion s) => [
     if (s.atRiskCount > 0) context.l10n.utxoAtRisk('${s.atRiskCount}'),
-    if (s.dueSoonCount > 0) context.l10n.utxoDueWithin('${s.dueSoonCount}', '$rentSoonDays'),
+    if (s.dueSoonCount > 0) context.l10n.rentDueWithin(s.dueSoonCount, '$rentSoonDays'),
   ].join(' · ');
 
   Future<void> _openSplitFlow() async {

@@ -3271,17 +3271,6 @@
       }
     }
   },
-  "utxoDueWithin": "{count} due within {days} days",
-  "@utxoDueWithin": {
-    "placeholders": {
-      "count": {
-        "type": "String"
-      },
-      "days": {
-        "type": "String"
-      }
-    }
-  },
   "utxoSplitTitle": "Split UTXO",
   "utxoOutputsCreated": "Outputs Created",
   "utxoBoxesN": "{count} boxes",
@@ -3562,6 +3551,369 @@
   "@utxoSelectedCount": {
     "placeholders": {
       "count": {
+        "type": "String"
+      }
+    }
+  },
+  "rentDueWithin": "{count, plural, =1{1 due within {days} days} other{{count} due within {days} days}}",
+  "@rentDueWithin": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "rentBlock": "block {height}",
+  "@rentBlock": {
+    "placeholders": {
+      "height": {
+        "type": "String"
+      }
+    }
+  },
+  "rentAtRiskNow": "At risk: it holds no more than its {fee} rent, so it can be collected now, tokens included.",
+  "@rentAtRiskNow": {
+    "placeholders": {
+      "fee": {
+        "type": "String"
+      }
+    }
+  },
+  "rentAtRiskFrom": "At risk: it holds no more than its {fee} rent. From {block} ({when}) it can be collected whole, tokens included.",
+  "@rentAtRiskFrom": {
+    "placeholders": {
+      "fee": {
+        "type": "String"
+      },
+      "block": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "rentWholeNow": "Rent would take this whole box ({whole}); it can be collected now.",
+  "@rentWholeNow": {
+    "placeholders": {
+      "whole": {
+        "type": "String"
+      }
+    }
+  },
+  "rentWholeFrom": "Rent would take this whole box ({whole}), from {block} ({when}).",
+  "@rentWholeFrom": {
+    "placeholders": {
+      "whole": {
+        "type": "String"
+      },
+      "block": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "rentChargeableNow": "Storage rent of {fee} can be charged now (due {block}).",
+  "@rentChargeableNow": {
+    "placeholders": {
+      "fee": {
+        "type": "String"
+      },
+      "block": {
+        "type": "String"
+      }
+    }
+  },
+  "rentDue": "Storage rent of {fee} due {when} ({block}).",
+  "@rentDue": {
+    "placeholders": {
+      "fee": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      },
+      "block": {
+        "type": "String"
+      }
+    }
+  },
+  "rentIntoOne": "into one",
+  "rentIntoCount": "into {count}",
+  "@rentIntoCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "rentIntoOneOrMore": "into one or more",
+  "rentFewerBoxes": "Fewer boxes keep every send small and cheap.",
+  "rentMovingRestarts": "Moving old boxes also restarts their 4-year storage-rent clock.",
+  "rentMergeBoxes": "Merge {count} boxes at {address} {into}.",
+  "@rentMergeBoxes": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "address": {
+        "type": "String"
+      },
+      "into": {
+        "type": "String"
+      }
+    }
+  },
+  "rentMergeBoxesOf": "Merge {count} of {total} boxes at {address} {into}.",
+  "@rentMergeBoxesOf": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "address": {
+        "type": "String"
+      },
+      "into": {
+        "type": "String"
+      }
+    }
+  },
+  "rentCleanupFee": "Fee {fee}. Only this address's boxes move, so no addresses are linked.",
+  "@rentCleanupFee": {
+    "placeholders": {
+      "fee": {
+        "type": "String"
+      }
+    }
+  },
+  "rentReviewCleanup": "Review cleanup",
+  "rentCantCover": "{count, plural, =1{1 box can't cover its storage rent} other{{count} boxes can't cover their storage rent}}",
+  "@rentCantCover": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rentFallsDue": "{count, plural, =1{1 falls due within {days} days} other{{count} fall due within {days} days}}",
+  "@rentFallsDue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "rentReasonAnd": "{first} and {second}",
+  "@rentReasonAnd": {
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "second": {
+        "type": "String"
+      }
+    }
+  },
+  "rentReasonMoving": "{reason}. Moving them starts a new 4-year rent clock.",
+  "@rentReasonMoving": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "rentChecking": "Checking storage rent…",
+  "rentUnavailable": "Storage rent unavailable: your node could not be read. Refresh to try again.",
+  "rentNotChecked": "Storage rent not checked yet.",
+  "rentAtRiskCount": "{count, plural, =1{1 box at risk of collection} other{{count} boxes at risk of collection}}",
+  "@rentAtRiskCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rentUnmeasured": "{count, plural, =1{1 box could not be measured.} other{{count} boxes could not be measured.}}",
+  "@rentUnmeasured": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rentRateLine": "Rate {rate}.",
+  "@rentRateLine": {
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      }
+    }
+  },
+  "rentErgOnlyWhole": "{count, plural, =1{1 ERG-only box is worth no more than its rent, which would take it whole.} other{{count} ERG-only boxes are worth no more than their rent, which would take them whole.}}",
+  "@rentErgOnlyWhole": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rentLeadParts": "Storage rent: {parts}.",
+  "@rentLeadParts": {
+    "placeholders": {
+      "parts": {
+        "type": "String"
+      }
+    }
+  },
+  "rentLeadAllCovered": "Storage rent: nothing due within {days} days, and every box covers its rent.",
+  "@rentLeadAllCovered": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "rentLeadAllMeasuredCovered": "Storage rent: nothing due within {days} days, and every measured box covers its rent.",
+  "@rentLeadAllMeasuredCovered": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "rentLeadNoTokenRisk": "Storage rent: no box with tokens is at risk, and nothing else is due within {days} days.",
+  "@rentLeadNoTokenRisk": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "rentLeadNoMeasuredTokenRisk": "Storage rent: no measured box with tokens is at risk, and nothing else is due within {days} days.",
+  "@rentLeadNoMeasuredTokenRisk": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmSignBroadcast": "Sign & broadcast",
+  "confirmWarnBroadcast": "This will sign and broadcast a transaction to the network. It cannot be undone once confirmed.",
+  "confirmWarnPage": "This will sign a transaction and hand it to the page, which broadcasts it. Once broadcast it cannot be undone.",
+  "confirmTo": "TO",
+  "confirmDetails": "Details",
+  "confirmSignOnly": "Sign only",
+  "confirmTxDetails": "Transaction details",
+  "rentHintDefaultRate": " at the default rate",
+  "rentHintCharge": "Ergo charges storage rent on boxes left unmoved for 4 years: about {fee}{rate} for this {bytes}-byte box.",
+  "@rentHintCharge": {
+    "placeholders": {
+      "fee": {
+        "type": "String"
+      },
+      "rate": {
+        "type": "String"
+      },
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "rentHintCovers": "This amount covers it.",
+  "rentHintLess": "A box holding less can be collected whole, tokens included.",
+  "rentHintExtraBoxes": "These tokens need {count} boxes; the extra ones carry only their minimum ERG.",
+  "@rentHintExtraBoxes": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "rentHintSuggested": "Suggested {amount}",
+  "@rentHintSuggested": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "rentHintUseSuggested": "Use suggested",
+  "txResultId": "Transaction ID",
+  "txResultIdCopied": "Transaction ID copied",
+  "txViewOnExplorer": "View on explorer",
+  "txBookkeepingFailed": "Transaction submitted, but local tracking could not be updated: {error}. Keep this transaction ID and check Activity before retrying.",
+  "@txBookkeepingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "txBatchTitle": "Consolidation result",
+  "txBatchSubmitted": "{done} of {total} transactions submitted",
+  "@txBatchSubmitted": {
+    "placeholders": {
+      "done": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "txBatchStopped": "Stopped early after {done} of {total}. No further batches were attempted.",
+  "@txBatchStopped": {
+    "placeholders": {
+      "done": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "txBatchItem": "Transaction {number}",
+  "@txBatchItem": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "pickerSearchHint": "Search name or token id",
+  "pickerNoMatch": "No tokens match that search.",
+  "pickerSelect": "Select {token}",
+  "@pickerSelect": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "pickerSelectedCount": "{count} selected",
+  "@pickerSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "amountEnterErg": "Enter ERG",
+  "amountEnterFiat": "Enter {currency}",
+  "@amountEnterFiat": {
+    "placeholders": {
+      "currency": {
         "type": "String"
       }
     }

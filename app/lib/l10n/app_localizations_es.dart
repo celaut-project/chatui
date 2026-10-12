@@ -4748,11 +4748,6 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String utxoDueWithin(String count, String days) {
-    return '$count vencen en menos de $days días';
-  }
-
-  @override
   String get utxoSplitTitle => 'Dividir UTXO';
 
   @override
@@ -5049,5 +5044,308 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String utxoSelectedCount(String count) {
     return '$count elegidas';
+  }
+
+  @override
+  String rentDueWithin(int count, String days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count vencen en menos de $days días',
+      one: '1 vence en menos de $days días',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rentBlock(String height) {
+    return 'bloque $height';
+  }
+
+  @override
+  String rentAtRiskNow(String fee) {
+    return 'En riesgo: no guarda más que su alquiler de $fee, así que se puede cobrar ya, tokens incluidos.';
+  }
+
+  @override
+  String rentAtRiskFrom(String fee, String block, String when) {
+    return 'En riesgo: no guarda más que su alquiler de $fee. Desde el $block ($when) se puede cobrar entera, tokens incluidos.';
+  }
+
+  @override
+  String rentWholeNow(String whole) {
+    return 'El alquiler se llevaría toda esta caja ($whole); se puede cobrar ya.';
+  }
+
+  @override
+  String rentWholeFrom(String whole, String block, String when) {
+    return 'El alquiler se llevaría toda esta caja ($whole), desde el $block ($when).';
+  }
+
+  @override
+  String rentChargeableNow(String fee, String block) {
+    return 'Ya se puede cobrar un alquiler de almacenamiento de $fee (vence en el $block).';
+  }
+
+  @override
+  String rentDue(String fee, String when, String block) {
+    return 'Alquiler de almacenamiento de $fee, vence $when ($block).';
+  }
+
+  @override
+  String get rentIntoOne => 'en una';
+
+  @override
+  String rentIntoCount(String count) {
+    return 'en $count';
+  }
+
+  @override
+  String get rentIntoOneOrMore => 'en una o más';
+
+  @override
+  String get rentFewerBoxes =>
+      'Menos cajas hacen que cada envío sea pequeño y barato.';
+
+  @override
+  String get rentMovingRestarts =>
+      'Mover cajas antiguas también reinicia su reloj de alquiler de almacenamiento de 4 años.';
+
+  @override
+  String rentMergeBoxes(String count, String address, String into) {
+    return 'Une $count cajas de $address $into.';
+  }
+
+  @override
+  String rentMergeBoxesOf(
+    String count,
+    String total,
+    String address,
+    String into,
+  ) {
+    return 'Une $count de $total cajas de $address $into.';
+  }
+
+  @override
+  String rentCleanupFee(String fee) {
+    return 'Comisión: $fee. Solo se mueven las cajas de esta dirección, así que no se vincula ninguna dirección.';
+  }
+
+  @override
+  String get rentReviewCleanup => 'Revisar la limpieza';
+
+  @override
+  String rentCantCover(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count cajas no cubren su alquiler de almacenamiento',
+      one: '1 caja no cubre su alquiler de almacenamiento',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rentFallsDue(int count, String days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count vencen en menos de $days días',
+      one: '1 vence en menos de $days días',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rentReasonAnd(String first, String second) {
+    return '$first y $second';
+  }
+
+  @override
+  String rentReasonMoving(String reason) {
+    return '$reason. Moverlas inicia un nuevo reloj de alquiler de 4 años.';
+  }
+
+  @override
+  String get rentChecking => 'Comprobando el alquiler de almacenamiento…';
+
+  @override
+  String get rentUnavailable =>
+      'Alquiler de almacenamiento no disponible: no se pudo leer tu nodo. Actualiza para volver a intentarlo.';
+
+  @override
+  String get rentNotChecked =>
+      'Aún no se ha comprobado el alquiler de almacenamiento.';
+
+  @override
+  String rentAtRiskCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count cajas en riesgo de cobro',
+      one: '1 caja en riesgo de cobro',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rentUnmeasured(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count cajas no se pudieron medir.',
+      one: '1 caja no se pudo medir.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rentRateLine(String rate) {
+    return 'Tarifa: $rate.';
+  }
+
+  @override
+  String rentErgOnlyWhole(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count cajas solo de ERG no valen más que su alquiler, que se las llevaría enteras.',
+      one:
+          '1 caja solo de ERG no vale más que su alquiler, que se la llevaría entera.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rentLeadParts(String parts) {
+    return 'Alquiler de almacenamiento: $parts.';
+  }
+
+  @override
+  String rentLeadAllCovered(String days) {
+    return 'Alquiler de almacenamiento: nada vence en menos de $days días y cada caja cubre su alquiler.';
+  }
+
+  @override
+  String rentLeadAllMeasuredCovered(String days) {
+    return 'Alquiler de almacenamiento: nada vence en menos de $days días y cada caja medida cubre su alquiler.';
+  }
+
+  @override
+  String rentLeadNoTokenRisk(String days) {
+    return 'Alquiler de almacenamiento: ninguna caja con tokens está en riesgo y nada más vence en menos de $days días.';
+  }
+
+  @override
+  String rentLeadNoMeasuredTokenRisk(String days) {
+    return 'Alquiler de almacenamiento: ninguna caja medida con tokens está en riesgo y nada más vence en menos de $days días.';
+  }
+
+  @override
+  String get confirmSignBroadcast => 'Firmar y difundir';
+
+  @override
+  String get confirmWarnBroadcast =>
+      'Esto firmará y difundirá una transacción a la red. No se puede deshacer una vez confirmada.';
+
+  @override
+  String get confirmWarnPage =>
+      'Esto firmará una transacción y se la pasará a la página, que la difunde. Una vez difundida no se puede deshacer.';
+
+  @override
+  String get confirmTo => 'PARA';
+
+  @override
+  String get confirmDetails => 'Detalles';
+
+  @override
+  String get confirmSignOnly => 'Solo firmar';
+
+  @override
+  String get confirmTxDetails => 'Detalles de la transacción';
+
+  @override
+  String get rentHintDefaultRate => ' a la tarifa por defecto';
+
+  @override
+  String rentHintCharge(String fee, String rate, String bytes) {
+    return 'Ergo cobra alquiler de almacenamiento a las cajas que no se mueven en 4 años: unos $fee$rate para esta caja de $bytes bytes.';
+  }
+
+  @override
+  String get rentHintCovers => 'Esta cantidad lo cubre.';
+
+  @override
+  String get rentHintLess =>
+      'Una caja con menos se puede cobrar entera, tokens incluidos.';
+
+  @override
+  String rentHintExtraBoxes(String count) {
+    return 'Estos tokens necesitan $count cajas; las de más solo llevan su mínimo de ERG.';
+  }
+
+  @override
+  String rentHintSuggested(String amount) {
+    return 'Sugerido: $amount';
+  }
+
+  @override
+  String get rentHintUseSuggested => 'Usar el sugerido';
+
+  @override
+  String get txResultId => 'Id de la transacción';
+
+  @override
+  String get txResultIdCopied => 'Id de la transacción copiado';
+
+  @override
+  String get txViewOnExplorer => 'Ver en el explorador';
+
+  @override
+  String txBookkeepingFailed(String error) {
+    return 'Transacción enviada, pero no se pudo actualizar el seguimiento local: $error. Guarda este id de transacción y revisa la actividad antes de reintentar.';
+  }
+
+  @override
+  String get txBatchTitle => 'Resultado de la consolidación';
+
+  @override
+  String txBatchSubmitted(String done, String total) {
+    return '$done de $total transacciones enviadas';
+  }
+
+  @override
+  String txBatchStopped(String done, String total) {
+    return 'Se detuvo antes, tras $done de $total. No se intentaron más lotes.';
+  }
+
+  @override
+  String txBatchItem(String number) {
+    return 'Transacción $number';
+  }
+
+  @override
+  String get pickerSearchHint => 'Buscar nombre o id de token';
+
+  @override
+  String get pickerNoMatch => 'Ningún token coincide con esa búsqueda.';
+
+  @override
+  String pickerSelect(String token) {
+    return 'Elegir $token';
+  }
+
+  @override
+  String pickerSelectedCount(String count) {
+    return '$count elegidos';
+  }
+
+  @override
+  String get amountEnterErg => 'Escribir ERG';
+
+  @override
+  String amountEnterFiat(String currency) {
+    return 'Escribir $currency';
   }
 }

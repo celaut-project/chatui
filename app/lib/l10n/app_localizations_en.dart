@@ -4680,11 +4680,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String utxoDueWithin(String count, String days) {
-    return '$count due within $days days';
-  }
-
-  @override
   String get utxoSplitTitle => 'Split UTXO';
 
   @override
@@ -4978,5 +4973,306 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String utxoSelectedCount(String count) {
     return '$count Selected';
+  }
+
+  @override
+  String rentDueWithin(int count, String days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count due within $days days',
+      one: '1 due within $days days',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rentBlock(String height) {
+    return 'block $height';
+  }
+
+  @override
+  String rentAtRiskNow(String fee) {
+    return 'At risk: it holds no more than its $fee rent, so it can be collected now, tokens included.';
+  }
+
+  @override
+  String rentAtRiskFrom(String fee, String block, String when) {
+    return 'At risk: it holds no more than its $fee rent. From $block ($when) it can be collected whole, tokens included.';
+  }
+
+  @override
+  String rentWholeNow(String whole) {
+    return 'Rent would take this whole box ($whole); it can be collected now.';
+  }
+
+  @override
+  String rentWholeFrom(String whole, String block, String when) {
+    return 'Rent would take this whole box ($whole), from $block ($when).';
+  }
+
+  @override
+  String rentChargeableNow(String fee, String block) {
+    return 'Storage rent of $fee can be charged now (due $block).';
+  }
+
+  @override
+  String rentDue(String fee, String when, String block) {
+    return 'Storage rent of $fee due $when ($block).';
+  }
+
+  @override
+  String get rentIntoOne => 'into one';
+
+  @override
+  String rentIntoCount(String count) {
+    return 'into $count';
+  }
+
+  @override
+  String get rentIntoOneOrMore => 'into one or more';
+
+  @override
+  String get rentFewerBoxes => 'Fewer boxes keep every send small and cheap.';
+
+  @override
+  String get rentMovingRestarts =>
+      'Moving old boxes also restarts their 4-year storage-rent clock.';
+
+  @override
+  String rentMergeBoxes(String count, String address, String into) {
+    return 'Merge $count boxes at $address $into.';
+  }
+
+  @override
+  String rentMergeBoxesOf(
+    String count,
+    String total,
+    String address,
+    String into,
+  ) {
+    return 'Merge $count of $total boxes at $address $into.';
+  }
+
+  @override
+  String rentCleanupFee(String fee) {
+    return 'Fee $fee. Only this address\'s boxes move, so no addresses are linked.';
+  }
+
+  @override
+  String get rentReviewCleanup => 'Review cleanup';
+
+  @override
+  String rentCantCover(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count boxes can\'t cover their storage rent',
+      one: '1 box can\'t cover its storage rent',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rentFallsDue(int count, String days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count fall due within $days days',
+      one: '1 falls due within $days days',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rentReasonAnd(String first, String second) {
+    return '$first and $second';
+  }
+
+  @override
+  String rentReasonMoving(String reason) {
+    return '$reason. Moving them starts a new 4-year rent clock.';
+  }
+
+  @override
+  String get rentChecking => 'Checking storage rent…';
+
+  @override
+  String get rentUnavailable =>
+      'Storage rent unavailable: your node could not be read. Refresh to try again.';
+
+  @override
+  String get rentNotChecked => 'Storage rent not checked yet.';
+
+  @override
+  String rentAtRiskCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count boxes at risk of collection',
+      one: '1 box at risk of collection',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rentUnmeasured(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count boxes could not be measured.',
+      one: '1 box could not be measured.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rentRateLine(String rate) {
+    return 'Rate $rate.';
+  }
+
+  @override
+  String rentErgOnlyWhole(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count ERG-only boxes are worth no more than their rent, which would take them whole.',
+      one:
+          '1 ERG-only box is worth no more than its rent, which would take it whole.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rentLeadParts(String parts) {
+    return 'Storage rent: $parts.';
+  }
+
+  @override
+  String rentLeadAllCovered(String days) {
+    return 'Storage rent: nothing due within $days days, and every box covers its rent.';
+  }
+
+  @override
+  String rentLeadAllMeasuredCovered(String days) {
+    return 'Storage rent: nothing due within $days days, and every measured box covers its rent.';
+  }
+
+  @override
+  String rentLeadNoTokenRisk(String days) {
+    return 'Storage rent: no box with tokens is at risk, and nothing else is due within $days days.';
+  }
+
+  @override
+  String rentLeadNoMeasuredTokenRisk(String days) {
+    return 'Storage rent: no measured box with tokens is at risk, and nothing else is due within $days days.';
+  }
+
+  @override
+  String get confirmSignBroadcast => 'Sign & broadcast';
+
+  @override
+  String get confirmWarnBroadcast =>
+      'This will sign and broadcast a transaction to the network. It cannot be undone once confirmed.';
+
+  @override
+  String get confirmWarnPage =>
+      'This will sign a transaction and hand it to the page, which broadcasts it. Once broadcast it cannot be undone.';
+
+  @override
+  String get confirmTo => 'TO';
+
+  @override
+  String get confirmDetails => 'Details';
+
+  @override
+  String get confirmSignOnly => 'Sign only';
+
+  @override
+  String get confirmTxDetails => 'Transaction details';
+
+  @override
+  String get rentHintDefaultRate => ' at the default rate';
+
+  @override
+  String rentHintCharge(String fee, String rate, String bytes) {
+    return 'Ergo charges storage rent on boxes left unmoved for 4 years: about $fee$rate for this $bytes-byte box.';
+  }
+
+  @override
+  String get rentHintCovers => 'This amount covers it.';
+
+  @override
+  String get rentHintLess =>
+      'A box holding less can be collected whole, tokens included.';
+
+  @override
+  String rentHintExtraBoxes(String count) {
+    return 'These tokens need $count boxes; the extra ones carry only their minimum ERG.';
+  }
+
+  @override
+  String rentHintSuggested(String amount) {
+    return 'Suggested $amount';
+  }
+
+  @override
+  String get rentHintUseSuggested => 'Use suggested';
+
+  @override
+  String get txResultId => 'Transaction ID';
+
+  @override
+  String get txResultIdCopied => 'Transaction ID copied';
+
+  @override
+  String get txViewOnExplorer => 'View on explorer';
+
+  @override
+  String txBookkeepingFailed(String error) {
+    return 'Transaction submitted, but local tracking could not be updated: $error. Keep this transaction ID and check Activity before retrying.';
+  }
+
+  @override
+  String get txBatchTitle => 'Consolidation result';
+
+  @override
+  String txBatchSubmitted(String done, String total) {
+    return '$done of $total transactions submitted';
+  }
+
+  @override
+  String txBatchStopped(String done, String total) {
+    return 'Stopped early after $done of $total. No further batches were attempted.';
+  }
+
+  @override
+  String txBatchItem(String number) {
+    return 'Transaction $number';
+  }
+
+  @override
+  String get pickerSearchHint => 'Search name or token id';
+
+  @override
+  String get pickerNoMatch => 'No tokens match that search.';
+
+  @override
+  String pickerSelect(String token) {
+    return 'Select $token';
+  }
+
+  @override
+  String pickerSelectedCount(String count) {
+    return '$count selected';
+  }
+
+  @override
+  String get amountEnterErg => 'Enter ERG';
+
+  @override
+  String amountEnterFiat(String currency) {
+    return 'Enter $currency';
   }
 }
