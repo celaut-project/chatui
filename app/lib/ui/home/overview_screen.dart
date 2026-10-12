@@ -105,7 +105,7 @@ class OverviewScreen extends StatelessWidget {
                   children: [
                     const CelautWordmark(size: 24),
                     Text(
-                      'Your Ergo Wallet',
+                      'Decentralized compute',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: t.secondary.copyWith(fontSize: 14, letterSpacing: 1),
