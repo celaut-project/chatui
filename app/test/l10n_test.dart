@@ -53,6 +53,25 @@ void main() {
     }
   });
 
+  test('Spanish is not English copied over', () {
+    // Names, units and figures that read the same in both languages.
+    const same = {
+      'appTitle', 'commonToken', 'commonTokens', 'dateDayMonthYear',
+      'celautCpuLabel', 'settingsAppGroup', 'updateCardVersion',
+      'updateCardVersionDate', 'utxoTokenCount', 'rentWhenMonthYear',
+      'priceAgeMinutes', 'priceAgeHours', 'nftKindAudio', 'nftKindVideo',
+      'dashboardStartupError', 'homeTokenCount', 'homeSpokenIncl', 'txIdLabel',
+      'holdingsTokenCount', 'sendTokenFallback', 'sendPlusTokens',
+      'sendBoxTokens', 'utxoTokensN', 'utxoValueTokens', 'utxoFilterTokens',
+      'separateSourceItem', 'homePartsWhere', 'homeInclPartsWhere',
+    };
+    final copied = [
+      for (final k in _messageKeys(en))
+        if (es[k] == en[k] && !same.contains(k)) k,
+    ];
+    expect(copied, isEmpty, reason: 'translate these in app_es.arb');
+  });
+
   test('every placeholder is declared, and Spanish uses no other', () {
     for (final k in _messageKeys(en)) {
       final declared = ((en['@$k'] as Map<String, dynamic>?)?['placeholders']
