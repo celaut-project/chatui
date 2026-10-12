@@ -106,8 +106,16 @@ Notes:
   - `content_digest` is the lowercase hex of blake2b-256 over the canonical text of all
     the other fields of the Peer (`canonical_peer_content_digest`,
     `nodo:src/identity/node_identity.py:570-648`).
+  - `signature_scheme` has one component that names Ed25519 as nodo defines it
+    (`speaks_our_signature_scheme`, `nodo:src/identity/node_identity.py`). nodo checks
+    this before the key.
   - `ts` (field 99) is more than the `ts` of the last Peer that the app accepted for the
-    same `public_key`.
+    same `public_key`. A node serves the same signed Peer again for up to 60 seconds
+    (`_SIGNED_PEER_TTL_S`, `nodo:src/gateway/utils.py`), so an equal `ts` with an equal
+    content digest is the same message and the app accepts it.
+  - The digest text is sorted by the text of each element. `benchmark` entries are sorted
+    by their text, and a repeated key stays. The Rust port is in
+    `rust/crates/celaut-client/src/peer.rs`, with vectors made by the nodo code.
 - **StartService / GetServiceEstimatedCost** (`nodo:src/gateway/iterables/abstract_input_service_iterable.py`):
   send in this order: Client, `RecursionGuard{token: "", remaining_hops: 1}`,
   Configuration, then one Hash per hash type. Send Metadata and Service only if the

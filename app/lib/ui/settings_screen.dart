@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'cold_signing_screen.dart';
 
+import '../celaut/celaut_strings.dart';
 import '../format.dart';
 import '../services/address_label_service.dart';
 import '../services/contacts_service.dart';
@@ -10,6 +11,7 @@ import '../services/watch_account_service.dart';
 import '../services/watch_only_service.dart';
 import '../theme/argus_theme.dart';
 import '../theme/theme_controller.dart';
+import 'celaut/node_connect_screen.dart';
 import 'home/overview_model.dart';
 import 'home/watched_actions.dart';
 import 'settings/about_page.dart';
@@ -111,6 +113,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _watchedGroup(watched),
                   ],
                   _appGroup(includeSecurity: current == null),
+                  SettingsGroup(
+                    title: CelautStrings.developerGroup,
+                    scope: CelautStrings.developerScope,
+                    children: [
+                      SettingsRow(
+                        icon: Icons.dns_outlined,
+                        title: CelautStrings.nodeRowTitle,
+                        subtitle: CelautStrings.nodeRowSubtitle,
+                        onTap: () => _open(const NodeConnectScreen()),
+                      ),
+                    ],
+                  ),
                   SettingsGroup(
                     title: 'About',
                     children: [

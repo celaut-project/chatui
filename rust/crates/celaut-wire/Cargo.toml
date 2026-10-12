@@ -1,0 +1,24 @@
+[package]
+name = "celaut-wire"
+description = "Celaut Gateway client transport: TLS with the node identity check, and the typed calls on bee-rpc"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+bee-rpc = { workspace = true }
+celaut-proto = { workspace = true }
+rustls = { workspace = true }
+# The crypto provider is given to rustls in code (ring), so no provider feature here.
+tokio-rustls = { version = "0.26", default-features = false }
+tokio = { workspace = true, features = ["net", "time", "io-util"] }
+tonic = { version = "0.14", default-features = false, features = ["transport"] }
+hyper-util = { version = "0.1", default-features = false, features = ["tokio"] }
+tower = { version = "0.5", default-features = false, features = ["util"] }
+ring = "0.17"
+hex = { workspace = true }
+thiserror = { workspace = true }
+prost = "0.14"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["net", "time", "io-util"] }

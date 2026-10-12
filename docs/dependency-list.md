@@ -14,6 +14,7 @@ Pinned SHAs and version rationale for every dependency.
 | `ergo-merkle-tree` | sigma-rust | same SHA | Pinned with ergo-lib |
 | `ergo-nipopow` | sigma-rust | same SHA | Pinned with ergo-lib |
 | `ergo-rest` | sigma-rust | same SHA | Pinned with ergo-lib |
+| `bee-rpc` | `github.com/bee-rpc-protocol/bee-rpc-over-grpc-rs` | tag `v0.1.0` (`a832abc`) | Bee-RPC framing and the generic bidi call for the Celaut Gateway. GPL-3.0-only: see question 10 in `docs/celaut-plan.md` |
 
 The `[patch.crates-io]` entries for the same SHA no longer change anything:
 nothing from crates.io depends on sigma-rust since `ergo-node-interface` went
