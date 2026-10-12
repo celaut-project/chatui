@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="splash">#0E1110</color>
-    <color name="ic_launcher_background">#0E1110</color>
+    <!-- Celaut cream; values-night/colors.xml gives the dark splash. -->
+    <color name="splash">#FBF5EF</color>
+    <color name="ic_launcher_background">#12302E</color>
 </resources>

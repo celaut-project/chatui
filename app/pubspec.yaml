@@ -76,10 +76,15 @@ flutter:
       fonts:
         - asset: assets/fonts/IBMPlexMono-Regular.ttf
 
+# The Celaut mark: a Game-of-Life glider on a faint grid, coral and mint on
+# deep teal. The adaptive foreground is the full icon, inset 16% so the
+# glider stays inside the safe zone; the monochrome layer is the cells only,
+# for Android 13 themed icons.
 flutter_launcher_icons:
   android: true
   ios: true
   image_path: assets/brand/icon.png
-  adaptive_icon_background: "#0E1110"
+  adaptive_icon_background: "#12302E"
   adaptive_icon_foreground: assets/brand/icon.png
+  adaptive_icon_monochrome: assets/brand/icon_monochrome.png
   min_sdk_android: 21
