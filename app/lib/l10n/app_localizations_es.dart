@@ -30,7 +30,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get commonCopy => 'Copiar';
 
   @override
-  String get commonCopyId => 'Copiar id';
+  String get commonCopyId => 'Copiar ID';
 
   @override
   String get commonClose => 'Cerrar';
@@ -251,7 +251,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get celautAddressHint => 'host:puerto';
 
   @override
-  String get celautExpectedLabel => 'Id de par esperado (opcional)';
+  String get celautExpectedLabel => 'ID de par esperado (opcional)';
 
   @override
   String get celautExpectedHint => '64 caracteres hexadecimales';
@@ -266,7 +266,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get celautIdentityTitle => 'Identidad';
 
   @override
-  String get celautPeerIdLabel => 'Id de par';
+  String get celautPeerIdLabel => 'ID de par';
 
   @override
   String get celautAdvertisedLabel => 'Anunciado el';
@@ -320,7 +320,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautExpectedInvalid =>
-      'El id de par debe tener 64 caracteres hexadecimales o estar vacío.';
+      'El ID de par debe tener 64 caracteres hexadecimales o estar vacío.';
 
   @override
   String get celautErrorTitle => 'No se puede mostrar este nodo';
@@ -2652,7 +2652,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get discoverTokensWhat =>
-      'Cualquier transacción de Ergo puede crear un token nuevo: su id es el id de la primera caja de entrada, y su nombre, decimales y descripción están en los registros de la caja que lo lleva (EIP-4). Un NFT es un token con una sola unidad y un enlace a su contenido multimedia.';
+      'Cualquier transacción de Ergo puede crear un token nuevo: su ID es el ID de la primera caja de entrada, y su nombre, decimales y descripción están en los registros de la caja que lo lleva (EIP-4). Un NFT es un token con una sola unidad y un enlace a su contenido multimedia.';
 
   @override
   String get discoverTokensCanIssue =>
@@ -3624,7 +3624,8 @@ class AppLocalizationsEs extends AppLocalizations {
   String get errorSigningFailed => 'No se pudo firmar';
 
   @override
-  String get errorBroadcastMayHaveFailed => 'Puede que el envío haya fallado';
+  String get errorBroadcastMayHaveFailed =>
+      'Puede que la difusión haya fallado';
 
   @override
   String get errorCheckActivity =>
@@ -3925,11 +3926,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String txFurtherTokenIds(String count) {
-    return '$count id(s) de token más implicados — consulta el explorador.';
+    return '$count ID(s) de token más implicados — consulta el explorador.';
   }
 
   @override
-  String get txIdCopied => 'Id de transacción copiado';
+  String get txIdCopied => 'ID de transacción copiado';
 
   @override
   String get txExplorerFailed => 'No se pudo abrir el explorador';
@@ -3976,7 +3977,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get txBox => 'Caja';
 
   @override
-  String get txIdHeading => 'Id de transacción';
+  String get txIdHeading => 'ID de transacción';
 
   @override
   String get txUnsignedCopied => 'Transacción sin firmar copiada';
@@ -4894,7 +4895,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get utxoSearchHint => 'Buscar id de caja o token...';
+  String get utxoSearchHint => 'Buscar ID de caja o token...';
 
   @override
   String utxoFilterAll(String count) {
@@ -4933,10 +4934,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get utxoNoMatch => 'Ningún UTXO coincide con el filtro';
 
   @override
-  String get utxoCopyBoxId => 'Copiar id de caja';
+  String get utxoCopyBoxId => 'Copiar ID de caja';
 
   @override
-  String get utxoBoxIdCopied => 'Id de caja copiado';
+  String get utxoBoxIdCopied => 'ID de caja copiado';
 
   @override
   String utxoHeight(String height) {
@@ -5294,17 +5295,17 @@ class AppLocalizationsEs extends AppLocalizations {
   String get rentHintUseSuggested => 'Usar el sugerido';
 
   @override
-  String get txResultId => 'Id de la transacción';
+  String get txResultId => 'ID de la transacción';
 
   @override
-  String get txResultIdCopied => 'Id de la transacción copiado';
+  String get txResultIdCopied => 'ID de la transacción copiado';
 
   @override
   String get txViewOnExplorer => 'Ver en el explorador';
 
   @override
   String txBookkeepingFailed(String error) {
-    return 'Transacción enviada, pero no se pudo actualizar el seguimiento local: $error. Guarda este id de transacción y revisa la actividad antes de reintentar.';
+    return 'Transacción enviada, pero no se pudo actualizar el seguimiento local: $error. Guarda este ID de transacción y revisa la actividad antes de reintentar.';
   }
 
   @override
@@ -5326,7 +5327,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get pickerSearchHint => 'Buscar nombre o id de token';
+  String get pickerSearchHint => 'Buscar nombre o ID de token';
 
   @override
   String get pickerNoMatch => 'Ningún token coincide con esa búsqueda.';
