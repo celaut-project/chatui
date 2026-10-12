@@ -7,7 +7,7 @@ plugins {
 
 // Release signing comes from the environment (see example.env). Debug
 // builds need none of it. CI sets CHATUI_UNSIGNED_RELEASE=1 to build the
-// release APKs unsigned; scripts/sign_release.sh signs them with the local key.
+// release APKs unsigned; the publish job of the release workflow signs them.
 val releaseStore: String? = System.getenv("ARGUS_KEYSTORE")
 val unsignedRelease = System.getenv("CHATUI_UNSIGNED_RELEASE") == "1"
 
