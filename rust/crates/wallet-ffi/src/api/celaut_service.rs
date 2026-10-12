@@ -14,7 +14,7 @@ use celaut_client::session::parse_service_id;
 use celaut_client::{
     new_client_id, quotes, ClientError, LocalPort, MemoryPeerStore, NodeSession, StartedInstance,
 };
-use celaut_proto::celaut::{Configuration, EstimatedCost};
+use celaut_proto::celaut::{Amount, Configuration, EstimatedCost};
 use celaut_wire::{ConnectOptions, Connection, TunnelOpener, WireError};
 use once_cell::sync::Lazy;
 
@@ -68,6 +68,25 @@ fn check(address: &NodeAddress) -> Result<(), CelautError> {
         return Err(invalid("The port must be from 1 to 65535."));
     }
     Ok(())
+}
+
+/// The configuration of a start: the defaults of the node, and the balance of the
+/// instance at the start if `initial_mu` is given. The default of a node is one hour of
+/// the resources of the service, which can be more than the free credit of a client.
+fn configuration(initial_mu: Option<String>) -> Result<Configuration, CelautError> {
+    let Some(text) = initial_mu.map(|t| t.trim().to_string()).filter(|t| !t.is_empty()) else {
+        return Ok(Configuration::default());
+    };
+    let amount = Amount { n: text };
+    match celaut_balancer::amount(Some(&amount)) {
+        Ok(0) | Err(_) => Err(invalid(
+            "The start balance must be a whole number of MU, more than 0.",
+        )),
+        Ok(_) => Ok(Configuration {
+            initial_mu: Some(amount),
+            ..Default::default()
+        }),
+    }
 }
 
 fn service_id(text: &str) -> Result<[u8; 32], CelautError> {
@@ -136,7 +155,7 @@ pub struct QuotesView {
     pub failures: Vec<QuoteFailureView>,
 }
 
-fn n(amount: &Option<celaut_proto::celaut::Amount>) -> String {
+fn n(amount: &Option<Amount>) -> String {
     amount.as_ref().map(|a| a.n.clone()).unwrap_or_else(|| "0".into())
 }
 
@@ -159,8 +178,10 @@ fn quote_view(address: NodeAddress, peer_id: String, q: &EstimatedCost) -> Quote
 pub async fn celaut_quote_service(
     nodes: Vec<NodeAddress>,
     service_id_hex: String,
+    initial_mu: Option<String>,
 ) -> Result<QuotesView, CelautError> {
     let id = service_id(&service_id_hex)?;
+    let configuration = configuration(initial_mu)?;
     if nodes.is_empty() {
         return Err(invalid("Give at least one node."));
     }
@@ -178,7 +199,7 @@ pub async fn celaut_quote_service(
         }
     }
     let sessions: Vec<&NodeSession<Connection>> = open.iter().map(|(_, s)| s.as_ref()).collect();
-    let answer = quotes(&sessions, id, &Configuration::default(), &QUOTES).await;
+    let answer = quotes(&sessions, id, &configuration, &QUOTES).await;
     let address_of = |peer_id: &str| {
         open.iter()
             .find(|(_, s)| s.peer_id() == peer_id)
@@ -229,10 +250,12 @@ pub struct InstanceView {
 pub async fn celaut_start_service(
     node: NodeAddress,
     service_id_hex: String,
+    initial_mu: Option<String>,
 ) -> Result<InstanceView, CelautError> {
     let id = service_id(&service_id_hex)?;
+    let configuration = configuration(initial_mu)?;
     let session = session(&node).await?;
-    let started = match session.start(id, Configuration::default()).await {
+    let started = match session.start(id, configuration).await {
         Ok(s) => s,
         Err(e) => {
             forget_if_broken(&node, &e);
@@ -360,22 +383,36 @@ mod tests {
             port: 0,
         };
         let id = "ab".repeat(32);
-        let err = celaut_start_service(node, id.clone()).await.unwrap_err();
+        let err = celaut_start_service(node, id.clone(), None).await.unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);
         let node = NodeAddress {
             host: "127.0.0.1".into(),
             port: 1,
         };
-        let err = celaut_start_service(node.clone(), "xyz".into())
+        let err = celaut_start_service(node.clone(), "xyz".into(), None)
             .await
             .unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);
-        let err = celaut_quote_service(vec![], id.clone()).await.unwrap_err();
+        let err = celaut_quote_service(vec![], id.clone(), None).await.unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);
+        for bad in ["0", "-5", "1.5", "lots"] {
+            let err = celaut_start_service(node.clone(), id.clone(), Some(bad.into()))
+                .await
+                .unwrap_err();
+            assert_eq!(err.kind, CelautErrorKind::InvalidInput, "{bad}");
+        }
         let err = celaut_open_tunnel("nope".into(), 80).await.unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);
         let err = celaut_stop_service("nope".into()).await.unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);
+    }
+
+    #[test]
+    fn the_start_balance_goes_in_the_configuration() {
+        assert_eq!(configuration(None).unwrap(), Configuration::default());
+        assert_eq!(configuration(Some(" ".into())).unwrap(), Configuration::default());
+        let c = configuration(Some(" 1000000 ".into())).unwrap();
+        assert_eq!(c.initial_mu.unwrap().n, "1000000");
     }
 
     #[tokio::test]
@@ -387,7 +424,7 @@ mod tests {
             host: "127.0.0.1".into(),
             port,
         };
-        let answer = celaut_quote_service(vec![node.clone()], "ab".repeat(32))
+        let answer = celaut_quote_service(vec![node.clone()], "ab".repeat(32), None)
             .await
             .unwrap();
         assert!(answer.quotes.is_empty());
