@@ -16,7 +16,7 @@ Updated on 2026-10-12, master at `c7044fe` plus the M2 PR.
 | M0b: trimmed wallet and new identity | Done. Merged in PR #3 (section 5). Spanish is a separate PR after it |
 | `bee-rpc-over-grpc-rs` | M1a done. Tag `v0.1.0` (`a832abc`) has the whole API: frames, blocks, signal, skip, hashes and the generic bidi call over tonic. `celaut-wire` uses it as a git dependency. Its license is GPL-3.0-only, and chatui is GPL-3.0-only too (section 7, question 10) |
 | M1: connect to a node and show its advertisement | Done. Merged in PR #9 |
-| M2: quote, start, tunnel, stop on free credit | Done, in review. `celaut-wire` (the M2 calls and `ServiceTunnel`), `celaut-balancer`, `celaut-client` (node sessions, quotes, the local port), the FFI functions in `api/celaut_service.rs` and the debug screen (Settings, Developer). Checked on our own node, from the client crate and from the app in the Android emulator (see M2 in section 5). Not tested: a phone, a node on the internet, more than one node |
+| M2: quote, start, tunnel, stop on free credit | Done, in review (PR #11). `celaut-wire` (the M2 calls and `ServiceTunnel`), `celaut-balancer`, `celaut-client` (node sessions, quotes, the local port), the FFI functions in `api/celaut_service.rs` and the debug screen (Settings, Developer). Checked on our own node, from the client crate and from the app in the Android emulator (see M2 in section 5). Not tested: a phone, a node on the internet, more than one node |
 | M3 to M5 | Not started |
 | Open questions (section 7) | Answered on 2026-10-11 and 2026-10-12 |
 
@@ -28,7 +28,7 @@ Do the next tasks in this order. Each task is one PR into master.
 3. **bee-rpc in Rust** (M1a): the repo
    [bee-rpc-protocol/bee-rpc-over-grpc-rs](https://github.com/bee-rpc-protocol/bee-rpc-over-grpc-rs).
    Done: tag `v0.1.0`.
-4. **M1**: done (PR #9). **M2**: done, in review.
+4. **M1**: done (PR #9). **M2**: done, in review (PR #11).
 5. **M3**, **M4**, then **M5**.
 
 Josemi answered all the open questions on 2026-10-11 and 2026-10-12 (section 7).
@@ -233,7 +233,7 @@ must already be built on the node, or the test node gives more credit. Check: on
 own node (x86_64 with KVM), start a small HTTP service, call it through the local port
 from the app, stop it, and see the refund.
 
-What M2 has (PR "M2"):
+What M2 has (PR #11):
 
 - `celaut-wire`: GetServiceEstimatedCost, StartService (time limit 600 s),
   StopService and GetMetrics. `ServiceRequest::parts` sends Client (1), RecursionGuard
