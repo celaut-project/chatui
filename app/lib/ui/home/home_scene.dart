@@ -437,7 +437,7 @@ class WalletMedallion extends StatelessWidget {
             child: Text(
               letter,
               textScaler: TextScaler.noScaling,
-              style: TextStyle(fontFamily: 'Newsreader', fontSize: size * 0.26, fontWeight: FontWeight.w500, height: 1, color: ink),
+              style: TextStyle(fontFamily: headingFont, fontSize: size * 0.26, fontWeight: FontWeight.w500, height: 1, color: ink),
             ),
           ),
         ),

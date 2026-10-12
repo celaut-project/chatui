@@ -162,7 +162,7 @@ class _IssueTabState extends State<_IssueTab>
             Icon(
               Icons.check_circle_outline,
               size: 48,
-              color: accentOf(context),
+              color: accentTextOf(context),
             ),
             const SizedBox(height: 12),
             Text(

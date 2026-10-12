@@ -196,7 +196,7 @@ UtxoHealth utxoHealth(int boxCount) {
   if (boxCount <= 80) {
     return const UtxoHealth(
       'Moderate',
-      iris,
+      coral,
       'Sends may need several inputs; consolidating dust keeps fees down.',
     );
   }

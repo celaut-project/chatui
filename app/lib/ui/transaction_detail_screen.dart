@@ -157,7 +157,7 @@ class TransactionDetailScreen extends StatelessWidget {
     final missingTokenIds =
         tokens.toSet().difference(received.map((r) => r.id).toSet());
     final tint = activity != null && view.kind != ActivityKind.sent && view.kind != ActivityKind.received
-        ? accentOf(context)
+        ? accentTextOf(context)
         : outgoing
             ? rust
             : moss;

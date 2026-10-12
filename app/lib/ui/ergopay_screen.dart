@@ -254,7 +254,7 @@ class _ErgoPayScreenState extends State<ErgoPayScreen> with TxReceiptOwner {
     if (msg == null) return const SizedBox.shrink();
     final color = switch (r!.severity) {
       ErgoPaySeverity.error => rust,
-      ErgoPaySeverity.warning => accentOf(context),
+      ErgoPaySeverity.warning => accentTextOf(context),
       _ => moss,
     };
     final icon = switch (r.severity) {

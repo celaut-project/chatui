@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 
+import '../../theme/argus_theme.dart';
+
 import 'home_glass.dart';
 import 'home_models.dart';
 import 'home_style.dart';
@@ -293,7 +295,7 @@ class WalletMark extends StatelessWidget {
             ? Text(
                 trimmed.isEmpty ? '?' : String.fromCharCode(trimmed.runes.first).toUpperCase(),
                 textScaler: TextScaler.noScaling,
-                style: TextStyle(fontFamily: 'Newsreader', fontSize: 20, fontWeight: FontWeight.w500, height: 1, color: t.ink),
+                style: TextStyle(fontFamily: headingFont, fontSize: 20, fontWeight: FontWeight.w500, height: 1, color: t.ink),
               )
             : Icon(Icons.visibility_outlined, size: 20, color: t.ink),
       ),

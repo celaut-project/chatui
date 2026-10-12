@@ -158,7 +158,7 @@ class WalletToolsSheet extends StatelessWidget {
                 text: '   $status',
                 style: t.secondary.copyWith(
                   color: entry.warn ? warn : ArgusColors.of(context).accentText,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
           ],

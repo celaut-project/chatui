@@ -770,7 +770,9 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
 
     final health = utxoHealth(_boxes.length);
     final healthLabel = health.label;
-    final healthColor = health.color;
+    // The label is set in its colour: the accent as text takes the
+    // palette's text accent, since coral is decorative only.
+    final healthColor = health.color == coral ? accentTextOf(context) : health.color;
     final dustCount = _boxes.where((b) => b.valueNanoErg < BigInt.from(dustThresholdNano)).length;
     final ready = !_loading && _error == null;
     final cleanup = ready ? _cleanup : null;
@@ -1109,7 +1111,7 @@ class _UtxoManagementScreenState extends State<UtxoManagementScreen>
     return ChoiceChip(
       label: Text(
         label,
-        style: TextStyle(fontSize: 12, color: active ? ink : null),
+        style: TextStyle(fontSize: 12, color: active ? ArgusColors.of(context).onAccent : null),
       ),
       selected: active,
       selectedColor: accentOf(context),
@@ -1174,9 +1176,9 @@ class _UtxoCard extends StatelessWidget {
                         Text(
                           formatNanoErg(box.valueNanoErg),
                           style: const TextStyle(
-                            fontFamily: 'Newsreader',
+                            fontFamily: headingFont,
                             fontSize: 18,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -1453,7 +1455,7 @@ class _SplitConfigSheetState extends State<_SplitConfigSheet> {
                     label: Text('$n'),
                     selected: _count == n,
                     selectedColor: accentOf(context),
-                    labelStyle: TextStyle(color: _count == n ? ink : null),
+                    labelStyle: TextStyle(color: _count == n ? ArgusColors.of(context).onAccent : null),
                     onSelected: (_) => _setCount(n),
                   ),
                 SizedBox(

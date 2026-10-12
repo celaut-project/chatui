@@ -135,7 +135,7 @@ class OverviewWalletRow extends StatelessWidget {
         w.name,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: t.primary.copyWith(fontFamily: 'Newsreader', fontSize: 16.5, fontWeight: FontWeight.w500, height: 1.25),
+        style: t.primary.copyWith(fontFamily: headingFont, fontSize: 16.5, fontWeight: FontWeight.w500, height: 1.25),
       ),
       subtitle: facts.isEmpty ? null : TextSpan(children: facts),
       figure: TextSpan(
@@ -198,7 +198,7 @@ class HomeAssetRow extends StatelessWidget {
           else if (change != null)
             TextSpan(
               text: '  ${percentChange(change)}',
-              style: TextStyle(color: change >= 0 ? mossFor(context) : rustFor(context), fontWeight: FontWeight.w500),
+              style: TextStyle(color: change >= 0 ? mossFor(context) : rustFor(context), fontWeight: FontWeight.w700),
             ),
         ],
       );
@@ -243,7 +243,7 @@ class HomeAssetRow extends StatelessWidget {
           Flexible(child: Text(ticker, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.primary)),
           if (!hidden && asset.verified && !isErg) ...[
             const SizedBox(width: 4),
-            Icon(Icons.verified, size: 14, color: colors.accent),
+            Icon(Icons.verified, size: 14, color: colors.accentText),
           ],
           if (!hidden && asset.caution) ...[
             const SizedBox(width: 4),
@@ -314,7 +314,7 @@ class HomeActivityRow extends StatelessWidget {
                 for (final (i, part) in when.indexed)
                   TextSpan(
                     text: i == 0 ? part : '  ·  $part',
-                    style: i == 0 && item.pending ? TextStyle(color: t.ink, fontWeight: FontWeight.w500) : null,
+                    style: i == 0 && item.pending ? TextStyle(color: t.ink, fontWeight: FontWeight.w700) : null,
                   ),
               ],
             ),

@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('Pending uses readable text gold on the Ledger surface', (tester) async {
+  testWidgets('Pending uses a readable text accent on the Celaut Cream surface', (tester) async {
     await tester.pumpWidget(MaterialApp(theme: argusTheme(watchful: false),
       home: Scaffold(body: SoftCard(child: ActivityTile(
         tx: const {'tx_id': 'pending', 'height': 0, 'timestamp': 0}, onTap: () {},

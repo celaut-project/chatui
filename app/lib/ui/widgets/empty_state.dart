@@ -28,7 +28,7 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = ArgusColors.of(context);
-    final accent = tone == EmptyStateTone.error ? rust : accentOf(context);
+    final accent = tone == EmptyStateTone.error ? rust : accentTextOf(context);
     final content = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: compact ? CrossAxisAlignment.start : CrossAxisAlignment.center,
@@ -47,8 +47,8 @@ class EmptyState extends StatelessWidget {
           title,
           textAlign: compact ? TextAlign.start : TextAlign.center,
           style: TextStyle(
-            fontFamily: 'Newsreader',
-            fontWeight: FontWeight.w600,
+            fontFamily: headingFont,
+            fontWeight: FontWeight.w700,
             fontSize: compact ? 17 : 22,
           ),
         ),

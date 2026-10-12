@@ -47,8 +47,8 @@ const homeMarkSize = 40.0;
 /// Icons inside the content; the app bar and tab bar keep their 24.
 const homeIconSize = 20.0;
 
-/// Figures line up digit for digit; Karla and Newsreader both carry
-/// tabular figures.
+/// Figures line up digit for digit; Lato carries tabular figures (Playfair
+/// Display does not, and keeps its own spacing).
 const tabularFigures = [FontFeature.tabularFigures()];
 
 /// The colours text and marks take on the home pages. The scene and its
@@ -109,10 +109,10 @@ class HomeTones {
   final Color onTonal;
 }
 
-/// The type scale. Karla carries 400 and 500 only, so emphasis is 500:
-/// a heavier request would be synthesised. The family comes from the
-/// theme rather than being named here: a span that names its family drops
-/// the fallback fonts it would otherwise inherit, and Karla has no "≈".
+/// The type scale. Lato carries 400 and 700 only, so emphasis is 700: a
+/// weight between would fall back to 400. The family comes from the theme
+/// rather than being named here: a span that names its family drops the
+/// fallback fonts it would otherwise inherit, for glyphs Lato lacks.
 ///
 /// Hierarchy comes from size and face as much as from colour: a section
 /// opens on a serif title, a row's name is a size above its detail line,
@@ -168,7 +168,7 @@ class HomeText {
       ),
       // A button sets its label's style outright instead of inheriting it,
       // so this one names its family.
-      link: TextStyle(fontFamily: 'Karla', fontSize: 13, fontWeight: FontWeight.w500, height: 1.3, color: ink),
+      link: TextStyle(fontFamily: bodyFont, fontSize: 13, fontWeight: FontWeight.w700, height: 1.3, color: ink),
     );
   }
 
@@ -184,7 +184,7 @@ class HomeText {
   /// A list's name and the balance's label: 12, widely spaced capitals.
   final TextStyle label;
 
-  /// Text-button labels ("View all", "Learn more"): 13, medium, ink.
+  /// Text-button labels ("View all", "Learn more"): 13, bold, ink.
   final TextStyle link;
 
   final Color ink;

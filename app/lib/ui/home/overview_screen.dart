@@ -96,19 +96,14 @@ class OverviewScreen extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const IrisMark(size: 40),
+              const CellMark(size: 40),
               const SizedBox(width: 14),
               Flexible(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      'Celaut',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 26, height: 1.1),
-                    ),
+                    const CelautWordmark(size: 24),
                     Text(
                       'Your Ergo Wallet',
                       maxLines: 1,

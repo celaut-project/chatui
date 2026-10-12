@@ -226,7 +226,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: accentOf(context).withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: accentOf(context)),
+            child: Icon(icon, color: accentTextOf(context)),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -237,7 +237,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontFamily: 'Newsreader', fontWeight: FontWeight.w600, fontSize: 19),
+                  style: const TextStyle(fontFamily: headingFont, fontWeight: FontWeight.w700, fontSize: 19),
                 ),
                 const SizedBox(height: 2),
                 Text(detail, style: TextStyle(fontSize: 12.5, color: colors.muted)),

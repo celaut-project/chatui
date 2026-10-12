@@ -70,7 +70,7 @@ class ActivityTile extends StatelessWidget {
       style: TextStyle(
         fontSize: 12,
         color: confirmed ? moss : ArgusColors.of(context).accentText,
-        fontWeight: FontWeight.w500,
+        fontWeight: FontWeight.w700,
       ),
     );
     // At large text sizes a side column for the time takes half the row and

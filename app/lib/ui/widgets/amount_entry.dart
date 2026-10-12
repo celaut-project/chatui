@@ -160,7 +160,7 @@ class _AmountEntryState extends State<AmountEntry> {
               padding: const EdgeInsets.only(bottom: 10),
               child: Text(
                 unit,
-                style: TextStyle(fontFamily: 'Newsreader', fontSize: 20, color: colors.muted),
+                style: TextStyle(fontFamily: headingFont, fontSize: 20, fontWeight: FontWeight.w500, color: colors.muted),
               ),
             ),
             if (widget.onMax != null)
@@ -191,8 +191,8 @@ class _AmountEntryState extends State<AmountEntry> {
   }
 
   TextStyle _bigStyle(BuildContext context) => const TextStyle(
-        fontFamily: 'Newsreader',
-        fontWeight: FontWeight.w600,
+        fontFamily: headingFont,
+        fontWeight: FontWeight.w700,
         fontSize: 36,
         height: 1.1,
       );
@@ -201,7 +201,7 @@ class _AmountEntryState extends State<AmountEntry> {
         hintText: '0',
         filled: false,
         border: const UnderlineInputBorder(),
-        enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Color(0x33000000))),
+        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Theme.of(context).colorScheme.outline)),
         focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: accentOf(context), width: 1.4)),
         contentPadding: const EdgeInsets.symmetric(vertical: 6),
         isDense: true,
