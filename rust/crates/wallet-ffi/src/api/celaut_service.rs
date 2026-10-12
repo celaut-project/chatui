@@ -22,12 +22,15 @@ use super::celaut::{error_of, invalid, CelautError, CelautErrorKind};
 
 type Session = Arc<NodeSession<Connection>>;
 
+// The state stays in Rust: not part of the Dart API.
+#[flutter_rust_bridge::frb(ignore)]
 struct Running {
     session: Session,
     started: StartedInstance,
     ports: HashMap<u16, LocalPort>,
 }
 
+#[flutter_rust_bridge::frb(ignore)]
 #[derive(Default)]
 struct State {
     sessions: HashMap<String, Session>,

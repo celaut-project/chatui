@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1042780925;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 463225671;
 
 // Section: executor
 
@@ -117,6 +117,85 @@ fn wire__crate__api__cancel_token_metadata_impl(
         },
     )
 }
+fn wire__crate__api__celaut_service__celaut_instance_status_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "celaut_instance_status",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_instance_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, crate::api::celaut::CelautError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::celaut_service::celaut_instance_status(api_instance_id)
+                                .await?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__celaut_service__celaut_open_tunnel_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "celaut_open_tunnel",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_instance_id = <String>::sse_decode(&mut deserializer);
+            let api_slot = <u16>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, crate::api::celaut::CelautError>(
+                    (move || async move {
+                        let output_ok = crate::api::celaut_service::celaut_open_tunnel(
+                            api_instance_id,
+                            api_slot,
+                        )
+                        .await?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__celaut__celaut_peer_info_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -154,6 +233,131 @@ fn wire__crate__api__celaut__celaut_peer_info_impl(
                             api_store_path,
                         )
                         .await?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__celaut_service__celaut_quote_service_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "celaut_quote_service",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_nodes =
+                <Vec<crate::api::celaut_service::NodeAddress>>::sse_decode(&mut deserializer);
+            let api_service_id_hex = <String>::sse_decode(&mut deserializer);
+            let api_initial_mu = <Option<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, crate::api::celaut::CelautError>(
+                    (move || async move {
+                        let output_ok = crate::api::celaut_service::celaut_quote_service(
+                            api_nodes,
+                            api_service_id_hex,
+                            api_initial_mu,
+                        )
+                        .await?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__celaut_service__celaut_start_service_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "celaut_start_service",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_node = <crate::api::celaut_service::NodeAddress>::sse_decode(&mut deserializer);
+            let api_service_id_hex = <String>::sse_decode(&mut deserializer);
+            let api_initial_mu = <Option<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, crate::api::celaut::CelautError>(
+                    (move || async move {
+                        let output_ok = crate::api::celaut_service::celaut_start_service(
+                            api_node,
+                            api_service_id_hex,
+                            api_initial_mu,
+                        )
+                        .await?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__celaut_service__celaut_stop_service_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "celaut_stop_service",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_instance_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, crate::api::celaut::CelautError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::celaut_service::celaut_stop_service(api_instance_id)
+                                .await?;
                         std::result::Result::Ok(output_ok)
                     })()
                     .await,
@@ -2428,6 +2632,13 @@ impl SseDecode for crate::api::celaut::CelautErrorKind {
     }
 }
 
+impl SseDecode for f32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_f32::<NativeEndian>().unwrap()
+    }
+}
+
 impl SseDecode for f64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2446,6 +2657,36 @@ impl SseDecode for i64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         deserializer.cursor.read_i64::<NativeEndian>().unwrap()
+    }
+}
+
+impl SseDecode for crate::api::celaut_service::InstanceStatusView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_instanceBalanceMu = <String>::sse_decode(deserializer);
+        let mut var_streamsOpened = <u64>::sse_decode(deserializer);
+        let mut var_lastTunnelError = <Option<String>>::sse_decode(deserializer);
+        return crate::api::celaut_service::InstanceStatusView {
+            instance_balance_mu: var_instanceBalanceMu,
+            streams_opened: var_streamsOpened,
+            last_tunnel_error: var_lastTunnelError,
+        };
+    }
+}
+
+impl SseDecode for crate::api::celaut_service::InstanceView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_instanceId = <String>::sse_decode(deserializer);
+        let mut var_peerId = <String>::sse_decode(deserializer);
+        let mut var_slots = <Vec<u16>>::sse_decode(deserializer);
+        let mut var_clientBalanceMu = <String>::sse_decode(deserializer);
+        return crate::api::celaut_service::InstanceView {
+            instance_id: var_instanceId,
+            peer_id: var_peerId,
+            slots: var_slots,
+            client_balance_mu: var_clientBalanceMu,
+        };
     }
 }
 
@@ -2480,6 +2721,20 @@ impl SseDecode for Vec<crate::api::celaut::KeyValueView> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::celaut::KeyValueView>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::celaut_service::NodeAddress> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::celaut_service::NodeAddress>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -2525,6 +2780,18 @@ impl SseDecode for Vec<crate::api::celaut::PaymentContractView> {
     }
 }
 
+impl SseDecode for Vec<u16> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<u16>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<u8> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2534,6 +2801,46 @@ impl SseDecode for Vec<u8> {
             ans_.push(<u8>::sse_decode(deserializer));
         }
         return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::celaut_service::QuoteFailureView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::celaut_service::QuoteFailureView>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::celaut_service::QuoteView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::celaut_service::QuoteView>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for crate::api::celaut_service::NodeAddress {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_host = <String>::sse_decode(deserializer);
+        let mut var_port = <u16>::sse_decode(deserializer);
+        return crate::api::celaut_service::NodeAddress {
+            host: var_host,
+            port: var_port,
+        };
     }
 }
 
@@ -2677,6 +2984,69 @@ impl SseDecode for crate::api::celaut::PeerInfoView {
     }
 }
 
+impl SseDecode for crate::api::celaut_service::QuoteFailureView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_address = <crate::api::celaut_service::NodeAddress>::sse_decode(deserializer);
+        let mut var_kind = <crate::api::celaut::CelautErrorKind>::sse_decode(deserializer);
+        let mut var_message = <String>::sse_decode(deserializer);
+        return crate::api::celaut_service::QuoteFailureView {
+            address: var_address,
+            kind: var_kind,
+            message: var_message,
+        };
+    }
+}
+
+impl SseDecode for crate::api::celaut_service::QuoteView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_address = <crate::api::celaut_service::NodeAddress>::sse_decode(deserializer);
+        let mut var_peerId = <String>::sse_decode(deserializer);
+        let mut var_costMu = <String>::sse_decode(deserializer);
+        let mut var_initMaintenanceMu = <String>::sse_decode(deserializer);
+        let mut var_maxMaintenanceMu = <String>::sse_decode(deserializer);
+        let mut var_maintenanceSecondsLoop = <i32>::sse_decode(deserializer);
+        let mut var_variance = <f32>::sse_decode(deserializer);
+        let mut var_comparedNanoErg = <Option<String>>::sse_decode(deserializer);
+        return crate::api::celaut_service::QuoteView {
+            address: var_address,
+            peer_id: var_peerId,
+            cost_mu: var_costMu,
+            init_maintenance_mu: var_initMaintenanceMu,
+            max_maintenance_mu: var_maxMaintenanceMu,
+            maintenance_seconds_loop: var_maintenanceSecondsLoop,
+            variance: var_variance,
+            compared_nano_erg: var_comparedNanoErg,
+        };
+    }
+}
+
+impl SseDecode for crate::api::celaut_service::QuotesView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_quotes = <Vec<crate::api::celaut_service::QuoteView>>::sse_decode(deserializer);
+        let mut var_failures =
+            <Vec<crate::api::celaut_service::QuoteFailureView>>::sse_decode(deserializer);
+        return crate::api::celaut_service::QuotesView {
+            quotes: var_quotes,
+            failures: var_failures,
+        };
+    }
+}
+
+impl SseDecode for crate::api::celaut_service::StopView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_refundMu = <String>::sse_decode(deserializer);
+        let mut var_clientBalanceMu = <String>::sse_decode(deserializer);
+        return crate::api::celaut_service::StopView {
+            refund_mu: var_refundMu,
+            client_balance_mu: var_clientBalanceMu,
+        };
+    }
+}
+
 impl SseDecode for u16 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2722,71 +3092,101 @@ fn pde_ffi_dispatcher_primary_impl(
         1 => {
             wire__crate__api__storage_rent__box_rent_report_impl(port, ptr, rust_vec_len, data_len)
         }
-        3 => wire__crate__api__celaut__celaut_peer_info_impl(port, ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__cold_add_page_impl(port, ptr, rust_vec_len, data_len),
-        5 => wire__crate__api__cold_broadcast_impl(port, ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__cold_discard_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__cold_prepare_address_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__cold_prepare_watch_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__cold_qr_pages_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__cold_reset_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__cold_review_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__cold_sign_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__cold_start_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__cold_verify_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__create_encrypted_seed_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__db_compute_summary_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__derive_address_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__derive_watch_addresses_impl(port, ptr, rust_vec_len, data_len),
-        19 => {
-            wire__crate__api__describe_reduced_transaction_impl(port, ptr, rust_vec_len, data_len)
-        }
-        20 => wire__crate__api__discover_addresses_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__generate_mnemonic_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__get_balance_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__get_pending_transactions_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__mempool__get_public_sync_inputs_impl(
+        3 => wire__crate__api__celaut_service__celaut_instance_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        25 => wire__crate__api__get_sync_inputs_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__get_token_info_impl(port, ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__get_transaction_history_impl(port, ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__inspect_token_metadata_impl(port, ptr, rust_vec_len, data_len),
-        29 => {
+        4 => wire__crate__api__celaut_service__celaut_open_tunnel_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        5 => wire__crate__api__celaut__celaut_peer_info_impl(port, ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__celaut_service__celaut_quote_service_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        7 => wire__crate__api__celaut_service__celaut_start_service_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        8 => wire__crate__api__celaut_service__celaut_stop_service_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        9 => wire__crate__api__cold_add_page_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__cold_broadcast_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__cold_discard_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__cold_prepare_address_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__cold_prepare_watch_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__cold_qr_pages_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__cold_reset_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__cold_review_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__cold_sign_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__cold_start_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__cold_verify_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__create_encrypted_seed_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__db_compute_summary_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__derive_address_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__derive_watch_addresses_impl(port, ptr, rust_vec_len, data_len),
+        24 => {
+            wire__crate__api__describe_reduced_transaction_impl(port, ptr, rust_vec_len, data_len)
+        }
+        25 => wire__crate__api__discover_addresses_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__generate_mnemonic_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__get_balance_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__get_pending_transactions_impl(port, ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__mempool__get_public_sync_inputs_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        30 => wire__crate__api__get_sync_inputs_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__get_token_info_impl(port, ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__get_transaction_history_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__inspect_token_metadata_impl(port, ptr, rust_vec_len, data_len),
+        34 => {
             wire__crate__api__mempool__list_spendable_boxes_impl(port, ptr, rust_vec_len, data_len)
         }
-        30 => wire__crate__api__list_unspent_boxes_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__normalize_watch_input_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__preparation_details_impl(port, ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__prepare_burn_impl(port, ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__prepare_consolidate_impl(port, ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__prepare_mint_impl(port, ptr, rust_vec_len, data_len),
-        37 => wire__crate__api__prepare_restructure_impl(port, ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__prepare_send_impl(port, ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__prepare_send_multi_impl(port, ptr, rust_vec_len, data_len),
-        40 => wire__crate__api__prepare_split_erg_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__prepare_split_token_impl(port, ptr, rust_vec_len, data_len),
-        42 => wire__crate__api__probe_network_impl(port, ptr, rust_vec_len, data_len),
-        43 => {
+        35 => wire__crate__api__list_unspent_boxes_impl(port, ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__normalize_watch_input_impl(port, ptr, rust_vec_len, data_len),
+        38 => wire__crate__api__preparation_details_impl(port, ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__prepare_burn_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__prepare_consolidate_impl(port, ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__prepare_mint_impl(port, ptr, rust_vec_len, data_len),
+        42 => wire__crate__api__prepare_restructure_impl(port, ptr, rust_vec_len, data_len),
+        43 => wire__crate__api__prepare_send_impl(port, ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__prepare_send_multi_impl(port, ptr, rust_vec_len, data_len),
+        45 => wire__crate__api__prepare_split_erg_impl(port, ptr, rust_vec_len, data_len),
+        46 => wire__crate__api__prepare_split_token_impl(port, ptr, rust_vec_len, data_len),
+        47 => wire__crate__api__probe_network_impl(port, ptr, rust_vec_len, data_len),
+        48 => {
             wire__crate__api__storage_rent__rent_parameters_impl(port, ptr, rust_vec_len, data_len)
         }
-        44 => wire__crate__api__send_erg_impl(port, ptr, rust_vec_len, data_len),
-        45 => wire__crate__api__set_network_impl(port, ptr, rust_vec_len, data_len),
-        47 => wire__crate__api__sign_preparation_impl(port, ptr, rust_vec_len, data_len),
-        48 => wire__crate__api__sign_reduced_transaction_impl(port, ptr, rust_vec_len, data_len),
-        50 => wire__crate__api__submit_signed_transaction_impl(port, ptr, rust_vec_len, data_len),
-        51 => wire__crate__api__unwrap_key_with_pin_impl(port, ptr, rust_vec_len, data_len),
-        52 => wire__crate__api__validate_ergo_address_impl(port, ptr, rust_vec_len, data_len),
-        53 => wire__crate__api__walk_singleton_lineage_impl(port, ptr, rust_vec_len, data_len),
-        54 => wire__crate__api__wallet_create_impl(port, ptr, rust_vec_len, data_len),
-        55 => wire__crate__api__wallet_is_unlocked_impl(port, ptr, rust_vec_len, data_len),
-        56 => wire__crate__api__wallet_lock_impl(port, ptr, rust_vec_len, data_len),
-        57 => wire__crate__api__wallet_owns_address_impl(port, ptr, rust_vec_len, data_len),
-        58 => wire__crate__api__wallet_restore_impl(port, ptr, rust_vec_len, data_len),
-        59 => wire__crate__api__wrap_key_with_pin_impl(port, ptr, rust_vec_len, data_len),
+        49 => wire__crate__api__send_erg_impl(port, ptr, rust_vec_len, data_len),
+        50 => wire__crate__api__set_network_impl(port, ptr, rust_vec_len, data_len),
+        52 => wire__crate__api__sign_preparation_impl(port, ptr, rust_vec_len, data_len),
+        53 => wire__crate__api__sign_reduced_transaction_impl(port, ptr, rust_vec_len, data_len),
+        55 => wire__crate__api__submit_signed_transaction_impl(port, ptr, rust_vec_len, data_len),
+        56 => wire__crate__api__unwrap_key_with_pin_impl(port, ptr, rust_vec_len, data_len),
+        57 => wire__crate__api__validate_ergo_address_impl(port, ptr, rust_vec_len, data_len),
+        58 => wire__crate__api__walk_singleton_lineage_impl(port, ptr, rust_vec_len, data_len),
+        59 => wire__crate__api__wallet_create_impl(port, ptr, rust_vec_len, data_len),
+        60 => wire__crate__api__wallet_is_unlocked_impl(port, ptr, rust_vec_len, data_len),
+        61 => wire__crate__api__wallet_lock_impl(port, ptr, rust_vec_len, data_len),
+        62 => wire__crate__api__wallet_owns_address_impl(port, ptr, rust_vec_len, data_len),
+        63 => wire__crate__api__wallet_restore_impl(port, ptr, rust_vec_len, data_len),
+        64 => wire__crate__api__wrap_key_with_pin_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2800,11 +3200,11 @@ fn pde_ffi_dispatcher_sync_impl(
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
         2 => wire__crate__api__cancel_token_metadata_impl(ptr, rust_vec_len, data_len),
-        32 => {
+        37 => {
             wire__crate__api__storage_rent__output_rent_estimate_impl(ptr, rust_vec_len, data_len)
         }
-        46 => wire__crate__api__mempool__set_spend_unconfirmed_impl(ptr, rust_vec_len, data_len),
-        49 => wire__crate__api__mempool__spend_unconfirmed_impl(ptr, rust_vec_len, data_len),
+        51 => wire__crate__api__mempool__set_spend_unconfirmed_impl(ptr, rust_vec_len, data_len),
+        54 => wire__crate__api__mempool__spend_unconfirmed_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2863,6 +3263,51 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut::CelautErrorKind>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::celaut_service::InstanceStatusView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.instance_balance_mu.into_into_dart().into_dart(),
+            self.streams_opened.into_into_dart().into_dart(),
+            self.last_tunnel_error.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::celaut_service::InstanceStatusView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut_service::InstanceStatusView>
+    for crate::api::celaut_service::InstanceStatusView
+{
+    fn into_into_dart(self) -> crate::api::celaut_service::InstanceStatusView {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::celaut_service::InstanceView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.instance_id.into_into_dart().into_dart(),
+            self.peer_id.into_into_dart().into_dart(),
+            self.slots.into_into_dart().into_dart(),
+            self.client_balance_mu.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::celaut_service::InstanceView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut_service::InstanceView>
+    for crate::api::celaut_service::InstanceView
+{
+    fn into_into_dart(self) -> crate::api::celaut_service::InstanceView {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::celaut::KeyValueView {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -2880,6 +3325,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut::KeyValueView>
     for crate::api::celaut::KeyValueView
 {
     fn into_into_dart(self) -> crate::api::celaut::KeyValueView {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::celaut_service::NodeAddress {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.host.into_into_dart().into_dart(),
+            self.port.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::celaut_service::NodeAddress
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut_service::NodeAddress>
+    for crate::api::celaut_service::NodeAddress
+{
+    fn into_into_dart(self) -> crate::api::celaut_service::NodeAddress {
         self
     }
 }
@@ -2979,6 +3445,97 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut::PeerInfoView>
         self
     }
 }
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::celaut_service::QuoteFailureView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.address.into_into_dart().into_dart(),
+            self.kind.into_into_dart().into_dart(),
+            self.message.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::celaut_service::QuoteFailureView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut_service::QuoteFailureView>
+    for crate::api::celaut_service::QuoteFailureView
+{
+    fn into_into_dart(self) -> crate::api::celaut_service::QuoteFailureView {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::celaut_service::QuoteView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.address.into_into_dart().into_dart(),
+            self.peer_id.into_into_dart().into_dart(),
+            self.cost_mu.into_into_dart().into_dart(),
+            self.init_maintenance_mu.into_into_dart().into_dart(),
+            self.max_maintenance_mu.into_into_dart().into_dart(),
+            self.maintenance_seconds_loop.into_into_dart().into_dart(),
+            self.variance.into_into_dart().into_dart(),
+            self.compared_nano_erg.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::celaut_service::QuoteView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut_service::QuoteView>
+    for crate::api::celaut_service::QuoteView
+{
+    fn into_into_dart(self) -> crate::api::celaut_service::QuoteView {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::celaut_service::QuotesView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.quotes.into_into_dart().into_dart(),
+            self.failures.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::celaut_service::QuotesView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut_service::QuotesView>
+    for crate::api::celaut_service::QuotesView
+{
+    fn into_into_dart(self) -> crate::api::celaut_service::QuotesView {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::celaut_service::StopView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.refund_mu.into_into_dart().into_dart(),
+            self.client_balance_mu.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::celaut_service::StopView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut_service::StopView>
+    for crate::api::celaut_service::StopView
+{
+    fn into_into_dart(self) -> crate::api::celaut_service::StopView {
+        self
+    }
+}
 
 impl SseEncode for String {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -3027,6 +3584,13 @@ impl SseEncode for crate::api::celaut::CelautErrorKind {
     }
 }
 
+impl SseEncode for f32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_f32::<NativeEndian>(self).unwrap();
+    }
+}
+
 impl SseEncode for f64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -3045,6 +3609,25 @@ impl SseEncode for i64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         serializer.cursor.write_i64::<NativeEndian>(self).unwrap();
+    }
+}
+
+impl SseEncode for crate::api::celaut_service::InstanceStatusView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.instance_balance_mu, serializer);
+        <u64>::sse_encode(self.streams_opened, serializer);
+        <Option<String>>::sse_encode(self.last_tunnel_error, serializer);
+    }
+}
+
+impl SseEncode for crate::api::celaut_service::InstanceView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.instance_id, serializer);
+        <String>::sse_encode(self.peer_id, serializer);
+        <Vec<u16>>::sse_encode(self.slots, serializer);
+        <String>::sse_encode(self.client_balance_mu, serializer);
     }
 }
 
@@ -3072,6 +3655,16 @@ impl SseEncode for Vec<crate::api::celaut::KeyValueView> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::celaut::KeyValueView>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::celaut_service::NodeAddress> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::celaut_service::NodeAddress>::sse_encode(item, serializer);
         }
     }
 }
@@ -3106,6 +3699,16 @@ impl SseEncode for Vec<crate::api::celaut::PaymentContractView> {
     }
 }
 
+impl SseEncode for Vec<u16> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <u16>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<u8> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -3113,6 +3716,34 @@ impl SseEncode for Vec<u8> {
         for item in self {
             <u8>::sse_encode(item, serializer);
         }
+    }
+}
+
+impl SseEncode for Vec<crate::api::celaut_service::QuoteFailureView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::celaut_service::QuoteFailureView>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::celaut_service::QuoteView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::celaut_service::QuoteView>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for crate::api::celaut_service::NodeAddress {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.host, serializer);
+        <u16>::sse_encode(self.port, serializer);
     }
 }
 
@@ -3220,6 +3851,45 @@ impl SseEncode for crate::api::celaut::PeerInfoView {
         );
         <Vec<crate::api::celaut::NodeResourcesView>>::sse_encode(self.resources, serializer);
         <u32>::sse_encode(self.reputation_proofs, serializer);
+    }
+}
+
+impl SseEncode for crate::api::celaut_service::QuoteFailureView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::celaut_service::NodeAddress>::sse_encode(self.address, serializer);
+        <crate::api::celaut::CelautErrorKind>::sse_encode(self.kind, serializer);
+        <String>::sse_encode(self.message, serializer);
+    }
+}
+
+impl SseEncode for crate::api::celaut_service::QuoteView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::celaut_service::NodeAddress>::sse_encode(self.address, serializer);
+        <String>::sse_encode(self.peer_id, serializer);
+        <String>::sse_encode(self.cost_mu, serializer);
+        <String>::sse_encode(self.init_maintenance_mu, serializer);
+        <String>::sse_encode(self.max_maintenance_mu, serializer);
+        <i32>::sse_encode(self.maintenance_seconds_loop, serializer);
+        <f32>::sse_encode(self.variance, serializer);
+        <Option<String>>::sse_encode(self.compared_nano_erg, serializer);
+    }
+}
+
+impl SseEncode for crate::api::celaut_service::QuotesView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<crate::api::celaut_service::QuoteView>>::sse_encode(self.quotes, serializer);
+        <Vec<crate::api::celaut_service::QuoteFailureView>>::sse_encode(self.failures, serializer);
+    }
+}
+
+impl SseEncode for crate::api::celaut_service::StopView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.refund_mu, serializer);
+        <String>::sse_encode(self.client_balance_mu, serializer);
     }
 }
 
