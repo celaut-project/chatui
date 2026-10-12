@@ -77,7 +77,10 @@ fn check(address: &NodeAddress) -> Result<(), CelautError> {
 /// instance at the start if `initial_mu` is given. The default of a node is one hour of
 /// the resources of the service, which can be more than the free credit of a client.
 fn configuration(initial_mu: Option<String>) -> Result<Configuration, CelautError> {
-    let Some(text) = initial_mu.map(|t| t.trim().to_string()).filter(|t| !t.is_empty()) else {
+    let Some(text) = initial_mu
+        .map(|t| t.trim().to_string())
+        .filter(|t| !t.is_empty())
+    else {
         return Ok(Configuration::default());
     };
     let amount = Amount { n: text };
@@ -105,9 +108,10 @@ async fn session(address: &NodeAddress) -> Result<Session, CelautError> {
     if let Some(s) = state()?.sessions.get(&key) {
         return Ok(s.clone());
     }
-    let connection = Connection::connect(address.host.trim(), address.port, ConnectOptions::default())
-        .await
-        .map_err(|e| error_of(e.into()))?;
+    let connection =
+        Connection::connect(address.host.trim(), address.port, ConnectOptions::default())
+            .await
+            .map_err(|e| error_of(e.into()))?;
     let peer_id = connection.peer_id().to_string();
     let session = NodeSession::open(connection, &peer_id, &*PEERS)
         .await
@@ -159,7 +163,10 @@ pub struct QuotesView {
 }
 
 fn n(amount: &Option<Amount>) -> String {
-    amount.as_ref().map(|a| a.n.clone()).unwrap_or_else(|| "0".into())
+    amount
+        .as_ref()
+        .map(|a| a.n.clone())
+        .unwrap_or_else(|| "0".into())
 }
 
 fn quote_view(address: NodeAddress, peer_id: String, q: &EstimatedCost) -> QuoteView {
@@ -190,7 +197,9 @@ pub async fn celaut_quote_service(
     }
     let mut failures = Vec::new();
     let mut open: Vec<(NodeAddress, Session)> = Vec::new();
-    let connects = nodes.iter().map(|a| async move { (a.clone(), session(a).await) });
+    let connects = nodes
+        .iter()
+        .map(|a| async move { (a.clone(), session(a).await) });
     for (address, result) in futures::future::join_all(connects).await {
         match result {
             Ok(s) => open.push((address, s)),
@@ -265,7 +274,11 @@ pub async fn celaut_start_service(
             return Err(error_of(e));
         }
     };
-    let balance = session.balance().await.map(|b| b.to_string()).unwrap_or_default();
+    let balance = session
+        .balance()
+        .await
+        .map(|b| b.to_string())
+        .unwrap_or_default();
     let instance_id = new_client_id().map_err(error_of)?;
     let view = InstanceView {
         instance_id: instance_id.clone(),
@@ -312,7 +325,10 @@ pub async fn celaut_open_tunnel(instance_id: String, slot: u16) -> Result<u16, C
             message: format!("cannot open a local port: {e}"),
         })?;
     let mut s = state()?;
-    let running = s.instances.get_mut(&instance_id).ok_or_else(unknown_instance)?;
+    let running = s
+        .instances
+        .get_mut(&instance_id)
+        .ok_or_else(unknown_instance)?;
     Ok(running.ports.entry(slot).or_insert(port).port())
 }
 
@@ -329,13 +345,20 @@ pub struct InstanceStatusView {
 
 /// The balance of the instance and the use of its tunnels.
 #[flutter_rust_bridge::frb]
-pub async fn celaut_instance_status(instance_id: String) -> Result<InstanceStatusView, CelautError> {
+pub async fn celaut_instance_status(
+    instance_id: String,
+) -> Result<InstanceStatusView, CelautError> {
     let (session, token, streams, last) = {
         let s = state()?;
         let running = s.instances.get(&instance_id).ok_or_else(unknown_instance)?;
         let streams = running.ports.values().map(LocalPort::streams_opened).sum();
         let last = running.ports.values().find_map(LocalPort::last_error);
-        (running.session.clone(), running.started.token.clone(), streams, last)
+        (
+            running.session.clone(),
+            running.started.token.clone(),
+            streams,
+            last,
+        )
     };
     let balance = session.instance_balance(&token).await.map_err(error_of)?;
     Ok(InstanceStatusView {
@@ -368,7 +391,11 @@ pub async fn celaut_stop_service(instance_id: String) -> Result<StopView, Celaut
     } = running;
     drop(ports);
     let refund = session.stop(&started.token).await.map_err(error_of)?;
-    let balance = session.balance().await.map(|b| b.to_string()).unwrap_or_default();
+    let balance = session
+        .balance()
+        .await
+        .map(|b| b.to_string())
+        .unwrap_or_default();
     Ok(StopView {
         refund_mu: refund.to_string(),
         client_balance_mu: balance,
@@ -386,7 +413,9 @@ mod tests {
             port: 0,
         };
         let id = "ab".repeat(32);
-        let err = celaut_start_service(node, id.clone(), None).await.unwrap_err();
+        let err = celaut_start_service(node, id.clone(), None)
+            .await
+            .unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);
         let node = NodeAddress {
             host: "127.0.0.1".into(),
@@ -396,7 +425,9 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);
-        let err = celaut_quote_service(vec![], id.clone(), None).await.unwrap_err();
+        let err = celaut_quote_service(vec![], id.clone(), None)
+            .await
+            .unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);
         for bad in ["0", "-5", "1.5", "lots"] {
             let err = celaut_start_service(node.clone(), id.clone(), Some(bad.into()))
@@ -413,7 +444,10 @@ mod tests {
     #[test]
     fn the_start_balance_goes_in_the_configuration() {
         assert_eq!(configuration(None).unwrap(), Configuration::default());
-        assert_eq!(configuration(Some(" ".into())).unwrap(), Configuration::default());
+        assert_eq!(
+            configuration(Some(" ".into())).unwrap(),
+            Configuration::default()
+        );
         let c = configuration(Some(" 1000000 ".into())).unwrap();
         assert_eq!(c.initial_mu.unwrap().n, "1000000");
     }

@@ -49,10 +49,7 @@ pub async fn quotes<T: Transport>(
             configuration: encoded.clone(),
         };
         async move {
-            let cached = cache
-                .lock()
-                .ok()
-                .and_then(|c| c.get(&key, Instant::now()));
+            let cached = cache.lock().ok().and_then(|c| c.get(&key, Instant::now()));
             let quote = match cached {
                 Some(quote) => Ok(quote),
                 None => {

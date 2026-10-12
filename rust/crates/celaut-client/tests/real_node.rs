@@ -57,7 +57,10 @@ async fn get(socket: &mut BufReader<TcpStream>, path: &str) -> std::io::Result<(
         }
         if let Some((name, value)) = line.split_once(':') {
             if name.eq_ignore_ascii_case("content-length") {
-                length = value.trim().parse().map_err(|_| std::io::ErrorKind::InvalidData)?;
+                length = value
+                    .trim()
+                    .parse()
+                    .map_err(|_| std::io::ErrorKind::InvalidData)?;
             }
         }
     }
@@ -105,7 +108,10 @@ async fn quote_start_call_stop_and_refund() {
         best.candidate.quote, best.cost_nano_erg
     );
     let cost = celaut_balancer::amount(best.candidate.quote.cost.as_ref()).expect("cost");
-    assert!(cost <= credit, "the quote {cost} is more than the credit {credit}");
+    assert!(
+        cost <= credit,
+        "the quote {cost} is more than the credit {credit}"
+    );
 
     // Start.
     let started = session
@@ -114,7 +120,10 @@ async fn quote_start_call_stop_and_refund() {
         .expect("start");
     let slots = started.slots();
     let after_start = session.balance().await.expect("balance");
-    let instance_balance = session.instance_balance(&started.token).await.expect("metrics");
+    let instance_balance = session
+        .instance_balance(&started.token)
+        .await
+        .expect("metrics");
     println!(
         "started: slots {slots:?}\nclient balance after the start: {after_start} MU\ninstance balance: {instance_balance} MU"
     );
@@ -160,7 +169,10 @@ async fn quote_start_call_stop_and_refund() {
         "the kept-alive calls opened new streams"
     );
     drop(socket);
-    let instance_after_calls = session.instance_balance(&started.token).await.expect("metrics");
+    let instance_after_calls = session
+        .instance_balance(&started.token)
+        .await
+        .expect("metrics");
     println!(
         "streams opened: {}\ninstance balance after the calls: {instance_after_calls} MU",
         local.streams_opened()
@@ -175,8 +187,15 @@ async fn quote_start_call_stop_and_refund() {
         "refund: {refund} MU\nclient balance: {before_stop} MU before the stop, {after_stop} MU after"
     );
     assert!(refund > 0, "no refund");
-    assert_eq!(after_stop, before_stop + refund, "the refund is not in GetMetrics");
+    assert_eq!(
+        after_stop,
+        before_stop + refund,
+        "the refund is not in GetMetrics"
+    );
     // The node forgets the token of a stopped instance.
     let gone = session.instance_balance(&started.token).await;
-    assert!(gone.is_err(), "the stopped instance is still known: {gone:?}");
+    assert!(
+        gone.is_err(),
+        "the stopped instance is still known: {gone:?}"
+    );
 }

@@ -34,7 +34,10 @@ fn candidate(peer: &str, quote: EstimatedCost, rate: Option<u128>) -> Candidate 
 }
 
 fn order(ranked: &[Ranked]) -> Vec<&str> {
-    ranked.iter().map(|r| r.candidate.peer_id.as_str()).collect()
+    ranked
+        .iter()
+        .map(|r| r.candidate.peer_id.as_str())
+        .collect()
 }
 
 #[test]
@@ -169,7 +172,10 @@ fn the_cache_keeps_a_quote_for_ten_seconds() {
     let t0 = Instant::now();
     let mut cache = QuoteCache::new();
     cache.put(key("a"), flat("5"), t0);
-    assert_eq!(cache.get(&key("a"), t0 + Duration::from_secs(9)), Some(flat("5")));
+    assert_eq!(
+        cache.get(&key("a"), t0 + Duration::from_secs(9)),
+        Some(flat("5"))
+    );
     assert_eq!(cache.get(&key("a"), t0 + QUOTE_TTL), None);
     assert_eq!(cache.get(&key("b"), t0), None);
     // Another configuration is another quote.
@@ -199,5 +205,7 @@ fn the_cache_has_a_size_limit() {
     assert_eq!(cache.len(), QUOTE_CACHE_SIZE);
     // The oldest went.
     assert_eq!(cache.get(&key("0"), t0), None);
-    assert!(cache.get(&key(&(QUOTE_CACHE_SIZE + 4).to_string()), t0).is_some());
+    assert!(cache
+        .get(&key(&(QUOTE_CACHE_SIZE + 4).to_string()), t0)
+        .is_some());
 }

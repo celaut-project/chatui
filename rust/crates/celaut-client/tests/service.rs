@@ -14,8 +14,8 @@ use celaut_proto::celaut::contract::Ledger;
 use celaut_proto::celaut::instance::UriSlot;
 use celaut_proto::celaut::metadata::hash_tag::Hash;
 use celaut_proto::celaut::{
-    Amount, BytesKeyValue, Client, Configuration, Contract, ContractRate, EstimatedCost,
-    Instance, Metrics, Peer, RecursionGuard, Refund, ServiceInstance, TokenMessage,
+    Amount, BytesKeyValue, Client, Configuration, Contract, ContractRate, EstimatedCost, Instance,
+    Metrics, Peer, RecursionGuard, Refund, ServiceInstance, TokenMessage,
 };
 use celaut_wire::gateway::SHA3_256_TYPE;
 use celaut_wire::WireError;
@@ -83,9 +83,13 @@ async fn session_of(
         stream_of(1, &peer),
     ];
     answers.extend(more);
-    NodeSession::open(FixedStreams::new(answers), &peer_id, &MemoryPeerStore::new())
-        .await
-        .expect("open")
+    NodeSession::open(
+        FixedStreams::new(answers),
+        &peer_id,
+        &MemoryPeerStore::new(),
+    )
+    .await
+    .expect("open")
 }
 
 async fn session(more: Vec<Vec<Buffer>>) -> NodeSession<FixedStreams> {
@@ -115,11 +119,7 @@ fn indices(parts: &[Part]) -> Vec<i32> {
 
 #[tokio::test]
 async fn client_guard_and_configuration_come_before_the_hash() {
-    let s = session(vec![
-        after_signal(&quote("5")),
-        after_signal(&quote("5")),
-    ])
-    .await;
+    let s = session(vec![after_signal(&quote("5")), after_signal(&quote("5"))]).await;
     let configuration = Configuration {
         initial_mu: mu("1000"),
         ..Default::default()
@@ -191,7 +191,10 @@ async fn an_instance_with_no_token_is_refused() {
         instance: Some(Instance::default()),
     };
     let s = session(vec![after_signal(&instance)]).await;
-    let err = s.start(SERVICE, Configuration::default()).await.unwrap_err();
+    let err = s
+        .start(SERVICE, Configuration::default())
+        .await
+        .unwrap_err();
     assert!(
         matches!(err, ClientError::Wire(WireError::Protocol(_))),
         "{err:?}"
@@ -223,7 +226,9 @@ async fn stop_gives_the_refund_and_metrics_the_balance() {
     let (method, parts) = s.transport().request(3);
     assert_eq!(method, "GetMetrics");
     assert_eq!(
-        TokenMessage::decode(parts[0].data.as_slice()).unwrap().token,
+        TokenMessage::decode(parts[0].data.as_slice())
+            .unwrap()
+            .token,
         s.client_id()
     );
     assert_eq!(s.stop("other").await.unwrap(), 0);

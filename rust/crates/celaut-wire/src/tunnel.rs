@@ -185,7 +185,10 @@ mod tests {
             slot: Some("8080".into()),
         };
         let big = vec![7u8; MAX_PAYLOAD + 10];
-        let buffers = request_buffers(&handshake, &[b"GET / HTTP/1.1\r\n\r\n".to_vec(), vec![], big]);
+        let buffers = request_buffers(
+            &handshake,
+            &[b"GET / HTTP/1.1\r\n\r\n".to_vec(), vec![], big],
+        );
         let indices: Vec<i32> = buffers
             .iter()
             .map(|b| b.head.as_ref().map(|h| h.index).unwrap())

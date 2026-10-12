@@ -17,9 +17,8 @@ use crate::{Transport, WireError};
 /// The type id of SHA3-256: the digest of the empty input
 /// (`nodo:src/utils/hashing.py`). The registry of a node uses it.
 pub const SHA3_256_TYPE: [u8; 32] = [
-    0xa7, 0xff, 0xc6, 0xf8, 0xbf, 0x1e, 0xd7, 0x66, 0x51, 0xc1, 0x47, 0x56, 0xa0, 0x61, 0xd6,
-    0x62, 0xf5, 0x80, 0xff, 0x4d, 0xe4, 0x3b, 0x49, 0xfa, 0x82, 0xd8, 0x0a, 0x4b, 0x80, 0xf8,
-    0x43, 0x4a,
+    0xa7, 0xff, 0xc6, 0xf8, 0xbf, 0x1e, 0xd7, 0x66, 0x51, 0xc1, 0x47, 0x56, 0xa0, 0x61, 0xd6, 0x62,
+    0xf5, 0x80, 0xff, 0x4d, 0xe4, 0x3b, 0x49, 0xfa, 0x82, 0xd8, 0x0a, 0x4b, 0x80, 0xf8, 0x43, 0x4a,
 ];
 
 /// The time limit of `StartService`. The node can build the service and boot it before
@@ -56,7 +55,7 @@ pub async fn generate_client<T: Transport>(
                 return Ok(GenerateClientReply::PowRequired(decode(
                     part,
                     "the PoWRequired",
-                )?))
+                )?));
             }
             _ => {}
         }
@@ -188,7 +187,9 @@ fn token_part(token: &str) -> Vec<Part> {
 /// A receiver drops an all-default message (it has no bytes), so no part means a
 /// refund of 0.
 pub async fn stop_service<T: Transport>(transport: &T, token: &str) -> Result<Refund, WireError> {
-    let answer = transport.call("StopService", token_part(token), &[1]).await?;
+    let answer = transport
+        .call("StopService", token_part(token), &[1])
+        .await?;
     match answer.iter().find(|p| p.index == 1) {
         Some(part) => decode(part, "the Refund"),
         None => Ok(Refund::default()),
@@ -198,7 +199,9 @@ pub async fn stop_service<T: Transport>(transport: &T, token: &str) -> Result<Re
 /// `GetMetrics`: the balance of a client (`token` = client id) or of an instance
 /// (`token` = instance token). No part means a balance of 0, as in [`stop_service`].
 pub async fn get_metrics<T: Transport>(transport: &T, token: &str) -> Result<Metrics, WireError> {
-    let answer = transport.call("GetMetrics", token_part(token), &[1]).await?;
+    let answer = transport
+        .call("GetMetrics", token_part(token), &[1])
+        .await?;
     match answer.iter().find(|p| p.index == 1) {
         Some(part) => decode(part, "the Metrics"),
         None => Ok(Metrics::default()),

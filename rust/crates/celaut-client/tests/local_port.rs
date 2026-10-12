@@ -108,7 +108,11 @@ async fn node(refuse: Option<&str>) -> Arc<FakeNode> {
 /// Send one GET on `socket` and read one response (headers and body).
 async fn get(socket: &mut BufReader<TcpStream>, path: &str) -> String {
     let request = format!("GET {path} HTTP/1.1\r\nhost: localhost\r\n\r\n");
-    socket.get_mut().write_all(request.as_bytes()).await.unwrap();
+    socket
+        .get_mut()
+        .write_all(request.as_bytes())
+        .await
+        .unwrap();
     let mut length = 0;
     loop {
         let mut line = String::new();
@@ -133,7 +137,9 @@ async fn connect(port: u16) -> BufReader<TcpStream> {
 #[tokio::test]
 async fn keep_alive_uses_one_stream_for_many_requests() {
     let fake = node(None).await;
-    let local = LocalPort::bind(fake.clone(), "tok".into(), 3030).await.unwrap();
+    let local = LocalPort::bind(fake.clone(), "tok".into(), 3030)
+        .await
+        .unwrap();
 
     let mut socket = connect(local.port()).await;
     assert_eq!(get(&mut socket, "/").await, "1 /");
@@ -141,7 +147,10 @@ async fn keep_alive_uses_one_stream_for_many_requests() {
     assert_eq!(get(&mut socket, "/again").await, "1 /again");
     // Three requests, one TCP connection, one tunnel open.
     assert_eq!(local.streams_opened(), 1);
-    assert_eq!(*fake.opened.lock().unwrap(), vec![("tok".to_string(), 3030)]);
+    assert_eq!(
+        *fake.opened.lock().unwrap(),
+        vec![("tok".to_string(), 3030)]
+    );
 
     // A second connection is a second stream (and a second open fee on a node).
     let mut other = connect(local.port()).await;
@@ -154,7 +163,9 @@ async fn keep_alive_uses_one_stream_for_many_requests() {
 async fn a_half_close_reaches_the_service() {
     let fake = node(None).await;
     let local = LocalPort::bind(fake, "tok".into(), 3030).await.unwrap();
-    let mut socket = TcpStream::connect(("127.0.0.1", local.port())).await.unwrap();
+    let mut socket = TcpStream::connect(("127.0.0.1", local.port()))
+        .await
+        .unwrap();
     socket
         .write_all(b"GET /last HTTP/1.1\r\n\r\n")
         .await
@@ -173,7 +184,9 @@ async fn a_half_close_reaches_the_service() {
 async fn a_refusal_closes_the_connection_and_is_kept() {
     let fake = node(Some("InvalidArgument: no local instance")).await;
     let local = LocalPort::bind(fake, "bad".into(), 3030).await.unwrap();
-    let mut socket = TcpStream::connect(("127.0.0.1", local.port())).await.unwrap();
+    let mut socket = TcpStream::connect(("127.0.0.1", local.port()))
+        .await
+        .unwrap();
     socket.write_all(b"GET / HTTP/1.1\r\n\r\n").await.unwrap();
     let mut all = Vec::new();
     let read = tokio::time::timeout(Duration::from_secs(5), socket.read_to_end(&mut all))
@@ -185,10 +198,7 @@ async fn a_refusal_closes_the_connection_and_is_kept() {
         Ok(_) => assert!(all.is_empty()),
         Err(e) => assert_eq!(e.kind(), std::io::ErrorKind::ConnectionReset),
     }
-    assert!(local
-        .last_error()
-        .unwrap()
-        .contains("no local instance"));
+    assert!(local.last_error().unwrap().contains("no local instance"));
 }
 
 #[tokio::test]

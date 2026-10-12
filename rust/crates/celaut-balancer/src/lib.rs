@@ -220,7 +220,8 @@ pub fn rank(candidates: Vec<Candidate>) -> Vec<Ranked> {
     // above, but it would sort last.
     priced.sort_by(|a, b| {
         let (a, b) = (a.score.unwrap_or(f64::NAN), b.score.unwrap_or(f64::NAN));
-        b.partial_cmp(&a).unwrap_or_else(|| a.is_nan().cmp(&b.is_nan()))
+        b.partial_cmp(&a)
+            .unwrap_or_else(|| a.is_nan().cmp(&b.is_nan()))
     });
     priced.extend(unpriced);
     priced
