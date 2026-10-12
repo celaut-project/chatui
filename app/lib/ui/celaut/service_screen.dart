@@ -1,0 +1,431 @@
+import 'package:flutter/material.dart';
+
+import '../../bridge/api/celaut.dart';
+import '../../bridge/api/celaut_service.dart';
+import '../../celaut/celaut_strings.dart';
+import '../../celaut/host_port.dart';
+import '../../celaut/service_strings.dart';
+import '../../celaut/tunnel_http.dart';
+import '../../theme/argus_theme.dart';
+import '../settings/settings_shared.dart';
+import '../widgets/soft_card.dart';
+
+/// Debug screen of milestone M2: quote a service on several nodes, start it on one,
+/// call it through a local port, and stop it. All on the free credit of a new client.
+class ServiceScreen extends StatefulWidget {
+  const ServiceScreen({super.key, this.http});
+
+  /// The HTTP client of the local ports. Tests give their own.
+  final TunnelHttp? http;
+
+  @override
+  State<ServiceScreen> createState() => _ServiceScreenState();
+}
+
+class _ServiceScreenState extends State<ServiceScreen> {
+  final _nodesCtrl = TextEditingController();
+  final _serviceCtrl = TextEditingController();
+  final _initialCtrl = TextEditingController(text: ServiceStrings.initialDefault);
+  final _pathCtrl = TextEditingController(text: '/');
+  late final TunnelHttp _http = widget.http ?? TunnelHttp();
+
+  String? _nodesError;
+  String? _serviceError;
+  String? _initialError;
+  bool _quoting = false;
+  String? _startingPeer;
+  bool _stopping = false;
+  bool _calling = false;
+
+  QuotesView? _quotes;
+  String _serviceId = '';
+  String? _initialMu;
+  InstanceView? _instance;
+  final _ports = <int, int>{};
+  InstanceStatusView? _status;
+  String? _answer;
+  StopView? _stopped;
+  CelautError? _error;
+
+  @override
+  void dispose() {
+    _nodesCtrl.dispose();
+    _serviceCtrl.dispose();
+    _initialCtrl.dispose();
+    _pathCtrl.dispose();
+    _http.close();
+    super.dispose();
+  }
+
+  Future<void> _quote() async {
+    final nodes = <NodeAddress>[];
+    String? nodesError;
+    for (final line in _nodesCtrl.text.split('\n')) {
+      if (line.trim().isEmpty) continue;
+      final parsed = parseHostPort(line);
+      if (parsed.value == null) {
+        nodesError = ServiceStrings.nodeInvalid(line.trim());
+        break;
+      }
+      nodes.add(NodeAddress(host: parsed.value!.host, port: parsed.value!.port));
+    }
+    if (nodesError == null && nodes.isEmpty) nodesError = ServiceStrings.nodesEmpty;
+    final service = _serviceCtrl.text.trim().toLowerCase();
+    final serviceError =
+        RegExp(r'^[0-9a-f]{64}$').hasMatch(service) ? null : ServiceStrings.serviceInvalid;
+    final initial = _initialCtrl.text.trim();
+    final initialError = initial.isEmpty || RegExp(r'^0*[1-9][0-9]*$').hasMatch(initial)
+        ? null
+        : ServiceStrings.initialInvalid;
+    setState(() {
+      _nodesError = nodesError;
+      _serviceError = serviceError;
+      _initialError = initialError;
+    });
+    if (nodesError != null || serviceError != null || initialError != null) return;
+
+    setState(() {
+      _quoting = true;
+      _quotes = null;
+      _error = null;
+    });
+    try {
+      final quotes = await celautQuoteService(
+        nodes: nodes,
+        serviceIdHex: service,
+        initialMu: initial.isEmpty ? null : initial,
+      );
+      if (!mounted) return;
+      setState(() {
+        _quotes = quotes;
+        _serviceId = service;
+        _initialMu = initial.isEmpty ? null : initial;
+      });
+    } on CelautError catch (e) {
+      if (mounted) setState(() => _error = e);
+    } finally {
+      if (mounted) setState(() => _quoting = false);
+    }
+  }
+
+  Future<void> _start(QuoteView quote) async {
+    setState(() {
+      _startingPeer = quote.peerId;
+      _error = null;
+      _stopped = null;
+    });
+    try {
+      final instance = await celautStartService(
+        node: quote.address,
+        serviceIdHex: _serviceId,
+        initialMu: _initialMu,
+      );
+      if (!mounted) return;
+      setState(() {
+        _instance = instance;
+        _ports.clear();
+        _status = null;
+        _answer = null;
+      });
+    } on CelautError catch (e) {
+      if (mounted) setState(() => _error = e);
+    } finally {
+      if (mounted) setState(() => _startingPeer = null);
+    }
+  }
+
+  Future<void> _openPort(int slot) async {
+    final instance = _instance;
+    if (instance == null) return;
+    try {
+      final port = await celautOpenTunnel(instanceId: instance.instanceId, slot: slot);
+      if (mounted) setState(() => _ports[slot] = port);
+    } on CelautError catch (e) {
+      if (mounted) setState(() => _error = e);
+    }
+  }
+
+  Future<void> _call(int port) async {
+    setState(() => _calling = true);
+    try {
+      final answer = await _http.get(port, _pathCtrl.text.trim());
+      if (mounted) {
+        setState(() => _answer = '${ServiceStrings.answer(answer.status)}\n${answer.body}');
+      }
+    } catch (e) {
+      if (mounted) setState(() => _answer = ServiceStrings.callFailed('$e'));
+    } finally {
+      if (mounted) setState(() => _calling = false);
+    }
+    await _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final instance = _instance;
+    if (instance == null) return;
+    try {
+      final status = await celautInstanceStatus(instanceId: instance.instanceId);
+      if (mounted) setState(() => _status = status);
+    } on CelautError catch (e) {
+      if (mounted) setState(() => _error = e);
+    }
+  }
+
+  Future<void> _stop() async {
+    final instance = _instance;
+    if (instance == null) return;
+    setState(() {
+      _stopping = true;
+      _error = null;
+    });
+    try {
+      final stopped = await celautStopService(instanceId: instance.instanceId);
+      // The local ports are closed: drop the kept-alive connection too.
+      _http.close();
+      if (!mounted) return;
+      setState(() {
+        _stopped = stopped;
+        _instance = null;
+        _ports.clear();
+        _status = null;
+        _answer = null;
+      });
+    } on CelautError catch (e) {
+      if (mounted) setState(() => _error = e);
+    } finally {
+      if (mounted) setState(() => _stopping = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final quotes = _quotes;
+    final instance = _instance;
+    final stopped = _stopped;
+    return SettingsPage(
+      title: ServiceStrings.screenTitle,
+      children: [
+        const SettingsNote(ServiceStrings.intro),
+        SoftCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                key: const Key('service-nodes'),
+                controller: _nodesCtrl,
+                keyboardType: TextInputType.multiline,
+                minLines: 1,
+                maxLines: 4,
+                autocorrect: false,
+                enableSuggestions: false,
+                decoration: InputDecoration(
+                  labelText: ServiceStrings.nodesLabel,
+                  hintText: ServiceStrings.nodesHint,
+                  errorText: _nodesError,
+                  errorMaxLines: 3,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('service-id'),
+                controller: _serviceCtrl,
+                autocorrect: false,
+                enableSuggestions: false,
+                decoration: InputDecoration(
+                  labelText: ServiceStrings.serviceLabel,
+                  hintText: ServiceStrings.serviceHint,
+                  errorText: _serviceError,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('service-initial'),
+                controller: _initialCtrl,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: ServiceStrings.initialLabel,
+                  hintText: ServiceStrings.initialHint,
+                  errorText: _initialError,
+                  errorMaxLines: 2,
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                key: const Key('service-quote'),
+                onPressed: _quoting ? null : _quote,
+                child: Text(_quoting ? ServiceStrings.quoting : ServiceStrings.quote),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        if (_error != null) _errorCard(context, _error!),
+        if (stopped != null)
+          SoftCard(
+            child: Text(
+              ServiceStrings.stopped(stopped.refundMu, stopped.clientBalanceMu),
+              key: const Key('service-stopped'),
+            ),
+          ),
+        if (instance != null) ..._instanceCard(context, instance),
+        if (quotes != null) ..._quotesCards(context, quotes),
+      ],
+    );
+  }
+
+  List<Widget> _quotesCards(BuildContext context, QuotesView quotes) {
+    final muted = ArgusColors.of(context).muted;
+    return [
+      const SizedBox(height: 24),
+      SectionLabel(ServiceStrings.quotesTitle),
+      const SizedBox(height: 10),
+      if (quotes.quotes.isEmpty)
+        SoftCard(child: Text(ServiceStrings.noQuotes, style: TextStyle(color: muted))),
+      for (final q in quotes.quotes) ...[
+        SoftCard(
+          child: Column(
+            key: Key('service-quote-${q.peerId}'),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SelectableText('${HostPort(q.address.host, q.address.port)}',
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              SelectableText(q.peerId, style: TextStyle(fontSize: 12, color: muted)),
+              const SizedBox(height: 6),
+              Text(ServiceStrings.cost(q.costMu)),
+              Text(ServiceStrings.maintenance(q.maxMaintenanceMu, q.maintenanceSecondsLoop)),
+              Text(ServiceStrings.compared(q.comparedNanoErg),
+                  style: TextStyle(fontSize: 12.5, color: muted)),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                key: Key('service-start-${q.peerId}'),
+                onPressed: _startingPeer != null || _instance != null ? null : () => _start(q),
+                child: Text(_startingPeer == q.peerId
+                    ? ServiceStrings.starting
+                    : ServiceStrings.start),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+      ],
+      if (quotes.failures.isNotEmpty) ...[
+        const SizedBox(height: 14),
+        SectionLabel(ServiceStrings.failuresTitle),
+        const SizedBox(height: 10),
+        for (final f in quotes.failures)
+          SoftCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${HostPort(f.address.host, f.address.port)}',
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(CelautStrings.errorText(f.kind)),
+                SelectableText(CelautStrings.detailLabel(f.message),
+                    style: TextStyle(fontSize: 12, color: muted)),
+              ],
+            ),
+          ),
+      ],
+    ];
+  }
+
+  List<Widget> _instanceCard(BuildContext context, InstanceView instance) {
+    final muted = ArgusColors.of(context).muted;
+    final status = _status;
+    return [
+      SectionLabel(ServiceStrings.instanceTitle),
+      const SizedBox(height: 10),
+      SoftCard(
+        child: Column(
+          key: const Key('service-instance'),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SelectableText(instance.peerId, style: TextStyle(fontSize: 12, color: muted)),
+            Text(ServiceStrings.clientBalance(instance.clientBalanceMu)),
+            if (status != null) ...[
+              Text(ServiceStrings.instanceBalance(status.instanceBalanceMu),
+                  key: const Key('service-instance-balance')),
+              Text(ServiceStrings.streams(status.streamsOpened),
+                  key: const Key('service-streams')),
+              if (status.lastTunnelError != null)
+                Text(ServiceStrings.tunnelError(status.lastTunnelError!),
+                    style: TextStyle(color: rustFor(context))),
+            ],
+            const SizedBox(height: 8),
+            TextField(
+              key: const Key('service-path'),
+              controller: _pathCtrl,
+              autocorrect: false,
+              decoration: const InputDecoration(labelText: ServiceStrings.pathLabel),
+            ),
+            for (final slot in instance.slots) ...[
+              const SizedBox(height: 10),
+              Text(ServiceStrings.slot(slot), style: const TextStyle(fontWeight: FontWeight.w600)),
+              if (_ports[slot] == null)
+                OutlinedButton(
+                  key: Key('service-open-$slot'),
+                  onPressed: () => _openPort(slot),
+                  child: const Text(ServiceStrings.openPort),
+                )
+              else ...[
+                SelectableText(ServiceStrings.localPort(_ports[slot]!),
+                    key: Key('service-port-$slot')),
+                OutlinedButton(
+                  key: Key('service-call-$slot'),
+                  onPressed: _calling ? null : () => _call(_ports[slot]!),
+                  child: const Text(ServiceStrings.call),
+                ),
+              ],
+            ],
+            if (_answer != null) ...[
+              const SizedBox(height: 8),
+              SelectableText(_answer!,
+                  key: const Key('service-answer'),
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12.5)),
+            ],
+            const SizedBox(height: 8),
+            Text(ServiceStrings.keepAliveNote, style: TextStyle(fontSize: 12.5, color: muted)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    key: const Key('service-refresh'),
+                    onPressed: _refresh,
+                    child: const Text(ServiceStrings.refresh),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    key: const Key('service-stop'),
+                    onPressed: _stopping ? null : _stop,
+                    child: Text(_stopping ? ServiceStrings.stopping : ServiceStrings.stop),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  Widget _errorCard(BuildContext context, CelautError e) {
+    return SoftCard(
+      child: Column(
+        key: const Key('service-error'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(CelautStrings.errorText(e.kind),
+              style: TextStyle(fontSize: 14, color: rustFor(context))),
+          if (e.message.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            SelectableText(CelautStrings.detailLabel(e.message),
+                style: TextStyle(fontSize: 12, color: ArgusColors.of(context).muted)),
+          ],
+        ],
+      ),
+    );
+  }
+}
