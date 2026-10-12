@@ -1,0 +1,10 @@
+[package]
+name = "celaut-balancer"
+description = "Celaut execution balancer for a light client: MU conversion, score and order of quotes, quote cache"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+celaut-proto = { workspace = true }
+thiserror = { workspace = true }

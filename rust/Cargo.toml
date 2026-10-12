@@ -7,6 +7,7 @@ members = [
     "crates/celaut-proto",
     "crates/celaut-wire",
     "crates/celaut-client",
+    "crates/celaut-balancer",
     "tools/gen-protos",
     "crates/vendor/citadel-core",
     "crates/vendor/ergo-tx",
@@ -78,6 +79,7 @@ webpki-roots = "1"
 # bee-rpc is GPL-3.0-only. It is a git dependency on a tag until a release exists.
 bee-rpc = { git = "https://github.com/bee-rpc-protocol/bee-rpc-over-grpc-rs", tag = "v0.1.0", features = ["grpc"] }
 celaut-proto = { path = "crates/celaut-proto" }
+celaut-balancer = { path = "crates/celaut-balancer" }
 celaut-wire = { path = "crates/celaut-wire" }
 
 # ─── Vendored Citadel crates ─────────────────────────────────────────────
