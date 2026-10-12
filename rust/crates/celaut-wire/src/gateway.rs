@@ -1,12 +1,30 @@
-//! The typed Gateway calls of milestone M1.
+//! The typed Gateway calls of milestones M1 and M2.
 //!
 //! Indices come from `nodo:protos/gateway_bee.py` (`GATEWAY_RPCS`).
 
+use std::time::Duration;
+
 use bee_rpc::frame::Part;
-use celaut_proto::celaut::{Client, Peer, PoWRequired};
+use celaut_proto::celaut::metadata::hash_tag::Hash;
+use celaut_proto::celaut::{
+    Client, Configuration, EstimatedCost, Metrics, Peer, PoWRequired, RecursionGuard, Refund,
+    ServiceInstance, TokenMessage,
+};
 use prost::Message;
 
 use crate::{Transport, WireError};
+
+/// The type id of SHA3-256: the digest of the empty input
+/// (`nodo:src/utils/hashing.py`). The registry of a node uses it.
+pub const SHA3_256_TYPE: [u8; 32] = [
+    0xa7, 0xff, 0xc6, 0xf8, 0xbf, 0x1e, 0xd7, 0x66, 0x51, 0xc1, 0x47, 0x56, 0xa0, 0x61, 0xd6,
+    0x62, 0xf5, 0x80, 0xff, 0x4d, 0xe4, 0x3b, 0x49, 0xfa, 0x82, 0xd8, 0x0a, 0x4b, 0x80, 0xf8,
+    0x43, 0x4a,
+];
+
+/// The time limit of `StartService`. The node can build the service and boot it before
+/// it answers, and it stops an instance whose call ended before the answer (nodo #487).
+pub const START_TIMEOUT: Duration = Duration::from_secs(600);
 
 /// What `GenerateClient` answers.
 #[derive(Debug, Clone, PartialEq)]
@@ -64,5 +82,125 @@ pub async fn get_peer_info<T: Transport>(
     match answer.iter().find(|p| p.index == 1) {
         Some(part) => decode(part, "the Peer"),
         None => Err(WireError::Protocol("GetPeerInfo gave no Peer".to_string())),
+    }
+}
+
+/// The request of `GetServiceEstimatedCost` and `StartService` for a service that the
+/// node already has: the client, the recursion guard, the configuration and the hash.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ServiceRequest {
+    /// The client id on this node.
+    pub client_id: String,
+    /// The SHA3-256 of the service (the service id), 32 bytes.
+    pub service_id: [u8; 32],
+    /// The configuration. All-default means "the defaults of the node".
+    pub configuration: Configuration,
+}
+
+/// The guard that a light client sends: a new tree (no token), and one hop. The node
+/// runs the service itself and does not delegate it, because a delegated instance has
+/// no path for a phone (ServiceTunnel accepts only local instances).
+pub fn no_delegation_guard() -> RecursionGuard {
+    RecursionGuard {
+        token: String::new(),
+        remaining_hops: Some(1),
+    }
+}
+
+impl ServiceRequest {
+    /// The parts in the order that the node needs: Client (1), RecursionGuard (2) and
+    /// Configuration (3) before the Hash (4). The node starts the work on the Hash of a
+    /// service that it has, and ignores a Configuration or a guard that comes later
+    /// (`nodo:src/gateway/iterables/abstract_input_service_iterable.py`).
+    ///
+    /// An all-default Configuration has no bytes. A receiver drops a part with no bytes,
+    /// so it is not sent.
+    pub fn parts(&self) -> Vec<Part> {
+        let client = Client {
+            client_id: self.client_id.clone(),
+            ..Default::default()
+        };
+        let hash = Hash {
+            r#type: SHA3_256_TYPE.to_vec(),
+            value: self.service_id.to_vec(),
+        };
+        let mut parts = vec![
+            Part::new(1, client.encode_to_vec()),
+            Part::new(2, no_delegation_guard().encode_to_vec()),
+        ];
+        let configuration = self.configuration.encode_to_vec();
+        if !configuration.is_empty() {
+            parts.push(Part::new(3, configuration));
+        }
+        parts.push(Part::new(4, hash.encode_to_vec()));
+        parts
+    }
+}
+
+/// The first part with index `index`, decoded.
+fn find<M: Message + Default>(answer: &[Part], index: i32, what: &str) -> Result<M, WireError> {
+    match answer.iter().find(|p| p.index == index) {
+        Some(part) => decode(part, what),
+        None => Err(WireError::Protocol(format!("the node gave no {what}"))),
+    }
+}
+
+/// `GetServiceEstimatedCost`: the price of the service on this node.
+pub async fn get_service_estimated_cost<T: Transport>(
+    transport: &T,
+    request: &ServiceRequest,
+) -> Result<EstimatedCost, WireError> {
+    let answer = transport
+        .call("GetServiceEstimatedCost", request.parts(), &[1])
+        .await?;
+    find(&answer, 1, "EstimatedCost")
+}
+
+/// `StartService`: start the service. The node charges the cost to the client. The
+/// answer has the instance token: keep it, it is the only way to stop the instance.
+pub async fn start_service<T: Transport>(
+    transport: &T,
+    request: &ServiceRequest,
+) -> Result<ServiceInstance, WireError> {
+    let answer = transport
+        .call_with_timeout("StartService", request.parts(), &[1], START_TIMEOUT)
+        .await?;
+    let instance: ServiceInstance = find(&answer, 1, "ServiceInstance")?;
+    if instance.token.is_empty() {
+        return Err(WireError::Protocol(
+            "the node gave an instance with no token".to_string(),
+        ));
+    }
+    Ok(instance)
+}
+
+fn token_part(token: &str) -> Vec<Part> {
+    let message = TokenMessage {
+        token: token.to_string(),
+        slot: None,
+    };
+    vec![Part::new(1, message.encode_to_vec())]
+}
+
+/// `StopService`: stop the instance. The node gives the unused balance of the instance
+/// back to the client and answers with that amount.
+///
+/// A receiver drops an all-default message (it has no bytes), so no part means a
+/// refund of 0.
+pub async fn stop_service<T: Transport>(transport: &T, token: &str) -> Result<Refund, WireError> {
+    let answer = transport.call("StopService", token_part(token), &[1]).await?;
+    match answer.iter().find(|p| p.index == 1) {
+        Some(part) => decode(part, "the Refund"),
+        None => Ok(Refund::default()),
+    }
+}
+
+/// `GetMetrics`: the balance of a client (`token` = client id) or of an instance
+/// (`token` = instance token). No part means a balance of 0, as in [`stop_service`].
+pub async fn get_metrics<T: Transport>(transport: &T, token: &str) -> Result<Metrics, WireError> {
+    let answer = transport.call("GetMetrics", token_part(token), &[1]).await?;
+    match answer.iter().find(|p| p.index == 1) {
+        Some(part) => decode(part, "the Metrics"),
+        None => Ok(Metrics::default()),
     }
 }

@@ -175,17 +175,18 @@ impl Connection {
     }
 }
 
-impl Transport for Connection {
-    async fn call(
+impl Connection {
+    async fn bee_call(
         &self,
         method: &str,
         parts: Vec<Part>,
         accepted: &[i32],
+        timeout: Duration,
     ) -> Result<Vec<Part>, WireError> {
         let options = bee_rpc::grpc::CallOptions {
             parse: ParseOptions::accepting(accepted.iter().copied()),
             block_skip: false,
-            timeout: Some(self.call_timeout),
+            timeout: Some(timeout),
         };
         let path = format!("/celaut.Gateway/{method}");
         bee_rpc::grpc::call(self.channel.clone(), &path, parts, options)
@@ -194,5 +195,33 @@ impl Transport for Connection {
                 bee_rpc::Error::Transport(t) if t == "deadline exceeded" => WireError::Timeout,
                 other => WireError::Call(other.to_string()),
             })
+    }
+
+    /// The tonic channel, for the calls that are not one request and one answer
+    /// (`ServiceTunnel`).
+    pub(crate) fn channel(&self) -> Channel {
+        self.channel.clone()
+    }
+}
+
+impl Transport for Connection {
+    async fn call(
+        &self,
+        method: &str,
+        parts: Vec<Part>,
+        accepted: &[i32],
+    ) -> Result<Vec<Part>, WireError> {
+        self.bee_call(method, parts, accepted, self.call_timeout)
+            .await
+    }
+
+    async fn call_with_timeout(
+        &self,
+        method: &str,
+        parts: Vec<Part>,
+        accepted: &[i32],
+        timeout: Duration,
+    ) -> Result<Vec<Part>, WireError> {
+        self.bee_call(method, parts, accepted, timeout).await
     }
 }

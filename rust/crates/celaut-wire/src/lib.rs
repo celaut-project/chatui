@@ -7,7 +7,8 @@
 //!   channel on it. It gives the `peer_id` of the node.
 //! - [`transport`]: the [`Transport`] trait. One method sends bee-rpc parts to one
 //!   Gateway method and returns the parts of the answer. A test can replace it.
-//! - [`gateway`]: the typed calls that milestone M1 needs.
+//! - [`gateway`]: the typed calls of milestones M1 and M2.
+//! - [`tunnel`]: `ServiceTunnel`, a byte stream to one port of an instance.
 //!
 //! Input from a peer must never make this crate panic.
 #![forbid(unsafe_code)]
@@ -21,7 +22,9 @@ pub mod error;
 pub mod gateway;
 pub mod identity;
 pub mod transport;
+pub mod tunnel;
 
 pub use channel::{ConnectOptions, Connection};
 pub use error::{IdentityError, WireError};
 pub use transport::Transport;
+pub use tunnel::{Tunnel, TunnelOpener};
