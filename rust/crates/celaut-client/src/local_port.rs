@@ -83,7 +83,11 @@ async fn accept(
     loop {
         tokio::select! {
             accepted = listener.accept() => {
-                let Ok((socket, _)) = accepted else { continue };
+                let Ok((socket, _)) = accepted else {
+                    // For example no file descriptors left: wait a little, do not spin.
+                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                    continue;
+                };
                 let _ = socket.set_nodelay(true);
                 shared.streams.fetch_add(1, Ordering::Relaxed);
                 let tunnel = opener.open_tunnel(&token, slot);
