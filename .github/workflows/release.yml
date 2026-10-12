@@ -1,0 +1,123 @@
+name: release
+
+# A tag v<appVersion> builds the release APKs unsigned and puts them on a
+# draft prerelease. The release key never goes to CI: scripts/sign_release.sh
+# signs them locally and replaces the unsigned assets.
+on:
+  push:
+    tags: ['v*']
+  # A pull request that changes the release build runs it without publishing.
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - app/android/**
+      - scripts/build_android.sh
+      - scripts/release_check.sh
+
+permissions:
+  contents: read
+
+env:
+  # Keep equal to FLUTTER_VERSION in ci.yml.
+  FLUTTER_VERSION: '3.41.2'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.99.0
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+      # The NDK version is flutter.ndkVersion of FLUTTER_VERSION. Change both together.
+      - name: Install the NDK and cargo-ndk
+        run: |
+          ndk=28.2.13676358
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$ndk" > /dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$ndk" >> "$GITHUB_ENV"
+          cargo install cargo-ndk --version 4.1.2 --locked
+      - name: Check the version and the tag
+        run: |
+          scripts/release_check.sh version
+          version="$(sed -n "s/^const appVersion = '\(.*\)';/\1/p" app/lib/build_info.dart)"
+          code="$(sed -n 's/^const appBuildNumber = \([0-9]*\);/\1/p' app/lib/build_info.dart)"
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "The tag $GITHUB_REF_NAME does not match appVersion $version."
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "BASE_CODE=$code" >> "$GITHUB_ENV"
+      # `flutter build apk` does not find unsigned APKs, so Gradle runs directly.
+      # Only split-per-abi gives the split APKs their ABI versionCode offset.
+      # Do not run a second, plain build after it (see release_check.sh).
+      - name: Build the unsigned release APKs
+        working-directory: app
+        env:
+          CHATUI_UNSIGNED_RELEASE: '1'
+        run: |
+          flutter pub get --enforce-lockfile
+          flutter build apk --release --config-only
+          cd android
+          ./gradlew assembleRelease -Psplit-per-abi=true -Ptarget-platform=android-arm64,android-x64
+          ls -l ../build/app/outputs/apk/release/
+      - name: Check that the native libraries match a fresh build
+        run: scripts/release_check.sh libs
+      - name: Collect and check the APKs
+        run: |
+          aapt2="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)aapt2"
+          out=app/build/app/outputs/apk/release
+          mkdir dist
+          for kind in universal arm64-v8a x86_64; do
+            cp "$out/app-$kind-release-unsigned.apk" "dist/chatui-$VERSION-$kind-unsigned.apk"
+          done
+          declare -A want=([universal]=$BASE_CODE [arm64-v8a]=$((BASE_CODE + 2000)) [x86_64]=$((BASE_CODE + 4000)))
+          declare -A native=([universal]='arm64-v8a x86_64' [arm64-v8a]=arm64-v8a [x86_64]=x86_64)
+          fail=0
+          for kind in universal arm64-v8a x86_64; do
+            badging="$("$aapt2" dump badging "dist/chatui-$VERSION-$kind-unsigned.apk")"
+            code="$(sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p" <<<"$badging" | head -1)"
+            name="$(sed -n "s/.*versionName='\([^']*\)'.*/\1/p" <<<"$badging" | head -1)"
+            abis="$(sed -n 's/^native-code: //p' <<<"$badging" | tr -d \' | tr -s ' ')"
+            echo "$kind: versionCode=$code versionName=$name native-code=$abis"
+            [ "$code" = "${want[$kind]}" ] || { echo "  expected versionCode ${want[$kind]}"; fail=1; }
+            [ "$name" = "$VERSION" ] || { echo "  expected versionName $VERSION"; fail=1; }
+            [ "$abis" = "${native[$kind]}" ] || { echo "  expected native-code ${native[$kind]}"; fail=1; }
+          done
+          (cd dist && sha256sum *.apk > SHA256SUMS-unsigned)
+          cat dist/SHA256SUMS-unsigned
+          exit "$fail"
+      - uses: actions/upload-artifact@v5
+        with:
+          name: unsigned-apks
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: unsigned-apks
+          path: dist
+      - name: Create the draft prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --draft --prerelease \
+            --title "chatui ${GITHUB_REF_NAME#v}" \
+            --notes "Unsigned build from CI. Sign it with scripts/sign_release.sh $GITHUB_REF_NAME before publishing."
