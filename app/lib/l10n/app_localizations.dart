@@ -6905,6 +6905,492 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Save gateway'**
   String get previewSaveGateway;
+
+  /// No description provided for @sendNoSpendableAddresses.
+  ///
+  /// In en, this message translates to:
+  /// **'No spendable addresses'**
+  String get sendNoSpendableAddresses;
+
+  /// No description provided for @sendCouldNotListBoxes.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not list your boxes'**
+  String get sendCouldNotListBoxes;
+
+  /// No description provided for @sendContactName.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact: {name}'**
+  String sendContactName(String name);
+
+  /// No description provided for @sendSpendableUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Spendable balance is unknown'**
+  String get sendSpendableUnknown;
+
+  /// No description provided for @sendNotEnoughForFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough ERG for fee and change'**
+  String get sendNotEnoughForFee;
+
+  /// No description provided for @sendNoTokenSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'No token selected'**
+  String get sendNoTokenSelected;
+
+  /// No description provided for @sendSaveToContacts.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to contacts'**
+  String get sendSaveToContacts;
+
+  /// No description provided for @sendContactSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact saved'**
+  String get sendContactSaved;
+
+  /// No description provided for @sendExceedsBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount plus fee exceeds your {balance}'**
+  String sendExceedsBalance(String balance);
+
+  /// No description provided for @sendCouldNotPrepare.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not prepare the send'**
+  String get sendCouldNotPrepare;
+
+  /// No description provided for @sendClipboardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clipboard holds another address'**
+  String get sendClipboardTitle;
+
+  /// No description provided for @sendClipboardDiffersOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Something you copied earlier is an Ergo address that differs from the recipient. Malware can swap addresses on the clipboard. Verify every character.'**
+  String get sendClipboardDiffersOne;
+
+  /// No description provided for @sendClipboardDiffersMany.
+  ///
+  /// In en, this message translates to:
+  /// **'Something you copied earlier is an Ergo address that differs from every recipient. Malware can swap addresses on the clipboard. Verify every character.'**
+  String get sendClipboardDiffersMany;
+
+  /// No description provided for @sendRecipientLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipient:'**
+  String get sendRecipientLabel;
+
+  /// No description provided for @sendRecipientsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipients:'**
+  String get sendRecipientsLabel;
+
+  /// No description provided for @sendClipboardLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Clipboard:'**
+  String get sendClipboardLabel;
+
+  /// No description provided for @sendGoBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Go back'**
+  String get sendGoBack;
+
+  /// No description provided for @sendRecipientCorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipient is correct'**
+  String get sendRecipientCorrect;
+
+  /// No description provided for @sendRecipientsCorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipients are correct'**
+  String get sendRecipientsCorrect;
+
+  /// No description provided for @sendTotalSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Total sent'**
+  String get sendTotalSent;
+
+  /// No description provided for @sendAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get sendAmount;
+
+  /// No description provided for @sendFeePaidIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Miner fee paid in {token}'**
+  String sendFeePaidIn(String token);
+
+  /// Stands for a token whose name is unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'token'**
+  String get sendTokenFallback;
+
+  /// No description provided for @sendTokensFor.
+  ///
+  /// In en, this message translates to:
+  /// **'{tokens} for {erg}'**
+  String sendTokensFor(String tokens, String erg);
+
+  /// No description provided for @sendConfirmMulti.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm multi-recipient send'**
+  String get sendConfirmMulti;
+
+  /// No description provided for @sendConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm send'**
+  String get sendConfirm;
+
+  /// No description provided for @sendSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent!'**
+  String get sendSent;
+
+  /// No description provided for @sendAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Available {amount}'**
+  String sendAvailable(String amount);
+
+  /// No description provided for @sendAllAddresses.
+  ///
+  /// In en, this message translates to:
+  /// **'All {all} addresses'**
+  String sendAllAddresses(String all);
+
+  /// No description provided for @sendSomeAddresses.
+  ///
+  /// In en, this message translates to:
+  /// **'{picked} of {all} addresses'**
+  String sendSomeAddresses(String picked, String all);
+
+  /// No description provided for @sendBoxesChosen.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} boxes chosen'**
+  String sendBoxesChosen(String count);
+
+  /// No description provided for @sendFeeErg.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee {amount} ERG'**
+  String sendFeeErg(String amount);
+
+  /// No description provided for @sendFeeIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee in {token}'**
+  String sendFeeIn(String token);
+
+  /// No description provided for @sendTokensPage.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tokens selected · Page {page} of {pages}'**
+  String sendTokensPage(String count, String page, String pages);
+
+  /// No description provided for @sendPreviousTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous tokens'**
+  String get sendPreviousTokens;
+
+  /// No description provided for @sendNextTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Next tokens'**
+  String get sendNextTokens;
+
+  /// No description provided for @sendSendsOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Sends 1 {token} · Available 1'**
+  String sendSendsOne(String token);
+
+  /// No description provided for @sendTokenAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'{token} amount'**
+  String sendTokenAmount(String token);
+
+  /// No description provided for @sendMax.
+  ///
+  /// In en, this message translates to:
+  /// **'MAX'**
+  String get sendMax;
+
+  /// No description provided for @sendEnterAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an amount'**
+  String get sendEnterAmount;
+
+  /// No description provided for @sendTooMuch.
+  ///
+  /// In en, this message translates to:
+  /// **'Too much'**
+  String get sendTooMuch;
+
+  /// No description provided for @sendRemoveToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {token}'**
+  String sendRemoveToken(String token);
+
+  /// No description provided for @sendPlusTokens.
+  ///
+  /// In en, this message translates to:
+  /// **' + {count} tokens'**
+  String sendPlusTokens(String count);
+
+  /// No description provided for @sendRawTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Raw signed transaction'**
+  String get sendRawTitle;
+
+  /// No description provided for @sendRawNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction is signed but not broadcast. Share or save the raw transaction to submit later via an explorer or another wallet.'**
+  String get sendRawNote;
+
+  /// No description provided for @sendDestination.
+  ///
+  /// In en, this message translates to:
+  /// **'Destination'**
+  String get sendDestination;
+
+  /// No description provided for @sendRecipientAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipient address'**
+  String get sendRecipientAddress;
+
+  /// No description provided for @sendRecipientHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Or tap contacts to pick a saved one'**
+  String get sendRecipientHint;
+
+  /// No description provided for @sendRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get sendRequired;
+
+  /// No description provided for @sendAsset.
+  ///
+  /// In en, this message translates to:
+  /// **'Asset'**
+  String get sendAsset;
+
+  /// No description provided for @sendChooseTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose tokens'**
+  String get sendChooseTokens;
+
+  /// No description provided for @sendChooseTokensCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose tokens ({count})'**
+  String sendChooseTokensCount(String count);
+
+  /// No description provided for @sendMinimumBox.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum 0.001 ERG'**
+  String get sendMinimumBox;
+
+  /// No description provided for @sendErgWithIt.
+  ///
+  /// In en, this message translates to:
+  /// **'ERG to send with it (optional)'**
+  String get sendErgWithIt;
+
+  /// No description provided for @sendBlankFundsTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Blank funds the minimum ERG for these tokens. Review shows the exact amount. {available}'**
+  String sendBlankFundsTokens(String available);
+
+  /// No description provided for @sendAdditionalRecipients.
+  ///
+  /// In en, this message translates to:
+  /// **'Additional recipients'**
+  String get sendAdditionalRecipients;
+
+  /// No description provided for @sendRecipientNAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipient {number} address'**
+  String sendRecipientNAddress(String number);
+
+  /// No description provided for @sendAmountErg.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount (ERG)'**
+  String get sendAmountErg;
+
+  /// No description provided for @sendBlankFundsToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Blank funds the minimum ERG for this token.'**
+  String get sendBlankFundsToken;
+
+  /// No description provided for @sendTokenNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get sendTokenNone;
+
+  /// No description provided for @sendEnterTokenAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a token amount'**
+  String get sendEnterTokenAmount;
+
+  /// No description provided for @sendYouHold.
+  ///
+  /// In en, this message translates to:
+  /// **'You hold {amount}'**
+  String sendYouHold(String amount);
+
+  /// No description provided for @sendAddRecipient.
+  ///
+  /// In en, this message translates to:
+  /// **'Add another recipient'**
+  String get sendAddRecipient;
+
+  /// No description provided for @sendAdvanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced'**
+  String get sendAdvanced;
+
+  /// No description provided for @sendErgCarried.
+  ///
+  /// In en, this message translates to:
+  /// **'ERG carried with the token'**
+  String get sendErgCarried;
+
+  /// No description provided for @sendBlankMinimumBox.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave blank for the minimum box value of {amount}.'**
+  String sendBlankMinimumBox(String amount);
+
+  /// No description provided for @sendChoose.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose'**
+  String get sendChoose;
+
+  /// No description provided for @sendSpendFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Spend from'**
+  String get sendSpendFrom;
+
+  /// No description provided for @sendDeselectedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Deselected addresses are excluded from coin selection.'**
+  String get sendDeselectedNote;
+
+  /// No description provided for @sendUseAllAddresses.
+  ///
+  /// In en, this message translates to:
+  /// **'Use all addresses'**
+  String get sendUseAllAddresses;
+
+  /// No description provided for @sendPayFeeIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay the miner fee in'**
+  String get sendPayFeeIn;
+
+  /// No description provided for @sendPayFeeInHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'A token fee is bought from a babel box on chain at its posted price; the ERG fee below is what it buys.'**
+  String get sendPayFeeInHelp;
+
+  /// No description provided for @sendMinerFeeErg.
+  ///
+  /// In en, this message translates to:
+  /// **'Miner fee (ERG)'**
+  String get sendMinerFeeErg;
+
+  /// No description provided for @sendBlankDefaultFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave blank for the default {amount}.'**
+  String sendBlankDefaultFee(String amount);
+
+  /// No description provided for @sendMinimum.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum {amount}'**
+  String sendMinimum(String amount);
+
+  /// No description provided for @sendReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Review'**
+  String get sendReview;
+
+  /// No description provided for @sendChooseInputs.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose inputs'**
+  String get sendChooseInputs;
+
+  /// No description provided for @sendAutoInputsNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Celaut will pick boxes for you. Choose some to control exactly what this transaction spends.'**
+  String get sendAutoInputsNote;
+
+  /// No description provided for @sendShortBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Short by {amount} for this amount plus fees.'**
+  String sendShortBy(String amount);
+
+  /// No description provided for @sendBoxTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 token} other{{count} tokens}}'**
+  String sendBoxTokens(int count);
+
+  /// No description provided for @sendBoxBlock.
+  ///
+  /// In en, this message translates to:
+  /// **'block {height}'**
+  String sendBoxBlock(String height);
 }
 
 class _AppLocalizationsDelegate

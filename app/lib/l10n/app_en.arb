@@ -2884,5 +2884,276 @@
   "previewGatewayFieldHelper": "Origin only, port 443. Leave empty to remove.",
   "previewGatewayCheckInfo": "Saving resolves the gateway hostname to check that its addresses are public. Loading checks again and connects only to that address. The gateway can see your IP and which artwork you request.",
   "previewCheckingGateway": "Checking gateway…",
-  "previewSaveGateway": "Save gateway"
+  "previewSaveGateway": "Save gateway",
+  "sendNoSpendableAddresses": "No spendable addresses",
+  "sendCouldNotListBoxes": "Could not list your boxes",
+  "sendContactName": "Contact: {name}",
+  "@sendContactName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "sendSpendableUnknown": "Spendable balance is unknown",
+  "sendNotEnoughForFee": "Not enough ERG for fee and change",
+  "sendNoTokenSelected": "No token selected",
+  "sendSaveToContacts": "Save to contacts",
+  "sendContactSaved": "Contact saved",
+  "sendExceedsBalance": "Amount plus fee exceeds your {balance}",
+  "@sendExceedsBalance": {
+    "placeholders": {
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
+  "sendCouldNotPrepare": "Could not prepare the send",
+  "sendClipboardTitle": "Clipboard holds another address",
+  "sendClipboardDiffersOne": "Something you copied earlier is an Ergo address that differs from the recipient. Malware can swap addresses on the clipboard. Verify every character.",
+  "sendClipboardDiffersMany": "Something you copied earlier is an Ergo address that differs from every recipient. Malware can swap addresses on the clipboard. Verify every character.",
+  "sendRecipientLabel": "Recipient:",
+  "sendRecipientsLabel": "Recipients:",
+  "sendClipboardLabel": "Clipboard:",
+  "sendGoBack": "Go back",
+  "sendRecipientCorrect": "Recipient is correct",
+  "sendRecipientsCorrect": "Recipients are correct",
+  "sendTotalSent": "Total sent",
+  "sendAmount": "Amount",
+  "sendFeePaidIn": "Miner fee paid in {token}",
+  "@sendFeePaidIn": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "sendTokenFallback": "token",
+  "@sendTokenFallback": {
+    "description": "Stands for a token whose name is unknown."
+  },
+  "sendTokensFor": "{tokens} for {erg}",
+  "@sendTokensFor": {
+    "placeholders": {
+      "tokens": {
+        "type": "String"
+      },
+      "erg": {
+        "type": "String"
+      }
+    }
+  },
+  "sendConfirmMulti": "Confirm multi-recipient send",
+  "sendConfirm": "Confirm send",
+  "sendSent": "Sent!",
+  "sendAvailable": "Available {amount}",
+  "@sendAvailable": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sendAllAddresses": "All {all} addresses",
+  "@sendAllAddresses": {
+    "placeholders": {
+      "all": {
+        "type": "String"
+      }
+    }
+  },
+  "sendSomeAddresses": "{picked} of {all} addresses",
+  "@sendSomeAddresses": {
+    "placeholders": {
+      "picked": {
+        "type": "String"
+      },
+      "all": {
+        "type": "String"
+      }
+    }
+  },
+  "sendBoxesChosen": "{count} boxes chosen",
+  "@sendBoxesChosen": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "sendFeeErg": "Fee {amount} ERG",
+  "@sendFeeErg": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sendFeeIn": "Fee in {token}",
+  "@sendFeeIn": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "sendTokensPage": "{count} tokens selected · Page {page} of {pages}",
+  "@sendTokensPage": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "page": {
+        "type": "String"
+      },
+      "pages": {
+        "type": "String"
+      }
+    }
+  },
+  "sendPreviousTokens": "Previous tokens",
+  "sendNextTokens": "Next tokens",
+  "sendSendsOne": "Sends 1 {token} · Available 1",
+  "@sendSendsOne": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "sendTokenAmount": "{token} amount",
+  "@sendTokenAmount": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "sendMax": "MAX",
+  "sendEnterAmount": "Enter an amount",
+  "sendTooMuch": "Too much",
+  "sendRemoveToken": "Remove {token}",
+  "@sendRemoveToken": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "sendPlusTokens": " + {count} tokens",
+  "@sendPlusTokens": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "sendRawTitle": "Raw signed transaction",
+  "sendRawNote": "Transaction is signed but not broadcast. Share or save the raw transaction to submit later via an explorer or another wallet.",
+  "sendDestination": "Destination",
+  "sendRecipientAddress": "Recipient address",
+  "sendRecipientHint": "Or tap contacts to pick a saved one",
+  "sendRequired": "Required",
+  "sendAsset": "Asset",
+  "sendChooseTokens": "Choose tokens",
+  "sendChooseTokensCount": "Choose tokens ({count})",
+  "@sendChooseTokensCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "sendMinimumBox": "Minimum 0.001 ERG",
+  "sendErgWithIt": "ERG to send with it (optional)",
+  "sendBlankFundsTokens": "Blank funds the minimum ERG for these tokens. Review shows the exact amount. {available}",
+  "@sendBlankFundsTokens": {
+    "placeholders": {
+      "available": {
+        "type": "String"
+      }
+    }
+  },
+  "sendAdditionalRecipients": "Additional recipients",
+  "sendRecipientNAddress": "Recipient {number} address",
+  "@sendRecipientNAddress": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "sendAmountErg": "Amount (ERG)",
+  "sendBlankFundsToken": "Blank funds the minimum ERG for this token.",
+  "sendTokenNone": "None",
+  "sendEnterTokenAmount": "Enter a token amount",
+  "sendYouHold": "You hold {amount}",
+  "@sendYouHold": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sendAddRecipient": "Add another recipient",
+  "sendAdvanced": "Advanced",
+  "sendErgCarried": "ERG carried with the token",
+  "sendBlankMinimumBox": "Leave blank for the minimum box value of {amount}.",
+  "@sendBlankMinimumBox": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sendChoose": "Choose",
+  "sendSpendFrom": "Spend from",
+  "sendDeselectedNote": "Deselected addresses are excluded from coin selection.",
+  "sendUseAllAddresses": "Use all addresses",
+  "sendPayFeeIn": "Pay the miner fee in",
+  "sendPayFeeInHelp": "A token fee is bought from a babel box on chain at its posted price; the ERG fee below is what it buys.",
+  "sendMinerFeeErg": "Miner fee (ERG)",
+  "sendBlankDefaultFee": "Leave blank for the default {amount}.",
+  "@sendBlankDefaultFee": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sendMinimum": "Minimum {amount}",
+  "@sendMinimum": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sendReview": "Review",
+  "sendChooseInputs": "Choose inputs",
+  "sendAutoInputsNote": "Celaut will pick boxes for you. Choose some to control exactly what this transaction spends.",
+  "sendShortBy": "Short by {amount} for this amount plus fees.",
+  "@sendShortBy": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sendBoxTokens": "{count, plural, =1{1 token} other{{count} tokens}}",
+  "@sendBoxTokens": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sendBoxBlock": "block {height}",
+  "@sendBoxBlock": {
+    "placeholders": {
+      "height": {
+        "type": "String"
+      }
+    }
+  }
 }

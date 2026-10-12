@@ -4251,4 +4251,310 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get previewSaveGateway => 'Save gateway';
+
+  @override
+  String get sendNoSpendableAddresses => 'No spendable addresses';
+
+  @override
+  String get sendCouldNotListBoxes => 'Could not list your boxes';
+
+  @override
+  String sendContactName(String name) {
+    return 'Contact: $name';
+  }
+
+  @override
+  String get sendSpendableUnknown => 'Spendable balance is unknown';
+
+  @override
+  String get sendNotEnoughForFee => 'Not enough ERG for fee and change';
+
+  @override
+  String get sendNoTokenSelected => 'No token selected';
+
+  @override
+  String get sendSaveToContacts => 'Save to contacts';
+
+  @override
+  String get sendContactSaved => 'Contact saved';
+
+  @override
+  String sendExceedsBalance(String balance) {
+    return 'Amount plus fee exceeds your $balance';
+  }
+
+  @override
+  String get sendCouldNotPrepare => 'Could not prepare the send';
+
+  @override
+  String get sendClipboardTitle => 'Clipboard holds another address';
+
+  @override
+  String get sendClipboardDiffersOne =>
+      'Something you copied earlier is an Ergo address that differs from the recipient. Malware can swap addresses on the clipboard. Verify every character.';
+
+  @override
+  String get sendClipboardDiffersMany =>
+      'Something you copied earlier is an Ergo address that differs from every recipient. Malware can swap addresses on the clipboard. Verify every character.';
+
+  @override
+  String get sendRecipientLabel => 'Recipient:';
+
+  @override
+  String get sendRecipientsLabel => 'Recipients:';
+
+  @override
+  String get sendClipboardLabel => 'Clipboard:';
+
+  @override
+  String get sendGoBack => 'Go back';
+
+  @override
+  String get sendRecipientCorrect => 'Recipient is correct';
+
+  @override
+  String get sendRecipientsCorrect => 'Recipients are correct';
+
+  @override
+  String get sendTotalSent => 'Total sent';
+
+  @override
+  String get sendAmount => 'Amount';
+
+  @override
+  String sendFeePaidIn(String token) {
+    return 'Miner fee paid in $token';
+  }
+
+  @override
+  String get sendTokenFallback => 'token';
+
+  @override
+  String sendTokensFor(String tokens, String erg) {
+    return '$tokens for $erg';
+  }
+
+  @override
+  String get sendConfirmMulti => 'Confirm multi-recipient send';
+
+  @override
+  String get sendConfirm => 'Confirm send';
+
+  @override
+  String get sendSent => 'Sent!';
+
+  @override
+  String sendAvailable(String amount) {
+    return 'Available $amount';
+  }
+
+  @override
+  String sendAllAddresses(String all) {
+    return 'All $all addresses';
+  }
+
+  @override
+  String sendSomeAddresses(String picked, String all) {
+    return '$picked of $all addresses';
+  }
+
+  @override
+  String sendBoxesChosen(String count) {
+    return '$count boxes chosen';
+  }
+
+  @override
+  String sendFeeErg(String amount) {
+    return 'Fee $amount ERG';
+  }
+
+  @override
+  String sendFeeIn(String token) {
+    return 'Fee in $token';
+  }
+
+  @override
+  String sendTokensPage(String count, String page, String pages) {
+    return '$count tokens selected · Page $page of $pages';
+  }
+
+  @override
+  String get sendPreviousTokens => 'Previous tokens';
+
+  @override
+  String get sendNextTokens => 'Next tokens';
+
+  @override
+  String sendSendsOne(String token) {
+    return 'Sends 1 $token · Available 1';
+  }
+
+  @override
+  String sendTokenAmount(String token) {
+    return '$token amount';
+  }
+
+  @override
+  String get sendMax => 'MAX';
+
+  @override
+  String get sendEnterAmount => 'Enter an amount';
+
+  @override
+  String get sendTooMuch => 'Too much';
+
+  @override
+  String sendRemoveToken(String token) {
+    return 'Remove $token';
+  }
+
+  @override
+  String sendPlusTokens(String count) {
+    return ' + $count tokens';
+  }
+
+  @override
+  String get sendRawTitle => 'Raw signed transaction';
+
+  @override
+  String get sendRawNote =>
+      'Transaction is signed but not broadcast. Share or save the raw transaction to submit later via an explorer or another wallet.';
+
+  @override
+  String get sendDestination => 'Destination';
+
+  @override
+  String get sendRecipientAddress => 'Recipient address';
+
+  @override
+  String get sendRecipientHint => 'Or tap contacts to pick a saved one';
+
+  @override
+  String get sendRequired => 'Required';
+
+  @override
+  String get sendAsset => 'Asset';
+
+  @override
+  String get sendChooseTokens => 'Choose tokens';
+
+  @override
+  String sendChooseTokensCount(String count) {
+    return 'Choose tokens ($count)';
+  }
+
+  @override
+  String get sendMinimumBox => 'Minimum 0.001 ERG';
+
+  @override
+  String get sendErgWithIt => 'ERG to send with it (optional)';
+
+  @override
+  String sendBlankFundsTokens(String available) {
+    return 'Blank funds the minimum ERG for these tokens. Review shows the exact amount. $available';
+  }
+
+  @override
+  String get sendAdditionalRecipients => 'Additional recipients';
+
+  @override
+  String sendRecipientNAddress(String number) {
+    return 'Recipient $number address';
+  }
+
+  @override
+  String get sendAmountErg => 'Amount (ERG)';
+
+  @override
+  String get sendBlankFundsToken =>
+      'Blank funds the minimum ERG for this token.';
+
+  @override
+  String get sendTokenNone => 'None';
+
+  @override
+  String get sendEnterTokenAmount => 'Enter a token amount';
+
+  @override
+  String sendYouHold(String amount) {
+    return 'You hold $amount';
+  }
+
+  @override
+  String get sendAddRecipient => 'Add another recipient';
+
+  @override
+  String get sendAdvanced => 'Advanced';
+
+  @override
+  String get sendErgCarried => 'ERG carried with the token';
+
+  @override
+  String sendBlankMinimumBox(String amount) {
+    return 'Leave blank for the minimum box value of $amount.';
+  }
+
+  @override
+  String get sendChoose => 'Choose';
+
+  @override
+  String get sendSpendFrom => 'Spend from';
+
+  @override
+  String get sendDeselectedNote =>
+      'Deselected addresses are excluded from coin selection.';
+
+  @override
+  String get sendUseAllAddresses => 'Use all addresses';
+
+  @override
+  String get sendPayFeeIn => 'Pay the miner fee in';
+
+  @override
+  String get sendPayFeeInHelp =>
+      'A token fee is bought from a babel box on chain at its posted price; the ERG fee below is what it buys.';
+
+  @override
+  String get sendMinerFeeErg => 'Miner fee (ERG)';
+
+  @override
+  String sendBlankDefaultFee(String amount) {
+    return 'Leave blank for the default $amount.';
+  }
+
+  @override
+  String sendMinimum(String amount) {
+    return 'Minimum $amount';
+  }
+
+  @override
+  String get sendReview => 'Review';
+
+  @override
+  String get sendChooseInputs => 'Choose inputs';
+
+  @override
+  String get sendAutoInputsNote =>
+      'Celaut will pick boxes for you. Choose some to control exactly what this transaction spends.';
+
+  @override
+  String sendShortBy(String amount) {
+    return 'Short by $amount for this amount plus fees.';
+  }
+
+  @override
+  String sendBoxTokens(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tokens',
+      one: '1 token',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String sendBoxBlock(String height) {
+    return 'block $height';
+  }
 }

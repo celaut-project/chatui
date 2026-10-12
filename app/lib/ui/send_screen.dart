@@ -24,6 +24,7 @@ import 'widgets/held_token_picker.dart';
 import 'widgets/amount_entry.dart';
 import 'widgets/entry_dialogs.dart';
 import 'widgets/rent_hint.dart';
+import '../l10n/l10n.dart';
 
 class SendScreen extends StatefulWidget {
   const SendScreen({
@@ -98,7 +99,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
         ? _selectedSpendAddresses.toList()
         : _allSpendAddresses;
     if (spend.isEmpty) {
-      _snack('No spendable addresses');
+      _snack(context.l10n.sendNoSpendableAddresses);
       return;
     }
     setState(() => _loadingBoxes = true);
@@ -107,7 +108,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
     } catch (e) {
       if (!mounted) return;
       setState(() => _loadingBoxes = false);
-      showErrorSheet(context, title: 'Could not list your boxes', message: '$e');
+      showErrorSheet(context, title: context.l10n.sendCouldNotListBoxes, message: '$e');
       return;
     }
     if (!mounted) return;
@@ -220,7 +221,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
     final addr = _recipientCtrl.text.trim();
     if (addr.isEmpty) return null;
     for (final c in contactsService.contacts) {
-      if (c.address == addr) return 'Contact: ${c.name}';
+      if (c.address == addr) return context.l10n.sendContactName(c.name);
     }
     return null;
   }
@@ -228,7 +229,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
   void _applyMaxErg() {
     final spendable = _args.spendableNano;
     if (spendable == null) {
-      _snack('Spendable balance is unknown');
+      _snack(context.l10n.sendSpendableUnknown);
       return;
     }
     final otherRecipients = _extraRecipients.fold<int>(0, (sum, recipient) {
@@ -243,7 +244,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
       feePaidInToken: _feeTokenId != null,
     );
     if (max < minBoxNano) {
-      _snack('Not enough ERG for fee and change');
+      _snack(context.l10n.sendNotEnoughForFee);
       return;
     }
     _amountCtrl.text = formatErg(max, unit: false);
@@ -253,7 +254,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
   void _applyMaxToken() {
     final token = _selectedToken;
     if (token == null || (token.amount == 1 && token.decimals == 0)) {
-      _snack('No token selected');
+      _snack(context.l10n.sendNoTokenSelected);
       return;
     }
     _tokenAmtCtrl.text = formatTokenAmount(token.amount, token.decimals);
@@ -273,7 +274,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
     }
     final pay = parseErgoUri(raw);
     if (pay == null) {
-      _snack('Not an Ergo address');
+      _snack(context.l10n.commonNotAnErgoAddress);
       return;
     }
     _recipientCtrl.text = pay.address;
@@ -290,8 +291,8 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
     final name = (await showDialog<String>(
       context: context,
       builder: (ctx) => TextEntryDialog(
-        title: 'Save to contacts',
-        label: 'Name',
+        title: context.l10n.sendSaveToContacts,
+        label: context.l10n.commonName,
         textCapitalization: TextCapitalization.words,
         footer: Text(shorten(addr, head: 10, tail: 10), style: monoStyle(ctx, size: 11)),
       ),
@@ -299,7 +300,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
         ?.trim();
     if (name == null || name.isEmpty) return;
     await contactsService.add(name, addr);
-    _snack('Contact saved');
+    _snack(context.l10n.sendContactSaved);
   }
 
   /// Every recipient as typed, main form first. A token send with a blank
@@ -335,7 +336,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
         ? _selectedSpendAddresses.toList()
         : _allSpendAddresses;
     if (spend.isEmpty) {
-      _snack('No spendable addresses');
+      _snack(context.l10n.sendNoSpendableAddresses);
       return;
     }
 
@@ -350,7 +351,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
     final fee = parseErgToNano(_feeCtrl.text) ?? minerFeeNano;
     if (spendable != null && totalNanoErg(recipients) +
         (_feeTokenId == null ? fee : 0) > spendable) {
-      _snack('Amount plus fee exceeds your ${formatErg(spendable, maxFrac: 4)}');
+      _snack(context.l10n.sendExceedsBalance(formatErg(spendable, maxFrac: 4)));
       return;
     }
 
@@ -391,7 +392,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
     } catch (e) {
       if (!mounted) return;
       setState(() => _sending = false);
-      showErrorSheet(context, title: 'Could not prepare the send', message: '$e');
+      showErrorSheet(context, title: context.l10n.sendCouldNotPrepare, message: '$e');
     }
   }
 
@@ -417,24 +418,24 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
     final proceed = await showDialog<bool>(
       context: ctx,
       builder: (context) => AlertDialog(
-        title: const Text('Clipboard holds another address'),
+        title: Text(context.l10n.sendClipboardTitle),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Something you copied earlier is an Ergo address that differs '
-                'from ${others.isEmpty ? 'the recipient' : 'every recipient'}. '
-                'Malware can swap addresses on the clipboard. Verify every character.',
+                others.isEmpty
+                    ? context.l10n.sendClipboardDiffersOne
+                    : context.l10n.sendClipboardDiffersMany,
               ),
               const SizedBox(height: 12),
-              Text(others.isEmpty ? 'Recipient:' : 'Recipients:',
+              Text(others.isEmpty ? context.l10n.sendRecipientLabel : context.l10n.sendRecipientsLabel,
                   style: Theme.of(context).textTheme.titleSmall),
               SelectableText(recipients.join('\n\n'),
                   style: monoStyle(context, size: 12)),
               const SizedBox(height: 8),
-              Text('Clipboard:', style: Theme.of(context).textTheme.titleSmall),
+              Text(context.l10n.sendClipboardLabel, style: Theme.of(context).textTheme.titleSmall),
               SelectableText(clipText, style: monoStyle(context, size: 12)),
             ],
           ),
@@ -442,11 +443,11 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Go back'),
+            child: Text(context.l10n.sendGoBack),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(others.isEmpty ? 'Recipient is correct' : 'Recipients are correct'),
+            child: Text(others.isEmpty ? context.l10n.sendRecipientCorrect : context.l10n.sendRecipientsCorrect),
           ),
         ],
       ),
@@ -475,26 +476,26 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
             '${_tokensSuffix(r)}',
           ),
       ConfirmTxRow(
-        isMulti ? 'Total sent' : 'Amount',
+        isMulti ? context.l10n.sendTotalSent : context.l10n.sendAmount,
         formatErg(preview.amountNanoErg),
         bold: true,
       ),
       if (!isMulti && tokenId != null && tokenId.isNotEmpty)
-        ConfirmTxRow('Token', _tokenLabel(preview.tokenAmount ?? 0, tokenId), bold: true),
+        ConfirmTxRow(context.l10n.commonToken, _tokenLabel(preview.tokenAmount ?? 0, tokenId), bold: true),
       if (preview.babel case final b?)
         ConfirmTxRow(
-          'Miner fee paid in ${_tokenById(b.tokenId)?.label ?? 'token'}',
-          '${_tokenLabel(b.tokensPaid, b.tokenId)} for ${formatErg(b.feeNano)}',
+          context.l10n.sendFeePaidIn(_tokenById(b.tokenId)?.label ?? context.l10n.sendTokenFallback),
+          context.l10n.sendTokensFor(_tokenLabel(b.tokensPaid, b.tokenId), formatErg(b.feeNano)),
           bold: true,
         )
       else
-        ConfirmTxRow('Miner fee', formatErg(preview.minerFee)),
-      ConfirmTxRow('Change to you', formatErg(preview.changeNanoErg)),
+        ConfirmTxRow(context.l10n.commonMinerFee, formatErg(preview.minerFee)),
+      ConfirmTxRow(context.l10n.ergopayRowChange, formatErg(preview.changeNanoErg)),
     ];
     final fiat = networkController.fiatText(preview.amountNanoErg);
     final choice = await showConfirmTransactionChoice(
       context,
-      title: (preview.recipients?.length ?? 1) > 1 ? 'Confirm multi-recipient send' : 'Confirm send',
+      title: (preview.recipients?.length ?? 1) > 1 ? context.l10n.sendConfirmMulti : context.l10n.sendConfirm,
       rows: rows,
       recipientAddress: isMulti
           ? (preview.recipients ?? const <Map<String, dynamic>>[])
@@ -502,7 +503,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
           : preview.recipient,
       detail: [
         if (fiat != null) fiat,
-        networkController.activeUrl ?? 'Node not chosen yet',
+        networkController.activeUrl ?? context.l10n.ergopayNodeNotChosen,
       ].join('  ·  '),
       allowSignOnly: true,
       preparationId: preview.preparationId,
@@ -522,7 +523,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
         } catch (e) {
           if (!mounted) return;
           setState(() => _sending = false);
-          showErrorSheet(context, title: 'Signing failed', message: '$e');
+          showErrorSheet(context, title: context.l10n.errorSigningFailed, message: '$e');
         }
       case ConfirmChoice.broadcast:
         try {
@@ -530,7 +531,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
             preparationId: preview.preparationId,
           );
           if (!mounted || ModalRoute.of(context)?.isCurrent != true) {
-            showTxResultSheet(receiptContext, txId: txId, headline: 'Sent!');
+            showTxResultSheet(receiptContext, txId: txId, headline: appL10n.sendSent);
             return;
           }
           HapticFeedback.mediumImpact();
@@ -621,7 +622,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
   String? _availableLine() {
     final available = _args.spendableNano;
     if (available == null) return null;
-    return 'Available ${formatErg(available, maxFrac: 4)}';
+    return context.l10n.sendAvailable(formatErg(available, maxFrac: 4));
   }
 
   String _advancedSummary() {
@@ -629,11 +630,11 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
     final picked = _selectedSpendAddresses.length;
     final fee = parseErgToNano(_feeCtrl.text) ?? minerFeeNano;
     return [
-      picked == 0 ? 'All $all addresses' : '$picked of $all addresses',
-      if (_chosenBoxIds.isNotEmpty) '${_chosenBoxIds.length} boxes chosen',
+      picked == 0 ? context.l10n.sendAllAddresses('$all') : context.l10n.sendSomeAddresses('$picked', '$all'),
+      if (_chosenBoxIds.isNotEmpty) context.l10n.sendBoxesChosen('${_chosenBoxIds.length}'),
       _feeTokenId == null
-          ? 'Fee ${formatErg(fee, unit: false)} ERG'
-          : 'Fee in ${_tokenById(_feeTokenId)?.label ?? 'token'}',
+          ? context.l10n.sendFeeErg(formatErg(fee, unit: false))
+          : context.l10n.sendFeeIn(_tokenById(_feeTokenId)?.label ?? context.l10n.sendTokenFallback),
     ].join('  ·  ');
   }
 
@@ -681,18 +682,18 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
             children: [
               Expanded(
                 child: Text(
-                  '${entries.length} tokens selected · Page ${_tokenPage + 1} of $pages',
+                  context.l10n.sendTokensPage('${entries.length}', '${_tokenPage + 1}', '$pages'),
                 ),
               ),
               IconButton(
-                tooltip: 'Previous tokens',
+                tooltip: context.l10n.sendPreviousTokens,
                 onPressed: _tokenPage > 0
                     ? () => setState(() => _tokenPage--)
                     : null,
                 icon: const Icon(Icons.chevron_left),
               ),
               IconButton(
-                tooltip: 'Next tokens',
+                tooltip: context.l10n.sendNextTokens,
                 onPressed: _tokenPage + 1 < pages
                     ? () => setState(() => _tokenPage++)
                     : null,
@@ -714,14 +715,14 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
         children: [
           Expanded(
             child: (token.amount == 1 && token.decimals == 0)
-                ? Text('Sends 1 ${token.label} · Available 1')
+                ? Text(context.l10n.sendSendsOne(token.label))
                 : TextFormField(
                     key: ValueKey('amount-${token.id}'),
                     controller: controller,
                     decoration: InputDecoration(
-                      labelText: '${token.label} amount',
-                      helperText:
-                          'Available ${formatTokenAmount(token.amount, token.decimals)}',
+                      labelText: context.l10n.sendTokenAmount(token.label),
+                      helperText: context.l10n.sendAvailable(
+                          formatTokenAmount(token.amount, token.decimals)),
                       suffixIcon: TextButton(
                         onPressed: () {
                           if (token.id == _assetId) {
@@ -735,7 +736,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                             );
                           }
                         },
-                        child: const Text('MAX'),
+                        child: Text(context.l10n.sendMax),
                       ),
                     ),
                     keyboardType: const TextInputType.numberWithOptions(
@@ -745,14 +746,14 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                     onChanged: (_) => setState(() {}),
                     validator: (v) {
                       final n = parseDecimalToBase(v ?? '', token.decimals);
-                      if (n == null || n <= 0) return 'Enter an amount';
-                      if (n > token.amount) return 'Too much';
+                      if (n == null || n <= 0) return context.l10n.sendEnterAmount;
+                      if (n > token.amount) return context.l10n.sendTooMuch;
                       return null;
                     },
                   ),
           ),
           IconButton(
-            tooltip: 'Remove ${token.label}',
+            tooltip: context.l10n.sendRemoveToken(token.label),
             icon: const Icon(Icons.close),
             onPressed: () =>
                 _selectHeld(_heldAmounts.keys.toSet()..remove(token.id)),
@@ -766,7 +767,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
   String _tokensSuffix(Map<String, dynamic> r) {
     final list = r['tokens'];
     if (list is List && list.isNotEmpty) {
-      if (list.length > 10) return ' + ${list.length} tokens';
+      if (list.length > 10) return context.l10n.sendPlusTokens('${list.length}');
       return [
         for (final t in list.cast<Map>()) ' + ${_tokenLabel((t['amount'] as num?)?.toInt() ?? 0, t['token_id'] as String)}',
       ].join();
@@ -794,16 +795,15 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Raw signed transaction'),
+        title: Text(context.l10n.sendRawTitle),
         content: SizedBox(
           width: double.maxFinite,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Transaction is signed but not broadcast. Share or save the raw transaction '
-                'to submit later via an explorer or another wallet.',
-                style: TextStyle(fontSize: 12),
+              Text(
+                context.l10n.sendRawNote,
+                style: const TextStyle(fontSize: 12),
               ),
               const SizedBox(height: 12),
               ConstrainedBox(
@@ -822,7 +822,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
           TextButton.icon(
             onPressed: () => Clipboard.setData(ClipboardData(text: rawTxJson)),
             icon: const Icon(Icons.copy, size: 16),
-            label: const Text('Copy'),
+            label: Text(context.l10n.commonCopy),
           ),
           TextButton.icon(
                 onPressed: () async {
@@ -832,9 +832,9 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                   ));
                 },
             icon: const Icon(Icons.share, size: 16),
-            label: const Text('Share'),
+            label: Text(context.l10n.receiveShare),
           ),
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.l10n.commonClose)),
         ],
       ),
     );
@@ -845,10 +845,10 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
     final token = _selectedToken;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Send'),
+        title: Text(context.l10n.homeActionSend),
         actions: [
           IconButton(
-            tooltip: 'Contacts',
+            tooltip: context.l10n.commonContacts,
             onPressed: () async {
               // Untyped on purpose: the app's routes are built untyped, and
               // a typed push throws before the picker even opens.
@@ -863,7 +863,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
             icon: const Icon(Icons.people_outline),
           ),
           IconButton(
-            tooltip: 'Scan',
+            tooltip: context.l10n.scanTitle,
             onPressed: _scan,
             icon: const Icon(Icons.qr_code_scanner),
           ),
@@ -873,7 +873,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
           ? Center(
               child: TxResultView(
                 txId: _resultTxId!,
-                headline: 'Sent!',
+                headline: context.l10n.sendSent,
                 onDismiss: () => Navigator.pop(context),
               ),
             )
@@ -884,14 +884,14 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                 child: ListView(
                   children: [
                     const OfflineBanner(),
-                    const SectionLabel('Destination'),
+                    SectionLabel(context.l10n.sendDestination),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _recipientCtrl,
                       style: monoStyle(context, size: 13),
                       decoration: InputDecoration(
-                        labelText: 'Recipient address',
-                        hintText: 'Or tap contacts to pick a saved one',
+                        labelText: context.l10n.sendRecipientAddress,
+                        hintText: context.l10n.sendRecipientHint,
                         helperText: _contactForRecipient,
                       ),
                       onChanged: (_) {
@@ -900,8 +900,8 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                         setState(() {});
                       },
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'Required';
-                        if (!looksLikeRecipient(v)) return 'Not an Ergo address';
+                        if (v == null || v.trim().isEmpty) return context.l10n.sendRequired;
+                        if (!looksLikeRecipient(v)) return context.l10n.commonNotAnErgoAddress;
                         return null;
                       },
                     ),
@@ -911,11 +911,11 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                         child: TextButton.icon(
                           onPressed: _saveRecipientToContacts,
                           icon: const Icon(Icons.person_add_alt, size: 18),
-                          label: const Text('Save to contacts'),
+                          label: Text(context.l10n.sendSaveToContacts),
                         ),
                       ),
                     const SizedBox(height: 24),
-                    const SectionLabel('Asset'),
+                    SectionLabel(context.l10n.sendAsset),
                     const SizedBox(height: 12),
                     Align(alignment: Alignment.centerLeft, child: FilledButton.icon(
                       onPressed: () async {
@@ -923,7 +923,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                         if (ids != null && mounted) _selectHeld(ids);
                       },
                       icon: const Icon(Icons.checklist),
-                      label: Text(_heldAmounts.isEmpty ? 'Choose tokens' : 'Choose tokens (${_heldAmounts.length})'),
+                      label: Text(_heldAmounts.isEmpty ? context.l10n.sendChooseTokens : context.l10n.sendChooseTokensCount('${_heldAmounts.length}')),
                     )),
                     const SizedBox(height: 12),
                     if (token == null)
@@ -934,7 +934,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                         onChanged: (_) => setState(() {}),
                         validator: (v) {
                           final n = parseErgToNano(v ?? '');
-                          if (n == null || n < minBoxNano) return 'Minimum 0.001 ERG';
+                          if (n == null || n < minBoxNano) return context.l10n.sendMinimumBox;
                           return null;
                         },
                       ),
@@ -945,14 +945,14 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                       const SizedBox(height: 12),
                       AmountEntry(
                         controller: _amountCtrl,
-                        label: 'ERG to send with it (optional)',
-                        helperText: 'Blank funds the minimum ERG for these tokens. Review shows the exact amount. ${_availableLine() ?? ''}',
+                        label: context.l10n.sendErgWithIt,
+                        helperText: context.l10n.sendBlankFundsTokens(_availableLine() ?? ''),
                         onMax: _applyMaxErg,
                         onChanged: (_) => setState(() {}),
                         validator: (v) {
                           if (v == null || v.trim().isEmpty) return null;
                           final n = parseErgToNano(v);
-                          if (n == null || n < minBoxNano) return 'Minimum 0.001 ERG';
+                          if (n == null || n < minBoxNano) return context.l10n.sendMinimumBox;
                           return null;
                         },
                       ),
@@ -969,7 +969,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Additional recipients',
+                            context.l10n.sendAdditionalRecipients,
                             style: Theme.of(context).textTheme.titleSmall,
                           ),
                           const SizedBox(height: 8),
@@ -987,15 +987,15 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                                     TextFormField(
                                       controller: entry.addressCtrl,
                                       decoration: InputDecoration(
-                                        labelText: 'Recipient ${idx + 2} address',
+                                        labelText: context.l10n.sendRecipientNAddress('${idx + 2}'),
                                         hintText: '9...',
                                       ),
                                       style: monoStyle(context, size: 13),
                                       onChanged: (_) => setState(() {}),
                                       validator: (v) {
-                                        if (v == null || v.trim().isEmpty) return 'Required';
+                                        if (v == null || v.trim().isEmpty) return context.l10n.sendRequired;
                                         if (!looksLikeRecipient(v)) {
-                                          return 'Not an Ergo address';
+                                          return context.l10n.commonNotAnErgoAddress;
                                         }
                                         return null;
                                       },
@@ -1003,13 +1003,13 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                                     const SizedBox(height: 12),
                                     AmountEntry(
                                       controller: entry.amountCtrl,
-                                      label: entryToken == null ? 'Amount (ERG)' : 'ERG to send with it (optional)',
-                                      helperText: entryToken == null ? null : 'Blank funds the minimum ERG for this token.',
+                                      label: entryToken == null ? context.l10n.sendAmountErg : context.l10n.sendErgWithIt,
+                                      helperText: entryToken == null ? null : context.l10n.sendBlankFundsToken,
                                       onChanged: (_) => setState(() {}),
                                       validator: (v) {
                                         if (entryToken != null && (v == null || v.trim().isEmpty)) return null;
                                         final n = parseErgToNano(v ?? '');
-                                        if (n == null || n < minBoxNano) return 'Minimum 0.001 ERG';
+                                        if (n == null || n < minBoxNano) return context.l10n.sendMinimumBox;
                                         return null;
                                       },
                                     ),
@@ -1017,9 +1017,9 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                                       const SizedBox(height: 12),
                                       DropdownButtonFormField<String?>(
                                         initialValue: entry.tokenId,
-                                        decoration: const InputDecoration(labelText: 'Token'),
+                                        decoration: InputDecoration(labelText: context.l10n.commonToken),
                                         items: [
-                                          const DropdownMenuItem(value: null, child: Text('None')),
+                                          DropdownMenuItem(value: null, child: Text(context.l10n.sendTokenNone)),
                                           ..._args.tokens.map(
                                             (t) => DropdownMenuItem(value: t.id, child: Text(t.label)),
                                           ),
@@ -1038,22 +1038,22 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                                         if (entryToken.amount == 1 && entryToken.decimals == 0)
                                           Align(
                                             alignment: Alignment.centerLeft,
-                                            child: Text('Sends 1 ${entryToken.label} · Available 1'),
+                                            child: Text(context.l10n.sendSendsOne(entryToken.label)),
                                           )
                                         else TextFormField(
                                           controller: entry.tokenAmtCtrl,
                                           decoration: InputDecoration(
-                                            labelText: '${entryToken.label} amount',
-                                            helperText:
-                                                'Available ${formatTokenAmount(entryToken.amount, entryToken.decimals)}',
+                                            labelText: context.l10n.sendTokenAmount(entryToken.label),
+                                            helperText: context.l10n.sendAvailable(
+                                                formatTokenAmount(entryToken.amount, entryToken.decimals)),
                                           ),
                                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                           onChanged: (_) => setState(() {}),
                                           validator: (v) {
                                             final n = parseDecimalToBase(v ?? '', entryToken.decimals);
-                                            if (n == null || n <= 0) return 'Enter a token amount';
+                                            if (n == null || n <= 0) return context.l10n.sendEnterTokenAmount;
                                             if (n > entryToken.amount) {
-                                              return 'You hold ${formatTokenAmount(entryToken.amount, entryToken.decimals)}';
+                                              return context.l10n.sendYouHold(formatTokenAmount(entryToken.amount, entryToken.decimals));
                                             }
                                             return null;
                                           },
@@ -1080,7 +1080,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                                           WidgetsBinding.instance.addPostFrameCallback((_) => entry.dispose());
                                         },
                                         icon: const Icon(Icons.delete, size: 16),
-                                        label: const Text('Remove'),
+                                        label: Text(context.l10n.commonRemove),
                                       ),
                                     ),
                                   ],
@@ -1095,7 +1095,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                               });
                             },
                             icon: const Icon(Icons.add, size: 18),
-                            label: const Text('Add another recipient'),
+                            label: Text(context.l10n.sendAddRecipient),
                           ),
                         ],
                       )
@@ -1107,11 +1107,11 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                           });
                         },
                         icon: const Icon(Icons.person_add, size: 18),
-                        label: const Text('Add another recipient'),
+                        label: Text(context.l10n.sendAddRecipient),
                       ),
                     const SizedBox(height: 16),
                     ExpansionTile(
-                      title: const Text('Advanced'),
+                      title: Text(context.l10n.sendAdvanced),
                       subtitle: Text(
                         _advancedSummary(),
                         style: Theme.of(context).textTheme.bodySmall,
@@ -1124,16 +1124,16 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                           TextFormField(
                             controller: _amountCtrl,
                             decoration: InputDecoration(
-                              labelText: 'ERG carried with the token',
+                              labelText: context.l10n.sendErgCarried,
                               hintText: formatErg(minBoxNano, unit: false),
                               helperText:
-                                  'Leave blank for the minimum box value of ${formatErg(minBoxNano)}.',
+                                  context.l10n.sendBlankMinimumBox(formatErg(minBoxNano)),
                             ),
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
                             validator: (v) {
                               if (v == null || v.trim().isEmpty) return null;
                               final n = parseErgToNano(v);
-                              if (n == null || n < minBoxNano) return 'Minimum 0.001 ERG';
+                              if (n == null || n < minBoxNano) return context.l10n.sendMinimumBox;
                               return null;
                             },
                           ),
@@ -1142,7 +1142,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
-                            'Inputs',
+                            context.l10n.ergopayRowInputs,
                             style: Theme.of(context).textTheme.titleSmall,
                           ),
                         ),
@@ -1158,7 +1158,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                             TextButton(
                               key: const Key('choose-inputs'),
                               onPressed: _loadingBoxes ? null : _openInputPicker,
-                              child: Text(_loadingBoxes ? 'Loading…' : 'Choose'),
+                              child: Text(_loadingBoxes ? context.l10n.homeLoading : context.l10n.sendChoose),
                             ),
                           ],
                         ),
@@ -1172,7 +1172,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
-                            'Spend from',
+                            context.l10n.sendSpendFrom,
                             style: Theme.of(context).textTheme.titleSmall,
                           ),
                         ),
@@ -1180,7 +1180,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
-                            'Deselected addresses are excluded from coin selection.',
+                            context.l10n.sendDeselectedNote,
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ),
@@ -1213,7 +1213,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                             alignment: Alignment.centerLeft,
                             child: TextButton(
                               onPressed: () => setState(() => _selectedSpendAddresses.clear()),
-                              child: const Text('Use all addresses'),
+                              child: Text(context.l10n.sendUseAllAddresses),
                             ),
                           ),
                         if (_args.tokens.isNotEmpty) ...[
@@ -1221,9 +1221,9 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                           DropdownButtonFormField<String?>(
                             key: const Key('send-fee-token'),
                             initialValue: _feeTokenId,
-                            decoration: const InputDecoration(
-                              labelText: 'Pay the miner fee in',
-                              helperText: 'A token fee is bought from a babel box on chain at its posted price; the ERG fee below is what it buys.',
+                            decoration: InputDecoration(
+                              labelText: context.l10n.sendPayFeeIn,
+                              helperText: context.l10n.sendPayFeeInHelp,
                               helperMaxLines: 3,
                             ),
                             items: [
@@ -1238,16 +1238,16 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                         TextFormField(
                           controller: _feeCtrl,
                           decoration: InputDecoration(
-                            labelText: 'Miner fee (ERG)',
+                            labelText: context.l10n.sendMinerFeeErg,
                             hintText: formatErg(minerFeeNano, unit: false),
-                            helperText: 'Leave blank for the default ${formatErg(minerFeeNano)}.',
+                            helperText: context.l10n.sendBlankDefaultFee(formatErg(minerFeeNano)),
                           ),
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           onChanged: (_) => setState(() {}),
                           validator: (v) {
                             if (v == null || v.trim().isEmpty) return null;
                             final n = parseErgToNano(v);
-                            if (n == null || n < minerFeeNano) return 'Minimum ${formatErg(minerFeeNano)}';
+                            if (n == null || n < minerFeeNano) return context.l10n.sendMinimum(formatErg(minerFeeNano));
                             return null;
                           },
                         ),
@@ -1262,7 +1262,7 @@ class _SendScreenState extends State<SendScreen> with TxReceiptOwner {
                               height: 20,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Text('Review'),
+                          : Text(context.l10n.sendReview),
                     ),
                   ],
                 ),
@@ -1309,24 +1309,24 @@ class _InputPickerSheet extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text('Choose inputs',
+                  child: Text(context.l10n.sendChooseInputs,
                       style: Theme.of(context).textTheme.titleLarge),
                 ),
                 if (chosen.isNotEmpty)
-                  TextButton(onPressed: onClear, child: const Text('Automatic')),
+                  TextButton(onPressed: onClear, child: Text(context.l10n.networkAutomatic)),
               ],
             ),
             const SizedBox(height: 4),
             Text(
               chosen.isEmpty
-                  ? 'Celaut will pick boxes for you. Choose some to control exactly what this transaction spends.'
+                  ? context.l10n.sendAutoInputsNote
                   : selectionSummary(selection),
               style: TextStyle(fontSize: 12.5, color: colors.muted),
             ),
             if (chosen.isNotEmpty && !check.covers) ...[
               const SizedBox(height: 6),
               Text(
-                'Short by ${formatErg(check.shortfallNano, maxFrac: 4)} for this amount plus fees.',
+                context.l10n.sendShortBy(formatErg(check.shortfallNano, maxFrac: 4)),
                 style: TextStyle(fontSize: 12.5, color: rustFor(context)),
               ),
             ],
@@ -1355,8 +1355,8 @@ class _InputPickerSheet extends StatelessWidget {
                       [
                         if (b.address != null && b.address!.isNotEmpty)
                           shorten(b.address!, head: 6, tail: 4),
-                        if (tokens > 0) '$tokens token${tokens == 1 ? '' : 's'}',
-                        'block ${b.creationHeight}',
+                        if (tokens > 0) context.l10n.sendBoxTokens(tokens),
+                        context.l10n.sendBoxBlock('${b.creationHeight}'),
                       ].join(' · '),
                       style: TextStyle(fontSize: 11.5, color: colors.muted),
                     ),
@@ -1369,7 +1369,7 @@ class _InputPickerSheet extends StatelessWidget {
               width: double.infinity,
               child: FilledButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Done'),
+                child: Text(context.l10n.commonDone),
               ),
             ),
           ],

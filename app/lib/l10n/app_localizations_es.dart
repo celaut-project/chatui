@@ -4318,4 +4318,311 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get previewSaveGateway => 'Guardar pasarela';
+
+  @override
+  String get sendNoSpendableAddresses => 'No hay direcciones para gastar';
+
+  @override
+  String get sendCouldNotListBoxes => 'No se pudieron listar tus cajas';
+
+  @override
+  String sendContactName(String name) {
+    return 'Contacto: $name';
+  }
+
+  @override
+  String get sendSpendableUnknown => 'No se conoce el saldo disponible';
+
+  @override
+  String get sendNotEnoughForFee =>
+      'No hay suficientes ERG para la comisión y el cambio';
+
+  @override
+  String get sendNoTokenSelected => 'No hay ningún token elegido';
+
+  @override
+  String get sendSaveToContacts => 'Guardar en contactos';
+
+  @override
+  String get sendContactSaved => 'Contacto guardado';
+
+  @override
+  String sendExceedsBalance(String balance) {
+    return 'La cantidad más la comisión supera tus $balance';
+  }
+
+  @override
+  String get sendCouldNotPrepare => 'No se pudo preparar el envío';
+
+  @override
+  String get sendClipboardTitle => 'El portapapeles tiene otra dirección';
+
+  @override
+  String get sendClipboardDiffersOne =>
+      'Algo que copiaste antes es una dirección de Ergo distinta del destinatario. Un malware puede cambiar las direcciones del portapapeles. Comprueba cada carácter.';
+
+  @override
+  String get sendClipboardDiffersMany =>
+      'Algo que copiaste antes es una dirección de Ergo distinta de todos los destinatarios. Un malware puede cambiar las direcciones del portapapeles. Comprueba cada carácter.';
+
+  @override
+  String get sendRecipientLabel => 'Destinatario:';
+
+  @override
+  String get sendRecipientsLabel => 'Destinatarios:';
+
+  @override
+  String get sendClipboardLabel => 'Portapapeles:';
+
+  @override
+  String get sendGoBack => 'Volver';
+
+  @override
+  String get sendRecipientCorrect => 'El destinatario es correcto';
+
+  @override
+  String get sendRecipientsCorrect => 'Los destinatarios son correctos';
+
+  @override
+  String get sendTotalSent => 'Total enviado';
+
+  @override
+  String get sendAmount => 'Cantidad';
+
+  @override
+  String sendFeePaidIn(String token) {
+    return 'Comisión de minería pagada en $token';
+  }
+
+  @override
+  String get sendTokenFallback => 'token';
+
+  @override
+  String sendTokensFor(String tokens, String erg) {
+    return '$tokens por $erg';
+  }
+
+  @override
+  String get sendConfirmMulti => 'Confirmar envío a varios destinatarios';
+
+  @override
+  String get sendConfirm => 'Confirmar envío';
+
+  @override
+  String get sendSent => '¡Enviado!';
+
+  @override
+  String sendAvailable(String amount) {
+    return 'Disponible: $amount';
+  }
+
+  @override
+  String sendAllAddresses(String all) {
+    return 'Las $all direcciones';
+  }
+
+  @override
+  String sendSomeAddresses(String picked, String all) {
+    return '$picked de $all direcciones';
+  }
+
+  @override
+  String sendBoxesChosen(String count) {
+    return '$count cajas elegidas';
+  }
+
+  @override
+  String sendFeeErg(String amount) {
+    return 'Comisión $amount ERG';
+  }
+
+  @override
+  String sendFeeIn(String token) {
+    return 'Comisión en $token';
+  }
+
+  @override
+  String sendTokensPage(String count, String page, String pages) {
+    return '$count tokens elegidos · Página $page de $pages';
+  }
+
+  @override
+  String get sendPreviousTokens => 'Tokens anteriores';
+
+  @override
+  String get sendNextTokens => 'Tokens siguientes';
+
+  @override
+  String sendSendsOne(String token) {
+    return 'Envía 1 $token · Disponible: 1';
+  }
+
+  @override
+  String sendTokenAmount(String token) {
+    return 'Cantidad de $token';
+  }
+
+  @override
+  String get sendMax => 'MÁX';
+
+  @override
+  String get sendEnterAmount => 'Escribe una cantidad';
+
+  @override
+  String get sendTooMuch => 'Demasiado';
+
+  @override
+  String sendRemoveToken(String token) {
+    return 'Quitar $token';
+  }
+
+  @override
+  String sendPlusTokens(String count) {
+    return ' + $count tokens';
+  }
+
+  @override
+  String get sendRawTitle => 'Transacción firmada en bruto';
+
+  @override
+  String get sendRawNote =>
+      'La transacción está firmada pero no se ha difundido. Comparte o guarda la transacción en bruto para enviarla más tarde desde un explorador u otra billetera.';
+
+  @override
+  String get sendDestination => 'Destino';
+
+  @override
+  String get sendRecipientAddress => 'Dirección del destinatario';
+
+  @override
+  String get sendRecipientHint => 'O toca contactos para elegir uno guardado';
+
+  @override
+  String get sendRequired => 'Obligatorio';
+
+  @override
+  String get sendAsset => 'Activo';
+
+  @override
+  String get sendChooseTokens => 'Elegir tokens';
+
+  @override
+  String sendChooseTokensCount(String count) {
+    return 'Elegir tokens ($count)';
+  }
+
+  @override
+  String get sendMinimumBox => 'Mínimo 0.001 ERG';
+
+  @override
+  String get sendErgWithIt => 'ERG que se envían con él (opcional)';
+
+  @override
+  String sendBlankFundsTokens(String available) {
+    return 'En blanco, lleva el mínimo de ERG para estos tokens. La revisión muestra la cantidad exacta. $available';
+  }
+
+  @override
+  String get sendAdditionalRecipients => 'Más destinatarios';
+
+  @override
+  String sendRecipientNAddress(String number) {
+    return 'Dirección del destinatario $number';
+  }
+
+  @override
+  String get sendAmountErg => 'Cantidad (ERG)';
+
+  @override
+  String get sendBlankFundsToken =>
+      'En blanco, lleva el mínimo de ERG para este token.';
+
+  @override
+  String get sendTokenNone => 'Ninguno';
+
+  @override
+  String get sendEnterTokenAmount => 'Escribe una cantidad de token';
+
+  @override
+  String sendYouHold(String amount) {
+    return 'Tienes $amount';
+  }
+
+  @override
+  String get sendAddRecipient => 'Añadir otro destinatario';
+
+  @override
+  String get sendAdvanced => 'Avanzado';
+
+  @override
+  String get sendErgCarried => 'ERG que lleva el token';
+
+  @override
+  String sendBlankMinimumBox(String amount) {
+    return 'Déjalo en blanco para el valor mínimo de caja, $amount.';
+  }
+
+  @override
+  String get sendChoose => 'Elegir';
+
+  @override
+  String get sendSpendFrom => 'Gastar desde';
+
+  @override
+  String get sendDeselectedNote =>
+      'Las direcciones sin marcar quedan fuera de la selección de monedas.';
+
+  @override
+  String get sendUseAllAddresses => 'Usar todas las direcciones';
+
+  @override
+  String get sendPayFeeIn => 'Pagar la comisión de minería en';
+
+  @override
+  String get sendPayFeeInHelp =>
+      'Una comisión en token se compra a una caja babel en la cadena a su precio publicado; la comisión en ERG de abajo es lo que compra.';
+
+  @override
+  String get sendMinerFeeErg => 'Comisión de minería (ERG)';
+
+  @override
+  String sendBlankDefaultFee(String amount) {
+    return 'Déjalo en blanco para usar la predeterminada, $amount.';
+  }
+
+  @override
+  String sendMinimum(String amount) {
+    return 'Mínimo $amount';
+  }
+
+  @override
+  String get sendReview => 'Revisar';
+
+  @override
+  String get sendChooseInputs => 'Elegir entradas';
+
+  @override
+  String get sendAutoInputsNote =>
+      'Celaut elegirá las cajas por ti. Elige algunas para controlar exactamente qué gasta esta transacción.';
+
+  @override
+  String sendShortBy(String amount) {
+    return 'Faltan $amount para esta cantidad más las comisiones.';
+  }
+
+  @override
+  String sendBoxTokens(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tokens',
+      one: '1 token',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String sendBoxBlock(String height) {
+    return 'bloque $height';
+  }
 }
