@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../build_info.dart';
+import '../l10n/l10n.dart';
 import 'apk_signature.dart';
 import 'update_channel.dart';
 
@@ -331,8 +332,8 @@ class _Cancelled implements Exception {
 }
 
 UpdateException _networkFailure(Object e) => e is TimeoutException
-    ? const UpdateException('GitHub did not answer in time.')
-    : const UpdateException('Could not reach GitHub. Check your connection.');
+    ? UpdateException(appL10n.updateErrorTimeout)
+    : UpdateException(appL10n.updateErrorUnreachable);
 
 const _maxRedirects = 5;
 
@@ -364,17 +365,17 @@ Future<http.StreamedResponse> _get(
     if (!_redirectStatuses.contains(status)) return response;
     final location = response.headers['location'];
     await _discardBody(response);
-    if (location == null) throw UpdateException('GitHub answered with an error ($status).');
+    if (location == null) throw UpdateException(appL10n.updateErrorStatus('$status'));
     final Uri next;
     try {
       next = url.resolve(location);
     } on FormatException {
-      throw const UpdateException('GitHub sent a redirect that was not understood.');
+      throw UpdateException(appL10n.updateErrorBadRedirect);
     }
-    if (!trusted(next)) throw const UpdateException('The request was redirected away from GitHub, so it was stopped.');
+    if (!trusted(next)) throw UpdateException(appL10n.updateErrorRedirectedAway);
     url = next;
   }
-  throw const UpdateException('GitHub redirected the request too many times.');
+  throw UpdateException(appL10n.updateErrorTooManyRedirects);
 }
 
 /// Lets go of a response nobody will read, so its connection is not held.
@@ -392,10 +393,10 @@ Future<ReleaseInfo> fetchLatestRelease(http.Client client, {Uri? endpoint}) asyn
     if (response.statusCode != 200) {
       await _discardBody(response);
       if (response.statusCode == 403 || response.statusCode == 429) {
-        throw const UpdateException('GitHub is limiting requests from this network. Try again later.');
+        throw UpdateException(appL10n.updateErrorRateLimited);
       }
-      if (response.statusCode == 404) throw const UpdateException('GitHub has no release to offer.');
-      throw UpdateException('GitHub answered with an error (${response.statusCode}).');
+      if (response.statusCode == 404) throw UpdateException(appL10n.updateErrorNoRelease);
+      throw UpdateException(appL10n.updateErrorStatus('${response.statusCode}'));
     }
     body = await _readCapped(response.stream, maxReleaseJsonBytes).timeout(_apiTimeout);
   } on UpdateException {
@@ -406,7 +407,7 @@ Future<ReleaseInfo> fetchLatestRelease(http.Client client, {Uri? endpoint}) asyn
   try {
     return ReleaseInfo.fromJson(jsonDecode(utf8.decode(body)));
   } on FormatException {
-    throw const UpdateException('GitHub\'s answer was not understood.');
+    throw UpdateException(appL10n.updateErrorNotUnderstood);
   }
 }
 
@@ -414,7 +415,7 @@ Future<Uint8List> _readCapped(Stream<List<int>> stream, int cap) async {
   final out = BytesBuilder();
   await for (final chunk in stream) {
     out.add(chunk);
-    if (out.length > cap) throw const UpdateException('GitHub\'s answer was larger than expected.');
+    if (out.length > cap) throw UpdateException(appL10n.updateErrorTooLarge);
   }
   return out.takeBytes();
 }
@@ -442,8 +443,8 @@ Future<DownloadedApk> downloadApk({
   Duration connectTimeout = _connectTimeout,
   Duration stallTimeout = _stallTimeout,
 }) async {
-  if (!isTrustedReleaseUrl(asset.url)) throw const UpdateException('The download address is not on GitHub.');
-  if (asset.size > maxBytes) throw const UpdateException('The download is larger than Celaut will accept.');
+  if (!isTrustedReleaseUrl(asset.url)) throw UpdateException(appL10n.updateErrorNotOnGithub);
+  if (asset.size > maxBytes) throw UpdateException(appL10n.updateErrorDownloadTooLarge);
   final limit = asset.size;
 
   final http.StreamedResponse response;
@@ -456,7 +457,7 @@ Future<DownloadedApk> downloadApk({
   }
   if (response.statusCode != 200) {
     await _discardBody(response);
-    throw UpdateException('GitHub answered with an error (${response.statusCode}).');
+    throw UpdateException(appL10n.updateErrorStatus('${response.statusCode}'));
   }
 
   // The size is judged on what arrives, not on a Content-Length header:
@@ -467,20 +468,20 @@ Future<DownloadedApk> downloadApk({
   try {
     file = await into.open(mode: FileMode.write);
   } on FileSystemException {
-    throw const UpdateException('Celaut could not save the download. Is the phone out of storage?');
+    throw UpdateException(appL10n.updateErrorStorage);
   }
   var received = 0;
   try {
     await for (final chunk in response.stream.timeout(stallTimeout)) {
       if (isCancelled()) throw const _Cancelled();
       received += chunk.length;
-      if (received > limit) throw const UpdateException('The download is larger than GitHub lists it, so it was stopped.');
+      if (received > limit) throw UpdateException(appL10n.updateErrorLargerThanListed);
       hasher.add(chunk);
       await file.writeFrom(chunk);
       onProgress?.call(received);
     }
     if (isCancelled()) throw const _Cancelled();
-    if (received != limit) throw const UpdateException('The download ended early.');
+    if (received != limit) throw UpdateException(appL10n.updateErrorEndedEarly);
     hasher.close();
     await file.flush();
     await file.close();
@@ -493,7 +494,7 @@ Future<DownloadedApk> downloadApk({
   } catch (e) {
     await _discard(file, into);
     if (isCancelled()) throw const _Cancelled();
-    if (e is FileSystemException) throw const UpdateException('Celaut could not save the download. Is the phone out of storage?');
+    if (e is FileSystemException) throw UpdateException(appL10n.updateErrorStorage);
     throw _networkFailure(e);
   }
   return DownloadedApk(sha256: digest.value.toString(), bytes: received);
@@ -595,14 +596,10 @@ Future<ApkVerification> verifyApk({
 }
 
 String _rejection(ApkVerdict verdict) => switch (verdict) {
-      ApkVerdict.wrongSigner =>
-        'This download is not signed by the same key as this app, so it must not be installed. It has been deleted.',
-      ApkVerdict.checksumMismatch =>
-        'This download does not match the SHA-256 checksum GitHub lists for it, so it may be damaged or tampered with. It has been deleted.',
-      ApkVerdict.unreadable =>
-        'The signing key of this download could not be read, so it was not offered for install. It has been deleted.',
-      ApkVerdict.appKeyUnknown =>
-        'Celaut could not read its own signing key, so it cannot check this download. It has been deleted.',
+      ApkVerdict.wrongSigner => appL10n.updateRejectedWrongSigner,
+      ApkVerdict.checksumMismatch => appL10n.updateRejectedChecksum,
+      ApkVerdict.unreadable => appL10n.updateRejectedUnreadable,
+      ApkVerdict.appKeyUnknown => appL10n.updateRejectedAppKeyUnknown,
       ApkVerdict.verified => '',
     };
 
@@ -818,7 +815,7 @@ class UpdateService extends ChangeNotifier {
     } on UpdateException catch (e) {
       checkError = e.message;
     } catch (_) {
-      checkError = 'The update check failed.';
+      checkError = appL10n.updateCheckFailed;
     } finally {
       client?.close();
       checking = false;
@@ -882,7 +879,7 @@ class UpdateService extends ChangeNotifier {
     final release = available;
     final asset = assetForDevice;
     if (release == null || asset == null) {
-      _setStage(UpdateStage.failed, 'This release has no APK for your phone. The releases page has the files.');
+      _setStage(UpdateStage.failed, appL10n.updateNoApkSeeReleases);
       return;
     }
     await _resetDownload();
@@ -899,7 +896,7 @@ class UpdateService extends ChangeNotifier {
     try {
       client = _client = _newClient();
       final dir = await _platform.downloadDirectory();
-      if (dir == null) throw const UpdateException('This device cannot keep a download.');
+      if (dir == null) throw UpdateException(appL10n.updateCannotKeepDownload);
       await dir.create(recursive: true);
       // A name of ours, never one from the response: the file is written
       // as `.part` and only a verified one gets the `.apk` name the installer
@@ -932,13 +929,13 @@ class UpdateService extends ChangeNotifier {
       _setStage(UpdateStage.verified, null);
     } on _Cancelled {
       await _delete(part);
-      _setStage(UpdateStage.idle, 'Download cancelled.');
+      _setStage(UpdateStage.idle, appL10n.updateDownloadCancelled);
     } on UpdateException catch (e) {
       await _delete(part);
       _setStage(UpdateStage.failed, e.message);
     } catch (_) {
       await _delete(part);
-      _setStage(UpdateStage.failed, 'The download failed.');
+      _setStage(UpdateStage.failed, appL10n.updateDownloadFailed);
     } finally {
       client?.close();
       _client = null;
@@ -982,13 +979,13 @@ class UpdateService extends ChangeNotifier {
       return;
     }
     if (!await _platform.canRequestInstall()) {
-      stageMessage = 'Android needs your permission first. Allow Celaut to install apps on the next screen, then tap Install again.';
+      stageMessage = appL10n.updateInstallPermission;
       notifyListeners();
       await _platform.openInstallSettings();
       return;
     }
     if (!await _platform.installApk(file.path)) {
-      stageMessage = 'Android could not open its installer. The releases page has the file.';
+      stageMessage = appL10n.updateInstallerFailed;
       notifyListeners();
     }
   }

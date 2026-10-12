@@ -13,6 +13,7 @@ import 'dart:convert';
 
 import '../bridge/api/storage_rent.dart' as ffi;
 import '../format.dart';
+import '../l10n/l10n.dart';
 import 'wallet_service.dart' show InputBoxInput;
 
 /// Blocks a box may sit untouched before rent can be charged: four years of
@@ -95,13 +96,13 @@ class RentParameters {
   /// Why a box owes nothing: miners voted the rate to zero, or the box is
   /// past [overflowBytes].
   String get noChargeReason => storageFeeFactor <= 0
-      ? 'No storage rent is charged at the current rate.'
-      : 'No storage rent can be charged on a box over '
-            '${formatWithCommas(overflowBytes)} bytes under current rules.';
+      ? appL10n.rentNoChargeZeroRate
+      : appL10n.rentNoChargeOverflow(formatWithCommas(overflowBytes));
 
   /// "0.00125 ERG per byte".
-  String get rateLabel =>
-      '${formatErg(storageFeeFactor)} per byte${factorFromNode ? '' : ' (default rate)'}';
+  String get rateLabel => factorFromNode
+      ? appL10n.rentRatePerByte(formatErg(storageFeeFactor))
+      : appL10n.rentRatePerByteDefault(formatErg(storageFeeFactor));
 }
 
 /// One box's rent position, judged at a [RentParameters.height].
@@ -391,34 +392,20 @@ DateTime approxTimeIn(
   int blockSeconds = targetBlockSeconds,
 }) => (now ?? DateTime.now()).add(Duration(seconds: blocks * blockSeconds));
 
-const _months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
-
 /// When rent falls due, in words: "now", "in ~12 days", "~Mar 2030".
 String rentWhen(
   int blocksUntilDue, {
   DateTime? now,
   int blockSeconds = targetBlockSeconds,
 }) {
-  if (blocksUntilDue <= 1) return 'now';
+  final t = appL10n;
+  if (blocksUntilDue <= 1) return t.rentWhenNow;
   final seconds = blocksUntilDue * blockSeconds;
   final days = (seconds / 86400).ceil();
-  if (days <= 1) return 'within a day';
-  if (days <= 60) return 'in ~$days days';
+  if (days <= 1) return t.rentWhenWithinDay;
+  if (days <= 60) return t.rentWhenInDays('$days');
   final at = approxTimeIn(blocksUntilDue, now: now, blockSeconds: blockSeconds);
-  return '~${_months[at.month - 1]} ${at.year}';
+  return t.rentWhenMonthYear(monthShort(at.month), '${at.year}');
 }
 
 int _int(Object? raw) => switch (raw) {

@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
+
 // The Celaut colours, from the landing page's tokens (app.css). The two
 // default palettes are built from them: deep teal with cream type (dark) and
 // warm cream with teal type (light).
@@ -188,8 +190,8 @@ class SceneSpec {
 class PaletteSpec {
   const PaletteSpec({
     required this.id,
-    required this.name,
-    required this.hint,
+    required String name,
+    required String hint,
     required this.brightness,
     required this.background,
     required this.surface,
@@ -204,11 +206,37 @@ class PaletteSpec {
     required this.accentText,
     Color? heading,
     this.sceneGlow = 1,
-  }) : _heading = heading;
+  })  : _name = name,
+        _hint = hint,
+        _heading = heading;
 
   final String id;
-  final String name;
-  final String hint;
+  final String _name;
+  final String _hint;
+
+  /// The palette's name in the language of the app.
+  String get name => switch (id) {
+        'watchful' => appL10n.themeTealName,
+        'ledger' => appL10n.themeCreamName,
+        'obsidian' => appL10n.themeObsidianName,
+        'harbor' => appL10n.themeHarborName,
+        'ember' => appL10n.themeEmberName,
+        'parchment' => appL10n.themeParchmentName,
+        'frost' => appL10n.themeFrostName,
+        _ => _name,
+      };
+
+  /// What the palette looks like, in the language of the app.
+  String get hint => switch (id) {
+        'watchful' => appL10n.themeTealHint,
+        'ledger' => appL10n.themeCreamHint,
+        'obsidian' => appL10n.themeObsidianHint,
+        'harbor' => appL10n.themeHarborHint,
+        'ember' => appL10n.themeEmberHint,
+        'parchment' => appL10n.themeParchmentHint,
+        'frost' => appL10n.themeFrostHint,
+        _ => _hint,
+      };
   final Brightness brightness;
   final Color background;
   final Color surface;

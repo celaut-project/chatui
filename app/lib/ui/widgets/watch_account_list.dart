@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../services/watch_account_service.dart';
 import '../../services/watch_only_service.dart';
 import '../../theme/argus_theme.dart';
@@ -22,7 +23,7 @@ Future<bool> addWatchAddress(BuildContext context) async {
   } catch (e) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not add watched address: $e')),
+        SnackBar(content: Text(context.l10n.watchAddFailed('$e'))),
       );
     }
     return false;
@@ -32,10 +33,8 @@ Future<bool> addWatchAddress(BuildContext context) async {
       SnackBar(
         content: Text(
           added
-              ? 'Watch-only address added'
-              : 'Already watched or invalid input. Use an Ergo address, a '
-                  '33-byte compressed public key, or its 0008cd P2PK tree '
-                  '(hex, no 0x). Raw keys use mainnet.',
+              ? context.l10n.watchAddressAdded
+              : context.l10n.watchAddInvalid,
         ),
       ),
     );
@@ -62,22 +61,19 @@ class _WatchAddressDialogState extends State<_WatchAddressDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Watch an address'),
+        title: Text(context.l10n.watchAddressTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'See balance and activity for any Ergo address. No keys are '
-              'stored, so it cannot spend.',
-            ),
+            Text(context.l10n.watchAddressIntro),
             const SizedBox(height: 12),
             TextField(
               controller: _controller,
               autofocus: true,
               style: monoStyle(context, size: 13),
-              decoration: const InputDecoration(
-                labelText: 'Address or public key',
-                helperText: 'Mainnet key hex: 02/03… or 0008cd02/03…',
+              decoration: InputDecoration(
+                labelText: context.l10n.watchAddressLabel,
+                helperText: context.l10n.watchAddressHelper,
                 helperMaxLines: 2,
                 hintText: '9...',
               ),
@@ -85,10 +81,10 @@ class _WatchAddressDialogState extends State<_WatchAddressDialog> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(context.l10n.commonCancel)),
           FilledButton(
             onPressed: () => Navigator.pop(context, _controller.text),
-            child: const Text('Watch'),
+            child: Text(context.l10n.watchAction),
           ),
         ],
       );
@@ -119,20 +115,19 @@ class _ImportAccountDialogState extends State<_ImportAccountDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Watch an extended public key'),
+        title: Text(context.l10n.watchXpubTitle),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(watchAccountDisclosure),
+              Text(watchAccountDisclosure),
               const SizedBox(height: 12),
               TextField(
                 controller: controller,
                 maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Ergo Wallet App extended public key',
-                  helperText:
-                      '156 hex characters, mainnet. No checksum: verify the first address with the source wallet.',
+                decoration: InputDecoration(
+                  labelText: context.l10n.watchXpubLabel,
+                  helperText: context.l10n.watchXpubHelper,
                   helperMaxLines: 3,
                 ),
               ),
@@ -143,7 +138,7 @@ class _ImportAccountDialogState extends State<_ImportAccountDialog> {
         actions: [
           TextButton(
             onPressed: busy ? null : () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: busy
@@ -157,7 +152,7 @@ class _ImportAccountDialogState extends State<_ImportAccountDialog> {
                         Navigator.pop(context);
                       } else {
                         setState(() {
-                          error = 'This extended key is already watched.';
+                          error = context.l10n.watchXpubAlreadyWatched;
                           busy = false;
                         });
                       }
@@ -172,7 +167,7 @@ class _ImportAccountDialogState extends State<_ImportAccountDialog> {
                       }
                     }
                   },
-            child: const Text('Watch account'),
+            child: Text(context.l10n.watchAccountAction),
           ),
         ],
       );

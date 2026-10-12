@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../format.dart';
+import '../l10n/l10n.dart';
 import '../theme/argus_theme.dart';
 import 'storage_rent.dart';
 import 'utxo_tools_controller.dart';
@@ -47,21 +48,17 @@ SeparateTokensPlan planSeparateTokens({
   int ergPerBoxNano = minBoxNano,
 }) {
   if (source.address == null || source.address!.isEmpty) {
-    throw const FormatException(
-      'Refresh boxes to identify the source address.',
-    );
+    throw FormatException(appL10n.separateNeedsSourceAddress);
   }
   if (ergPerBoxNano < minBoxNano || feesNano < 0) {
-    throw const FormatException('Each token box needs at least 0.001 ERG.');
+    throw FormatException(appL10n.separateMinPerBox);
   }
   final ids = {source.boxId};
   for (final box in funding) {
     if (!ids.add(box.boxId) ||
         box.assets.isNotEmpty ||
         box.address != source.address) {
-      throw const FormatException(
-        'Funding must be separate ERG-only boxes at the source address.',
-      );
+      throw FormatException(appL10n.separateFundingInvalid);
     }
   }
   final maxAmount = BigInt.parse('9223372036854775807');
@@ -71,16 +68,12 @@ SeparateTokensPlan planSeparateTokens({
     if (asset.tokenId.isEmpty ||
         asset.amount <= BigInt.zero ||
         amount > maxAmount) {
-      throw const FormatException(
-        'The source contains an invalid token amount.',
-      );
+      throw FormatException(appL10n.separateInvalidTokenAmount);
     }
     totals[asset.tokenId] = amount;
   }
   if (totals.length < 2 || totals.length > 150) {
-    throw const FormatException(
-      'Choose a box holding between 2 and 150 token types.',
-    );
+    throw FormatException(appL10n.separateTokenTypeRange);
   }
   final tokenIds = totals.keys.toList()..sort();
   final assets = [
@@ -88,22 +81,18 @@ SeparateTokensPlan planSeparateTokens({
   ];
   final inputs = [source, ...funding];
   if (inputs.any((box) => box.valueNanoErg <= BigInt.zero)) {
-    throw const FormatException(
-      'The selected boxes contain an invalid ERG value.',
-    );
+    throw FormatException(appL10n.separateInvalidErgValue);
   }
   final total = inputs.fold(BigInt.zero, (sum, b) => sum + b.valueNanoErg);
   final required =
       BigInt.from(assets.length) * BigInt.from(ergPerBoxNano) +
       BigInt.from(feesNano);
   if (total > maxAmount || required > maxAmount) {
-    throw const FormatException(
-      'The selected ERG amount exceeds the transaction limit.',
-    );
+    throw FormatException(appL10n.separateOverLimit);
   }
   if (total < required) {
     throw FormatException(
-      'Add ${formatNanoErg(required - total)} in funding boxes.',
+      appL10n.separateAddFunding(formatNanoErg(required - total)),
     );
   }
   var change = total - required;
@@ -187,23 +176,23 @@ class UtxoHealth {
 
 UtxoHealth utxoHealth(int boxCount) {
   if (boxCount <= 20) {
-    return const UtxoHealth(
-      'Tidy',
+    return UtxoHealth(
+      appL10n.utxoHealthTidy,
       moss,
-      'Few boxes: sends select inputs quickly and pay the least.',
+      appL10n.utxoHealthTidyHint,
     );
   }
   if (boxCount <= 80) {
-    return const UtxoHealth(
-      'Moderate',
+    return UtxoHealth(
+      appL10n.utxoHealthModerate,
       coral,
-      'Sends may need several inputs; consolidating dust keeps fees down.',
+      appL10n.utxoHealthModerateHint,
     );
   }
-  return const UtxoHealth(
-    'Fragmented',
+  return UtxoHealth(
+    appL10n.utxoHealthFragmented,
     rust,
-    'Many small boxes make every send pick more inputs. Sweep dust or consolidate.',
+    appL10n.utxoHealthFragmentedHint,
   );
 }
 

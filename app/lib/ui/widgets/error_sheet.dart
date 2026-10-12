@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../bridge/argus_error.dart';
+import '../../l10n/l10n.dart';
 import 'package:flutter/services.dart';
 
 import '../../theme/argus_theme.dart';
@@ -11,7 +12,7 @@ Future<void> showErrorSheet(
   BuildContext context, {
   required String message,
   String? code,
-  String title = 'Something went wrong',
+  String? title,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -32,7 +33,7 @@ Future<void> showErrorSheet(
                 children: [
                   const Icon(Icons.error_outline, color: rust, size: 22),
                   const SizedBox(width: 10),
-                  Expanded(child: Text(title, style: Theme.of(ctx).textTheme.titleLarge)),
+                  Expanded(child: Text(title ?? ctx.l10n.errorSomethingWentWrong, style: Theme.of(ctx).textTheme.titleLarge)),
                 ],
               ),
               const SizedBox(height: 14),
@@ -51,13 +52,13 @@ Future<void> showErrorSheet(
                   TextButton.icon(
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: full));
-                      ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Error copied')));
+                      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(ctx.l10n.errorCopied)));
                     },
                     icon: const Icon(Icons.copy, size: 16),
-                    label: const Text('Copy'),
+                    label: Text(ctx.l10n.commonCopy),
                   ),
                   const Spacer(),
-                  FilledButton(style: inlineButtonStyle, onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+                  FilledButton(style: inlineButtonStyle, onPressed: () => Navigator.pop(ctx), child: Text(ctx.l10n.commonClose)),
                 ],
               ),
             ],
@@ -93,13 +94,13 @@ TxFailure classifyTxFailure(Object error) {
       lower.contains('prover');
   if (beforeNetwork) {
     final why = lower.contains('reduced to false')
-        ? 'A contract rejected this transaction, so it was not signed. Nothing was sent.'
-        : 'Nothing was sent.';
-    return TxFailure(title: 'Signing failed', message: '$why\n\n$msg', code: code == 'GENERIC' ? null : code);
+        ? appL10n.errorContractRejected
+        : appL10n.errorNothingSent;
+    return TxFailure(title: appL10n.errorSigningFailed, message: '$why\n\n$msg', code: code == 'GENERIC' ? null : code);
   }
   return TxFailure(
-    title: 'Broadcast may have failed',
-    message: 'Check Activity before retrying; the transaction may already be on the network.\n\n$msg',
+    title: appL10n.errorBroadcastMayHaveFailed,
+    message: '${appL10n.errorCheckActivity}\n\n$msg',
     code: code == 'GENERIC' ? null : code,
   );
 }

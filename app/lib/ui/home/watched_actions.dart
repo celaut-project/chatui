@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../format.dart';
+import '../../l10n/l10n.dart';
 import '../../services/address_label_service.dart';
 import '../../services/watch_account_service.dart';
 import '../../services/watch_only_service.dart';
@@ -31,7 +32,7 @@ String watchedNameOf(WalletRef ref) => ref.kind == WalletKind.watchedAccount
 /// is said in a snack bar and returns false.
 Future<bool> renameWatched(BuildContext context, WalletRef ref) async {
   final account = watchedAccountFor(ref);
-  final name = await showNameDialog(context, title: 'Name', label: 'Name (optional)', initial: watchedNameOf(ref));
+  final name = await showNameDialog(context, title: context.l10n.commonName, label: context.l10n.watchNameOptional, initial: watchedNameOf(ref));
   if (name == null) return false;
   try {
     if (ref.kind == WalletKind.watchedAccount) {
@@ -42,7 +43,7 @@ Future<bool> renameWatched(BuildContext context, WalletRef ref) async {
     }
     return true;
   } catch (e) {
-    if (context.mounted) _snack(context, 'Could not save the name: $e');
+    if (context.mounted) _snack(context, context.l10n.watchSaveNameFailed('$e'));
     return false;
   }
 }
@@ -53,10 +54,10 @@ Future<bool> confirmStopWatching(BuildContext context, WalletRef ref) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('Stop watching?'),
+      title: Text(ctx.l10n.watchStopTitle),
       content: Text(
         ref.kind == WalletKind.watchedAccount
-            ? 'The extended key is removed from this device. Re-import it to watch the account again.'
+            ? ctx.l10n.watchStopAccountBody
             : shorten(ref.id, head: 12, tail: 10),
         style: ref.kind == WalletKind.watchedAccount ? null : monoStyle(ctx, size: 12),
       ),
@@ -64,13 +65,13 @@ Future<bool> confirmStopWatching(BuildContext context, WalletRef ref) async {
         TextButton(
           key: const Key('stop-watching-cancel'),
           onPressed: () => Navigator.pop(ctx, false),
-          child: const Text('Cancel'),
+          child: Text(ctx.l10n.commonCancel),
         ),
         FilledButton(
           key: const Key('stop-watching-confirm'),
           style: FilledButton.styleFrom(backgroundColor: rust, foregroundColor: bone),
           onPressed: () => Navigator.pop(ctx, true),
-          child: const Text('Stop watching'),
+          child: Text(ctx.l10n.commonStopWatching),
         ),
       ],
     ),
@@ -91,7 +92,7 @@ Future<bool> stopWatching(BuildContext context, WalletRef ref) async {
     }
     return true;
   } catch (e) {
-    if (context.mounted) _snack(context, 'Could not stop watching: $e');
+    if (context.mounted) _snack(context, context.l10n.watchStopFailed('$e'));
     return false;
   }
 }

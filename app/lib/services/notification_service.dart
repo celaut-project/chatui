@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../format.dart';
+import '../l10n/l10n.dart';
 import 'deep_link_controller.dart';
 
 /// Local notifications for incoming payments. Nothing leaves the device.
@@ -10,12 +11,12 @@ class NotificationService {
   bool _ready = false;
   bool _permissionAsked = false;
 
-  static const _channel = AndroidNotificationChannel(
-    'argus_payments',
-    'Incoming payments',
-    description: 'A payment to one of your addresses was seen on the network.',
-    importance: Importance.high,
-  );
+  static AndroidNotificationChannel get _channel => AndroidNotificationChannel(
+        'argus_payments',
+        appL10n.notifyChannelName,
+        description: appL10n.notifyChannelDescription,
+        importance: Importance.high,
+      );
 
   Future<void> init() async {
     if (_ready) return;
@@ -76,7 +77,7 @@ class NotificationService {
       await _plugin.show(
         id: nanoErg.hashCode & 0x7fffffff,
         title: incomingTitle(pending: pending),
-        body: '${formatErg(nanoErg, maxFrac: 4)} to $walletName',
+        body: appL10n.notifyIncomingBody(formatErg(nanoErg, maxFrac: 4), walletName),
         payload: 'activity',
         notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
@@ -97,4 +98,4 @@ class NotificationService {
 final notificationService = NotificationService();
 
 String incomingTitle({required bool pending}) =>
-    pending ? 'Payment on the way' : 'Payment received';
+    pending ? appL10n.notifyPaymentOnTheWay : appL10n.notifyPaymentReceived;

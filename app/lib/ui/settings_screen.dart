@@ -3,6 +3,7 @@ import 'cold_signing_screen.dart';
 
 import '../celaut/celaut_strings.dart';
 import '../format.dart';
+import '../l10n/l10n.dart';
 import '../services/address_label_service.dart';
 import '../services/contacts_service.dart';
 import '../services/network_controller.dart';
@@ -78,7 +79,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: widget.embedded ? null : AppBar(title: const Text('Settings')),
+      appBar: widget.embedded ? null : AppBar(title: Text(context.l10n.commonSettings)),
       body: ListenableBuilder(
         listenable: Listenable.merge([
           themeController,
@@ -126,12 +127,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                   SettingsGroup(
-                    title: 'About',
+                    title: context.l10n.aboutTitle,
                     children: [
                       SettingsRow(
                         icon: Icons.info_outline,
-                        title: 'About Celaut',
-                        subtitle: 'Version, release notes, licenses',
+                        title: context.l10n.settingsAboutRowTitle,
+                        subtitle: context.l10n.settingsAboutRowSubtitle,
                         onTap: () => _open(const AboutPage()),
                       ),
                     ],
@@ -146,16 +147,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _seedGroup(WalletInfo current) {
+    final t = context.l10n;
     return SettingsGroup(
-      title: 'This wallet',
+      title: t.commonThisWallet,
       // The header above names the wallet; a long name as the scope tag
       // would run off the label row.
-      scope: 'Seed wallet',
+      scope: t.settingsSeedWalletScope,
       children: [
         SettingsRow(
           icon: Icons.account_balance_wallet_outlined,
-          title: 'Name, addresses and backup',
-          subtitle: 'Rename, primary address, change policy, remove',
+          title: t.settingsWalletRowTitle,
+          subtitle: t.settingsWalletRowSubtitle,
           onTap: () => _open(
             WalletSettingsPage(
               walletId: current.walletId,
@@ -167,8 +169,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         SettingsRow(
           icon: Icons.lock_outline,
-          title: 'Security',
-          subtitle: 'PIN, biometric unlock, auto-lock',
+          title: t.securityTitle,
+          subtitle: t.settingsSecurityWalletSubtitle,
           onTap: () => _open(SecuritySettingsPage(walletId: current.walletId)),
         ),
       ],
@@ -176,45 +178,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _appGroup({required bool includeSecurity}) {
+    final t = context.l10n;
     return SettingsGroup(
-      title: 'App',
-      scope: 'App-wide',
+      title: t.settingsAppGroup,
+      scope: t.settingsScopeAppWide,
       children: [
         if (includeSecurity)
           SettingsRow(
             icon: Icons.lock_outline,
-            title: 'Security',
-            subtitle: 'Auto-lock, screenshots, unconfirmed funds',
+            title: t.securityTitle,
+            subtitle: t.settingsSecurityAppSubtitle,
             onTap: () => _open(const SecuritySettingsPage()),
           ),
         SettingsRow(
           icon: Icons.qr_code_scanner,
-          title: 'Offline signing',
-          subtitle: 'Scan, review and sign with this seed wallet',
+          title: t.settingsOfflineSigningTitle,
+          subtitle: t.settingsOfflineSigningSubtitle,
           onTap: () => openColdSigner(context),
         ),
         SettingsRow(
           icon: Icons.image_outlined,
-          title: 'Remote previews',
-          subtitle: 'IPFS gateway and Never load remote previews',
+          title: t.settingsRemotePreviewsTitle,
+          subtitle: t.settingsRemotePreviewsSubtitle,
           onTap: () => _open(const PreviewSettingsPage()),
         ),
         SettingsRow(
           icon: Icons.hub_outlined,
-          title: 'Network',
+          title: t.networkTitle,
           subtitle: networkController.statusLabel,
           onTap: () => _open(const NetworkSettingsPage()),
         ),
         SettingsRow(
           icon: Icons.palette_outlined,
-          title: 'Display',
+          title: t.displayTitle,
           subtitle: '${_appearanceName()} · ${networkController.fiatCode.toUpperCase()}',
           onTap: () => _open(const DisplaySettingsPage()),
         ),
         SettingsRow(
           icon: Icons.contacts_outlined,
-          title: 'Address book',
-          subtitle: '${contactsService.contacts.length} contacts',
+          title: t.addressBookTitle,
+          subtitle: t.settingsContactsCount(contactsService.contacts.length),
           onTap: () => _open(const AddressBookPage()),
         ),
       ],
@@ -261,7 +264,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           if (widget.onShowAllWallets != null)
             TextButton(
               onPressed: widget.onShowAllWallets,
-              child: const Text('All wallets'),
+              child: Text(context.l10n.settingsAllWallets),
             ),
         ],
       ),
@@ -270,13 +273,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _walletHeader(BuildContext context, WalletInfo current, int count) {
     final unlocked = walletService.isUnlocked && walletService.activeWalletId == current.walletId;
+    final t = context.l10n;
     return _header(
       context,
       icon: Icons.account_balance_wallet_outlined,
       name: current.name,
       detail: [
-        unlocked ? 'Unlocked' : 'Locked',
-        '$count ${count == 1 ? 'wallet' : 'wallets'} on this device',
+        unlocked ? t.settingsUnlocked : t.settingsLocked,
+        t.settingsWalletsOnDevice(count),
       ].join(' · '),
     );
   }
@@ -291,8 +295,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   String _watchedName(WalletRef ref) => ref.kind == WalletKind.watchedAccount
-      ? (_account(ref)?.label ?? 'Watched account')
-      : (addressLabelService.labelFor(ref.id) ?? 'Watched address');
+      ? (_account(ref)?.label ?? context.l10n.commonWatchedAccount)
+      : (addressLabelService.labelFor(ref.id) ?? context.l10n.commonWatchedAddress);
 
   Widget _watchedHeader(BuildContext context, WalletRef ref) {
     return _header(
@@ -300,27 +304,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
       icon: Icons.visibility_outlined,
       name: _watchedName(ref),
       detail: ref.kind == WalletKind.watchedAccount
-          ? 'Watch-only account · ${shorten(ref.id, head: 8, tail: 6)}'
-          : 'Watch-only address · ${shorten(ref.id, head: 6, tail: 6)}',
+          ? context.l10n.settingsWatchOnlyAccountDetail(shorten(ref.id, head: 8, tail: 6))
+          : context.l10n.settingsWatchOnlyAddressDetail(shorten(ref.id, head: 6, tail: 6)),
     );
   }
 
   Widget _watchedGroup(WalletRef ref) {
     final account = ref.kind == WalletKind.watchedAccount;
+    final t = context.l10n;
     return SettingsGroup(
-      title: account ? 'This account' : 'This address',
-      scope: 'Watch-only',
+      title: account ? t.settingsThisAccount : t.settingsThisAddress,
+      scope: t.settingsWatchOnlyScope,
       children: [
         SettingsRow(
           icon: Icons.edit_outlined,
-          title: 'Name',
+          title: t.commonName,
           subtitle: _watchedName(ref),
           onTap: () => _renameWatched(ref),
         ),
         SettingsRow(
           icon: Icons.visibility_off_outlined,
-          title: 'Stop watching',
-          subtitle: 'Removes it from this device. Nothing on chain changes.',
+          title: t.commonStopWatching,
+          subtitle: t.settingsStopWatchingSubtitle,
           danger: true,
           onTap: () => _unwatch(ref),
         ),

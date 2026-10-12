@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../format.dart';
+import '../l10n/l10n.dart';
 import '../services/activity_classifier.dart';
 import '../services/network_controller.dart';
 import '../services/session_lock.dart';
@@ -71,42 +72,42 @@ class TransactionDetailScreen extends StatelessWidget {
       for (final t in a.received) leg(t),
       if (a.erg > BigInt.zero) _ergLine(context, a.erg),
     ];
+    final l = context.l10n;
     final fees = [
-      if (a.minerFee > BigInt.zero) _feeLine(context, 'Miner fee', a.minerFee),
-      if (a.appFee > BigInt.zero) _feeLine(context, 'Argus fee', a.appFee),
+      if (a.minerFee > BigInt.zero) _feeLine(context, l.commonMinerFee, a.minerFee),
+      if (a.appFee > BigInt.zero) _feeLine(context, l.txArgusFee, a.appFee),
     ];
     return [
-      if (left.isNotEmpty) ..._section(context, 'Left your wallet', left),
+      if (left.isNotEmpty) ..._section(context, l.txLeftWallet, left),
       if (a.burned.isNotEmpty)
-        ..._section(context, 'Burned', [
+        ..._section(context, l.txBurned, [
           for (final t in a.burned) leg(t),
           Text(
-            'No output holds these any more: they no longer exist.',
+            l.txBurnedNote,
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ]),
-      if (a.minted.isNotEmpty) ..._section(context, 'Issued', [for (final t in a.minted) leg(t)]),
-      if (arrived.isNotEmpty) ..._section(context, 'Arrived', arrived),
-      if (fees.isNotEmpty) ..._section(context, 'Fees', fees),
+      if (a.minted.isNotEmpty) ..._section(context, l.txIssued, [for (final t in a.minted) leg(t)]),
+      if (arrived.isNotEmpty) ..._section(context, l.txArrived, arrived),
+      if (fees.isNotEmpty) ..._section(context, l.txFees, fees),
       if (a.internalNano > BigInt.zero)
-        ..._section(context, 'Moved between your addresses', [
+        ..._section(context, l.txMovedBetween, [
           _ergLine(context, a.internalNano),
           Text(
-            'Change and boxes that stayed in this wallet.',
+            l.txMovedNote,
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ]),
       if (a.category == ActivityCategory.sent && a.recipients.isNotEmpty)
-          ..._section(context, 'To', [for (final r in a.recipients) _address(context, r)]),
+          ..._section(context, l.txTo, [for (final r in a.recipients) _address(context, r)]),
       if (a.category == ActivityCategory.received && a.senders.isNotEmpty)
-        ..._section(context, 'From', [for (final s in a.senders.take(5)) _address(context, s)]),
-      if (a.contract case final c?) ..._section(context, 'Contract', [_address(context, c)]),
+        ..._section(context, l.txFrom, [for (final s in a.senders.take(5)) _address(context, s)]),
+      if (a.contract case final c?) ..._section(context, l.txContract, [_address(context, c)]),
       if (!a.flows.complete)
         Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Text(
-            'Some inputs of this pending transaction are not readable yet; '
-            'what the other side put in may be missing.',
+            l.txIncompleteInputs,
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
@@ -171,10 +172,12 @@ class TransactionDetailScreen extends StatelessWidget {
         figureText(f, name: (id) => tokenName(id), decimals: (id) => tokenDecimals(id));
     final headline = activity != null
         ? view.title
-        : '${outgoing ? 'Sent' : 'Received'} ${formatErg(nano?.abs())}';
+        : outgoing
+            ? context.l10n.txSentAmount(formatErg(nano?.abs()))
+            : context.l10n.txReceivedAmount(formatErg(nano?.abs()));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Transaction')),
+      appBar: AppBar(title: Text(context.l10n.txTitle)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         children: [
@@ -223,10 +226,10 @@ class TransactionDetailScreen extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             confirmed
-                ? 'Confirmed ${formatHeight(height)}'
+                ? context.l10n.txConfirmedAt(formatHeight(height))
                 : tx['confirmed'] == true
-                    ? 'Confirmed'
-                    : 'Not yet in a block',
+                    ? context.l10n.txConfirmed
+                    : context.l10n.txNotInBlock,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           if (formatTxTime(ts).isNotEmpty) ...[
@@ -238,7 +241,7 @@ class TransactionDetailScreen extends StatelessWidget {
             ..._breakdown(context, activity)
           else ...[
             if (counterparty != null && counterparty.isNotEmpty) ...[
-              SectionLabel(outgoing ? 'To' : 'From'),
+              SectionLabel(outgoing ? context.l10n.txTo : context.l10n.txFrom),
               const SizedBox(height: 8),
               SoftCard(
                 padding: const EdgeInsets.all(12),
@@ -247,25 +250,25 @@ class TransactionDetailScreen extends StatelessWidget {
               const SizedBox(height: 16),
             ],
             if (fee != null && fee > 0) ...[
-              const SectionLabel('Miner fee'),
+              SectionLabel(context.l10n.commonMinerFee),
               const SizedBox(height: 8),
               Text(formatErg(fee), style: Theme.of(context).textTheme.bodyMedium),
               const SizedBox(height: 16),
             ],
             if (sent.isNotEmpty) ...[
-              const SectionLabel('Tokens sent'),
+              SectionLabel(context.l10n.txTokensSent),
               const SizedBox(height: 8),
               for (final t in sent) _tokenLine(context, t),
               const SizedBox(height: 10),
             ],
           ],
-          const SectionLabel('Id'),
+          SectionLabel(context.l10n.txIdLabel),
           const SizedBox(height: 8),
           SelectableText(txId, style: monoStyle(context, size: 12)),
           const SizedBox(height: 16),
           if (activity == null)
             if (received.isNotEmpty) ...[
-              const SectionLabel('Tokens received'),
+              SectionLabel(context.l10n.txTokensReceived),
               const SizedBox(height: 8),
               for (final t in received) _tokenLine(context, t),
               // Compare identities, not lengths: token_ids may repeat and
@@ -274,13 +277,13 @@ class TransactionDetailScreen extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(top: 2, bottom: 6),
                   child: Text(
-                    '${missingTokenIds.length} further token id(s) involved — see explorer.',
+                    context.l10n.txFurtherTokenIds('${missingTokenIds.length}'),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
               const SizedBox(height: 8),
             ] else if (tokens.isNotEmpty) ...[
-              const SectionLabel('Tokens'),
+              SectionLabel(context.l10n.commonTokens),
               const SizedBox(height: 8),
               ...tokens.map((id) => Padding(
                     padding: const EdgeInsets.only(bottom: 6),
@@ -299,10 +302,10 @@ class TransactionDetailScreen extends StatelessWidget {
                 : () {
                     Clipboard.setData(ClipboardData(text: txId));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Transaction id copied')),
+                      SnackBar(content: Text(context.l10n.txIdCopied)),
                     );
                   },
-            child: const Text('Copy id'),
+            child: Text(context.l10n.commonCopyId),
           ),
           const SizedBox(height: 12),
           OutlinedButton(
@@ -318,18 +321,18 @@ class TransactionDetailScreen extends StatelessWidget {
                       );
                       if (!ok && context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Could not open explorer')),
+                          SnackBar(content: Text(context.l10n.txExplorerFailed)),
                         );
                       }
                     } catch (_) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Could not open explorer')),
+                          SnackBar(content: Text(context.l10n.txExplorerFailed)),
                         );
                       }
                     }
                   },
-            child: const Text('Open in explorer'),
+            child: Text(context.l10n.txOpenExplorer),
           ),
         ],
       ),

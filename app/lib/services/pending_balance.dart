@@ -1,4 +1,5 @@
 import '../format.dart';
+import '../l10n/l10n.dart';
 import 'wallet_database_service.dart';
 
 /// One token's share of a [PendingBalance].
@@ -203,7 +204,8 @@ String? pendingBalanceText(
   int maxFrac = 4,
 }) {
   if (pending == null || !pending.hasPending) return null;
-  if (hidden) return '•••• ERG pending';
+  final t = appL10n;
+  if (hidden) return t.pendingBalanceHidden;
   String erg(int nano) => formatErg(nano, unit: false, maxFrac: maxFrac);
   final delta = pending.pendingDeltaNano;
   // A broadcast whose value is not known yet moves nothing on paper; it is
@@ -212,8 +214,12 @@ String? pendingBalanceText(
       ? null
       : '${delta > 0 ? '+' : '−'}${erg(delta.abs())}';
   if (withTotal) {
-    return '${erg(pending.netNano)} ERG · ${moved == null ? 'pending' : '$moved pending'}';
+    return moved == null
+        ? t.pendingBalanceTotalUnknown(erg(pending.netNano))
+        : t.pendingBalanceTotalMoved(erg(pending.netNano), moved);
   }
-  final lead = moved == null ? 'Pending' : '$moved ERG pending';
-  return '$lead · ${erg(pending.confirmedNano)} confirmed';
+  final confirmed = erg(pending.confirmedNano);
+  return moved == null
+      ? t.pendingBalanceUnknown(confirmed)
+      : t.pendingBalanceMoved(moved, confirmed);
 }

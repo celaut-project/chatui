@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
 
 /// Counts token IDs, including NFTs, only for a known holdings snapshot.
@@ -24,7 +25,7 @@ class WalletTokenCount extends StatelessWidget {
         .toSet()
         .length;
     return Text(
-      '$count ${publicOnly ? 'public ' : ''}token ${count == 1 ? 'ID' : 'IDs'} (incl. NFTs)',
+      publicOnly ? context.l10n.tokenCountPublic(count) : context.l10n.tokenCount(count),
       textAlign: TextAlign.end,
       style: TextStyle(fontSize: 12, color: ArgusColors.of(context).muted),
     );

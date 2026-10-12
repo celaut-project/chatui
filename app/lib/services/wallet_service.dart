@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../bridge/argus_error.dart';
 import '../bridge/frb_generated.dart';
+import '../l10n/l10n.dart';
 import 'network_controller.dart';
 import 'privacy_service.dart';
 import 'token_decimals.dart';
@@ -151,29 +152,29 @@ class TokenBalance {
               decimals == 0));
 
   String get classification {
-    if (metadataState == MetadataState.invalid) return 'Metadata invalid';
-    if (metadataState == MetadataState.conflict) return 'Metadata conflict';
+    if (metadataState == MetadataState.invalid) return appL10n.coreTokenMetadataInvalid;
+    if (metadataState == MetadataState.conflict) return appL10n.coreTokenMetadataConflict;
     if (declaredAssetKind == DeclaredAssetKind.collection)
-      return 'Collection token';
+      return appL10n.coreTokenCollection;
     if (declaredAssetKind == DeclaredAssetKind.unsupported)
-      return 'Declared NFT · unsupported type';
+      return appL10n.coreTokenDeclaredNftUnsupported;
     final single =
         supplyEvidence == SupplyEvidence.originalEmission &&
         emissionAmount == 1 &&
         decimalsEvidence.readFromToken &&
         decimals == 0;
     if (declaredAssetKind != DeclaredAssetKind.none) {
-      if (single) return 'Single-unit artwork · ${declaredAssetKind.name}';
+      if (single) return appL10n.coreTokenSingleUnitArtwork(declaredAssetKind.name);
       if (supplyEvidence == SupplyEvidence.originalEmission &&
           (emissionAmount ?? 0) > 1) {
-        return 'Declared artwork · multiple units';
+        return appL10n.coreTokenDeclaredArtworkMultiple;
       }
-      return 'Declared artwork · supply unconfirmed';
+      return appL10n.coreTokenDeclaredArtworkUnconfirmed;
     }
-    if (single) return 'Single-unit token';
+    if (single) return appL10n.coreTokenSingleUnit;
     return metadataState == MetadataState.complete
-        ? 'Token'
-        : 'Token · metadata unavailable';
+        ? appL10n.commonToken
+        : appL10n.coreTokenMetadataUnavailable;
   }
 
   TokenBalance withHolding(int amount) => TokenBalance._withHolding(this, amount);
@@ -695,7 +696,7 @@ const maxUnspentBoxesTotal = 2000;
 
 String? validatePin(String pin) {
   final n = pin.runes.length;
-  if (n < 6 || n > 32) return 'PIN must be 6-32 characters';
+  if (n < 6 || n > 32) return appL10n.corePinLength;
   return null;
 }
 
@@ -1477,7 +1478,7 @@ class WalletService with WidgetsBindingObserver {
     if (migratedId != null) {
       await _upsertWalletMeta(
         migratedId,
-        name: 'Wallet 1',
+        name: appL10n.coreWalletNumbered('1'),
         createdAt: DateTime.now().toUtc(),
       );
     }
@@ -1661,7 +1662,7 @@ class WalletService with WidgetsBindingObserver {
       final meta = all[id];
       final info = meta != null
           ? WalletInfo.fromJson(meta)
-          : WalletInfo(walletId: id, name: 'Wallet', createdAt: DateTime.now());
+          : WalletInfo(walletId: id, name: appL10n.commonWallet, createdAt: DateTime.now());
       infos.add(info.copyWith(isUnlocked: _handles.containsKey(id)));
     }
     return orderWallets(infos, await walletOrder());
@@ -1717,7 +1718,7 @@ class WalletService with WidgetsBindingObserver {
   /// Auto-generate a wallet name based on the current count.
   Future<String> generateWalletName() async {
     final existing = await listWallets();
-    return 'Wallet ${existing.length + 1}';
+    return appL10n.coreWalletNumbered('${existing.length + 1}');
   }
 
   /// Rename a stored wallet.
@@ -1789,7 +1790,7 @@ class WalletService with WidgetsBindingObserver {
 
   /// Shown as a descriptor's source when the name came from the registry
   /// built into the app rather than from a node.
-  static const curatedTokenSource = 'Argus curated token list';
+  static String get curatedTokenSource => appL10n.coreCuratedTokenSource;
 
   /// Ids this session already asked the node about and did not get an answer
   /// for. Without it a wallet of unresolvable tokens re-asks on every sync.
@@ -2308,8 +2309,7 @@ class WalletService with WidgetsBindingObserver {
     try {
       onBroadcast?.call(txId, delta);
     } catch (e) {
-      _broadcastWarnings[txId] =
-          'Transaction submitted, but Activity could not be updated: $e. Keep this transaction ID.';
+      _broadcastWarnings[txId] = appL10n.coreBroadcastActivityWarning('$e');
     }
   }
 
@@ -2554,7 +2554,7 @@ class WalletService with WidgetsBindingObserver {
     if (ok == 0 && failed > 0) {
       throw ArgusException(
         code: 'NODE_UNREACHABLE',
-        message: 'Could not load activity',
+        message: appL10n.coreActivityLoadFailed,
       );
     }
     final all = <Map<String, dynamic>>[];
@@ -2776,7 +2776,7 @@ class WalletService with WidgetsBindingObserver {
 
   void _requireUnlocked() {
     if (_handleId == null) {
-      throw ArgusException(code: 'WALLET_LOCKED', message: 'Wallet is locked');
+      throw ArgusException(code: 'WALLET_LOCKED', message: appL10n.coreWalletLocked);
     }
   }
 
@@ -2811,7 +2811,7 @@ class WalletService with WidgetsBindingObserver {
     }
     return WalletInfo(
       walletId: walletId,
-      name: 'Wallet',
+      name: appL10n.commonWallet,
       createdAt: DateTime.now(),
     );
   }

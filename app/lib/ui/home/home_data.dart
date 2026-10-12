@@ -1,4 +1,5 @@
 import '../../format.dart';
+import '../../l10n/l10n.dart';
 import '../../services/activity_classifier.dart';
 import '../../services/erg_price_history.dart';
 import '../../services/network_controller.dart';
@@ -46,24 +47,25 @@ bool networkOffline() => networkController.activeUrl == null && !networkControll
 /// Null while prices are current, including the minutes after a refresh
 /// that failed while the last good prices are still recent.
 String? pricesNote() {
-  if (tokenPricer.result.ergStaleAge case final age?) return 'prices $age old';
+  if (tokenPricer.result.ergStaleAge case final age?) return appL10n.homePricesOld(age);
   if (!tokenPricer.pricesLookOld) return null;
   final at = tokenPricer.asOf;
-  return at == null ? 'prices stale' : 'prices as of ${formatSyncAge(at)}';
+  return at == null ? appL10n.homePricesStale : appL10n.homePricesAsOf(formatSyncAge(at));
 }
 
 /// Why ERG has no usable price right now, for a row that would show one:
 /// "unavailable · retrying" while another read is on its way.
-String _unavailableNote() => tokenPricer.retrying || tokenPricer.refreshing ? 'unavailable · retrying' : 'unavailable';
+String _unavailableNote() =>
+    tokenPricer.retrying || tokenPricer.refreshing ? appL10n.homePriceUnavailableRetrying : appL10n.homePriceUnavailable;
 
 /// The overview's network line: whether a node answers, and the chain's
 /// height when it does.
 NetworkStatus overviewNetwork() {
   if (networkController.activeUrl != null) {
-    return NetworkStatus(state: SyncState.synced, blockHeight: networkController.height, label: 'Connected');
+    return NetworkStatus(state: SyncState.synced, blockHeight: networkController.height, label: appL10n.homeNetworkConnected);
   }
-  if (networkController.probing) return const NetworkStatus(state: SyncState.syncing, label: 'Looking for a node…');
-  return const NetworkStatus(state: SyncState.offline, label: 'No reachable nodes');
+  if (networkController.probing) return NetworkStatus(state: SyncState.syncing, label: appL10n.homeNetworkLooking);
+  return NetworkStatus(state: SyncState.offline, label: appL10n.homeNoReachableNodes);
 }
 
 /// The ERG price as the strip and the ERG row show it: today's rate from
@@ -84,9 +86,9 @@ ErgPriceView ergPriceView(ErgPriceHistory? history) {
   // A stopped feed says its age; prices from an earlier read say when that
   // was only once they are old enough to matter, never "as of just now".
   final staleNote = staleAge != null
-      ? '$staleAge old'
+      ? appL10n.homeAgeOld(staleAge)
       : tokenPricer.pricesLookOld && tokenPricer.asOf != null
-          ? 'as of ${formatSyncAge(tokenPricer.asOf)}'
+          ? appL10n.homePriceAsOf(formatSyncAge(tokenPricer.asOf))
           : null;
   final h = history;
   final current = h != null &&
@@ -100,7 +102,7 @@ ErgPriceView ergPriceView(ErgPriceHistory? history) {
   } else if (h != null && !h.available) {
     unavailable = h.unavailableReason;
   } else if (h != null && h.stale) {
-    unavailable = '${h.sourceLabel} history is out of date';
+    unavailable = appL10n.homeHistoryOutOfDate(h.sourceLabel);
   }
   return ErgPriceView(
     fiatPerErg: rate,
@@ -150,7 +152,7 @@ AssetRowData tokenAssetRow(TokenBalance t) {
     amount: BigInt.from(t.amount),
     decimals: known ? t.decimals : null,
     fiatValue: fiat,
-    priceNote: fiat == null || price?.staleAge == null ? null : '${price!.staleAge} old',
+    priceNote: fiat == null || price?.staleAge == null ? null : appL10n.homeAgeOld(price!.staleAge!),
     kind: t.isCollectible ? AssetKind.collectible : AssetKind.token,
     verified: isVerifiedToken(t.id),
     caution: cautionedToken(t.id) != null,
@@ -200,7 +202,7 @@ ActivityRowData activityRow(Map<String, dynamic> tx, {required String id}) {
       return '${f.label} ${summaryAmount(first.amount.abs(), 9)}${nbsp}ERG';
     }
     final more = f.legs.length - 1;
-    return '${legText(leg(first))}${more > 0 ? ' + $more${nbsp}more' : ''}';
+    return more > 0 ? appL10n.homeLegsMore(legText(leg(first)), '$more') : legText(leg(first));
   }
 
   // Rows read from their flows word their own figures; the rest show their

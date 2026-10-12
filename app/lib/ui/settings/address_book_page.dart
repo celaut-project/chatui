@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../format.dart';
+import '../../l10n/l10n.dart';
 import '../../services/address_label_service.dart';
 import '../../services/contacts_service.dart';
 import '../../theme/argus_theme.dart';
@@ -19,32 +20,33 @@ class AddressBookPage extends StatelessWidget {
       builder: (context, _) {
         final colors = ArgusColors.of(context);
         final labels = addressLabelService.labels;
+        final t = context.l10n;
         return SettingsPage(
-          title: 'Address book',
+          title: t.addressBookTitle,
           children: [
             SettingsGroup(
-              title: 'Contacts',
-              scope: 'App-wide',
+              title: t.commonContacts,
+              scope: t.settingsScopeAppWide,
               children: [
                 SettingsRow(
                   icon: Icons.people_outline,
-                  title: 'Contacts',
+                  title: t.commonContacts,
                   subtitle: contactsService.contacts.isEmpty
-                      ? 'People you send to. Save one from the Send screen.'
-                      : '${contactsService.contacts.length} saved',
+                      ? t.addressBookContactsEmpty
+                      : t.addressBookContactsSaved(contactsService.contacts.length),
                   onTap: () => Navigator.pushNamed(context, '/contacts'),
                 ),
               ],
             ),
-            const SectionLabel('Labels for my addresses', scope: 'App-wide'),
+            SectionLabel(t.addressBookLabelsSection, scope: t.settingsScopeAppWide),
             const SizedBox(height: 10),
             if (labels.isEmpty)
-              const SoftCard(
+              SoftCard(
                 child: EmptyState(
                   compact: true,
                   icon: Icons.label_outline,
-                  title: 'No labels yet',
-                  body: 'Tap any of your addresses on the home or Receive screen to name it.',
+                  title: t.addressBookNoLabelsTitle,
+                  body: t.addressBookNoLabelsBody,
                 ),
               )
             else
@@ -70,7 +72,7 @@ class AddressBookPage extends StatelessWidget {
                               ),
                             ),
                             IconButton(
-                              tooltip: 'Remove label',
+                              tooltip: t.addressBookRemoveLabel,
                               icon: const Icon(Icons.close, size: 18),
                               onPressed: () => addressLabelService.removeLabel(e.key),
                             ),

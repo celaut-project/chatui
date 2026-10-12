@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
 import '../widgets/discover_sheet.dart';
 import 'home_style.dart';
@@ -35,13 +36,12 @@ class DiscoverView extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(homeGutter, 0, homeGutter, 8),
           child: Text(
-            'What Celaut can do beyond sending and receiving. Each one says what it is, '
-            'what you can do with it, and what to watch for before it opens.',
+            context.l10n.discoverIntro,
             style: t.secondary.copyWith(height: 1.4),
           ),
         ),
         if (tools.isNotEmpty) ...[
-          const HomeSectionHeader(title: 'Tools'),
+          HomeSectionHeader(title: context.l10n.discoverTools),
           for (final card in tools) _row(context, card),
           const SizedBox(height: 8),
         ],
@@ -56,7 +56,7 @@ class DiscoverView extends StatelessWidget {
     return HomeRow(
       inkKey: Key('discover-${card.feature.name}'),
       onTap: () => onExplain(card.feature),
-      hint: 'What it is, and the way in',
+      hint: context.l10n.discoverRowHint,
       semanticLabel: '${e.title}, $line',
       leading: HomeDisc(child: Icon(e.icon, size: 18, color: ArgusColors.of(context).accentText)),
       title: Text(e.title, style: t.primary),

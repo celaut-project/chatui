@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'dart:convert';
 
 import '../../format.dart';
+import '../../l10n/l10n.dart';
 import '../../services/token_metadata.dart';
 import '../../services/wallet_service.dart';
 import '../../theme/argus_theme.dart';
@@ -35,7 +36,7 @@ class _TxDetailsExpanderState extends State<TxDetailsExpander> {
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: SelectableText(
-              'Could not load the transaction details: ${snap.error}',
+              context.l10n.txDetailsLoadFailed('${snap.error}'),
               style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12),
             ),
           );
@@ -54,9 +55,9 @@ class _TxDetailsExpanderState extends State<TxDetailsExpander> {
 
 /// A human-readable name for an output's kind.
 String txOutputKindLabel(String kind) => switch (kind) {
-      'recipient' => 'To',
-      'change' => 'Change',
-      'fee' => 'Miner fee',
+      'recipient' => appL10n.txTo,
+      'change' => appL10n.txChange,
+      'fee' => appL10n.commonMinerFee,
       _ => kind,
     };
 
@@ -87,6 +88,7 @@ class TxDetailsView extends StatelessWidget {
     final dataInputs = (details['data_inputs'] as List? ?? const []).cast<String>();
     final fee = (details['fee_nano_erg'] as num?)?.toInt() ?? 0;
     final txId = details['tx_id']?.toString() ?? '';
+    final l = context.l10n;
 
     Widget line(String label, String value, {String? sub}) => Padding(
           padding: const EdgeInsets.symmetric(vertical: 3),
@@ -116,17 +118,17 @@ class TxDetailsView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        heading('Inputs (${inputs.length})'),
+        heading(l.txInputsCount('${inputs.length}')),
         for (final i in inputs)
           line(
-            i['owned'] == true ? 'Yours' : 'Input',
-            i['value_nano_erg'] == null ? 'value unknown' : formatErg((i['value_nano_erg'] as num).toInt()),
+            i['owned'] == true ? l.txYours : l.txInput,
+            i['value_nano_erg'] == null ? l.txValueUnknown : formatErg((i['value_nano_erg'] as num).toInt()),
             sub: [
               shorten(i['address']?.toString() ?? i['box_id']?.toString() ?? '', head: 10, tail: 6),
               _tokens(i['tokens'] as List?),
             ].where((s) => s.isNotEmpty).join(' · '),
           ),
-        heading('Outputs (${outputs.length})'),
+        heading(l.txOutputsCount('${outputs.length}')),
         for (final o in outputs)
           line(
             txOutputKindLabel(o['kind']?.toString() ?? ''),
@@ -136,15 +138,15 @@ class TxDetailsView extends StatelessWidget {
               _tokens(o['tokens'] as List?),
             ].where((s) => s.isNotEmpty).join(' · '),
           ),
-        heading('Fees'),
-        line('Miner', formatErg(fee)),
+        heading(l.txFees),
+        line(l.txMiner, formatErg(fee)),
         if (dataInputs.isNotEmpty) ...[
-          heading('Data inputs (${dataInputs.length})'),
-          for (final d in dataInputs) line('Box', shorten(d, head: 10, tail: 6)),
+          heading(l.txDataInputsCount('${dataInputs.length}')),
+          for (final d in dataInputs) line(l.txBox, shorten(d, head: 10, tail: 6)),
         ],
         if (txId.isNotEmpty) ...[
-          heading('Transaction id'),
-          line('Id', shorten(txId, head: 12, tail: 8)),
+          heading(l.txIdHeading),
+          line(l.txIdLabel, shorten(txId, head: 12, tail: 8)),
         ],
         const SizedBox(height: 8),
         OutlinedButton.icon(
@@ -153,11 +155,11 @@ class TxDetailsView extends StatelessWidget {
             final raw = details['unsigned_tx'];
             Clipboard.setData(ClipboardData(text: const JsonEncoder.withIndent('  ').convert(raw)));
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Unsigned transaction copied')),
+              SnackBar(content: Text(l.txUnsignedCopied)),
             );
           },
           icon: const Icon(Icons.copy, size: 16),
-          label: const Text('Copy unsigned transaction'),
+          label: Text(l.txCopyUnsigned),
         ),
       ],
     );

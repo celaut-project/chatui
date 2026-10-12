@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
+
 /// Asks for a name. Returns the trimmed text, or null when cancelled.
 ///
 /// The dialog owns its controller: disposing one as soon as `showDialog`
@@ -8,16 +10,16 @@ Future<String?> showNameDialog(
   BuildContext context, {
   required String title,
   String initial = '',
-  String label = 'Name',
-  String confirm = 'Save',
+  String? label,
+  String? confirm,
 }) {
   return showDialog<String>(
     context: context,
     builder: (_) => _NameDialog(
       title: title,
       initial: initial,
-      label: label,
-      confirm: confirm,
+      label: label ?? context.l10n.commonName,
+      confirm: confirm ?? context.l10n.commonSave,
     ),
   );
 }
@@ -64,7 +66,7 @@ class _NameDialogState extends State<_NameDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(context.l10n.commonCancel),
         ),
         FilledButton(onPressed: _submit, child: Text(widget.confirm)),
       ],

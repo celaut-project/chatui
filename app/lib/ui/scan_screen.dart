@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
+import '../l10n/l10n.dart';
 import '../services/session_lock.dart';
 
 class ScanScreen extends StatefulWidget {
@@ -44,7 +45,7 @@ class _ScanScreenState extends State<ScanScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Scan')),
+      appBar: AppBar(title: Text(context.l10n.scanTitle)),
       body: _cameraFailed
           ? Center(
               child: Padding(
@@ -52,14 +53,14 @@ class _ScanScreenState extends State<ScanScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      'Camera is unavailable. Allow camera access and try again.',
+                    Text(
+                      context.l10n.scanCameraUnavailable,
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 20),
                     FilledButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Back'),
+                      child: Text(context.l10n.scanBack),
                     ),
                   ],
                 ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../format.dart';
+import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
 import '../../theme/argus_tones.dart';
 import 'home_format.dart';
@@ -103,8 +104,8 @@ class HomeBalance extends StatelessWidget {
   /// gives an amount away.
   List<String> _notes() => [
         if (_fiat != null && pricesNote != null) pricesNote!,
-        if (notLoaded > 0) '${countLabel(notLoaded, 'wallet')} not loaded',
-        if (asOf != null) 'as of $asOf',
+        if (notLoaded > 0) appL10n.homeWalletsNotLoaded(notLoaded, groupThousands('$notLoaded')),
+        if (asOf != null) appL10n.homeAsOf(asOf!),
       ];
 
   /// Tokens the fiat value leaves out. Hidden: a count of holdings tells
@@ -113,16 +114,17 @@ class HomeBalance extends StatelessWidget {
 
   String _spoken() {
     final nano = nanoErg;
-    if (nano == null) return '$label ${loading ? 'loading' : 'unavailable'}';
+    final l = appL10n;
+    if (nano == null) return loading ? l.homeSpokenLoading(label) : l.homeSpokenUnavailable(label);
     final pendingLine = pendingText(pending, hidden: hidden);
     // Hidden, the screen's dots would be read out one by one; the word is
     // what they stand for.
-    if (hidden) return spoken(['$label hidden', ..._notes(), if (pendingLine != null) 'something pending'].join(', '));
+    if (hidden) return spoken([l.homeSpokenHidden(label), ..._notes(), if (pendingLine != null) l.homeSpokenSomethingPending].join(', '));
     final fiat = _fiat;
     return spoken([
       '$label ${summaryErg(nano)} ERG',
-      if (fiat != null) 'about ${fiatFigure(fiat.value, fiat.currency, approximate: false)} ${fiat.currency.code}',
-      if (_showUnpriced) '$unpricedCount tokens unpriced',
+      if (fiat != null) l.homeSpokenAbout(fiatFigure(fiat.value, fiat.currency, approximate: false), fiat.currency.code),
+      if (_showUnpriced) l.homeSpokenUnpriced(unpricedCount),
       ..._notes(),
       ?pendingLine,
     ].join(', '));
@@ -207,8 +209,8 @@ class HomeBalance extends StatelessWidget {
           const SizedBox(height: 12),
           OutlinePill(
             inkKey: const Key('home-unpriced'),
-            text: '$unpricedCount unpriced ${unpricedCount == 1 ? 'token' : 'tokens'}',
-            semanticLabel: '$unpricedCount unpriced ${unpricedCount == 1 ? 'token' : 'tokens'}',
+            text: appL10n.homeUnpricedTokens(unpricedCount),
+            semanticLabel: appL10n.homeUnpricedTokens(unpricedCount),
             onTap: onUnpriced,
           ),
         ],
@@ -378,7 +380,7 @@ class IdentityPill extends StatelessWidget {
   void _copy(BuildContext context) {
     if (onCopy != null) return onCopy!();
     Clipboard.setData(ClipboardData(text: address));
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(content: Text('Address copied')));
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(context.l10n.commonAddressCopied)));
   }
 
   @override
@@ -388,11 +390,11 @@ class IdentityPill extends StatelessWidget {
     final short = shorten(address, head: 8, tail: 6);
     return GlassPill(
       inkKey: const Key('wallet-identity'),
-      semanticLabel: spoken('${pinned ? 'Pinned address #$pinnedIndex, ' : 'Address '}$short'),
+      semanticLabel: spoken(pinned ? context.l10n.homeSpokenPinnedAddress('$pinnedIndex', short) : context.l10n.homeSpokenAddress(short)),
       leading: Icon(Icons.person_outline, size: 20, color: HomeTones.of(context).accent),
       trailing: IconButton(
         key: const Key('wallet-copy-address'),
-        tooltip: 'Copy address',
+        tooltip: context.l10n.homeCopyAddress,
         onPressed: () => _copy(context),
         icon: Icon(Icons.copy_rounded, size: 19, color: t.muted),
       ),
@@ -421,11 +423,11 @@ class IdentityPill extends StatelessWidget {
   final (word, dot) = switch (status.state) {
     // The bright moss on a dark page: the brand moss is under 3:1 on
     // Celaut's teal.
-    SyncState.synced => ('Synced', mossFor(context)),
-    SyncState.syncing => ('Syncing…', ArgusColors.of(context).accent),
-    SyncState.partial => ('Not synced', ArgusColors.of(context).accent),
-    SyncState.stale => ('Out of sync', rustFor(context)),
-    SyncState.offline => ('Offline', rustFor(context)),
+    SyncState.synced => (context.l10n.syncSynced, mossFor(context)),
+    SyncState.syncing => (context.l10n.syncSyncing, ArgusColors.of(context).accent),
+    SyncState.partial => (context.l10n.syncNotSynced, ArgusColors.of(context).accent),
+    SyncState.stale => (context.l10n.syncOutOfSync, rustFor(context)),
+    SyncState.offline => (context.l10n.commonOffline, rustFor(context)),
   };
   final problem = status.state == SyncState.stale || status.state == SyncState.offline;
   return (status.label ?? word, dot, problem);
@@ -533,14 +535,15 @@ class ErgPriceStrip extends StatelessWidget {
     final change = price.changePercent;
     final trend = price.hasTrend && rate != null;
     final rising = (change ?? 0) >= 0;
-    final window = price.trendSource == null ? price.window : '${price.window} via ${price.trendSource}';
+    final l = context.l10n;
+    final window = price.trendSource == null ? price.window : l.homePriceVia(price.window, price.trendSource!);
     final caption = [
       price.source,
       if (trend) window else if (price.historyUnavailable != null) price.historyUnavailable!,
       ?price.staleNote,
     ].join('   ·   ');
     final InlineSpan figures = rate == null
-        ? TextSpan(text: 'ERG price unavailable', style: t.primary)
+        ? TextSpan(text: l.homeErgPriceUnavailable, style: t.primary)
         : TextSpan(
             children: [
               TextSpan(text: '1${nbsp}ERG   ', style: t.secondary),
@@ -563,10 +566,13 @@ class ErgPriceStrip extends StatelessWidget {
       ],
     );
     final spokenLabel = rate == null
-        ? ['ERG price unavailable', price.source, ?price.historyUnavailable].join(', ')
+        ? [l.homeErgPriceUnavailable, price.source, ?price.historyUnavailable].join(', ')
         : [
-            'ERG price ${fiatFigure(rate, currency, approximate: false)} ${currency.code}',
-            if (trend) '${rising ? 'up' : 'down'} ${change!.abs().toStringAsFixed(1)}% over $window',
+            l.homeSpokenErgPrice(fiatFigure(rate, currency, approximate: false), currency.code),
+            if (trend)
+              rising
+                  ? l.homeSpokenUp(change!.abs().toStringAsFixed(1), window)
+                  : l.homeSpokenDown(change!.abs().toStringAsFixed(1), window),
             price.source,
             if (!trend && price.historyUnavailable != null) price.historyUnavailable!,
             ?price.staleNote,
@@ -673,7 +679,7 @@ class HideBalancesButton extends StatelessWidget {
     return IconButton(
       key: const Key('home-hide-balances'),
       onPressed: onPressed,
-      tooltip: hidden ? 'Show balances' : 'Hide balances',
+      tooltip: hidden ? context.l10n.homeShowBalances : context.l10n.homeHideBalances,
       color: HomeText.of(context).muted,
       iconSize: 19,
       icon: Icon(hidden ? Icons.visibility_off_outlined : Icons.visibility_outlined),
@@ -764,9 +770,9 @@ Widget homeNetworkPill(
       status: network,
       onTap: onTap,
       action: action,
-      hint: hint ?? (onTap == null || action != null ? null : 'Network settings'),
+      hint: hint ?? (onTap == null || action != null ? null : context.l10n.homeNetworkSettings),
       facts: [
-        if (network.blockHeight != null) 'Block$nbsp${formatWithCommas(network.blockHeight!)}',
+        if (network.blockHeight != null) context.l10n.homeBlock(formatWithCommas(network.blockHeight!)),
         if (network.age != null) network.age!,
       ],
     );

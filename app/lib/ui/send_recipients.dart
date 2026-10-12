@@ -1,4 +1,5 @@
 import '../format.dart';
+import '../l10n/l10n.dart';
 import '../services/wallet_service.dart';
 
 /// A validation failure in the send form, phrased for the user.
@@ -51,17 +52,17 @@ List<Map<String, dynamic>> buildRecipients(
   final allocated = <String, BigInt>{};
   for (var i = 0; i < drafts.length; i++) {
     final d = drafts[i];
-    final who = drafts.length > 1 ? 'Recipient ${i + 1}: ' : '';
+    final who = drafts.length > 1 ? appL10n.sendRecipientPrefix('${i + 1}') : '';
     final address = d.address.trim();
     if (!looksLikeRecipient(address)) {
-      throw SendFormException('${who}not an Ergo address');
+      throw SendFormException(appL10n.sendErrorNotErgoAddress(who));
     }
     final nano = d.tokens.isNotEmpty && d.ergText.trim().isEmpty
         ? minBoxNano
         : parseErgToNano(d.ergText);
     if (nano == null || nano < minBoxNano) {
       throw SendFormException(
-        '${who}minimum ${formatErg(minBoxNano, unit: false)} ERG',
+        appL10n.sendErrorMinimum(who, formatErg(minBoxNano, unit: false)),
       );
     }
     final entry = <String, dynamic>{
@@ -82,7 +83,7 @@ List<Map<String, dynamic>> buildRecipients(
         }
       }
       if (token == null) {
-        throw SendFormException('${who}token is not in this wallet');
+        throw SendFormException(appL10n.sendErrorTokenNotInWallet(who));
       }
       final int amount;
       if ((token.amount == 1 && token.decimals == 0)) {
@@ -91,7 +92,7 @@ List<Map<String, dynamic>> buildRecipients(
         final parsed = parseDecimalToBase(td.amountText ?? '', token.decimals);
         if (parsed == null || parsed <= 0) {
           throw SendFormException(
-            '${who}enter a token amount for ${token.label}',
+            appL10n.sendErrorEnterTokenAmount(who, token.label),
           );
         }
         amount = parsed;
@@ -100,8 +101,11 @@ List<Map<String, dynamic>> buildRecipients(
       final sent = (allocated[tokenId] ?? BigInt.zero) + BigInt.from(amount);
       if (sent > BigInt.from(token.amount)) {
         throw SendFormException(
-          '${who}you hold ${formatTokenAmount(token.amount, token.decimals)} '
-          '${token.label} in total across all recipients',
+          appL10n.sendErrorTokenOverAllocated(
+            who,
+            formatTokenAmount(token.amount, token.decimals),
+            token.label,
+          ),
         );
       }
       wanted[tokenId] = total.toInt();

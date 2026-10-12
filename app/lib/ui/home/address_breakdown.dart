@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../format.dart';
+import '../../l10n/l10n.dart';
 import '../../services/address_holdings.dart';
 import '../../theme/argus_theme.dart';
 import 'home_format.dart';
@@ -111,12 +112,11 @@ class AddressBreakdownSheet extends StatelessWidget {
         controller: scroll,
         padding: EdgeInsets.only(bottom: 16 + MediaQuery.paddingOf(context).bottom),
         children: [
-          HomeSheetHeader(title: 'Addresses', subject: walletName),
+          HomeSheetHeader(title: context.l10n.commonAddresses, subject: walletName),
           Padding(
             padding: const EdgeInsets.fromLTRB(homeGutter, 0, homeGutter, 8),
             child: Text(
-              'The wallet is shown as one address, but its balance covers every '
-              'address it knows. Any of them can spend from this wallet.',
+              context.l10n.homeBreakdownIntro,
               style: t.secondary.copyWith(height: 1.4),
             ),
           ),
@@ -132,8 +132,7 @@ class AddressBreakdownSheet extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(homeGutter, 8, homeGutter, 0),
               child: Text(
-                '${rows.emptyOthers} other known '
-                '${rows.emptyOthers == 1 ? 'address holds' : 'addresses hold'} nothing.',
+                context.l10n.homeBreakdownEmptyOthers(rows.emptyOthers),
                 style: t.secondary,
               ),
             ),
@@ -161,7 +160,7 @@ class _AddressHoldingRow extends StatelessWidget {
   Future<void> _copy(BuildContext context) async {
     await Clipboard.setData(ClipboardData(text: holding.address));
     if (context.mounted) {
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(content: Text('Address copied')));
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(context.l10n.commonAddressCopied)));
     }
   }
 
@@ -173,17 +172,17 @@ class _AddressHoldingRow extends StatelessWidget {
     final index = holding.index == null ? '#?' : '#${holding.index}';
     final named = label != null && label!.trim().isNotEmpty ? label!.trim() : null;
     final amount = hidden ? '$maskedFigure${nbsp}ERG' : '${summaryErg(holding.nanoErg)}${nbsp}ERG';
-    final tokenText = tokens > 0 && !hidden ? countLabel(tokens, 'token') : null;
+    final tokenText = tokens > 0 && !hidden ? context.l10n.homeTokenCount(tokens, groupThousands('$tokens')) : null;
     final address = shorten(holding.address, head: 9, tail: 7);
     return HomeRow(
       inkKey: ValueKey('holding-${holding.address}'),
       onTap: onLabel == null ? null : () => onLabel!(holding.address),
       onLongPress: () => _copy(context),
-      hint: onLabel == null ? 'Long press to copy' : 'Names this address. Long press to copy',
+      hint: onLabel == null ? context.l10n.homeLongPressCopy : context.l10n.homeNameAddressHint,
       semanticLabel: spoken([
-        'Address $index',
+        context.l10n.homeSpokenAddress(index),
         address,
-        if (shownAs) 'shown as this wallet',
+        if (shownAs) context.l10n.homeSpokenShownAs,
         ?named,
         amount,
         ?tokenText,
@@ -202,7 +201,7 @@ class _AddressHoldingRow extends StatelessWidget {
           ? TextSpan(
               children: [
                 if (shownAs)
-                  TextSpan(text: 'Shown as this wallet', style: TextStyle(color: accent, fontWeight: FontWeight.w700)),
+                  TextSpan(text: context.l10n.homeShownAs, style: TextStyle(color: accent, fontWeight: FontWeight.w700)),
                 if (named != null) TextSpan(text: shownAs ? '  ·  $named' : named),
               ],
             )

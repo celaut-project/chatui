@@ -1,9 +1,10 @@
+import '../l10n/l10n.dart';
 import 'oracle_feeds.dart';
 import 'oracle_pool.dart';
 
 /// The label of the only price source: on-chain oracle pools, read from the
 /// user's node.
-const priceSourceLabel = 'Oracle pools';
+String get priceSourceLabel => appL10n.priceOraclePools;
 
 /// What [priceSourceLabel] prices, for the settings page.
 const priceSourceBlurb =
@@ -27,16 +28,18 @@ const wrappedOrigins = <String, String>{
 class TokenPrice {
   const TokenPrice({
     required this.usd,
-    required this.via,
+    required String via,
     this.countsInTotal = true,
     this.staleAge,
     this.decimals,
-  });
+  })  : _via = via,
+        _ageInVia = false;
 
   /// A price whose only source has stopped publishing: shown with its age
   /// on the row, never counted in totals.
   const TokenPrice.stale({required this.usd, required String source, required String age, this.decimals})
-      : via = '$source, $age old',
+      : _via = source,
+        _ageInVia = true,
         countsInTotal = false,
         staleAge = age;
 
@@ -53,7 +56,9 @@ class TokenPrice {
 
   /// Human label of the source, e.g. "SigmaUSD oracle", "AVL oracle"; a
   /// stale price says its age here too.
-  final String via;
+  String get via => _ageInVia ? '$_via, ${appL10n.priceAgeOld(staleAge!)}' : _via;
+  final String _via;
+  final bool _ageInVia;
 
   /// False for stale prices: shown on the row, excluded from portfolio
   /// totals.
@@ -160,7 +165,7 @@ PricingResult priceTokens(PricingInputs inp) {
   _Quote? fromAvl(String feed, {double scale = 1}) {
     final v = avl?[feed];
     if (v == null || v <= 0) return null;
-    return _Quote(v * scale, 'AVL oracle', avlAge, fresh: avlFresh);
+    return _Quote(v * scale, appL10n.oracleAvl, avlAge, fresh: avlFresh);
   }
 
   // The SigmaUSD pool first: it is the ERG/USD oracle pool.
@@ -177,7 +182,7 @@ PricingResult priceTokens(PricingInputs inp) {
   var ergVia = ergPick.via;
   if (!ergPick.fresh) {
     ergStaleAge = ageText(ergPick.ageBlocks ?? 0);
-    ergVia = '${ergPick.via}, $ergStaleAge old';
+    ergVia = '${ergPick.via}, ${appL10n.priceAgeOld(ergStaleAge)}';
   }
 
   final prices = <String, TokenPrice>{};

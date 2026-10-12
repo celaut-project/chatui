@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../bridge/api.dart' as api;
+import '../l10n/l10n.dart';
 import '../services/cold_signing_service.dart';
 import '../services/network_controller.dart';
 import '../services/watch_account_service.dart';
@@ -52,20 +53,18 @@ class _ColdSigningScreenState extends State<ColdSigningScreen> {
     listenable: c,
     builder: (context, _) => Scaffold(
       appBar: AppBar(
-        title: Text(c.hot ? 'Cold-wallet send' : 'Offline signing'),
+        title: Text(c.hot ? context.l10n.coldTitleHot : context.l10n.coldTitleOffline),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const Text(
-            'Unsigned sessions expire after 30 minutes. Back pauses; return here to resume. Verified returns remain available for retry. Closing the app discards all sessions.',
-          ),
+          Text(context.l10n.coldSessionNote),
           if (c.busy) const LinearProgressIndicator(),
           if (c.error != null)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Text(
-                'Refused: ${c.error}',
+                context.l10n.coldRefused('${c.error}'),
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ),
@@ -73,46 +72,44 @@ class _ColdSigningScreenState extends State<ColdSigningScreen> {
               c.stage == ColdStage.responseQr) ...[
             Text(
               c.stage == ColdStage.requestQr
-                  ? 'Scan every request code with the offline signer.'
-                  : 'Signed. Scan every response code with the online wallet.',
+                  ? context.l10n.coldScanRequestCodes
+                  : context.l10n.coldSignedScanResponse,
             ),
             if (c.qrPages.isNotEmpty) ColdQrSequence(pages: c.qrPages),
             if (c.qrPages.isEmpty && !c.busy)
               OutlinedButton(
                 onPressed: c.loadPages,
-                child: const Text('Load QR codes'),
+                child: Text(context.l10n.coldLoadQrCodes),
               ),
             if (c.hot)
               FilledButton(
                 onPressed: c.busy ? null : c.scanResponse,
-                child: const Text('Scan signed response'),
+                child: Text(context.l10n.coldScanSignedResponse),
               ),
           ],
           if (c.stage == ColdStage.scan) ...[
             if (c.hot)
               TextButton(
                 onPressed: c.busy ? null : c.showRequest,
-                child: const Text('Show request codes again'),
+                child: Text(context.l10n.coldShowRequestAgain),
               ),
             Text(
               c.hot
-                  ? 'Collect signed response (CSTX)'
-                  : 'Collect signing request (CSR)',
+                  ? context.l10n.coldCollectResponse
+                  : context.l10n.coldCollectRequest,
             ),
             Text(
-              '${c.received} of ${c.total ?? '?'} scanned',
+              context.l10n.coldScannedProgress('${c.received}', '${c.total ?? '?'}'),
               key: const Key('page-progress'),
             ),
             if (c.missing.isNotEmpty)
-              Text('Missing pages: ${c.missing.join(', ')}'),
+              Text(context.l10n.coldMissingPages(c.missing.join(', '))),
             if (c.refused)
-              const Text(
-                'This scan was refused. Discard the collected pages and restart.',
-              ),
+              Text(context.l10n.coldScanRefused),
             FilledButton.icon(
               onPressed: c.busy || c.refused || c.complete ? null : scan,
               icon: const Icon(Icons.qr_code_scanner),
-              label: Text(c.received == 0 ? 'Scan a code' : 'Scan next code'),
+              label: Text(c.received == 0 ? context.l10n.coldScanACode : context.l10n.coldScanNextCode),
             ),
             OutlinedButton(
               onPressed: c.busy
@@ -121,12 +118,12 @@ class _ColdSigningScreenState extends State<ColdSigningScreen> {
                       approved = false;
                       c.reset();
                     },
-              child: const Text('Reset collected pages'),
+              child: Text(context.l10n.coldResetPages),
             ),
             FilledButton(
               onPressed: c.busy || !c.complete ? null : () => c.finish(handle),
               child: Text(
-                c.hot ? 'Verify signed transaction' : 'Review transaction',
+                c.hot ? context.l10n.coldVerifySigned : context.l10n.coldReviewTransaction,
               ),
             ),
           ],
@@ -137,21 +134,17 @@ class _ColdSigningScreenState extends State<ColdSigningScreen> {
               ColdTransactionReview(data: c.reviewData!),
           ],
           if (c.stage == ColdStage.review) ...[
-            const Text(
-              'Independently check the full recipient addresses and quantities. Keep this device offline. Labels from the online wallet are not used.',
-            ),
+            Text(context.l10n.coldReviewWarning),
             CheckboxListTile(
               value: approved,
               onChanged: c.busy
                   ? null
                   : (v) => setState(() => approved = v ?? false),
-              title: const Text(
-                'I checked every output, token and fee on this device',
-              ),
+              title: Text(context.l10n.coldCheckedEverything),
             ),
             FilledButton(
               onPressed: approved && !c.busy ? () => c.sign(handle) : null,
-              child: const Text('Confirm and sign offline'),
+              child: Text(context.l10n.coldConfirmSign),
             ),
             OutlinedButton(
               onPressed: c.busy
@@ -160,24 +153,20 @@ class _ColdSigningScreenState extends State<ColdSigningScreen> {
                       approved = false;
                       c.reset();
                     },
-              child: const Text('Reject and reset'),
+              child: Text(context.l10n.coldRejectReset),
             ),
           ],
           if (c.stage == ColdStage.verified) ...[
-            const Text(
-              'Every signature verifies and the transaction exactly matches the prepared payment.',
-            ),
-            SelectableText('Transaction ID: ${c.transactionId}'),
+            Text(context.l10n.coldVerifiedMatch),
+            SelectableText(context.l10n.coldTransactionId('${c.transactionId}')),
             FilledButton(
               onPressed: c.busy ? null : c.broadcast,
-              child: const Text('Broadcast verified transaction'),
+              child: Text(context.l10n.coldBroadcastVerified),
             ),
-            const Text(
-              'If the network fails, retry sends the same verified transaction. Do not rebuild while its status is uncertain.',
-            ),
+            Text(context.l10n.coldRetryNote),
           ],
           if (c.stage == ColdStage.broadcast) ...[
-            const Text('Transaction submitted'),
+            Text(context.l10n.coldSubmitted),
             SelectableText(c.transactionId!),
           ],
           const SizedBox(height: 24),
@@ -189,7 +178,7 @@ class _ColdSigningScreenState extends State<ColdSigningScreen> {
                     widget.onDiscard();
                     if (context.mounted) Navigator.pop(context);
                   },
-            child: const Text('Discard session'),
+            child: Text(context.l10n.coldDiscardSession),
           ),
         ],
       ),
@@ -211,13 +200,11 @@ class ColdTransactionReview extends StatelessWidget {
     children: [
       const SizedBox(height: 16),
       Text(
-        'Review · ${data['network']}',
+        context.l10n.coldReviewNetwork('${data['network']}'),
         style: Theme.of(context).textTheme.titleLarge,
       ),
-      Text('Miner fee: ${erg(data['fee_nano'] as String)}'),
-      const Text(
-        'Every output is listed below. “Your address” is verified from local keys; it may be change or a self-payment.',
-      ),
+      Text(context.l10n.coldMinerFeeValue(erg(data['fee_nano'] as String))),
+      Text(context.l10n.coldOutputsNote),
       for (final output in data['outputs'] as List)
         Card(
           child: Padding(
@@ -227,17 +214,17 @@ class ColdTransactionReview extends StatelessWidget {
               children: [
                 Text(
                   output['is_fee'] == true
-                      ? 'Miner fee'
+                      ? context.l10n.commonMinerFee
                       : output['owned'] == true
-                      ? 'Your address'
-                      : 'External recipient / application payment',
+                      ? context.l10n.coldYourAddress
+                      : context.l10n.coldExternalRecipient,
                 ),
                 if (output['address'] != null)
                   SelectableText(output['address'] as String),
                 Text(erg(output['nano_erg'] as String)),
                 for (final token in output['tokens'] as List) ...[
-                  SelectableText('Token ID: ${token['id']}'),
-                  Text('Quantity: ${token['amount']} base units'),
+                  SelectableText(context.l10n.coldTokenId('${token['id']}')),
+                  Text(context.l10n.coldQuantityBaseUnits('${token['amount']}')),
                 ],
               ],
             ),
@@ -245,10 +232,12 @@ class ColdTransactionReview extends StatelessWidget {
         ),
       for (final kind in ['burns', 'mints']) ...[
         Text(
-          '${kind == 'burns' ? 'Token burns' : 'Token creation'}: ${(data[kind] as List).isEmpty ? 'None' : ''}',
+          (kind == 'burns' ? context.l10n.coldTokenBurns : context.l10n.coldTokenCreation)(
+            (data[kind] as List).isEmpty ? context.l10n.coldNone : '',
+          ),
         ),
         for (final token in data[kind] as List)
-          SelectableText('${token['id']} · ${token['amount']} base units'),
+          SelectableText(context.l10n.coldTokenAmountBaseUnits('${token['id']}', '${token['amount']}')),
       ],
     ],
   );
@@ -286,7 +275,7 @@ class _ColdQrSequenceState extends State<ColdQrSequence> {
   @override
   Widget build(BuildContext context) => Column(
     children: [
-      Text('Code ${page + 1} of ${widget.pages.length}'),
+      Text(context.l10n.coldCodeOf('${page + 1}', '${widget.pages.length}')),
       Container(
         color: Colors.white,
         padding: const EdgeInsets.all(12),
@@ -304,16 +293,16 @@ class _ColdQrSequenceState extends State<ColdQrSequence> {
               () =>
                   page = (page - 1 + widget.pages.length) % widget.pages.length,
             ),
-            child: const Text('Previous'),
+            child: Text(context.l10n.coldPrevious),
           ),
           TextButton(
             onPressed: toggle,
-            child: Text(timer == null ? 'Auto-repeat' : 'Pause'),
+            child: Text(timer == null ? context.l10n.coldAutoRepeat : context.l10n.coldPause),
           ),
           TextButton(
             onPressed: () =>
                 setState(() => page = (page + 1) % widget.pages.length),
-            child: const Text('Next'),
+            child: Text(context.l10n.coldNext),
           ),
         ],
       ),
@@ -379,23 +368,19 @@ class _ColdWatchSendScreenState extends State<ColdWatchSendScreen> {
     try {
       final snapshot = widget.account?.snapshot;
       if (widget.account != null && snapshot == null)
-        throw StateError('Refresh the watched account first.');
+        throw StateError(appL10n.coldRefreshWatchedFirst);
       final node = networkController.activeUrl;
-      if (node == null) throw StateError('Choose an online node first.');
+      if (node == null) throw StateError(appL10n.coldChooseNodeFirst);
       final amountNano = int.tryParse(amount.text.trim());
       if (amountNano == null || amountNano <= 0) {
-        setState(
-          () => error = 'Enter a positive whole number for Amount (nanoERG).',
-        );
+        setState(() => error = appL10n.coldAmountPositive);
         return;
       }
       final tokenId = token.text.trim();
       final tokenAmount = BigInt.tryParse(quantity.text.trim());
       if ((tokenId.isNotEmpty || quantity.text.trim().isNotEmpty) &&
           (tokenAmount == null || tokenAmount <= BigInt.zero)) {
-        setState(
-          () => error = 'Enter a positive whole number for Token quantity.',
-        );
+        setState(() => error = appL10n.coldTokenQuantityPositive);
         return;
       }
       final raw =
@@ -423,7 +408,7 @@ class _ColdWatchSendScreenState extends State<ColdWatchSendScreen> {
               as Map<String, dynamic>;
       if (networkController.activeUrl != node) {
         await api.coldDiscard(session: raw['session'] as String);
-        throw StateError('Node changed during preparation. Try again.');
+        throw StateError(appL10n.coldNodeChanged);
       }
       pendingColdSends[sourceKey] = ColdSigningController(
         session: raw['session'] as String,
@@ -453,59 +438,53 @@ class _ColdWatchSendScreenState extends State<ColdWatchSendScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Send with offline signer')),
+    appBar: AppBar(title: Text(context.l10n.coldSendTitle)),
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        const Text(
-          'Mainnet P2PK payments. This watch-only source has no keys. An offline seed wallet must review and sign the request.',
-        ),
+        Text(context.l10n.coldWatchIntro),
         if (widget.address != null) ...[
-          const Text(
-            'Change, including remaining tokens, returns to this same watched address. Reusing it reduces privacy. A watched account tracks more addresses.',
-          ),
+          Text(context.l10n.coldChangeNote),
           SelectableText(widget.address!),
-          const Text(
-            'The offline signer must own this mainnet P2PK address. Celaut automatically searches EIP-3 account 0, external indices 0–512.',
-          ),
+          Text(context.l10n.coldSignerMustOwn),
         ],
         if (pendingColdSends.containsKey(sourceKey))
           FilledButton(
             onPressed: busy ? null : resume,
-            child: const Text('Resume cold send'),
+            child: Text(context.l10n.coldResumeSend),
           )
         else ...[
           TextField(
             controller: recipient,
-            decoration: const InputDecoration(
-              labelText: 'Full recipient address',
+            decoration: InputDecoration(
+              labelText: context.l10n.coldRecipientLabel,
             ),
           ),
           TextField(
             controller: amount,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Amount in nanoERG (1 ERG = 1000000000)',
+            decoration: InputDecoration(
+              labelText: context.l10n.coldAmountNanoLabel,
             ),
           ),
           TextField(
             controller: token,
-            decoration: const InputDecoration(labelText: 'Token ID (optional)'),
+            decoration: InputDecoration(labelText: context.l10n.coldTokenIdOptional),
           ),
           TextField(
             controller: quantity,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Token quantity in base units (optional)',
+            decoration: InputDecoration(
+              labelText: context.l10n.coldTokenQuantityLabel,
             ),
           ),
           FilledButton(
             onPressed: busy ? null : prepare,
-            child: const Text('Prepare cold request'),
+            child: Text(context.l10n.coldPrepareRequest),
           ),
         ],
         if (busy) const LinearProgressIndicator(),
-        if (error != null) Text('Refused: $error'),
+        if (error != null) Text(context.l10n.coldRefused('$error')),
       ],
     ),
   );

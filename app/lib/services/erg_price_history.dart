@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:http/http.dart' as http;
 
+import '../l10n/l10n.dart';
 import 'oracle_feeds.dart';
 
 /// How far back an ERG price chart reaches.
@@ -207,7 +208,7 @@ Future<List<Map<String, dynamic>>> fetchBoxPage(
       .get(Uri.parse('$base/blockchain/box/byTokenId/$tokenId?offset=$offset&limit=$limit'))
       .timeout(const Duration(seconds: 10));
   if (res.statusCode != 200) {
-    throw const HistoryUnavailable('This node cannot serve price history: it needs the extra index.');
+    throw HistoryUnavailable(appL10n.priceHistoryNeedsExtraIndex);
   }
   final body = jsonDecode(res.body);
   final items = body is List ? body : (body as Map)['items'] as List? ?? const [];

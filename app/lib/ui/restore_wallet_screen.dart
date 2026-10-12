@@ -2,6 +2,7 @@ import 'widgets/error_sheet.dart';
 import 'package:flutter/material.dart';
 
 import '../bridge/argus_error.dart';
+import '../l10n/l10n.dart';
 import '../services/privacy_service.dart';
 import '../services/secure_storage.dart';
 import '../services/wallet_service.dart';
@@ -50,11 +51,11 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen> {
   void _toPin() {
     final words = mnemonicWords(_phraseCtrl.text);
     if (words.isEmpty) {
-      _snack('Enter a recovery phrase');
+      _snack(context.l10n.restoreEnterPhrase);
       return;
     }
     if (!isValidMnemonicWordCount(words.length)) {
-      _snack('Recovery phrase must be 12, 15, 18, 21, or 24 words');
+      _snack(context.l10n.restoreWordCount);
       return;
     }
     setState(() => _step = 1);
@@ -64,7 +65,7 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen> {
     final words = mnemonicWords(_phraseCtrl.text);
     final phrase = words.join(' ');
     if (phrase.isEmpty) {
-      _snack('Enter a recovery phrase');
+      _snack(context.l10n.restoreEnterPhrase);
       return null;
     }
     final pinErr = pinError(_pinCtrl.text, _pinConfirmCtrl.text);
@@ -89,7 +90,7 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen> {
     } on SecureStorageException catch (e) {
       showErrorSheet(context, message: e.message);
     } catch (e) {
-      showErrorSheet(context, title: 'Could not restore the wallet', message: '$e');
+      showErrorSheet(context, title: context.l10n.restoreFailedTitle, message: '$e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -110,7 +111,7 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen> {
       },
       child: Scaffold(
       appBar: AppBar(
-        title: const Text('Restore wallet'),
+        title: Text(context.l10n.restoreTitle),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -145,16 +146,16 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen> {
       key: const ValueKey(0),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Recovery phrase', style: Theme.of(context).textTheme.headlineSmall),
+        Text(context.l10n.createPhraseLabel, style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 8),
-        const Text(
-            '12, 15, 18, 21, or 24 words, in order — 15 is the Ergo standard. Optional BIP-39 passphrase if you used one.'),
+        Text(
+            context.l10n.restoreIntro),
         const SizedBox(height: 20),
         TextField(
           controller: _phraseCtrl,
-          decoration: const InputDecoration(
-            labelText: 'Recovery phrase',
-            hintText: '12, 15, 18, 21, or 24 words',
+          decoration: InputDecoration(
+            labelText: context.l10n.createPhraseLabel,
+            hintText: context.l10n.restorePhraseHint,
           ),
           minLines: 4,
           maxLines: 6,
@@ -165,8 +166,8 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen> {
         const SizedBox(height: 12),
         TextField(
           controller: _passCtrl,
-          decoration: const InputDecoration(
-            labelText: 'BIP-39 passphrase (optional)',
+          decoration: InputDecoration(
+            labelText: context.l10n.restorePassphraseLabel,
           ),
           obscureText: true,
           enableSuggestions: false,
@@ -174,7 +175,7 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen> {
           enableIMEPersonalizedLearning: false,
         ),
         const SizedBox(height: 20),
-        FilledButton(onPressed: _toPin, child: const Text('Continue')),
+        FilledButton(onPressed: _toPin, child: Text(context.l10n.createContinue)),
       ],
     );
   }
@@ -184,18 +185,18 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen> {
       key: const ValueKey(1),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Set a PIN', style: Theme.of(context).textTheme.headlineSmall),
+        Text(context.l10n.createSetPin, style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 8),
-        const Text('The PIN unwraps the key on this device. It is not a backup.'),
+        Text(context.l10n.createPinBody),
         const SizedBox(height: 20),
         PinFields(pin: _pinCtrl, confirm: _pinConfirmCtrl),
         const SizedBox(height: 16),
         TextField(
           controller: _nameCtrl,
           textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
-            labelText: 'Wallet name (optional)',
-            hintText: 'e.g. Savings, Trading',
+          decoration: InputDecoration(
+            labelText: context.l10n.createWalletNameLabel,
+            hintText: context.l10n.createWalletNameHint,
           ),
         ),
         const SizedBox(height: 20),
@@ -207,7 +208,7 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen> {
                   height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Restore'),
+              : Text(context.l10n.restoreButton),
         ),
       ],
     );

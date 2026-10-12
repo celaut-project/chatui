@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
 
 /// Everything the Discover row and page can open.
@@ -41,42 +42,42 @@ class DiscoverExplainer {
   final String route;
 }
 
-const discoverExplainers = <DiscoverFeature, DiscoverExplainer>{
+Map<DiscoverFeature, DiscoverExplainer> get discoverExplainers => <DiscoverFeature, DiscoverExplainer>{
   DiscoverFeature.tokens: DiscoverExplainer(
-    title: 'Tokens',
-    blurb: 'Issue a token or an NFT, or burn tokens you hold.',
+    title: appL10n.commonTokens,
+    blurb: appL10n.discoverTokensBlurb,
     icon: Icons.token_outlined,
     route: '/tokens',
-    what: 'Any Ergo transaction can create a new token: its id is the id of the first input box, its name, decimals and description live in the registers of the box that carries it (EIP-4). An NFT is a token with one unit and a link to its media.',
+    what: appL10n.discoverTokensWhat,
     can: [
-      'Issue a fungible token with a name, decimals and supply',
-      'Issue an NFT pointing at an image, audio or video',
-      'Burn tokens you hold so they leave circulation',
+      appL10n.discoverTokensCanIssue,
+      appL10n.discoverTokensCanNft,
+      appL10n.discoverTokensCanBurn,
     ],
     risks: [
-      'A token\'s name is not unique: anyone can issue one with the same name',
-      'Burning is final; the supply cannot be restored',
-      'Issuing costs a miner fee and locks the minimum box value with the token',
+      appL10n.discoverTokensRiskName,
+      appL10n.discoverTokensRiskBurn,
+      appL10n.discoverTokensRiskCost,
     ],
-    go: 'Open tokens',
+    go: appL10n.discoverTokensGo,
   ),
   DiscoverFeature.utxos: DiscoverExplainer(
-    title: 'UTXO management',
-    blurb: 'Consolidate, split and restructure the boxes your money sits in.',
+    title: appL10n.homeUtxoManagement,
+    blurb: appL10n.discoverUtxosBlurb,
     icon: Icons.grid_view_outlined,
     route: '/utxos',
-    what: 'On Ergo your balance is a set of boxes, each a separate coin. Many small boxes make every send bigger and slower to build; one huge box links everything you own in one place. This tool reshapes them.',
+    what: appL10n.discoverUtxosWhat,
     can: [
-      'Consolidate many small boxes into one',
-      'Split a box into several of a chosen size',
-      'Restructure holdings so tokens sit in boxes of their own',
+      appL10n.discoverUtxosCanConsolidate,
+      appL10n.discoverUtxosCanSplit,
+      appL10n.discoverUtxosCanRestructure,
     ],
     risks: [
-      'Every reshape is a transaction: it costs a miner fee and is public',
-      'Consolidating links every box it spends to one owner',
-      'A box below the minimum value cannot be made',
+      appL10n.discoverUtxosRiskPublic,
+      appL10n.discoverUtxosRiskLinks,
+      appL10n.discoverUtxosRiskMinimum,
     ],
-    go: 'Open UTXO management',
+    go: appL10n.discoverUtxosGo,
   ),
 };
 
@@ -121,11 +122,11 @@ Future<void> showDiscoverSheet(BuildContext context, {required DiscoverFeature f
               const SizedBox(height: 10),
               Text(e.what, style: const TextStyle(fontSize: 14.5, height: 1.45)),
               const SizedBox(height: 18),
-              Text('WHAT YOU CAN DO', style: Theme.of(ctx).textTheme.titleSmall?.copyWith(color: colors.muted)),
+              Text(ctx.l10n.discoverWhatYouCanDo, style: Theme.of(ctx).textTheme.titleSmall?.copyWith(color: colors.muted)),
               const SizedBox(height: 8),
               bullets(e.can),
               const SizedBox(height: 12),
-              Text('WATCH FOR', style: Theme.of(ctx).textTheme.titleSmall?.copyWith(color: colors.muted)),
+              Text(ctx.l10n.discoverWatchFor, style: Theme.of(ctx).textTheme.titleSmall?.copyWith(color: colors.muted)),
               const SizedBox(height: 8),
               bullets(e.risks),
               const SizedBox(height: 22),

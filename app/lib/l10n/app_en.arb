@@ -287,5 +287,2602 @@
         "type": "String"
       }
     }
-  }
+  },
+  "settingsScopeAppWide": "App-wide",
+  "aboutTitle": "About",
+  "securityTitle": "Security",
+  "networkTitle": "Network",
+  "displayTitle": "Display",
+  "addressBookTitle": "Address book",
+  "settingsAboutRowTitle": "About Celaut",
+  "settingsAboutRowSubtitle": "Version, release notes, licenses",
+  "settingsSeedWalletScope": "Seed wallet",
+  "settingsWalletRowTitle": "Name, addresses and backup",
+  "settingsWalletRowSubtitle": "Rename, primary address, change policy, remove",
+  "settingsSecurityWalletSubtitle": "PIN, biometric unlock, auto-lock",
+  "settingsAppGroup": "App",
+  "settingsSecurityAppSubtitle": "Auto-lock, screenshots, unconfirmed funds",
+  "settingsOfflineSigningTitle": "Offline signing",
+  "settingsOfflineSigningSubtitle": "Scan, review and sign with this seed wallet",
+  "settingsRemotePreviewsTitle": "Remote previews",
+  "settingsRemotePreviewsSubtitle": "IPFS gateway and Never load remote previews",
+  "settingsContactsCount": "{count, plural, other{{count} contacts}}",
+  "@settingsContactsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsAllWallets": "All wallets",
+  "settingsUnlocked": "Unlocked",
+  "settingsLocked": "Locked",
+  "settingsWalletsOnDevice": "{count, plural, =1{{count} wallet on this device} other{{count} wallets on this device}}",
+  "@settingsWalletsOnDevice": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsWatchOnlyAccountDetail": "Watch-only account · {id}",
+  "@settingsWatchOnlyAccountDetail": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsWatchOnlyAddressDetail": "Watch-only address · {id}",
+  "@settingsWatchOnlyAddressDetail": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsThisAccount": "This account",
+  "settingsThisAddress": "This address",
+  "settingsWatchOnlyScope": "Watch-only",
+  "settingsStopWatchingSubtitle": "Removes it from this device. Nothing on chain changes.",
+  "aboutSaveSettingFailed": "Could not save the setting.",
+  "aboutAskingGithub": "Asking GitHub…",
+  "aboutNotCheckedYet": "Not checked yet",
+  "aboutUpToDateChecked": "Up to date · checked {when}",
+  "@aboutUpToDateChecked": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "aboutVersionAvailableChecked": "Version {version} is available · checked {when}",
+  "@aboutVersionAvailableChecked": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "aboutVersionBuild": "{version} · build {build}",
+  "@aboutVersionBuild": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "build": {
+        "type": "String"
+      }
+    }
+  },
+  "aboutUpdatesGroup": "Updates",
+  "aboutCheckForUpdates": "Check for updates",
+  "aboutCheckForUpdatesSubtitle": "Asks GitHub once a day. GitHub sees your IP address.",
+  "aboutCheckNow": "Check now",
+  "aboutUpdatesNote": "Off by default. When on, Celaut asks api.github.com for the latest release once a day as it starts. \"Check now\" does the same on request, even with this off. Nothing else is sent: no account, token, app version or device identifier. A download comes from github.com and is checked against this app's signing key before Android is asked to install it.",
+  "aboutThisBuild": "This build",
+  "aboutUnauditedTitle": "Unaudited prototype",
+  "aboutUnauditedSubtitle": "Transactions on Ergo are irreversible. Use only funds you can afford to lose.",
+  "aboutReleasesTitle": "Releases and notes",
+  "aboutReleasesSubtitle": "What changed in each alpha, and the latest APK.",
+  "aboutLicenses": "Open-source licenses",
+  "aboutLightClientNote": "Celaut is a light client: it talks to public Ergo nodes over HTTPS and never sends your keys anywhere.",
+  "aboutSigningCertificate": "Signing certificate",
+  "aboutSigningCertificateSubtitle": "SHA-256 of the key this build is signed with. An update must be signed with the same one.",
+  "aboutReading": "Reading…",
+  "aboutNotAvailableOnDevice": "Not available on this device.",
+  "aboutFingerprintCopied": "Fingerprint copied",
+  "addressBookContactsEmpty": "People you send to. Save one from the Send screen.",
+  "addressBookContactsSaved": "{count, plural, other{{count} saved}}",
+  "@addressBookContactsSaved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "addressBookLabelsSection": "Labels for my addresses",
+  "addressBookNoLabelsTitle": "No labels yet",
+  "addressBookNoLabelsBody": "Tap any of your addresses on the home or Receive screen to name it.",
+  "addressBookRemoveLabel": "Remove label",
+  "displayAppearance": "Appearance",
+  "displayFollowSystem": "Follow system",
+  "displayAlwaysDark": "Always dark",
+  "displayAlwaysLight": "Always light",
+  "displaySystemPalettes": "Dark → {dark}, light → {light}",
+  "@displaySystemPalettes": {
+    "placeholders": {
+      "dark": {
+        "type": "String"
+      },
+      "light": {
+        "type": "String"
+      }
+    }
+  },
+  "displayDarkPalette": "Dark palette",
+  "displayLightPalette": "Light palette",
+  "displayMoney": "Money",
+  "displayPricesInUsd": "Prices in USD",
+  "displayHideBalances": "Hide balances",
+  "displayHideBalancesSubtitle": "Mask amounts on the home screen",
+  "themeTealName": "Celaut Teal",
+  "themeTealHint": "Teal, cream type, coral",
+  "themeCreamName": "Celaut Cream",
+  "themeCreamHint": "Cream, teal type, coral",
+  "themeObsidianName": "Obsidian",
+  "themeObsidianHint": "True black, steel accent",
+  "themeHarborName": "Harbor",
+  "themeHarborHint": "Deep navy, teal accent",
+  "themeEmberName": "Ember",
+  "themeEmberHint": "Warm charcoal, copper accent",
+  "themeParchmentName": "Parchment",
+  "themeParchmentHint": "Cream, sage accent",
+  "themeFrostName": "Frost",
+  "themeFrostHint": "Cool white, slate-blue accent",
+  "networkConnectedNode": "Connected node",
+  "networkChecking": "Checking…",
+  "networkCheckNodes": "Check nodes",
+  "networkNodes": "Nodes",
+  "networkAddNodeLabel": "Add node URL",
+  "networkAddNodeHint": "https://host  or  1.2.3.4:9053",
+  "networkAdd": "Add",
+  "networkNodesNote": "Tap a node to use it. Automatic picks the reachable node with extraIndex and the smallest index lag. Built-in nodes are HTTPS; you can add http://ip:port for a node you run or trust, unencrypted.",
+  "networkFindMoreNodes": "Find more nodes",
+  "networkDiscovering": "Asking every node for its peers and checking each…",
+  "networkDiscoverIntro": "Peers of your nodes that publish an HTTPS API.",
+  "networkSearching": "Searching…",
+  "networkSearch": "Search",
+  "networkOpenInExplorer": "Open in explorer",
+  "networkCustom": "Custom",
+  "networkCustomSiteSubtitle": "A website using the Ergo Platform explorer paths",
+  "networkExplorerWebsite": "Explorer website",
+  "networkExplorerSiteNote": "Where transaction and token links open. This changes no data the wallet reads.",
+  "networkExplorerApi": "Explorer API",
+  "networkCustomApiSubtitle": "Any server speaking the Ergo Platform explorer API",
+  "networkExplorerApiUrl": "Explorer API URL",
+  "networkExplorerApiNote": "The data source for token metadata when nodes lack it. ErgExplorer and Kadia use their own APIs, so they cannot be chosen here.",
+  "networkAutomatic": "Automatic",
+  "networkBestReachable": "Best reachable extraIndex node",
+  "networkUsingHost": "Using {host}",
+  "@networkUsingHost": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "networkExtraIndexLag": "extraIndex, lag {lag}",
+  "@networkExtraIndexLag": {
+    "placeholders": {
+      "lag": {
+        "type": "String"
+      }
+    }
+  },
+  "networkNoExtraIndex": "no extraIndex",
+  "networkDisable": "Disable",
+  "networkEnable": "Enable",
+  "networkNodeOff": "Off",
+  "networkNodeInUse": "In use",
+  "networkNodeStandby": "Standby",
+  "networkNodeChosen": "chosen",
+  "networkNodeUnreachable": "unreachable",
+  "networkAddNodeInvalid": "Enter https://host or http://ip:port",
+  "networkNodeAlreadyAdded": "Node already added",
+  "networkSearchNoAnswer": "No node answered the peer request. Check your connection, or try another node.",
+  "networkSearchNoNewApi": "{count, plural, =1{Asked {count} node: their peers publish no HTTPS API you do not already have.} other{Asked {count} nodes: their peers publish no HTTPS API you do not already have.}}",
+  "@networkSearchNoNewApi": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "networkSearchNoneReachable": "Checked {found} found, none reachable right now.",
+  "@networkSearchNoneReachable": {
+    "placeholders": {
+      "found": {
+        "type": "String"
+      }
+    }
+  },
+  "networkSearchNoneReachablePartial": "Checked {checked} of {found} found, none reachable right now.",
+  "@networkSearchNoneReachablePartial": {
+    "placeholders": {
+      "checked": {
+        "type": "String"
+      },
+      "found": {
+        "type": "String"
+      }
+    }
+  },
+  "networkSearchReachable": "{reachable} reachable of {found} found, best first.",
+  "@networkSearchReachable": {
+    "placeholders": {
+      "reachable": {
+        "type": "String"
+      },
+      "found": {
+        "type": "String"
+      }
+    }
+  },
+  "networkSearchReachablePartial": "{reachable} reachable of {checked} of {found} found, best first.",
+  "@networkSearchReachablePartial": {
+    "placeholders": {
+      "reachable": {
+        "type": "String"
+      },
+      "checked": {
+        "type": "String"
+      },
+      "found": {
+        "type": "String"
+      }
+    }
+  },
+  "pinHelper": "6–32 characters. Number pad first.",
+  "pinConfirm": "Confirm PIN",
+  "pinMismatch": "PINs do not match",
+  "pinIncorrect": "Incorrect PIN",
+  "securityBiometricDisabled": "Biometric unlock disabled",
+  "securityBiometricDisableFailed": "Could not disable biometrics",
+  "securityPinLockoutCheckFailed": "Could not check PIN lockout",
+  "securityNoPinWalletFound": "No PIN-protected wallet found.",
+  "securityBiometricEnabled": "Biometric unlock enabled",
+  "securityBiometricEnableFailed": "Could not enable biometrics",
+  "securityChangePin": "Change PIN",
+  "securityNewPin": "New PIN",
+  "securityChange": "Change",
+  "securityNoPinWallet": "No PIN-protected wallet found",
+  "securityPinChanged": "PIN changed",
+  "securityPinChangedLockoutNotReset": "PIN changed but lockout state could not be reset",
+  "securityChangePinFailed": "Could not change PIN",
+  "securityLockImmediately": "Immediately",
+  "securityLockAfterSeconds": "{count, plural, other{After {count} seconds}}",
+  "@securityLockAfterSeconds": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "securityLockAfterMinutes": "{count, plural, =1{After {count} minute} other{After {count} minutes}}",
+  "@securityLockAfterMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "securityLockWhenBackgrounded": "Lock when backgrounded",
+  "securityAutoLockUpdateFailed": "Could not update auto-lock",
+  "securityAutoLock": "Auto-lock",
+  "securityUnlockGroup": "Unlock",
+  "securityUnlockFirst": "Unlock the wallet first",
+  "securityUnlockFirstSubtitle": "Biometric and PIN settings need an unlocked wallet.",
+  "securityRetryUnlockSettings": "Retry unlock settings",
+  "securityReadSetupFailed": "Could not read the current setup.",
+  "securityBiometricUnlock": "Biometric unlock",
+  "securityBiometricOn": "On. The PIN still unwraps the key.",
+  "securityOff": "Off",
+  "securitySetPinHint": "Set a PIN when you create or restore a wallet.",
+  "securityPinNote": "Five wrong PINs lock the gate for a while. Celaut never stores the PIN; it only unwraps the key that decrypts the seed.",
+  "securityScreen": "Screen",
+  "securityBlockScreenshots": "Block screenshots",
+  "securityScreenshotsBlocked": "Screens cannot be captured or recorded",
+  "securityScreenshotsAllowed": "Off: you can capture screens to report issues",
+  "securitySeedScreensNote": "Seed phrase screens always block capture, whatever this setting says.",
+  "securitySpending": "Spending",
+  "securitySpendUnconfirmed": "Spend unconfirmed funds",
+  "securitySpendUnconfirmedOn": "On: received funds and change can be spent at once",
+  "securitySpendUnconfirmedOff": "Off: received funds and change wait for 1 confirmation",
+  "securitySpendingSaveFailed": "Could not save the spending setting",
+  "updateAvailableTitle": "Update available",
+  "updateCardVersion": "Celaut {version}",
+  "@updateCardVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updateCardVersionDate": "Celaut {version} · {date}",
+  "@updateCardVersionDate": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "updateHideNotes": "Hide release notes",
+  "updateReleaseNotes": "Release notes",
+  "updateDownloadProgress": "Download progress",
+  "updateDownloading": "Downloading…",
+  "updateDownloadingOf": "Downloading {done} of {total}",
+  "@updateDownloadingOf": {
+    "placeholders": {
+      "done": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "updateCheckingDownload": "Checking the download",
+  "updateCheckingAgainstKey": "Checking the download against this app's signing key…",
+  "updateCertMatches": "The signing certificate matches this app.",
+  "updateCertMatchesWith": "The signing certificate matches this app (SHA-256 {fingerprint}…).",
+  "@updateCertMatchesWith": {
+    "placeholders": {
+      "fingerprint": {
+        "type": "String"
+      }
+    }
+  },
+  "updateAndroidChecksSignature": "Android checks the signature itself when it installs.",
+  "updateInstall": "Install",
+  "updateTryAgain": "Try again",
+  "updateDownloadAndVerify": "Download and verify",
+  "updateAssetNote": "{name} · {size}. Before anything is installed, Celaut checks the file against the checksum GitHub lists and against the key this app is signed with.",
+  "@updateAssetNote": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "updateOpenReleasesPage": "Open the releases page",
+  "updateNoApkForPhone": "This release has no APK for your phone.",
+  "updateNoticeAvailable": "Celaut {version} is available.",
+  "@updateNoticeAvailable": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updateNoticeView": "View",
+  "updateNoticeDismiss": "Dismiss",
+  "updateErrorTimeout": "GitHub did not answer in time.",
+  "updateErrorUnreachable": "Could not reach GitHub. Check your connection.",
+  "updateErrorStatus": "GitHub answered with an error ({status}).",
+  "@updateErrorStatus": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "updateErrorBadRedirect": "GitHub sent a redirect that was not understood.",
+  "updateErrorRedirectedAway": "The request was redirected away from GitHub, so it was stopped.",
+  "updateErrorTooManyRedirects": "GitHub redirected the request too many times.",
+  "updateErrorRateLimited": "GitHub is limiting requests from this network. Try again later.",
+  "updateErrorNoRelease": "GitHub has no release to offer.",
+  "updateErrorNotUnderstood": "GitHub's answer was not understood.",
+  "updateErrorTooLarge": "GitHub's answer was larger than expected.",
+  "updateErrorNotOnGithub": "The download address is not on GitHub.",
+  "updateErrorDownloadTooLarge": "The download is larger than Celaut will accept.",
+  "updateErrorStorage": "Celaut could not save the download. Is the phone out of storage?",
+  "updateErrorLargerThanListed": "The download is larger than GitHub lists it, so it was stopped.",
+  "updateErrorEndedEarly": "The download ended early.",
+  "updateRejectedWrongSigner": "This download is not signed by the same key as this app, so it must not be installed. It has been deleted.",
+  "updateRejectedChecksum": "This download does not match the SHA-256 checksum GitHub lists for it, so it may be damaged or tampered with. It has been deleted.",
+  "updateRejectedUnreadable": "The signing key of this download could not be read, so it was not offered for install. It has been deleted.",
+  "updateRejectedAppKeyUnknown": "Celaut could not read its own signing key, so it cannot check this download. It has been deleted.",
+  "updateCheckFailed": "The update check failed.",
+  "updateNoApkSeeReleases": "This release has no APK for your phone. The releases page has the files.",
+  "updateCannotKeepDownload": "This device cannot keep a download.",
+  "updateDownloadCancelled": "Download cancelled.",
+  "updateDownloadFailed": "The download failed.",
+  "updateInstallPermission": "Android needs your permission first. Allow Celaut to install apps on the next screen, then tap Install again.",
+  "updateInstallerFailed": "Android could not open its installer. The releases page has the file.",
+  "walletSettingsRenameFailed": "Could not rename wallet",
+  "walletSettingsRemoveTitle": "Remove {name}?",
+  "@walletSettingsRemoveTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "walletSettingsRemoveBody": "This removes the wallet from this device. Celaut does not keep a copy of the recovery phrase; the paper you wrote when creating this wallet is the only way back in.",
+  "walletSettingsRemoveFailed": "Could not remove wallet",
+  "walletSettingsPinIndexTitle": "Pin address index",
+  "walletSettingsPinIndexIntro": "Derive the address at this index and use it as the primary address for send and receive. Index 0 resets to the default. The balance still counts every address of the wallet.",
+  "walletSettingsIndexLabel": "Index",
+  "walletSettingsPin": "Pin",
+  "walletSettingsInvalidIndex": "Invalid index",
+  "walletSettingsIndexTooHigh": "This wallet can't derive past index {max}",
+  "@walletSettingsIndexTooHigh": {
+    "placeholders": {
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "walletSettingsCannotDerive": "Wallet can't derive index {index}",
+  "@walletSettingsCannotDerive": {
+    "placeholders": {
+      "index": {
+        "type": "String"
+      }
+    }
+  },
+  "walletSettingsPinnedIndex": "Pinned index {index} · {address}",
+  "@walletSettingsPinnedIndex": {
+    "placeholders": {
+      "index": {
+        "type": "String"
+      },
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "walletSettingsPinnedOutOfRange": "Pinned index #{index} can't be derived",
+  "@walletSettingsPinnedOutOfRange": {
+    "placeholders": {
+      "index": {
+        "type": "String"
+      }
+    }
+  },
+  "walletSettingsPrimaryPinned": "Primary address: index #{index}",
+  "@walletSettingsPrimaryPinned": {
+    "placeholders": {
+      "index": {
+        "type": "String"
+      }
+    }
+  },
+  "walletSettingsPrimaryDefault": "Primary address: index 0",
+  "walletSettingsOutOfRangeHint": "This wallet derives up to index {max}. Unpin or choose a lower index.",
+  "@walletSettingsOutOfRangeHint": {
+    "placeholders": {
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "walletSettingsPrimaryHint": "Receive and change default to this address until it is used.",
+  "walletSettingsUnpin": "Unpin",
+  "walletSettingsFreshAddresses": "Fresh addresses",
+  "walletSettingsFreshAddressesSubtitle": "Receive and change on a new address each time, like Nautilus. Off: everything uses your pinned or first address.",
+  "walletSettingsUnlockToChange": "Unlock a wallet to change this setting",
+  "walletSettingsPrivacySaveFailed": "Could not update privacy setting",
+  "walletSettingsBackup": "Backup",
+  "walletSettingsBackupNote": "Celaut does not keep a copy of the recovery phrase. The paper you wrote at create or restore is the only way back in.",
+  "walletSettingsRemoveWallet": "Remove wallet",
+  "walletSettingsRemoveWalletSubtitle": "From this device only. Keep the recovery phrase.",
+  "secureSaveFailed": "Failed to save",
+  "secureSaveWrapKeyFailed": "Failed to save wrap key",
+  "secureSavePinWrapFailed": "Failed to save PIN wrap",
+  "secureLoadWrapKeyFailed": "Failed to load wrap key",
+  "secureLoadPinWrapFailed": "Failed to load PIN wrap",
+  "secureLoadFailed": "Failed to load",
+  "secureDeleteWrapKeyFailed": "Failed to delete wrap key: {detail}",
+  "@secureDeleteWrapKeyFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "secureDeleteSecretsFailed": "Failed to delete wallet secrets: {detail}",
+  "@secureDeleteSecretsFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "secureDeleteWalletFailed": "Failed to delete wallet: {detail}",
+  "@secureDeleteWalletFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "secureCheckFailed": "Failed to check: {detail}",
+  "@secureCheckFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "secureCheckPinWrapFailed": "Failed to check PIN wrap",
+  "secureCheckWrapKeyFailed": "Failed to check wrap key",
+  "secureCheckBiometricsFailed": "Failed to check biometrics",
+  "secureBiometric": "Biometric",
+  "secureLoadPinGateFailed": "Failed to load PIN gate",
+  "secureTooManyAttempts": "Too many attempts. Try again in {seconds}s",
+  "@secureTooManyAttempts": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "securePersistPinGateFailed": "Failed to persist PIN gate: {detail}",
+  "@securePersistPinGateFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "secureListWalletsFailed": "Failed to list wallets: {detail}",
+  "@secureListWalletsFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "secureBiometricChanged": "Biometric enrollment changed; re-enter mnemonic",
+  "notifyChannelName": "Incoming payments",
+  "notifyChannelDescription": "A payment to one of your addresses was seen on the network.",
+  "notifyIncomingBody": "{amount} to {wallet}",
+  "@notifyIncomingBody": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "wallet": {
+        "type": "String"
+      }
+    }
+  },
+  "notifyPaymentOnTheWay": "Payment on the way",
+  "notifyPaymentReceived": "Payment received",
+  "utxoBoxCount": "{count, plural, =1{{count} box} other{{count} boxes}}",
+  "@utxoBoxCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "utxoNBoxes": "{count, plural, other{{count} boxes}}",
+  "@utxoNBoxes": {
+    "description": "Always 'boxes' in English.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "utxoTokenCount": "{count, plural, =1{{count} token} other{{count} tokens}}",
+  "@utxoTokenCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "coinPrivacyNote": "These {count} boxes sit on {addresses} different addresses. Spending them together publicly links those addresses to one wallet.",
+  "@coinPrivacyNote": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "addresses": {
+        "type": "String"
+      }
+    }
+  },
+  "coinConfirmationNote": "{count, plural, =1{One of these boxes is still confirming. This transaction can confirm only after the one that created it, and fails if that one is dropped.} other{{count} of these boxes are still confirming. This transaction can confirm only after the one that created them, and fails if that one is dropped.}}",
+  "@coinConfirmationNote": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "coinSelectionNone": "No boxes chosen — Celaut will pick them.",
+  "coinRawUnits": "{count, plural, =1{{amount} raw unit} other{{amount} raw units}}",
+  "@coinRawUnits": {
+    "description": "count is 1 for exactly one unit, else 2; amount is the formatted number.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "coinRawUnitsLabel": "raw units",
+  "coinRawUnitsOf": "{units} of {label}",
+  "@coinRawUnitsOf": {
+    "placeholders": {
+      "units": {
+        "type": "String"
+      },
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pendingBalanceHidden": "•••• ERG pending",
+  "pendingBalanceTotalUnknown": "{total} ERG · pending",
+  "@pendingBalanceTotalUnknown": {
+    "placeholders": {
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "pendingBalanceTotalMoved": "{total} ERG · {moved} pending",
+  "@pendingBalanceTotalMoved": {
+    "placeholders": {
+      "total": {
+        "type": "String"
+      },
+      "moved": {
+        "type": "String"
+      }
+    }
+  },
+  "pendingBalanceMoved": "{moved} ERG pending · {confirmed} confirmed",
+  "@pendingBalanceMoved": {
+    "placeholders": {
+      "moved": {
+        "type": "String"
+      },
+      "confirmed": {
+        "type": "String"
+      }
+    }
+  },
+  "pendingBalanceUnknown": "Pending · {confirmed} confirmed",
+  "@pendingBalanceUnknown": {
+    "placeholders": {
+      "confirmed": {
+        "type": "String"
+      }
+    }
+  },
+  "spendUnconfirmedNote": "Off: money you receive, and the change from your own sends, waits for one confirmation (the next block, usually a few minutes) before Celaut spends it. On: it can be spent at once, but if the transaction that brought it is dropped, the one spending it fails too. Either way, coins a pending transaction is already spending are never used again.",
+  "rentNoChargeZeroRate": "No storage rent is charged at the current rate.",
+  "rentNoChargeOverflow": "No storage rent can be charged on a box over {bytes} bytes under current rules.",
+  "@rentNoChargeOverflow": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "rentRatePerByte": "{fee} per byte",
+  "@rentRatePerByte": {
+    "placeholders": {
+      "fee": {
+        "type": "String"
+      }
+    }
+  },
+  "rentRatePerByteDefault": "{fee} per byte (default rate)",
+  "@rentRatePerByteDefault": {
+    "placeholders": {
+      "fee": {
+        "type": "String"
+      }
+    }
+  },
+  "rentWhenNow": "now",
+  "rentWhenWithinDay": "within a day",
+  "rentWhenInDays": "in ~{days} days",
+  "@rentWhenInDays": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "rentWhenMonthYear": "~{month} {year}",
+  "@rentWhenMonthYear": {
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "separateNeedsSourceAddress": "Refresh boxes to identify the source address.",
+  "separateMinPerBox": "Each token box needs at least 0.001 ERG.",
+  "separateFundingInvalid": "Funding must be separate ERG-only boxes at the source address.",
+  "separateInvalidTokenAmount": "The source contains an invalid token amount.",
+  "separateTokenTypeRange": "Choose a box holding between 2 and 150 token types.",
+  "separateInvalidErgValue": "The selected boxes contain an invalid ERG value.",
+  "separateOverLimit": "The selected ERG amount exceeds the transaction limit.",
+  "separateAddFunding": "Add {amount} in funding boxes.",
+  "@separateAddFunding": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "utxoHealthTidy": "Tidy",
+  "utxoHealthTidyHint": "Few boxes: sends select inputs quickly and pay the least.",
+  "utxoHealthModerate": "Moderate",
+  "utxoHealthModerateHint": "Sends may need several inputs; consolidating dust keeps fees down.",
+  "utxoHealthFragmented": "Fragmented",
+  "utxoHealthFragmentedHint": "Many small boxes make every send pick more inputs. Sweep dust or consolidate.",
+  "sendRecipientPrefix": "Recipient {number}: ",
+  "@sendRecipientPrefix": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "sendErrorNotErgoAddress": "{who}not an Ergo address",
+  "@sendErrorNotErgoAddress": {
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "sendErrorMinimum": "{who}minimum {amount} ERG",
+  "@sendErrorMinimum": {
+    "placeholders": {
+      "who": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sendErrorTokenNotInWallet": "{who}token is not in this wallet",
+  "@sendErrorTokenNotInWallet": {
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "sendErrorEnterTokenAmount": "{who}enter a token amount for {token}",
+  "@sendErrorEnterTokenAmount": {
+    "placeholders": {
+      "who": {
+        "type": "String"
+      },
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "sendErrorTokenOverAllocated": "{who}you hold {amount} {token} in total across all recipients",
+  "@sendErrorTokenOverAllocated": {
+    "placeholders": {
+      "who": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "coldUnlockBeforeReview": "Unlock the seed wallet before reviewing.",
+  "coldWalletLockedOrChanged": "Wallet locked or changed. Reset and review with the selected wallet.",
+  "coldRefusingBroadcast": "Refusing broadcast: no verified response.",
+  "coldTxIdMismatch": "Node transaction ID mismatch.",
+  "coldTitleHot": "Cold-wallet send",
+  "coldTitleOffline": "Offline signing",
+  "coldSessionNote": "Unsigned sessions expire after 30 minutes. Back pauses; return here to resume. Verified returns remain available for retry. Closing the app discards all sessions.",
+  "coldRefused": "Refused: {error}",
+  "@coldRefused": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "coldScanRequestCodes": "Scan every request code with the offline signer.",
+  "coldSignedScanResponse": "Signed. Scan every response code with the online wallet.",
+  "coldLoadQrCodes": "Load QR codes",
+  "coldScanSignedResponse": "Scan signed response",
+  "coldShowRequestAgain": "Show request codes again",
+  "coldCollectResponse": "Collect signed response (CSTX)",
+  "coldCollectRequest": "Collect signing request (CSR)",
+  "coldScannedProgress": "{received} of {total} scanned",
+  "@coldScannedProgress": {
+    "description": "total is a number or ? when not known yet.",
+    "placeholders": {
+      "received": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "coldMissingPages": "Missing pages: {pages}",
+  "@coldMissingPages": {
+    "placeholders": {
+      "pages": {
+        "type": "String"
+      }
+    }
+  },
+  "coldScanRefused": "This scan was refused. Discard the collected pages and restart.",
+  "coldScanACode": "Scan a code",
+  "coldScanNextCode": "Scan next code",
+  "coldResetPages": "Reset collected pages",
+  "coldVerifySigned": "Verify signed transaction",
+  "coldReviewTransaction": "Review transaction",
+  "coldReviewWarning": "Independently check the full recipient addresses and quantities. Keep this device offline. Labels from the online wallet are not used.",
+  "coldCheckedEverything": "I checked every output, token and fee on this device",
+  "coldConfirmSign": "Confirm and sign offline",
+  "coldRejectReset": "Reject and reset",
+  "coldVerifiedMatch": "Every signature verifies and the transaction exactly matches the prepared payment.",
+  "coldTransactionId": "Transaction ID: {id}",
+  "@coldTransactionId": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "coldBroadcastVerified": "Broadcast verified transaction",
+  "coldRetryNote": "If the network fails, retry sends the same verified transaction. Do not rebuild while its status is uncertain.",
+  "coldSubmitted": "Transaction submitted",
+  "coldDiscardSession": "Discard session",
+  "coldReviewNetwork": "Review · {network}",
+  "@coldReviewNetwork": {
+    "placeholders": {
+      "network": {
+        "type": "String"
+      }
+    }
+  },
+  "coldMinerFeeValue": "Miner fee: {fee}",
+  "@coldMinerFeeValue": {
+    "placeholders": {
+      "fee": {
+        "type": "String"
+      }
+    }
+  },
+  "coldOutputsNote": "Every output is listed below. “Your address” is verified from local keys; it may be change or a self-payment.",
+  "coldYourAddress": "Your address",
+  "coldExternalRecipient": "External recipient / application payment",
+  "coldTokenId": "Token ID: {id}",
+  "@coldTokenId": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "coldQuantityBaseUnits": "Quantity: {amount} base units",
+  "@coldQuantityBaseUnits": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "coldTokenBurns": "Token burns: {none}",
+  "@coldTokenBurns": {
+    "description": "none is coldNone when the list is empty, else empty.",
+    "placeholders": {
+      "none": {
+        "type": "String"
+      }
+    }
+  },
+  "coldTokenCreation": "Token creation: {none}",
+  "@coldTokenCreation": {
+    "description": "none is coldNone when the list is empty, else empty.",
+    "placeholders": {
+      "none": {
+        "type": "String"
+      }
+    }
+  },
+  "coldNone": "None",
+  "coldTokenAmountBaseUnits": "{id} · {amount} base units",
+  "@coldTokenAmountBaseUnits": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "coldCodeOf": "Code {page} of {total}",
+  "@coldCodeOf": {
+    "placeholders": {
+      "page": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "coldPrevious": "Previous",
+  "coldAutoRepeat": "Auto-repeat",
+  "coldPause": "Pause",
+  "coldNext": "Next",
+  "coldRefreshWatchedFirst": "Refresh the watched account first.",
+  "coldChooseNodeFirst": "Choose an online node first.",
+  "coldAmountPositive": "Enter a positive whole number for Amount (nanoERG).",
+  "coldTokenQuantityPositive": "Enter a positive whole number for Token quantity.",
+  "coldNodeChanged": "Node changed during preparation. Try again.",
+  "coldSendTitle": "Send with offline signer",
+  "coldWatchIntro": "Mainnet P2PK payments. This watch-only source has no keys. An offline seed wallet must review and sign the request.",
+  "coldChangeNote": "Change, including remaining tokens, returns to this same watched address. Reusing it reduces privacy. A watched account tracks more addresses.",
+  "coldSignerMustOwn": "The offline signer must own this mainnet P2PK address. Celaut automatically searches EIP-3 account 0, external indices 0–512.",
+  "coldResumeSend": "Resume cold send",
+  "coldRecipientLabel": "Full recipient address",
+  "coldAmountNanoLabel": "Amount in nanoERG (1 ERG = 1000000000)",
+  "coldTokenIdOptional": "Token ID (optional)",
+  "coldTokenQuantityLabel": "Token quantity in base units (optional)",
+  "coldPrepareRequest": "Prepare cold request",
+  "priceHistoryNeedsExtraIndex": "This node cannot serve price history: it needs the extra index.",
+  "oracleSigmaUsd": "SigmaUSD oracle",
+  "oracleDexyUsd": "Dexy USD oracle",
+  "oracleDexyGold": "Dexy gold oracle",
+  "oracleAvl": "AVL oracle",
+  "priceAgeMinutes": "{count} min",
+  "@priceAgeMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "priceAgeHours": "{count} h",
+  "@priceAgeHours": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "priceAgeDays": "{count} days",
+  "@priceAgeDays": {
+    "description": "Always 2 days or more.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "priceAgeOld": "{age} old",
+  "@priceAgeOld": {
+    "description": "How old a stale price is; age is priceAgeMinutes/Hours/Days. Also follows the source after a comma: \"SigmaUSD oracle, 3 h old\".",
+    "placeholders": {
+      "age": {
+        "type": "String"
+      }
+    }
+  },
+  "priceSourceLine": "{source} · ERG via {via}",
+  "@priceSourceLine": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "via": {
+        "type": "String"
+      }
+    }
+  },
+  "priceSourceLineStale": "{source} · stale · ERG via {via}",
+  "@priceSourceLineStale": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "via": {
+        "type": "String"
+      }
+    }
+  },
+  "priceHistoryUnreadable": "Price history could not be read: {error}",
+  "@priceHistoryUnreadable": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "priceNoNode": "No node is connected.",
+  "priceNoHeight": "The node height is not known yet.",
+  "priceNoHistoryYet": "This node has no price history for {source} yet.",
+  "@priceNoHistoryYet": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "priceOraclePools": "Oracle pools",
+  "priceSourceBlurb": "On-chain: ERG from the SigmaUSD oracle pool (the ERG/USD oracle pool), gold from the Dexy gold oracle, wrapped majors from the AVL multi-oracle. An old price is shown with its age, never as current. Reads only your node. Other tokens have no price.",
+  "priceNoneYet": "No price yet · {source} have not answered",
+  "@priceNoneYet": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "priceNoPool": "No price · no oracle pool prices this token",
+  "priceEach": "{price} each",
+  "@priceEach": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "priceHeld": "{value} held",
+  "@priceHeld": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "priceNotCounted": "not counted in totals (stale)",
+  "verifiedNetaNote": "The anetaBTC project was abandoned by its team and holders were left without the promised product. Treat NETA as having no backing.",
+  "tokenErrorNoName": "Give the token a name",
+  "tokenErrorNameTooLong": "Name is too long (64 characters at most)",
+  "tokenErrorDecimalsRange": "Decimals must be between 0 and 18",
+  "tokenErrorAmountMissing": "Enter the amount to issue",
+  "tokenErrorAmountZero": "Amount must be above zero",
+  "tokenErrorAmountTooBig": "Amount is beyond what a box can hold",
+  "nftErrorDecimals": "An NFT has no decimals",
+  "nftErrorOneUnit": "An NFT is one unit",
+  "nftErrorHash": "Content hash must be 64 hex characters (SHA-256)",
+  "nftErrorLink": "Link must start with https:// or ipfs://",
+  "tokenIssue": "Issue",
+  "tokenBurn": "Burn",
+  "tokenIssueNftTitle": "Issue an NFT",
+  "tokenIssueTokenTitle": "Issue a token",
+  "tokenIssueDetail": "The new token lands in this wallet. Its name, description and decimals are written on chain and cannot be changed afterwards.",
+  "tokenSupply": "Supply",
+  "tokenSupplyDecimals": "{count, plural, =1{{amount} · {count} decimals} other{{amount} · {count} decimals}}",
+  "@tokenSupplyDecimals": {
+    "description": "Supply row: the amount and the number of decimals.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenDescription": "Description",
+  "tokenKind": "Kind",
+  "tokenLink": "Link",
+  "tokenIdRow": "Token id",
+  "tokenBoxValue": "Box value",
+  "tokenIssuanceSubmitted": "Token issuance submitted",
+  "tokenIssuanceNote": "The token ID remains on the issuance screen. The token appears in your assets after confirmation.",
+  "tokenNamedIssuanceSubmitted": "{name} issuance submitted",
+  "@tokenNamedIssuanceSubmitted": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenIssuedExplainer": "It appears in your assets once the transaction confirms. The token id is what other wallets and sites know it by.",
+  "tokenIdLabel": "Token ID",
+  "tokenCopyId": "Copy token id",
+  "tokenIdCopied": "Token id copied",
+  "tokenViewReceipt": "View transaction receipt",
+  "tokenTransactionId": "Transaction ID",
+  "tokenIssueAnother": "Issue another",
+  "tokenIssueIntro": "A token is created by a transaction from this wallet. Its id is fixed by that transaction, and its name, description and decimals are written once, on chain.",
+  "nftSubtitle": "A single unit with a content hash and a link",
+  "tokenDescriptionOptional": "Description (optional)",
+  "tokenSupplyHelper": "Whole units, decimals allowed",
+  "tokenDecimals": "Decimals",
+  "tokenDecimalsHelper": "0 to 18",
+  "nftKindPicture": "Picture",
+  "nftKindAudio": "Audio",
+  "nftKindVideo": "Video",
+  "nftHashLabel": "Content SHA-256 (hex, optional)",
+  "nftHashHelper": "64 hex characters",
+  "nftLinkLabel": "Link (optional)",
+  "nftLinkHelper": "https:// or ipfs://",
+  "tokenIssueCost": "Costs 0.001 ERG for the token box plus the miner fee.",
+  "tokenPreparing": "Preparing…",
+  "tokenBurnEnterAmount": "Enter how much {token} to burn",
+  "@tokenBurnEnterAmount": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenBurnYouHold": "You hold {amount} {token}",
+  "@tokenBurnYouHold": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenBurnPick": "Pick a token to burn",
+  "tokenBurnTypeToGoOn": "Type {word} to go on",
+  "@tokenBurnTypeToGoOn": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenBurnTitle": "Burn tokens",
+  "tokenBurnForGood": "Burn for good",
+  "tokenBurnDetail": "These units are left out of every output of the transaction and stop existing. Nobody, including Celaut, can bring them back.",
+  "tokenBurnBackToYou": "Back to you",
+  "tokenBurnSubmitted": "Token burn submitted",
+  "tokenBurnWarning": "Burning destroys tokens permanently. It is not a send: the units leave the chain rather than move to anyone. Use it for tokens you are sure you never want back, such as spam or a supply you mean to cut.",
+  "tokenBurnNoTokens": "This wallet holds no tokens.",
+  "tokenBurnInWallet": "Tokens in this wallet",
+  "tokenBurnHeldRow": "{amount} held · {id}",
+  "@tokenBurnHeldRow": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenBurnOneUnit": "{token}: the one unit",
+  "@tokenBurnOneUnit": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenBurnAmountLabel": "{token} to burn",
+  "@tokenBurnAmountLabel": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenBurnOf": "Of {amount}",
+  "@tokenBurnOf": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenBurnAll": "ALL",
+  "tokenBurnTypeToConfirm": "Type {word} to confirm",
+  "@tokenBurnTypeToConfirm": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
+  "assetsTitle": "Assets",
+  "assetsShowList": "Show collectible list",
+  "assetsShowGrid": "Show collectible grid",
+  "assetsClearCache": "Clear collectible cache (saved holdings keep their metadata)",
+  "assetsAll": "All",
+  "assetsCollectibles": "Collectibles",
+  "assetsSearchLabel": "Search name or token ID",
+  "assetsClearSearch": "Clear search",
+  "assetsCollectibleCount": "{count, plural, =1{{count} identified collectible · previews load only when you choose} other{{count} identified collectibles · previews load only when you choose}}",
+  "@assetsCollectibleCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "assetsTokenIdCount": "{count} token IDs",
+  "@assetsTokenIdCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "assetsTokenIdCountIncomplete": "{count} token IDs · {unknown} with incomplete metadata",
+  "@assetsTokenIdCountIncomplete": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "unknown": {
+        "type": "String"
+      }
+    }
+  },
+  "assetsPublicOnly": "Public holdings only",
+  "assetsNotLoaded": "Holdings not loaded",
+  "assetsLastSynced": "Holdings last synced {age}",
+  "@assetsLastSynced": {
+    "placeholders": {
+      "age": {
+        "type": "String"
+      }
+    }
+  },
+  "assetsHidden": "Assets hidden",
+  "assetsNoMatch": "No assets match your search",
+  "assetsNoCollectibles": "No identified collectibles in loaded holdings",
+  "assetsIncompleteHint": "Some tokens have incomplete metadata. Open them in All to inspect their details.",
+  "tokenCautionFlagged": "Caution: this token is flagged",
+  "assetsHeld": "Held: {amount}",
+  "@assetsHeld": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenCount": "{count, plural, =1{{count} token ID (incl. NFTs)} other{{count} token IDs (incl. NFTs)}}",
+  "@tokenCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tokenCountPublic": "{count, plural, =1{{count} public token ID (incl. NFTs)} other{{count} public token IDs (incl. NFTs)}}",
+  "@tokenCountPublic": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "artworkClose": "Close artwork",
+  "artworkTitle": "Artwork",
+  "artworkResetZoom": "Reset zoom",
+  "artworkPreviewHidden": "Preview hidden. Reopen asset details to view it.",
+  "artworkZoomHint": "Pinch or scroll to zoom. Drag to move.",
+  "tokenMetaAsciiProvider": "Configure an ASCII/punycode HTTPS metadata provider",
+  "tokenMetaLoadFrom": "Load metadata from {host}",
+  "@tokenMetaLoadFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenMetaLoadFromNode": "Load metadata from {host} (node)",
+  "@tokenMetaLoadFromNode": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenMetaHostNode": "node",
+  "@tokenMetaHostNode": {
+    "description": "Stands in for the host in tokenMetaLoadFromNode when the node URL has none."
+  },
+  "tokenMetaHostProvider": "provider",
+  "@tokenMetaHostProvider": {
+    "description": "Stands in for the host in tokenMetaLoadFrom when the explorer URL has none."
+  },
+  "tokenMetaPrivacy": "This provider can see your IP address and the token ID requested. Issuer text may be misleading. No artwork will be downloaded.",
+  "tokenMetaLoad": "Load metadata",
+  "tokenMetaBusy": "Another metadata request is finishing — try again",
+  "tokenMetaUnavailableFrom": "Metadata unavailable from {host}",
+  "@tokenMetaUnavailableFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenDetailsHidden": "Asset details hidden",
+  "tokenMetaOffline": "Metadata unavailable offline",
+  "tokenMetaCancel": "Cancel metadata request",
+  "tokenMetaLoading": "Loading metadata…",
+  "tokenCurated": "Curated token · {project}",
+  "@tokenCurated": {
+    "placeholders": {
+      "project": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenCaution": "Caution: {note}",
+  "@tokenCaution": {
+    "placeholders": {
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenCautionDefault": "this token is flagged.",
+  "tokenImpersonation": "This token is named like {ticker}, but it is not the verified {ticker} from {project}. Check the id before trusting it.",
+  "@tokenImpersonation": {
+    "placeholders": {
+      "ticker": {
+        "type": "String"
+      },
+      "project": {
+        "type": "String"
+      }
+    }
+  },
+  "artworkNoMediaLink": "No media link in issuance metadata.",
+  "artworkLoadBelow": "Load metadata below to check for artwork.",
+  "artworkPreviewUnsupported": "Preview not supported",
+  "artworkLinkUnavailable": "Artwork link unavailable",
+  "artworkMediaUnavailable": "Media metadata unavailable",
+  "artworkConsent": "Artwork is loaded only with your consent",
+  "tokenYouHold": "YOU HOLD",
+  "tokenIdCaps": "TOKEN ID",
+  "tokenLeaveFor": "Leave Celaut for {host}?",
+  "@tokenLeaveFor": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenExplorerPrivacy": "The explorer can see your IP address and this token ID.",
+  "tokenOpenExplorer": "Open explorer",
+  "tokenExplorer": "Explorer",
+  "tokenMetaDetails": "Metadata & media details",
+  "tokenOriginalEmission": "Original emission: {amount} (provider reported)",
+  "@tokenOriginalEmission": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenOriginalEmissionUnavailable": "Original emission unavailable",
+  "tokenDecimalsLine": "Decimals: {decimals} · {evidence}",
+  "@tokenDecimalsLine": {
+    "placeholders": {
+      "decimals": {
+        "type": "String"
+      },
+      "evidence": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenDecimalsDeclared": "declared by the issuer",
+  "tokenDecimalsNone": "none declared, so whole units",
+  "tokenDecimalsListed": "from a token list",
+  "tokenDecimalsLastShown": "as last shown",
+  "tokenDecimalsUnknown": "Decimals unknown · amounts are shown in raw units",
+  "tokenDeclaredKind": "Declared artwork kind: {kind}",
+  "@tokenDeclaredKind": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenMetaSource": "Metadata source: {source}",
+  "@tokenMetaSource": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenMediaHashMissing": "Issuance media hash missing or invalid",
+  "tokenMediaHash": "Issuance media hash: {hash}",
+  "@tokenMediaHash": {
+    "placeholders": {
+      "hash": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenCopyMediaUri": "Copy media URI as text",
+  "tokenIssuanceRegisters": "Original issuance registers (hex)",
+  "tokenSend": "Send {token}",
+  "@tokenSend": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLockedWalletsExplainer": "Locked wallets refresh from public data every 5 minutes, covering only the addresses this app already knows. Unlock one to pick up new addresses.",
+  "watchSaveAddressesFailed": "Could not save watched addresses. Please try again.",
+  "watchLimitations": "Public payment addresses only. Cannot sign locally; sending requires an offline signer.",
+  "watchDisclosure": "An extended public key lets anyone holding it derive and link every public payment address in this account forever. Only import a key you intend to share with this device. {limitations}",
+  "@watchDisclosure": {
+    "description": "limitations is the text of watchLimitations.",
+    "placeholders": {
+      "limitations": {
+        "type": "String"
+      }
+    }
+  },
+  "watchExpected": "Expected an Ergo Wallet App extended public key: 156 hex characters starting 0488b21e (mainnet), depth 4 external chain /0 or depth 3 account 0. Base58 xpub and testnet are not supported.",
+  "watchIncompleteDerivation": "Incomplete derivation",
+  "watchScanIncomplete": "Scan incomplete after {count} addresses; no unused receive address confirmed.",
+  "@watchScanIncomplete": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "watchNodeChanged": "Node changed. Refresh the account before receiving.",
+  "watchSaveAccountsFailed": "Could not save watched accounts. Please try again.",
+  "watchNodeChangedDuringScan": "Node changed during scan; refresh again.",
+  "watchAccountRefreshUnavailable": "Account refresh unavailable: {detail}",
+  "@watchAccountRefreshUnavailable": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPublicKnownOnly": "Public data · known addresses only",
+  "syncSyncing": "Syncing…",
+  "syncOutOfSync": "Out of sync",
+  "syncHistoryIncomplete": "History incomplete",
+  "syncSynced": "Synced",
+  "syncNotSynced": "Not synced",
+  "syncPinIssue": "Pinned index {index} can't be derived (max {max}). Reset it in Settings.",
+  "@syncPinIssue": {
+    "placeholders": {
+      "index": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "dashboardStartupError": "Error: {detail}",
+  "@dashboardStartupError": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "dashboardUnlockForErgoPay": "Unlock a wallet to continue with the ErgoPay request.",
+  "dashboardUnlockForNotification": "Unlock a wallet to open what the notification is about.",
+  "dashboardScanNotErgo": "Not an Ergo address or ErgoPay link",
+  "dashboardOpenFailed": "Could not open wallet: {detail}",
+  "@dashboardOpenFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "dashboardWalletRemoved": "\"{name}\" removed",
+  "@dashboardWalletRemoved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "dashboardStoppedWatching": "Stopped watching",
+  "dashboardNoAddressDerived": "Unlocked, but no address could be derived",
+  "dashboardPinLockoutCheckFailed": "Could not check PIN lockout",
+  "dashboardNoPinWallet": "No PIN-protected wallet found.",
+  "dashboardBiometricNotSetUp": "Biometric unlock is not set up for this wallet. Use its PIN.",
+  "dashboardBiometricCancelled": "Biometric unlock cancelled. Tap Unlock to try again, or use your PIN.",
+  "dashboardWalletDataMissing": "Wallet data not found on this device.",
+  "dashboardNoWalletFound": "No wallet found. Create or restore.",
+  "dashboardSetPinTitle": "Set a PIN",
+  "dashboardLater": "Later",
+  "dashboardUnlockFirst": "Unlock the wallet first",
+  "dashboardAddressLoading": "Address is still loading",
+  "dashboardScanQrTooltip": "Scan a QR code",
+  "dashboardWalletSettingsTooltip": "Wallet settings",
+  "homeUnlocked": "Unlocked",
+  "homeLocked": "Locked",
+  "offlineNoNodes": "No reachable nodes. Tap Retry to check.",
+  "overviewReorderHint": "Long-press a wallet to change the order.",
+  "discoverTokensBlurb": "Issue a token or an NFT, or burn tokens you hold.",
+  "discoverTokensWhat": "Any Ergo transaction can create a new token: its id is the id of the first input box, its name, decimals and description live in the registers of the box that carries it (EIP-4). An NFT is a token with one unit and a link to its media.",
+  "discoverTokensCanIssue": "Issue a fungible token with a name, decimals and supply",
+  "discoverTokensCanNft": "Issue an NFT pointing at an image, audio or video",
+  "discoverTokensCanBurn": "Burn tokens you hold so they leave circulation",
+  "discoverTokensRiskName": "A token's name is not unique: anyone can issue one with the same name",
+  "discoverTokensRiskBurn": "Burning is final; the supply cannot be restored",
+  "discoverTokensRiskCost": "Issuing costs a miner fee and locks the minimum box value with the token",
+  "discoverTokensGo": "Open tokens",
+  "homeUtxoManagement": "UTXO management",
+  "discoverUtxosBlurb": "Consolidate, split and restructure the boxes your money sits in.",
+  "discoverUtxosWhat": "On Ergo your balance is a set of boxes, each a separate coin. Many small boxes make every send bigger and slower to build; one huge box links everything you own in one place. This tool reshapes them.",
+  "discoverUtxosCanConsolidate": "Consolidate many small boxes into one",
+  "discoverUtxosCanSplit": "Split a box into several of a chosen size",
+  "discoverUtxosCanRestructure": "Restructure holdings so tokens sit in boxes of their own",
+  "discoverUtxosRiskPublic": "Every reshape is a transaction: it costs a miner fee and is public",
+  "discoverUtxosRiskLinks": "Consolidating links every box it spends to one owner",
+  "discoverUtxosRiskMinimum": "A box below the minimum value cannot be made",
+  "discoverUtxosGo": "Open UTXO management",
+  "discoverWhatYouCanDo": "WHAT YOU CAN DO",
+  "discoverWatchFor": "WATCH FOR",
+  "discoverIntro": "What Celaut can do beyond sending and receiving. Each one says what it is, what you can do with it, and what to watch for before it opens.",
+  "discoverTools": "Tools",
+  "discoverRowHint": "What it is, and the way in",
+  "watchAddFailed": "Could not add watched address: {detail}",
+  "@watchAddFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "watchAddressAdded": "Watch-only address added",
+  "watchAddInvalid": "Already watched or invalid input. Use an Ergo address, a 33-byte compressed public key, or its 0008cd P2PK tree (hex, no 0x). Raw keys use mainnet.",
+  "watchAddressTitle": "Watch an address",
+  "watchAddressIntro": "See balance and activity for any Ergo address. No keys are stored, so it cannot spend.",
+  "watchAddressLabel": "Address or public key",
+  "watchAddressHelper": "Mainnet key hex: 02/03… or 0008cd02/03…",
+  "watchAction": "Watch",
+  "watchXpubTitle": "Watch an extended public key",
+  "watchXpubLabel": "Ergo Wallet App extended public key",
+  "watchXpubHelper": "156 hex characters, mainnet. No checksum: verify the first address with the source wallet.",
+  "watchXpubAlreadyWatched": "This extended key is already watched.",
+  "watchAccountAction": "Watch account",
+  "watchNameOptional": "Name (optional)",
+  "watchSaveNameFailed": "Could not save the name: {detail}",
+  "@watchSaveNameFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "watchStopTitle": "Stop watching?",
+  "watchStopAccountBody": "The extended key is removed from this device. Re-import it to watch the account again.",
+  "watchStopFailed": "Could not stop watching: {detail}",
+  "@watchStopFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "navActivity": "Activity",
+  "navDiscover": "Discover",
+  "navActivityPending": "{count, plural, other{Activity, {count} pending}}",
+  "@navActivityPending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homePricesOld": "prices {age} old",
+  "@homePricesOld": {
+    "description": "age is how old, e.g. \"3 h\".",
+    "placeholders": {
+      "age": {
+        "type": "String"
+      }
+    }
+  },
+  "homePricesStale": "prices stale",
+  "homePricesAsOf": "prices as of {when}",
+  "@homePricesAsOf": {
+    "description": "when is a sync age, e.g. \"5m ago\".",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "homePriceUnavailable": "unavailable",
+  "homePriceUnavailableRetrying": "unavailable · retrying",
+  "homeNetworkConnected": "Connected",
+  "homeNetworkLooking": "Looking for a node…",
+  "homeNoReachableNodes": "No reachable nodes",
+  "homeAgeOld": "{age} old",
+  "@homeAgeOld": {
+    "description": "age is how old a price is, e.g. \"3 h\".",
+    "placeholders": {
+      "age": {
+        "type": "String"
+      }
+    }
+  },
+  "homePriceAsOf": "as of {when}",
+  "@homePriceAsOf": {
+    "description": "How old a price is; when is a sync age, e.g. \"5m ago\".",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "homeHistoryOutOfDate": "{source} history is out of date",
+  "@homeHistoryOutOfDate": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "homeLegsMore": "{first} + {count} more",
+  "@homeLegsMore": {
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "homeWalletsNotLoaded": "{count, plural, =1{{n} wallet not loaded} other{{n} wallets not loaded}}",
+  "@homeWalletsNotLoaded": {
+    "description": "n is count with thousands separators.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "homeAsOf": "as of {when}",
+  "@homeAsOf": {
+    "description": "How old the figures are; when is a sync age, e.g. \"3h ago\".",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "homeSpokenLoading": "{label} loading",
+  "@homeSpokenLoading": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "homeSpokenUnavailable": "{label} unavailable",
+  "@homeSpokenUnavailable": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "homeSpokenHidden": "{label} hidden",
+  "@homeSpokenHidden": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "homeSpokenSomethingPending": "something pending",
+  "homeSpokenAbout": "about {value} {code}",
+  "@homeSpokenAbout": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "homeSpokenUnpriced": "{count, plural, other{{count} tokens unpriced}}",
+  "@homeSpokenUnpriced": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeUnpricedTokens": "{count, plural, =1{{count} unpriced token} other{{count} unpriced tokens}}",
+  "@homeUnpricedTokens": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeSpokenPinnedAddress": "Pinned address #{index}, {address}",
+  "@homeSpokenPinnedAddress": {
+    "placeholders": {
+      "index": {
+        "type": "String"
+      },
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "homeSpokenAddress": "Address {address}",
+  "@homeSpokenAddress": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCopyAddress": "Copy address",
+  "homeErgPriceUnavailable": "ERG price unavailable",
+  "homePriceVia": "{window} via {source}",
+  "@homePriceVia": {
+    "placeholders": {
+      "window": {
+        "type": "String"
+      },
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "homeSpokenErgPrice": "ERG price {value} {code}",
+  "@homeSpokenErgPrice": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "homeSpokenUp": "up {percent}% over {window}",
+  "@homeSpokenUp": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      },
+      "window": {
+        "type": "String"
+      }
+    }
+  },
+  "homeSpokenDown": "down {percent}% over {window}",
+  "@homeSpokenDown": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      },
+      "window": {
+        "type": "String"
+      }
+    }
+  },
+  "homeShowBalances": "Show balances",
+  "homeHideBalances": "Hide balances",
+  "homeNetworkSettings": "Network settings",
+  "homeBlock": "Block {height}",
+  "@homeBlock": {
+    "placeholders": {
+      "height": {
+        "type": "String"
+      }
+    }
+  },
+  "homeLoading": "Loading…",
+  "homeEmpty": "Empty",
+  "homeTokenCount": "{count, plural, =1{{n} token} other{{n} tokens}}",
+  "@homeTokenCount": {
+    "description": "n is count with thousands separators.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "homeAsOfCompact": "as of {when}",
+  "@homeAsOfCompact": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "homeOpensWallet": "Opens the wallet",
+  "homeSpokenUnlocked": "unlocked",
+  "homeSpokenWatchOnly": "watch-only",
+  "homeSpokenBalanceHidden": "balance hidden",
+  "homeSpokenIncl": "incl. {other}",
+  "@homeSpokenIncl": {
+    "placeholders": {
+      "other": {
+        "type": "String"
+      }
+    }
+  },
+  "homePriceNote": "Price {note}",
+  "@homePriceNote": {
+    "placeholders": {
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "homeAssetHidden": "Asset hidden",
+  "homeSpokenVerified": "verified",
+  "homeSpokenCaution": "caution, named like a verified token",
+  "homeSpokenPrice": "price {value}",
+  "@homeSpokenPrice": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "homeSpokenPending": "pending",
+  "homeSpokenAmountHidden": "amount hidden",
+  "overviewOpenToLoad": "Open to load",
+  "overviewNotLoadedYet": "Not loaded yet",
+  "overviewTagline": "Decentralized compute",
+  "overviewTotalBalance": "Total balance",
+  "overviewWallets": "Wallets",
+  "overviewAddWallet": "Add a wallet",
+  "overviewWatchedAddresses": "Watched addresses",
+  "overviewWatchTooltip": "Watch an address or account",
+  "overviewPrototypeTitle": "Prototype software",
+  "overviewPrototypeBody": "Celaut is an unaudited prototype. Transactions on Ergo are irreversible — use only funds you can afford to lose.",
+  "overviewGotIt": "Got it",
+  "overviewPrototypeNote": "Unaudited prototype. Use only funds you can afford to lose.",
+  "overviewLearnMore": "Learn more",
+  "overviewWelcomeTitle": "Your wallets live here",
+  "overviewWelcomeBody": "No wallets yet. Create a new wallet, restore one from its recovery phrase, or watch an address or an account without its keys. Each one opens from this screen.",
+  "overviewCreateWallet": "Create a wallet",
+  "overviewRestoreWallet": "Restore from recovery phrase",
+  "overviewWatchAccountXpub": "Watch an account (xpub)",
+  "overviewAddCreate": "Create a new wallet",
+  "overviewAddCreateBlurb": "A fresh recovery phrase, kept on this phone.",
+  "overviewAddRestore": "Restore a wallet",
+  "overviewAddRestoreBlurb": "From its 12, 15 or 24-word recovery phrase.",
+  "overviewAddWatchAddressBlurb": "Balance and activity, without its keys.",
+  "overviewAddWatchAccount": "Watch an account",
+  "overviewAddWatchAccountBlurb": "Every address of an extended public key (xpub).",
+  "homeBalanceLabel": "Balance",
+  "homeUnlockPrompt": "Unlock to see activity, send and receive.",
+  "homeUnlock": "Unlock",
+  "homeUsePin": "Use PIN",
+  "homeUseBiometrics": "Use biometrics",
+  "homeUnlockAndSetPin": "Unlock and set PIN",
+  "homeKeysNotHere": "This wallet's keys are not stored on this device.",
+  "homeActionSend": "Send",
+  "homeActionSendOffline": "Send with offline signer",
+  "homeActionReceive": "Receive",
+  "homeActionMore": "More",
+  "homeToolTokensBlurb": "Issue tokens and NFTs, or burn tokens.",
+  "homeToolUtxosBlurb": "Consolidate, split and tidy up your boxes.",
+  "homeToolAddressesBlurb": "Each address of this wallet and what it holds.",
+  "homeToolLock": "Lock wallet",
+  "homeToolLockBlurb": "Opening it again asks for your PIN or fingerprint.",
+  "homeBreakdownIntro": "The wallet is shown as one address, but its balance covers every address it knows. Any of them can spend from this wallet.",
+  "homeBreakdownEmptyOthers": "{count, plural, =1{{count} other known address holds nothing.} other{{count} other known addresses hold nothing.}}",
+  "@homeBreakdownEmptyOthers": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeLongPressCopy": "Long press to copy",
+  "homeNameAddressHint": "Names this address. Long press to copy",
+  "homeSpokenShownAs": "shown as this wallet",
+  "homeShownAs": "Shown as this wallet",
+  "homeAllWallets": "All wallets",
+  "homeOtherAddressesHint": "Shows each address and what it holds",
+  "homeUtxos": "UTXOs",
+  "homeUtxoCount": "{count} UTXOs",
+  "@homeUtxoCount": {
+    "description": "count is already formatted with thousands separators.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "homeUtxoTools": "UTXO tools",
+  "homeSpokenFragmented": "{utxos}, fragmented. Tidy up",
+  "@homeSpokenFragmented": {
+    "placeholders": {
+      "utxos": {
+        "type": "String"
+      }
+    }
+  },
+  "homeTidyUp": "Tidy up",
+  "homeFragmented": "Fragmented",
+  "homeAllAssets": "All assets",
+  "homeAllAssetsCount": "All {count} assets",
+  "@homeAllAssetsCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "homeRecentActivity": "Recent Activity",
+  "homeViewAll": "View all",
+  "homeReadingActivity": "Reading activity",
+  "homeReadingActivityEllipsis": "Reading activity…",
+  "homeFullHistory": "Full history",
+  "homeEveryAddress": "Every address and what it holds",
+  "homeNoAddresses": "No addresses read yet",
+  "homeNoAddressesWatched": "No addresses read yet. They appear after the first scan.",
+  "homeNoAddressesDot": "No addresses read yet.",
+  "homeSpokenCountFragmented": "{count}, fragmented",
+  "@homeSpokenCountFragmented": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "homeAssets": "Assets",
+  "homeShowMyAddress": "Show my address",
+  "homeNoActivity": "No activity yet",
+  "watchBalanceUnavailable": "Balance unavailable: {detail}",
+  "@watchBalanceUnavailable": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "watchActivityPartial": "Some activity could not be read.",
+  "watchActivityFailed": "Could not load activity.",
+  "watchAccountRefreshRetry": "Account refresh unavailable. Try again.",
+  "watchRescanAccount": "Rescan account",
+  "watchRefresh": "Refresh",
+  "watchMoreOptions": "More options",
+  "watchRename": "Rename",
+  "watchNotScannedTitle": "Account not scanned",
+  "watchNotScannedBody": "Refresh the account to read its addresses and activity.",
+  "watchRefreshAccount": "Refresh account",
+  "watchRefreshToReadActivity": "Refresh the account to read its activity.",
+  "watchShowItsAddress": "Show its address",
+  "watchStatusWatchOnly": "Watch-only · cannot sign here",
+  "watchScanning": "Scanning…",
+  "watchRefreshing": "Refreshing…",
+  "watchUpdated": "Updated {when}",
+  "@watchUpdated": {
+    "description": "when is a sync age, e.g. \"2m ago\".",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "watchGapNote": "Discovery stops after 20 unused addresses. Payments beyond a larger gap can be missed.",
+  "watchAddressNote": "Cannot sign locally. Send with an offline signer; change returns to this same address. A watched account tracks more addresses.",
+  "watchFirstAddress": "First address",
+  "watchFirstAddressNote": "{count, plural, other{Check this matches the first address in the wallet the key came from: an extended key has no checksum. {count} addresses scanned.}}",
+  "@watchFirstAddressNote": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "activityTitleReceived": "Received",
+  "activityTitleSent": "Sent",
+  "activityTitleMoved": "Moved",
+  "activityTitleConsolidated": "Consolidated",
+  "activityTitleBurned": "{count, plural, =1{Burned token} other{Burned tokens}}",
+  "@activityTitleBurned": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "activityTitleIssued": "{count, plural, =1{Issued token} other{Issued tokens}}",
+  "@activityTitleIssued": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "activityTitleContractInteraction": "Contract interaction",
+  "activityTitleContract": "Contract",
+  "activityFrom": "from {address}",
+  "@activityFrom": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "activityFromContract": "from contract {address}",
+  "@activityFromContract": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "activityTo": "to {address}",
+  "@activityTo": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "activityToContract": "to contract {address}",
+  "@activityToContract": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "activityContract": "contract {address}",
+  "@activityContract": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "activityAndMore": "{who} and {count} more",
+  "@activityAndMore": {
+    "description": "who is 'from 9fRx…3kQe' or 'to contract …'; count is how many other addresses.",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "activityArgusAppFee": "Argus app fee",
+  "activityBetweenYourAddresses": "between your addresses",
+  "activityFeeLabel": "Fee",
+  "@activityFeeLabel": {
+    "description": "Before an amount: 'Fee 0.0011 ERG'. Shown lowercased as the second figure of a row."
+  },
+  "activityMoreTokens": "{count, plural, =1{{count} more token} other{{count} more tokens}}",
+  "@activityMoreTokens": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "activityPlusMore": "+ {count} more",
+  "@activityPlusMore": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "activityScreenTitle": "Activity",
+  "activityPartial": "Some addresses could not be checked. Activity is incomplete.",
+  "activityLoadFailed": "Could not load activity: {error}",
+  "@activityLoadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "activityLoadMoreFailed": "Could not load older activity: {error}",
+  "@activityLoadMoreFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "activityNoneToExport": "No transactions to export",
+  "activityExportFailed": "Export failed: {error}",
+  "@activityExportFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "activityCount": "{count} transactions",
+  "@activityCount": {
+    "description": "count is a number, followed by + when more can be loaded.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "activityExportCsv": "Export CSV",
+  "activityEmptyTitle": "No activity yet",
+  "activityEmptyBody": "Transactions to and from this wallet will show up here, newest first.",
+  "activityRefresh": "Refresh",
+  "ergopayErrorUnreachable": "Could not reach the dApp: {detail}",
+  "@ergopayErrorUnreachable": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "ergopayErrorHttp": "The dApp answered HTTP {status}",
+  "@ergopayErrorHttp": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "ergopayErrorUnreadable": "The dApp sent an unreadable signing request",
+  "ergopayErrorNotify": "Could not notify the dApp: {detail}",
+  "@ergopayErrorNotify": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "ergopayErrorReplyRejected": "The dApp rejected the reply (HTTP {status})",
+  "@ergopayErrorReplyRejected": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "ergopayWarningInputsUnknown": "Input values could not be fetched from the node, so the total you spend is unknown. Check the outputs carefully.",
+  "ergopayWarningForeignInputs": "Some inputs are not from this wallet. The dApp is adding its own boxes to this transaction.",
+  "ergopayRowRecipients": "Recipients",
+  "ergopayRowSent": "Sent",
+  "ergopayRowTokensOut": "Tokens out",
+  "ergopayRowChange": "Change to you",
+  "ergopayRowYouSpend": "You spend",
+  "ergopayRowInputs": "Inputs",
+  "ergopayStatusContacting": "Contacting the dApp…",
+  "ergopayNotALink": "This is not an ErgoPay link.",
+  "ergopayWrongAddress": "This request is for {address}, which is not an address of this wallet.",
+  "@ergopayWrongAddress": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "ergopayStatusReading": "Reading the transaction…",
+  "ergopayPickAddressTitle": "Which address should the dApp use?",
+  "ergopayMainAddress": "Main address",
+  "ergopaySignTitle": "Sign for dApp",
+  "ergopayNodeNotChosen": "Node not chosen yet",
+  "ergopayStatusSigning": "Signing…",
+  "ergopayStatusBroadcasting": "Broadcasting…",
+  "ergopayStatusNotifying": "Telling the dApp…",
+  "ergopaySignedAndSent": "Signed and sent",
+  "@ergopaySignedAndSent": {
+    "description": "Headline after a transaction (feminine in Spanish) was signed and broadcast."
+  },
+  "ergopayNoTransaction": "The dApp did not send a transaction to sign.",
+  "ergopayThisTransaction": "This transaction",
+  "ergopayReviewAndSign": "Review & sign",
+  "ergopayDecline": "Decline",
+  "ergopayNotifyFailed": "The transaction is on the network, but the dApp could not be notified: {error}",
+  "@ergopayNotifyFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errorSomethingWentWrong": "Something went wrong",
+  "errorCopied": "Error copied",
+  "errorContractRejected": "A contract rejected this transaction, so it was not signed. Nothing was sent.",
+  "errorNothingSent": "Nothing was sent.",
+  "errorSigningFailed": "Signing failed",
+  "errorBroadcastMayHaveFailed": "Broadcast may have failed",
+  "errorCheckActivity": "Check Activity before retrying; the transaction may already be on the network.",
+  "contactsNoneToExport": "No contacts to export",
+  "contactsExportFailed": "Export failed: {error}",
+  "@contactsExportFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "contactsSelectTitle": "Select contact",
+  "contactsExportTooltip": "Export contacts",
+  "contactsEmptySelect": "No saved contacts yet.",
+  "contactsEmpty": "No saved contacts yet.\nTap + to add one.",
+  "contactsYourWallets": "Your wallets",
+  "contactsDeleteTitle": "Delete contact?",
+  "contactsDelete": "Delete",
+  "contactsInvalidAddress": "Not a valid Ergo address",
+  "contactsAddTitle": "Add contact",
+  "contactsEditTitle": "Edit contact",
+  "contactsAdd": "Add",
+  "createPhraseMismatch": "Confirmation does not match the recovery phrase",
+  "createSkipTitle": "Skip the check?",
+  "createSkipBody": "Nothing will prove that your written phrase is complete and in order. If a word is wrong or missing, the funds of this wallet cannot be recovered.",
+  "createSkip": "Skip",
+  "createFailedTitle": "Could not create the wallet",
+  "createTitle": "Create wallet",
+  "createWriteDownTitle": "Write these words down",
+  "createWriteDownBody": "Paper only. They are the only way to recover this wallet. Android blocks screenshots here; iOS hides the app in the switcher and during screen recording.",
+  "createGenerate": "Generate recovery phrase",
+  "createHide": "Hide",
+  "createReveal": "Reveal",
+  "createWroteDown": "I wrote these down",
+  "createConfirmTitle": "Confirm the phrase",
+  "createConfirmBody": "Type the words back in order. This proves the backup is readable.",
+  "createPhraseLabel": "Recovery phrase",
+  "createContinue": "Continue",
+  "createSkipCheck": "Skip this check",
+  "createSetPin": "Set a PIN",
+  "createPinBody": "The PIN unwraps the key on this device. It is not a backup.",
+  "createWalletNameLabel": "Wallet name (optional)",
+  "createWalletNameHint": "e.g. Savings, Trading",
+  "createReplaceTitle": "Replace existing wallet?",
+  "createReplaceBody": "A wallet is already stored on this device. Replacing it overwrites the encrypted seed. The recovery phrase is the only way to recover the old wallet.",
+  "createReplace": "Replace",
+  "createScreenshotBlockUnavailable": "Screenshot blocking is unavailable on this device",
+  "restoreEnterPhrase": "Enter a recovery phrase",
+  "restoreWordCount": "Recovery phrase must be 12, 15, 18, 21, or 24 words",
+  "restoreFailedTitle": "Could not restore the wallet",
+  "restoreTitle": "Restore wallet",
+  "restoreIntro": "12, 15, 18, 21, or 24 words, in order — 15 is the Ergo standard. Optional BIP-39 passphrase if you used one.",
+  "restorePhraseHint": "12, 15, 18, 21, or 24 words",
+  "restorePassphraseLabel": "BIP-39 passphrase (optional)",
+  "restoreButton": "Restore",
+  "receiveCopied": "{address} copied",
+  "@receiveCopied": {
+    "description": "address is a shortened address (feminine in Spanish).",
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "receiveTitle": "Receive",
+  "receiveUnusedAddress": "Unused address",
+  "receiveAddress": "Receive address",
+  "receiveWatchAccountNote": "Unused payment address. A new one is offered after payment. {limitations}",
+  "@receiveWatchAccountNote": {
+    "description": "limitations is the note on what a watched account cannot do.",
+    "placeholders": {
+      "limitations": {
+        "type": "String"
+      }
+    }
+  },
+  "receiveWatchedNote": "Payments to this address go to the watched wallet.",
+  "receiveFreshNote": "A new address is shown after this one is used.",
+  "receiveStaticNote": "This address stays the same. Turn on Fresh addresses in Settings to use a new one after each payment.",
+  "@receiveStaticNote": {
+    "description": "Fresh addresses is the name of a switch in Settings."
+  },
+  "receiveAmountLabel": "Optional amount (ERG)",
+  "receiveAddLabel": "Add label",
+  "receiveEditLabel": "Edit label",
+  "receiveCopyAddress": "Copy address",
+  "receiveShare": "Share",
+  "receiveUsedAddresses": "Used addresses",
+  "receiveUsedAddressesNote": "Older addresses keep working; tap one to copy it.",
+  "receiveAmountInvalid": "Amount must be a decimal number, like 0.001",
+  "receiveAmountNotPositive": "Amount must be greater than zero",
+  "scanTitle": "Scan",
+  "scanCameraUnavailable": "Camera is unavailable. Allow camera access and try again.",
+  "scanBack": "Back",
+  "txArgusFee": "Argus fee",
+  "txLeftWallet": "Left your wallet",
+  "txBurned": "Burned",
+  "txBurnedNote": "No output holds these any more: they no longer exist.",
+  "txIssued": "Issued",
+  "txArrived": "Arrived",
+  "txFees": "Fees",
+  "txMovedBetween": "Moved between your addresses",
+  "txMovedNote": "Change and boxes that stayed in this wallet.",
+  "txTo": "To",
+  "txFrom": "From",
+  "txContract": "Contract",
+  "txIncompleteInputs": "Some inputs of this pending transaction are not readable yet; what the other side put in may be missing.",
+  "txSentAmount": "Sent {amount}",
+  "@txSentAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "txReceivedAmount": "Received {amount}",
+  "@txReceivedAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "txTitle": "Transaction",
+  "txConfirmedAt": "Confirmed {height}",
+  "@txConfirmedAt": {
+    "description": "height is the block height, like #1856438.",
+    "placeholders": {
+      "height": {
+        "type": "String"
+      }
+    }
+  },
+  "txConfirmed": "Confirmed",
+  "txNotInBlock": "Not yet in a block",
+  "txTokensSent": "Tokens sent",
+  "txIdLabel": "Id",
+  "txTokensReceived": "Tokens received",
+  "txFurtherTokenIds": "{count} further token id(s) involved — see explorer.",
+  "@txFurtherTokenIds": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "txIdCopied": "Transaction id copied",
+  "txExplorerFailed": "Could not open explorer",
+  "txOpenExplorer": "Open in explorer",
+  "txDetailsLoadFailed": "Could not load the transaction details: {error}",
+  "@txDetailsLoadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "txChange": "Change",
+  "txInputsCount": "Inputs ({count})",
+  "@txInputsCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "txYours": "Yours",
+  "@txYours": {
+    "description": "An input (feminine in Spanish) owned by this wallet."
+  },
+  "txInput": "Input",
+  "txValueUnknown": "value unknown",
+  "txOutputsCount": "Outputs ({count})",
+  "@txOutputsCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "txMiner": "Miner",
+  "@txMiner": {
+    "description": "Label of the miner fee line under Fees."
+  },
+  "txDataInputsCount": "Data inputs ({count})",
+  "@txDataInputsCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "txBox": "Box",
+  "txIdHeading": "Transaction id",
+  "txUnsignedCopied": "Unsigned transaction copied",
+  "txCopyUnsigned": "Copy unsigned transaction",
+  "dialogBiometricTitle": "Unlock with biometrics?",
+  "dialogBiometricBody": "Use your fingerprint or face to unlock this wallet instead of typing the PIN each time. You can change this later under Settings › Security.",
+  "dialogNotNow": "Not now",
+  "dialogEnable": "Enable",
+  "dialogBiometricEnabled": "Biometric unlock enabled",
+  "dialogBiometricFailed": "Could not enable biometrics; try again under Settings › Security",
+  "dialogRenameTitle": "Rename wallet",
+  "dialogRename": "Rename",
+  "entryCurrentPin": "Current PIN",
+  "entryContinue": "Continue",
+  "labelDialogTitle": "Address label",
+  "labelOptional": "Label (optional)",
+  "coreTokenMetadataInvalid": "Metadata invalid",
+  "coreTokenMetadataConflict": "Metadata conflict",
+  "coreTokenCollection": "Collection token",
+  "coreTokenDeclaredNftUnsupported": "Declared NFT · unsupported type",
+  "coreTokenSingleUnitArtwork": "Single-unit artwork · {kind}",
+  "@coreTokenSingleUnitArtwork": {
+    "description": "kind is the declared asset kind as the code names it (picture, audio, video…).",
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "coreTokenDeclaredArtworkMultiple": "Declared artwork · multiple units",
+  "coreTokenDeclaredArtworkUnconfirmed": "Declared artwork · supply unconfirmed",
+  "coreTokenSingleUnit": "Single-unit token",
+  "coreTokenMetadataUnavailable": "Token · metadata unavailable",
+  "corePinLength": "PIN must be 6-32 characters",
+  "coreWalletNumbered": "Wallet {number}",
+  "@coreWalletNumbered": {
+    "description": "Default name of a new wallet.",
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "coreCuratedTokenSource": "Argus curated token list",
+  "coreBroadcastActivityWarning": "Transaction submitted, but Activity could not be updated: {error}. Keep this transaction ID.",
+  "@coreBroadcastActivityWarning": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "coreActivityLoadFailed": "Could not load activity",
+  "coreWalletLocked": "Wallet is locked",
+  "holdingsTokenCount": "{count, plural, =1{1 token} other{{count} tokens}}",
+  "@holdingsTokenCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "holdingsFundsElsewhere": "{count, plural, =1{incl. {parts} on 1 other address} other{incl. {parts} on {count} other addresses}}",
+  "@holdingsFundsElsewhere": {
+    "description": "parts: the ERG amount and/or the token count, joined by ' · '.",
+    "placeholders": {
+      "parts": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "holdingsFundsElsewhereHidden": "{count, plural, =1{incl. funds on 1 other address} other{incl. funds on {count} other addresses}}",
+  "@holdingsFundsElsewhereHidden": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "previewGatewayOriginRule": "Use an HTTPS gateway origin on port 443, without credentials, path or query.",
+  "previewGatewayNotPublic": "Gateway address is not public.",
+  "previewGatewayPublicHostname": "Use a public gateway hostname.",
+  "previewCidMalformed": "Malformed IPFS CID.",
+  "previewOnlyIpfs": "Only IPFS artwork can be displayed. Issuer hosts are refused because the issuer would choose who learns you looked.",
+  "previewCidNoncanonical": "Noncanonical IPFS CID.",
+  "previewCidUnsupported": "Unsupported IPFS CID.",
+  "previewCidFormat": "Use a CIDv0 or lowercase base32 CIDv1 IPFS URI.",
+  "previewPathUnsupported": "Unsupported IPFS path.",
+  "previewImageDimensions": "Image dimensions exceed 4096 per axis or 8 megapixels.",
+  "previewArtworkTooLarge": "Artwork exceeds 5 MiB.",
+  "previewPngMalformed": "Malformed PNG.",
+  "previewPngAnimated": "Animated PNG is unsupported.",
+  "previewJpegMalformed": "Malformed JPEG.",
+  "previewJpegFrame": "Unsupported JPEG frame.",
+  "previewFormatMismatch": "Only static PNG and JPEG with matching bytes and MIME are supported.",
+  "previewHashMismatch": "Content differs from issuance hash.",
+  "previewSaveSettingFailed": "Could not save preview setting.",
+  "previewSaveGatewayFailed": "Could not save gateway.",
+  "previewRequestTimedOut": "Preview request timed out.",
+  "previewConnectionTimedOut": "Preview connection timed out.",
+  "previewCancelled": "Preview cancelled.",
+  "previewConnectionRefused": "Preview connection refused.",
+  "previewHostBindingFailed": "Gateway hostname binding failed.",
+  "previewRedirectBlocked": "Redirect blocked.",
+  "previewNoArtwork": "Gateway did not return artwork.",
+  "previewCompressionRefused": "Transport compression refused.",
+  "previewStaticOnly": "Only static PNG and JPEG are supported.",
+  "previewBusy": "Another preview is still finishing.",
+  "previewIntegrityConsentRequired": "View without integrity check requires explicit consent.",
+  "previewAnimatedUnsupported": "Animated artwork is unsupported.",
+  "previewDecodedTooLarge": "Decoded preview exceeds target size.",
+  "previewLoadThroughTitle": "Load preview through {host}?",
+  "@previewLoadThroughTitle": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "previewLoadConsentBody": "This gateway can see your IP address and which artwork was requested. Up to 5 MiB will be downloaded. Artwork may contain unsolicited or misleading content.",
+  "previewLoad": "Load preview",
+  "previewHashMissingTitle": "Issuance hash missing or invalid",
+  "previewHashMissingBody": "The format and dimensions passed the preview checks, but these bytes cannot be compared with an issuance hash.",
+  "previewViewWithoutIntegrity": "View without integrity check",
+  "previewMatchesHash": "Matches issuance hash",
+  "previewViewedWithoutIntegrity": "Viewed without integrity check",
+  "previewLoadFailed": "Preview could not be loaded.",
+  "previewMetadataUnsupported": "Preview not supported for this metadata.",
+  "previewDisabled": "Remote previews disabled.",
+  "previewNoGateway": "No gateway configured. Previews are unavailable.",
+  "previewUnavailableNow": "Previews unavailable while locked, hidden, offline or outside this session.",
+  "previewViewArtwork": "View artwork",
+  "previewHide": "Hide preview",
+  "previewLoading": "Loading preview…",
+  "previewCancel": "Cancel preview",
+  "previewSettingsLink": "Remote preview settings",
+  "previewGatewaySaved": "Gateway saved. Each artwork still requires consent.",
+  "previewSettingsTitle": "Remote previews",
+  "previewNeverTitle": "Never load remote previews",
+  "previewNeverSubtitle": "Disables loading and clears open previews. Image decoding has no enforceable total allocation ceiling and an active native decode cannot be interrupted. Use this switch to avoid decoder memory or security risks.",
+  "previewSettingsIpfsOnly": "Only IPFS artwork can be displayed. Issuer-selected hosts are refused because the issuer would choose who learns you looked. There is no default gateway or fallback.",
+  "previewGatewayFieldLabel": "Your HTTPS IPFS gateway",
+  "previewGatewayFieldHelper": "Origin only, port 443. Leave empty to remove.",
+  "previewGatewayCheckInfo": "Saving resolves the gateway hostname to check that its addresses are public. Loading checks again and connects only to that address. The gateway can see your IP and which artwork you request.",
+  "previewCheckingGateway": "Checking gateway…",
+  "previewSaveGateway": "Save gateway"
 }

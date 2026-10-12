@@ -1,6 +1,8 @@
 /// Validation for issuing a token, shared by the form and its tests.
 library;
 
+import '../l10n/l10n.dart';
+
 /// The problem with an issuance as typed, or null when it is fine.
 String? issuanceError({
   required String name,
@@ -10,19 +12,19 @@ String? issuanceError({
   String contentHashHex = '',
   String url = '',
 }) {
-  if (name.trim().isEmpty) return 'Give the token a name';
-  if (name.trim().length > 64) return 'Name is too long (64 characters at most)';
-  if (decimals < 0 || decimals > 18) return 'Decimals must be between 0 and 18';
+  if (name.trim().isEmpty) return appL10n.tokenErrorNoName;
+  if (name.trim().length > 64) return appL10n.tokenErrorNameTooLong;
+  if (decimals < 0 || decimals > 18) return appL10n.tokenErrorDecimalsRange;
   final amount = parseIssuanceAmount(amountText, decimals);
-  if (amount == null) return 'Enter the amount to issue';
-  if (amount <= BigInt.zero) return 'Amount must be above zero';
-  if (amount > BigInt.parse('9223372036854775807')) return 'Amount is beyond what a box can hold';
+  if (amount == null) return appL10n.tokenErrorAmountMissing;
+  if (amount <= BigInt.zero) return appL10n.tokenErrorAmountZero;
+  if (amount > BigInt.parse('9223372036854775807')) return appL10n.tokenErrorAmountTooBig;
   if (nft) {
-    if (decimals != 0) return 'An NFT has no decimals';
-    if (amount != BigInt.one) return 'An NFT is one unit';
+    if (decimals != 0) return appL10n.nftErrorDecimals;
+    if (amount != BigInt.one) return appL10n.nftErrorOneUnit;
     final h = contentHashHex.trim().toLowerCase();
-    if (h.isNotEmpty && !RegExp(r'^[0-9a-f]{64}$').hasMatch(h)) return 'Content hash must be 64 hex characters (SHA-256)';
-    if (url.trim().isNotEmpty && !RegExp(r'^(https?|ipfs)://').hasMatch(url.trim())) return 'Link must start with https:// or ipfs://';
+    if (h.isNotEmpty && !RegExp(r'^[0-9a-f]{64}$').hasMatch(h)) return appL10n.nftErrorHash;
+    if (url.trim().isNotEmpty && !RegExp(r'^(https?|ipfs)://').hasMatch(url.trim())) return appL10n.nftErrorLink;
   }
   return null;
 }

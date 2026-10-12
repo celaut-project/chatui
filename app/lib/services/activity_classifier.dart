@@ -1,4 +1,5 @@
 import '../format.dart';
+import '../l10n/l10n.dart';
 import 'token_amounts.dart';
 
 // What a history entry did, read from the whole wallet's point of view.
@@ -430,42 +431,46 @@ String _name(TokenNamer name, String? id) {
 }
 
 String activityTitleFor(WalletActivity a, {required TokenNamer name}) {
-  String plural(int n, String one, String many) => n == 1 ? one : many;
+  final t = appL10n;
   return switch (a.category) {
-    ActivityCategory.received => 'Received',
-    ActivityCategory.sent => 'Sent',
-    ActivityCategory.moved => 'Moved',
-    ActivityCategory.consolidated => 'Consolidated',
-    ActivityCategory.burned => plural(a.burned.length, 'Burned token', 'Burned tokens'),
-    ActivityCategory.minted => plural(a.minted.length, 'Issued token', 'Issued tokens'),
-    ActivityCategory.contract => 'Contract interaction',
+    ActivityCategory.received => t.activityTitleReceived,
+    ActivityCategory.sent => t.activityTitleSent,
+    ActivityCategory.moved => t.activityTitleMoved,
+    ActivityCategory.consolidated => t.activityTitleConsolidated,
+    ActivityCategory.burned => t.activityTitleBurned(a.burned.length),
+    ActivityCategory.minted => t.activityTitleIssued(a.minted.length),
+    ActivityCategory.contract => t.activityTitleContractInteraction,
   };
 }
 
 String? _who(WalletActivity a) {
-  String list(String lead, List<String> addresses) {
+  final t = appL10n;
+  String list(bool from, List<String> addresses) {
     final first = addresses.first;
     final more = addresses.length - 1;
-    final head = isContractAddress(first) ? 'contract ${_short(first)}' : _short(first);
-    return '$lead $head${more > 0 ? ' and $more more' : ''}';
+    final short = _short(first);
+    final head = isContractAddress(first)
+        ? (from ? t.activityFromContract(short) : t.activityToContract(short))
+        : (from ? t.activityFrom(short) : t.activityTo(short));
+    return more > 0 ? t.activityAndMore(head, '$more') : head;
   }
 
   return switch (a.category) {
-    ActivityCategory.received when a.protocol == 'argus_fee' => 'Argus app fee',
-    ActivityCategory.received => a.senders.isEmpty ? null : list('from', a.senders),
-    ActivityCategory.sent => a.recipients.isEmpty ? null : list('to', a.recipients),
-    ActivityCategory.moved || ActivityCategory.consolidated => 'between your addresses',
+    ActivityCategory.received when a.protocol == 'argus_fee' => t.activityArgusAppFee,
+    ActivityCategory.received => a.senders.isEmpty ? null : list(true, a.senders),
+    ActivityCategory.sent => a.recipients.isEmpty ? null : list(false, a.recipients),
+    ActivityCategory.moved || ActivityCategory.consolidated => t.activityBetweenYourAddresses,
     ActivityCategory.burned || ActivityCategory.minted => null,
     ActivityCategory.contract => a.contract != null
-        ? 'contract ${_short(a.contract!)}'
-        : (a.recipients.isNotEmpty ? list('to', a.recipients) : null),
+        ? t.activityContract(_short(a.contract!))
+        : (a.recipients.isNotEmpty ? list(false, a.recipients) : null),
   };
 }
 
 /// The fee the wallet paid, as a labelled figure; null when it paid none.
 ActivityFigure? _feeFigure(WalletActivity a) {
   final fee = -a.erg;
-  return fee > BigInt.zero ? ActivityFigure([ActivityLeg(null, fee)], label: 'Fee') : null;
+  return fee > BigInt.zero ? ActivityFigure([ActivityLeg(null, fee)], label: appL10n.activityFeeLabel) : null;
 }
 
 /// The amount column of [a].
@@ -477,7 +482,7 @@ ActivityFigure? _feeFigure(WalletActivity a) {
     case ActivityCategory.moved:
     case ActivityCategory.consolidated:
       return (
-        primary: _feeFigure(a) ?? ActivityFigure([ActivityLeg(null, BigInt.zero)], label: 'Fee'),
+        primary: _feeFigure(a) ?? ActivityFigure([ActivityLeg(null, BigInt.zero)], label: appL10n.activityFeeLabel),
         secondary: null,
       );
     case ActivityCategory.burned:
@@ -546,8 +551,10 @@ ActivityView _legacyView(Map<String, dynamic> tx) {
   final who = counterparty == null || counterparty.isEmpty
       ? null
       : isContractAddress(counterparty)
-          ? 'contract ${_short(counterparty)}'
-          : '${outgoing ? 'to' : 'from'} ${_short(counterparty)}';
+          ? appL10n.activityContract(_short(counterparty))
+          : outgoing
+              ? appL10n.activityTo(_short(counterparty))
+              : appL10n.activityFrom(_short(counterparty));
   return ActivityView(
     kind: kind,
     title: activityTitle(kind),
@@ -580,10 +587,10 @@ ActivityKind classifyActivity(Map tx) {
 }
 
 String activityTitle(ActivityKind kind) => switch (kind) {
-      ActivityKind.received => 'Received',
-      ActivityKind.sent => 'Sent',
-      ActivityKind.selfTransfer => 'Moved',
-      ActivityKind.contract => 'Contract',
+      ActivityKind.received => appL10n.activityTitleReceived,
+      ActivityKind.sent => appL10n.activityTitleSent,
+      ActivityKind.selfTransfer => appL10n.activityTitleMoved,
+      ActivityKind.contract => appL10n.activityTitleContract,
     };
 
 /// The most tokens a row names before summing up the rest.
@@ -624,7 +631,7 @@ String? tokenSummary(
   return [
     for (final e in ordered.take(namedTokensPerRow))
       unitsWithLabel(e.amount, decimals(e.id), named(e.id) ?? shortTokenId(e.id)),
-    if (more > 0) '$more more ${more == 1 ? 'token' : 'tokens'}',
+    if (more > 0) appL10n.activityMoreTokens(more),
   ].join(' + ');
 }
 
@@ -650,7 +657,7 @@ String figureText(
   return [
     if (f.label != null) f.label!,
     first,
-    if (more > 0) '+ $more more',
+    if (more > 0) appL10n.activityPlusMore('$more'),
   ].join(' ');
 }
 

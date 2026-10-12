@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../services/network_controller.dart';
 import '../../services/privacy_service.dart';
 import '../../services/token_pricer.dart';
@@ -27,11 +28,11 @@ class DisplaySettingsPage extends StatelessWidget {
     return ListenableBuilder(
       listenable: Listenable.merge([themeController, networkController, privacyService, tokenPricer]),
       builder: (context, _) => SettingsPage(
-        title: 'Display',
+        title: context.l10n.displayTitle,
         children: [
           SettingsGroup(
-            title: 'Appearance',
-            scope: 'App-wide',
+            title: context.l10n.displayAppearance,
+            scope: context.l10n.settingsScopeAppWide,
             children: [
               for (final m in ArgusThemeMode.values)
                 SettingsRow(
@@ -41,12 +42,13 @@ class DisplaySettingsPage extends StatelessWidget {
                     ArgusThemeMode.light => Icons.light_mode_outlined,
                   },
                   title: switch (m) {
-                    ArgusThemeMode.system => 'Follow system',
-                    ArgusThemeMode.dark => 'Always dark',
-                    ArgusThemeMode.light => 'Always light',
+                    ArgusThemeMode.system => context.l10n.displayFollowSystem,
+                    ArgusThemeMode.dark => context.l10n.displayAlwaysDark,
+                    ArgusThemeMode.light => context.l10n.displayAlwaysLight,
                   },
                   subtitle: switch (m) {
-                    ArgusThemeMode.system => 'Dark → ${themeController.darkPalette.name}, light → ${themeController.lightPalette.name}',
+                    ArgusThemeMode.system =>
+                      context.l10n.displaySystemPalettes(themeController.darkPalette.name, themeController.lightPalette.name),
                     ArgusThemeMode.dark => themeController.darkPalette.name,
                     ArgusThemeMode.light => themeController.lightPalette.name,
                   },
@@ -55,7 +57,7 @@ class DisplaySettingsPage extends StatelessWidget {
                 ),
             ],
           ),
-          const SectionLabel('Dark palette', scope: 'App-wide'),
+          SectionLabel(context.l10n.displayDarkPalette, scope: context.l10n.settingsScopeAppWide),
           const SizedBox(height: 10),
           _PaletteRow(
             palettes: allPalettes.where((p) => p.isDark).toList(),
@@ -63,7 +65,7 @@ class DisplaySettingsPage extends StatelessWidget {
             onPick: themeController.setDarkPalette,
           ),
           const SizedBox(height: 24),
-          const SectionLabel('Light palette', scope: 'App-wide'),
+          SectionLabel(context.l10n.displayLightPalette, scope: context.l10n.settingsScopeAppWide),
           const SizedBox(height: 10),
           _PaletteRow(
             palettes: allPalettes.where((p) => !p.isDark).toList(),
@@ -72,18 +74,18 @@ class DisplaySettingsPage extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           SettingsGroup(
-            title: 'Money',
-            scope: 'App-wide',
+            title: context.l10n.displayMoney,
+            scope: context.l10n.settingsScopeAppWide,
             children: [
               SettingsRow(
                 icon: Icons.price_change_outlined,
-                title: 'Prices in USD',
+                title: context.l10n.displayPricesInUsd,
                 subtitle: tokenPricer.sourceLine,
               ),
               SettingsRow(
                 icon: Icons.visibility_off_outlined,
-                title: 'Hide balances',
-                subtitle: 'Mask amounts on the home screen',
+                title: context.l10n.displayHideBalances,
+                subtitle: context.l10n.displayHideBalancesSubtitle,
                 trailing: Switch(
                   value: privacyService.hideBalances,
                   onChanged: (v) => privacyService.setHideBalances(v),

@@ -1,4 +1,5 @@
 import '../format.dart';
+import '../l10n/l10n.dart';
 
 // Pure formatting for token amounts, shared by the lookup-backed helpers in
 // token_metadata.dart and by code that is given names and scales directly.
@@ -8,11 +9,11 @@ String shortTokenId(String id) =>
     id.length > 8 ? '${id.substring(0, 8)}…' : id;
 
 /// What an amount of a token with unknown decimals is called on screen.
-const rawUnitsLabel = 'raw units';
+String get rawUnitsLabel => appL10n.coinRawUnitsLabel;
 
 /// "1 raw unit" / "5,000 raw units": base units, said to be base units.
 String rawUnitsText(BigInt units) =>
-    '${formatUnits(units, 0)} ${units == BigInt.one ? 'raw unit' : rawUnitsLabel}';
+    appL10n.coinRawUnits(units == BigInt.one ? 1 : 2, formatUnits(units, 0));
 
 /// [units] of a token called [label], scaled by [decimals]: "1.5 SigUSD".
 /// With [decimals] null — nothing knows the token's scale — the base units
@@ -24,7 +25,7 @@ String unitsWithLabel(
   String label, {
   bool grouped = true,
 }) => decimals == null
-    ? '${rawUnitsText(units)} of $label'
+    ? appL10n.coinRawUnitsOf(rawUnitsText(units), label)
     : '${formatUnits(units, decimals, grouped: grouped)} $label';
 
 /// [units] scaled by [decimals], exact at any size, with thousands

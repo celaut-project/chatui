@@ -2,6 +2,7 @@ import 'widgets/error_sheet.dart';
 import 'package:flutter/material.dart';
 
 import '../bridge/argus_error.dart';
+import '../l10n/l10n.dart';
 import '../services/privacy_service.dart';
 import '../services/secure_storage.dart';
 import '../services/wallet_service.dart';
@@ -69,7 +70,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
   void _toPin() {
     final phrase = _mnemonic;
     if (phrase == null || !mnemonicWordsEqual(_confirmCtrl.text, phrase)) {
-      _snack('Confirmation does not match the recovery phrase');
+      _snack(context.l10n.createPhraseMismatch);
       return;
     }
     setState(() => _step = 2);
@@ -79,13 +80,13 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Skip the check?'),
-        content: const Text(
-          'Nothing will prove that your written phrase is complete and in order. If a word is wrong or missing, the funds of this wallet cannot be recovered.',
+        title: Text(ctx.l10n.createSkipTitle),
+        content: Text(
+          ctx.l10n.createSkipBody,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Skip')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(ctx.l10n.commonCancel)),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(ctx.l10n.createSkip)),
         ],
       ),
     );
@@ -119,7 +120,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
     } on SecureStorageException catch (e) {
       showErrorSheet(context, message: e.message);
     } catch (e) {
-      showErrorSheet(context, title: 'Could not create the wallet', message: '$e');
+      showErrorSheet(context, title: context.l10n.createFailedTitle, message: '$e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -140,7 +141,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
       },
       child: Scaffold(
       appBar: AppBar(
-        title: const Text('Create wallet'),
+        title: Text(context.l10n.createTitle),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -180,16 +181,16 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
       key: const ValueKey(0),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Write these words down', style: Theme.of(context).textTheme.headlineSmall),
+        Text(context.l10n.createWriteDownTitle, style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 8),
-        const Text(
-          'Paper only. They are the only way to recover this wallet. Android blocks screenshots here; iOS hides the app in the switcher and during screen recording.',
+        Text(
+          context.l10n.createWriteDownBody,
         ),
         const SizedBox(height: 20),
         if (_mnemonic == null)
           FilledButton(
             onPressed: _busy ? null : _generate,
-            child: const Text('Generate recovery phrase'),
+            child: Text(context.l10n.createGenerate),
           )
         else ...[
           DecoratedBox(
@@ -223,12 +224,12 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
             alignment: Alignment.centerLeft,
             child: TextButton(
               onPressed: () => setState(() => _revealed = !_revealed),
-              child: Text(_revealed ? 'Hide' : 'Reveal'),
+              child: Text(_revealed ? context.l10n.createHide : context.l10n.createReveal),
             ),
           ),
           FilledButton(
             onPressed: _toConfirm,
-            child: const Text('I wrote these down'),
+            child: Text(context.l10n.createWroteDown),
           ),
         ],
       ],
@@ -240,13 +241,13 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
       key: const ValueKey(1),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Confirm the phrase', style: Theme.of(context).textTheme.headlineSmall),
+        Text(context.l10n.createConfirmTitle, style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 8),
-        const Text('Type the words back in order. This proves the backup is readable.'),
+        Text(context.l10n.createConfirmBody),
         const SizedBox(height: 20),
         TextField(
           controller: _confirmCtrl,
-          decoration: const InputDecoration(labelText: 'Recovery phrase'),
+          decoration: InputDecoration(labelText: context.l10n.createPhraseLabel),
           minLines: 4,
           maxLines: 6,
           enableSuggestions: false,
@@ -254,12 +255,12 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
           enableIMEPersonalizedLearning: false,
         ),
         const SizedBox(height: 20),
-        FilledButton(onPressed: _toPin, child: const Text('Continue')),
+        FilledButton(onPressed: _toPin, child: Text(context.l10n.createContinue)),
         const SizedBox(height: 8),
         TextButton(
           key: const Key('create-skip-confirm'),
           onPressed: _skipConfirm,
-          child: const Text('Skip this check'),
+          child: Text(context.l10n.createSkipCheck),
         ),
       ],
     );
@@ -270,18 +271,18 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
       key: const ValueKey(2),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Set a PIN', style: Theme.of(context).textTheme.headlineSmall),
+        Text(context.l10n.createSetPin, style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 8),
-        const Text('The PIN unwraps the key on this device. It is not a backup.'),
+        Text(context.l10n.createPinBody),
         const SizedBox(height: 20),
         PinFields(pin: _pinCtrl, confirm: _pinConfirmCtrl),
         const SizedBox(height: 16),
         TextField(
           controller: _nameCtrl,
           textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
-            labelText: 'Wallet name (optional)',
-            hintText: 'e.g. Savings, Trading',
+          decoration: InputDecoration(
+            labelText: context.l10n.createWalletNameLabel,
+            hintText: context.l10n.createWalletNameHint,
           ),
         ),
         const SizedBox(height: 20),
@@ -293,7 +294,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                   height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Create wallet'),
+              : Text(context.l10n.createTitle),
         ),
       ],
     );
@@ -306,13 +307,13 @@ Future<bool> confirmReplaceExistingWallet(BuildContext context) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('Replace existing wallet?'),
-      content: const Text(
-        'A wallet is already stored on this device. Replacing it overwrites the encrypted seed. The recovery phrase is the only way to recover the old wallet.',
+      title: Text(ctx.l10n.createReplaceTitle),
+      content: Text(
+        ctx.l10n.createReplaceBody,
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Replace')),
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(ctx.l10n.commonCancel)),
+        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(ctx.l10n.createReplace)),
       ],
     ),
   );
@@ -324,13 +325,13 @@ Future<void> armSecureFlag(BuildContext context) async {
     final ok = await SecureStorageService.setSecureFlag(true);
     if (!ok && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Screenshot blocking is unavailable on this device')),
+        SnackBar(content: Text(context.l10n.createScreenshotBlockUnavailable)),
       );
     }
   } catch (_) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Screenshot blocking is unavailable on this device')),
+        SnackBar(content: Text(context.l10n.createScreenshotBlockUnavailable)),
       );
     }
   }

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../format.dart';
+import '../l10n/l10n.dart';
 import '../services/contacts_service.dart';
 import '../services/wallet_service.dart';
 import '../theme/argus_theme.dart';
@@ -61,7 +62,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     if (contacts.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No contacts to export')),
+        SnackBar(content: Text(context.l10n.contactsNoneToExport)),
       );
       return;
     }
@@ -77,7 +78,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export failed: $e')),
+        SnackBar(content: Text(context.l10n.contactsExportFailed('$e'))),
       );
     }
   }
@@ -89,14 +90,14 @@ class _ContactsScreenState extends State<ContactsScreen> {
       builder: (context, _) {
         return Scaffold(
           appBar: AppBar(
-            title: Text(_selectMode ? 'Select contact' : 'Contacts'),
+            title: Text(_selectMode ? context.l10n.contactsSelectTitle : context.l10n.commonContacts),
             actions: _selectMode
                 ? null
                 : [
                     if (contactsService.contacts.isNotEmpty)
                       IconButton(
                         icon: const Icon(Icons.file_download),
-                        tooltip: 'Export contacts',
+                        tooltip: context.l10n.contactsExportTooltip,
                         onPressed: _exportContacts,
                       ),
                   ],
@@ -121,8 +122,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
           padding: const EdgeInsets.all(28),
           child: Text(
             _selectMode
-                ? 'No saved contacts yet.'
-                : 'No saved contacts yet.\nTap + to add one.',
+                ? context.l10n.contactsEmptySelect
+                : context.l10n.contactsEmpty,
             style: Theme.of(context).textTheme.bodyMedium,
             textAlign: TextAlign.center,
           ),
@@ -131,9 +132,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
     }
     // In select mode the user's other wallets come first, then contacts.
     final rows = <Object>[
-      if (_ownWallets.isNotEmpty) 'Your wallets',
+      if (_ownWallets.isNotEmpty) context.l10n.contactsYourWallets,
       ..._ownWallets,
-      if (_ownWallets.isNotEmpty && contacts.isNotEmpty) 'Contacts',
+      if (_ownWallets.isNotEmpty && contacts.isNotEmpty) context.l10n.commonContacts,
       ...contacts,
     ];
     return ListView.separated(
@@ -162,11 +163,11 @@ class _ContactsScreenState extends State<ContactsScreen> {
             final ok = await showDialog<bool>(
               context: context,
               builder: (ctx) => AlertDialog(
-                title: const Text('Delete contact?'),
+                title: Text(ctx.l10n.contactsDeleteTitle),
                 content: Text(c.name),
                 actions: [
-                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                  FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(ctx.l10n.commonCancel)),
+                  FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(ctx.l10n.contactsDelete)),
                 ],
               ),
             );
@@ -234,7 +235,7 @@ class _ContactDialogState extends State<_ContactDialog> {
     if (name.isEmpty || addr.isEmpty) return;
     if (!looksLikeRecipient(addr)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Not a valid Ergo address')),
+        SnackBar(content: Text(context.l10n.contactsInvalidAddress)),
       );
       return;
     }
@@ -250,28 +251,28 @@ class _ContactDialogState extends State<_ContactDialog> {
   Widget build(BuildContext context) {
     final existing = widget.existing;
     return AlertDialog(
-      title: Text(existing == null ? 'Add contact' : 'Edit contact'),
+      title: Text(existing == null ? context.l10n.contactsAddTitle : context.l10n.contactsEditTitle),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           TextField(
             controller: _name,
-            decoration: const InputDecoration(labelText: 'Name'),
+            decoration: InputDecoration(labelText: context.l10n.commonName),
             textCapitalization: TextCapitalization.words,
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _address,
-            decoration: const InputDecoration(labelText: 'Address'),
+            decoration: InputDecoration(labelText: context.l10n.commonAddress),
             style: monoStyle(context, size: 12),
           ),
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(context.l10n.commonCancel)),
         FilledButton(
           onPressed: _save,
-          child: Text(existing == null ? 'Add' : 'Save'),
+          child: Text(existing == null ? context.l10n.contactsAdd : context.l10n.commonSave),
         ),
       ],
     );

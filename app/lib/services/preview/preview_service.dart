@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../l10n/l10n.dart';
 import 'policy.dart';
 
 typedef GatewayLookup = Future<List<InternetAddress>> Function(String host);
@@ -32,7 +33,7 @@ class PreviewSettings extends ChangeNotifier {
   Future<void> setNever(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     if (!await prefs.setBool('preview_never', value))
-      refuse('Could not save preview setting.');
+      refuse(appL10n.previewSaveSettingFailed);
     _never = value;
     revision++;
     notifyListeners();
@@ -46,7 +47,7 @@ class PreviewSettings extends ChangeNotifier {
     final ok = origin == null
         ? await prefs.remove('preview_gateway')
         : await prefs.setString('preview_gateway', origin.toString());
-    if (!ok) refuse('Could not save gateway.');
+    if (!ok) refuse(appL10n.previewSaveGatewayFailed);
     _gateway = origin?.toString();
     revision++;
     notifyListeners();
@@ -65,7 +66,7 @@ Future<InternetAddress> resolveGateway(
         ).timeout(const Duration(seconds: 5))
       : [literal];
   if (addresses.isEmpty || addresses.any((a) => !publicAddress(a)))
-    refuse('Gateway address is not public.');
+    refuse(appL10n.previewGatewayNotPublic);
   // Keep the resolver's host as well as the validated numeric bytes.
   return addresses.first;
 }
@@ -86,7 +87,7 @@ class PreviewTransport {
         const Duration(seconds: 15),
         onTimeout: () {
           cancel();
-          refuse('Preview request timed out.');
+          refuse(appL10n.previewRequestTimedOut);
         },
       );
     } finally {
@@ -98,8 +99,8 @@ class PreviewTransport {
     final connecting = Stopwatch()..start();
     final address = await resolveGateway(origin);
     final remaining = const Duration(seconds: 5) - connecting.elapsed;
-    if (remaining <= Duration.zero) refuse('Preview connection timed out.');
-    if (_cancelled) refuse('Preview cancelled.');
+    if (remaining <= Duration.zero) refuse(appL10n.previewConnectionTimedOut);
+    if (_cancelled) refuse(appL10n.previewCancelled);
     final client = _client = HttpClient()
       ..autoUncompress = false
       ..userAgent = null
@@ -112,10 +113,10 @@ class PreviewTransport {
           uri.host != origin.host ||
           uri.port != 443 ||
           proxyHost != null)
-        refuse('Preview connection refused.');
+        refuse(appL10n.previewConnectionRefused);
       connected = true; // Prevent the HTTP client's implicit reconnect.
       final host = origin.host.replaceAll('[', '').replaceAll(']', '');
-      if (address.host != host) refuse('Gateway hostname binding failed.');
+      if (address.host != host) refuse(appL10n.previewHostBindingFailed);
       // InternetAddress pins routing to its numeric bytes and retains the
       // lookup hostname for SNI/certificate verification. No second lookup.
       return SecureSocket.startConnect(address, 443);
@@ -126,12 +127,12 @@ class PreviewTransport {
           remaining,
           onTimeout: () {
             cancel();
-            refuse('Preview connection timed out.');
+            refuse(appL10n.previewConnectionTimedOut);
           },
         );
     if (_cancelled) {
       request.abort();
-      refuse('Preview cancelled.');
+      refuse(appL10n.previewCancelled);
     }
     request.followRedirects = false;
     request.persistentConnection = false;
@@ -156,18 +157,18 @@ Future<(Uint8List, String)> readPreviewResponse(
   int contentLength,
   Stream<List<int>> stream,
 ) async {
-  if (status >= 300 && status < 400) refuse('Redirect blocked.');
-  if (status != 200) refuse('Gateway did not return artwork.');
+  if (status >= 300 && status < 400) refuse(appL10n.previewRedirectBlocked);
+  if (status != 200) refuse(appL10n.previewNoArtwork);
   if (encoding != null && encoding.trim().toLowerCase() != 'identity')
-    refuse('Transport compression refused.');
-  if (contentLength > maxPreviewBytes) refuse('Artwork exceeds 5 MiB.');
+    refuse(appL10n.previewCompressionRefused);
+  if (contentLength > maxPreviewBytes) refuse(appL10n.previewArtworkTooLarge);
   final mime = contentType.split(';').first.trim().toLowerCase();
   if (mime != 'image/png' && mime != 'image/jpeg')
-    refuse('Only static PNG and JPEG are supported.');
+    refuse(appL10n.previewStaticOnly);
   final body = BytesBuilder(copy: false);
   await for (final chunk in stream) {
     if (chunk.length > maxPreviewBytes - body.length)
-      refuse('Artwork exceeds 5 MiB.');
+      refuse(appL10n.previewArtworkTooLarge);
     body.add(chunk);
   }
   return (body.takeBytes(), mime);
@@ -194,7 +195,7 @@ class PreviewJob {
   }
 
   void check() {
-    if (cancelled || !allowed()) refuse('Preview cancelled.');
+    if (cancelled || !allowed()) refuse(appL10n.previewCancelled);
   }
 
   Future<PreviewBytes> fetch(
@@ -207,12 +208,17 @@ class PreviewJob {
       artwork,
     ); // Reject issuer HTTPS before DNS/client creation.
     final origin = gatewayOrigin(gateway);
-    if (_busy) refuse('Another preview is still finishing.');
+    if (_busy) refuse(appL10n.previewBusy);
     _busy = true;
     try {
       final (bytes, mime) = await _transport.fetch(origin, path);
       check();
-      final info = await Isolate.run(() => inspectImage(bytes, mime, hash));
+      // The isolate starts with English texts: give it the app's language.
+      final locale = appL10n.localeName;
+      final info = await Isolate.run(() {
+        setAppLocale(ui.Locale(locale));
+        return inspectImage(bytes, mime, hash);
+      });
       check();
       return PreviewBytes(bytes, info);
     } finally {
@@ -227,8 +233,8 @@ class PreviewJob {
   }) async {
     check();
     if (!source.info.matchesHash && !withoutIntegrity)
-      refuse('View without integrity check requires explicit consent.');
-    if (_busy) refuse('Another preview is still finishing.');
+      refuse(appL10n.previewIntegrityConsentRequired);
+    if (_busy) refuse(appL10n.previewBusy);
     _busy = true;
     ui.Codec? codec;
     ui.Image? image;
@@ -245,11 +251,11 @@ class PreviewJob {
         allowUpscaling: false,
       );
       check();
-      if (codec.frameCount != 1) refuse('Animated artwork is unsupported.');
+      if (codec.frameCount != 1) refuse(appL10n.previewAnimatedUnsupported);
       image = (await codec.getNextFrame()).image;
       check();
       if (image.width > edge || image.height > edge)
-        refuse('Decoded preview exceeds target size.');
+        refuse(appL10n.previewDecodedTooLarge);
       final result = image;
       image = null;
       return result;

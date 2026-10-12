@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../bridge/frb_generated.dart';
+import '../l10n/l10n.dart';
 import 'explorer_presets.dart';
 
 class NodeEntry {
@@ -66,19 +67,20 @@ int? indexedHeightFromJson(Map<dynamic, dynamic> json) {
 }
 
 String describeNode(NodeEntry node, NodeProbe? probe, {required bool active, bool preferred = false}) {
+  final t = appL10n;
   final bits = <String>[
-    if (!node.enabled) 'Off' else if (active) 'In use' else 'Standby',
-    if (preferred && node.enabled) 'chosen',
+    if (!node.enabled) t.networkNodeOff else if (active) t.networkNodeInUse else t.networkNodeStandby,
+    if (preferred && node.enabled) t.networkNodeChosen,
   ];
   if (probe != null) {
     if (probe.extraIndex == true) {
       final lag = probe.indexLag;
-      bits.add(lag != null && lag > 2 ? 'extraIndex, lag $lag' : 'extraIndex');
+      bits.add(lag != null && lag > 2 ? t.networkExtraIndexLag('$lag') : 'extraIndex');
     } else if (probe.extraIndex == false) {
-      bits.add('no extraIndex');
+      bits.add(t.networkNoExtraIndex);
     }
     if (probe.height != null) bits.add('#${probe.height}');
-    if (!probe.ok) bits.add('unreachable');
+    if (!probe.ok) bits.add(t.networkNodeUnreachable);
   }
   return bits.join('  ·  ');
 }
@@ -196,7 +198,7 @@ class NetworkController extends ChangeNotifier {
       probeOrder(probeOrder(enabledUrls, lastGood), activeUrl ?? preferredUrl);
 
   String get statusLabel {
-    if (activeUrl == null || height == null) return 'Offline';
+    if (activeUrl == null || height == null) return appL10n.commonOffline;
     final host = Uri.tryParse(activeUrl!)?.host;
     return '${(host != null && host.isNotEmpty) ? host : activeUrl}  ·  #$height';
   }
@@ -475,8 +477,8 @@ class NetworkController extends ChangeNotifier {
 
   Future<String?> addNode(String url) async {
     final clean = normalizeNodeUrl(url);
-    if (clean == null) return 'Enter https://host or http://ip:port';
-    if (nodes.any((n) => n.url == clean)) return 'Node already added';
+    if (clean == null) return appL10n.networkAddNodeInvalid;
+    if (nodes.any((n) => n.url == clean)) return appL10n.networkNodeAlreadyAdded;
     nodes.add(NodeEntry(url: clean));
     discovered = discovered.where((p) => p.url != clean).toList();
     await persist();
@@ -627,19 +629,21 @@ class NodeSearchResult {
 /// One line reporting a finished search, including the cases where it found
 /// nothing — silence there reads as a button that did not work.
 String nodeSearchSummary(NodeSearchResult r) {
+  final t = appL10n;
   if (r.nodesAnswered == 0) {
-    return 'No node answered the peer request. Check your connection, or try '
-        'another node.';
+    return t.networkSearchNoAnswer;
   }
   if (r.candidates == 0) {
-    return 'Asked ${r.nodesAnswered} node${r.nodesAnswered == 1 ? '' : 's'}: '
-        'their peers publish no HTTPS API you do not already have.';
+    return t.networkSearchNoNewApi(r.nodesAnswered);
   }
-  final scope = r.checked < r.candidates
-      ? '${r.checked} of ${r.candidates} found'
-      : '${r.candidates} found';
+  final partial = r.checked < r.candidates;
+  final found = '${r.candidates}';
   if (r.reachable == 0) {
-    return 'Checked $scope, none reachable right now.';
+    return partial
+        ? t.networkSearchNoneReachablePartial('${r.checked}', found)
+        : t.networkSearchNoneReachable(found);
   }
-  return '${r.reachable} reachable of $scope, best first.';
+  return partial
+      ? t.networkSearchReachablePartial('${r.reachable}', '${r.checked}', found)
+      : t.networkSearchReachable('${r.reachable}', found);
 }

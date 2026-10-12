@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
 import '../services/network_controller.dart';
 import '../theme/argus_theme.dart';
 
@@ -33,7 +34,7 @@ class OfflineBanner extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'No reachable nodes. Tap Retry to check.',
+                      context.l10n.offlineNoNodes,
                       style: TextStyle(color: rustFor(context), fontSize: 12),
                     ),
                   ),
@@ -41,7 +42,7 @@ class OfflineBanner extends StatelessWidget {
                     onPressed: networkController.probing
                         ? null
                         : networkController.probe,
-                    child: const Text('Retry'),
+                    child: Text(context.l10n.commonRetry),
                   ),
                 ],
               ),

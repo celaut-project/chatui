@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
 import '../services/secure_storage.dart';
 import '../services/session_lock.dart';
 import '../services/wallet_service.dart';
@@ -23,14 +24,13 @@ Future<void> offerBiometricUnlock(
   final yes = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('Unlock with biometrics?'),
-      content: const Text(
-        'Use your fingerprint or face to unlock this wallet instead of typing '
-        'the PIN each time. You can change this later under Settings › Security.',
+      title: Text(ctx.l10n.dialogBiometricTitle),
+      content: Text(
+        ctx.l10n.dialogBiometricBody,
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Not now')),
-        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Enable')),
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(ctx.l10n.dialogNotNow)),
+        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(ctx.l10n.dialogEnable)),
       ],
     ),
   );
@@ -45,9 +45,9 @@ Future<void> offerBiometricUnlock(
       await SecureStorageService.clearPinGate();
       return true;
     });
-    message = saved ? 'Biometric unlock enabled' : 'Could not enable biometrics; try again under Settings › Security';
+    message = saved ? appL10n.dialogBiometricEnabled : appL10n.dialogBiometricFailed;
   } catch (_) {
-    message = 'Could not enable biometrics; try again under Settings › Security';
+    message = appL10n.dialogBiometricFailed;
   }
   if (context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
@@ -59,9 +59,9 @@ Future<void> offerBiometricUnlock(
 Future<bool> renameWalletDialog(BuildContext context, WalletInfo w) async {
   final name = await showNameDialog(
     context,
-    title: 'Rename wallet',
+    title: context.l10n.dialogRenameTitle,
     initial: w.name,
-    confirm: 'Rename',
+    confirm: context.l10n.dialogRename,
   );
   if (name == null || name.isEmpty || name == w.name) return false;
   await walletService.renameWallet(w.walletId, name);

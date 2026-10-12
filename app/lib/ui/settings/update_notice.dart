@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../services/update_service.dart';
 import '../../theme/argus_theme.dart';
 import 'about_page.dart';
@@ -51,7 +52,7 @@ class _UpdateNoticeState extends State<UpdateNotice> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Celaut ${release.version} is available.',
+                    context.l10n.updateNoticeAvailable('${release.version}'),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
@@ -61,11 +62,11 @@ class _UpdateNoticeState extends State<UpdateNotice> {
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     minimumSize: const Size(0, 32),
                   ),
-                  child: const Text('View'),
+                  child: Text(context.l10n.updateNoticeView),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close, size: 18),
-                  tooltip: 'Dismiss',
+                  tooltip: context.l10n.updateNoticeDismiss,
                   onPressed: _updates.dismissNotice,
                 ),
               ],

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../l10n/l10n.dart';
 import 'erg_price_history.dart';
 import 'network_controller.dart';
 import 'oracle_feeds.dart';
@@ -159,7 +160,9 @@ class TokenPricer extends ChangeNotifier {
   String get sourceLine {
     final via = result.ergVia;
     if (via == null) return priceSourceLabel;
-    return '$priceSourceLabel${stale ? ' · stale' : ''} · ERG via $via';
+    return stale
+        ? appL10n.priceSourceLineStale(priceSourceLabel, via)
+        : appL10n.priceSourceLine(priceSourceLabel, via);
   }
 
   /// "≈ $12.30" for a token holding, or null.
@@ -286,7 +289,7 @@ class TokenPricer extends ChangeNotifier {
   static const _unavailableTtl = Duration(seconds: 30);
 
   /// The label of the price history: the oracle pool that prices ERG.
-  static const historyLabel = 'SigmaUSD oracle';
+  static String get historyLabel => appL10n.oracleSigmaUsd;
 
   /// ERG's price over [window] in USD, from the SigmaUSD oracle pool's past
   /// boxes (needs the node's extra index), with its 24-hour change.
@@ -310,7 +313,7 @@ class TokenPricer extends ChangeNotifier {
     try {
       answer = await _nodeHistory(window, now, node);
     } catch (e) {
-      final reason = e is HistoryUnavailable ? e.reason : 'Price history could not be read: $e';
+      final reason = e is HistoryUnavailable ? e.reason : appL10n.priceHistoryUnreadable('$e');
       answer = ErgPriceHistory.unavailable(window: window, sourceLabel: historyLabel, currency: 'usd', reason: reason);
     }
     _history[key] = (now, answer);
@@ -318,9 +321,9 @@ class TokenPricer extends ChangeNotifier {
   }
 
   Future<ErgPriceHistory> _nodeHistory(PriceWindow window, DateTime now, String? node) async {
-    if (node == null) throw const HistoryUnavailable('No node is connected.');
+    if (node == null) throw HistoryUnavailable(appL10n.priceNoNode);
     final tip = _deps.tipHeight();
-    if (tip == null) throw const HistoryUnavailable('The node height is not known yet.');
+    if (tip == null) throw HistoryUnavailable(appL10n.priceNoHeight);
     final boxes = await sampleHistory(
       page: _deps.boxPage,
       node: node,
@@ -330,7 +333,7 @@ class TokenPricer extends ChangeNotifier {
       windowBlocks: window.blocks,
     );
     final byHeight = oracleRateHistory(boxes);
-    if (byHeight.isEmpty) throw const HistoryUnavailable('This node has no price history for $historyLabel yet.');
+    if (byHeight.isEmpty) throw HistoryUnavailable(appL10n.priceNoHistoryYet(historyLabel));
     final points = pointsFromHeights(byHeight, tip: tip, now: now, scale: 1.0);
     return ErgPriceHistory(
       window: window,

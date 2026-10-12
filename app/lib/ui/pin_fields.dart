@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
 import '../services/wallet_service.dart';
 
 class PinFields extends StatelessWidget {
@@ -23,10 +24,10 @@ class PinFields extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _box(pin, label, helper: '6–32 characters. Number pad first.', onSubmitted: onSubmitted),
+        _box(pin, label, helper: context.l10n.pinHelper, onSubmitted: onSubmitted),
         if (confirm != null) ...[
           const SizedBox(height: 12),
-          _box(confirm!, 'Confirm PIN', onSubmitted: onSubmitted),
+          _box(confirm!, context.l10n.pinConfirm, onSubmitted: onSubmitted),
         ],
       ],
     );
@@ -59,6 +60,6 @@ class PinFields extends StatelessWidget {
 String? pinError(String pin, [String? confirm]) {
   final err = validatePin(pin);
   if (err != null) return err;
-  if (confirm != null && confirm != pin) return 'PINs do not match';
+  if (confirm != null && confirm != pin) return appL10n.pinMismatch;
   return null;
 }

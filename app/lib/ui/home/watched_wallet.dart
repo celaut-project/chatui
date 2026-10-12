@@ -589,7 +589,7 @@ WalletPageData watchedPageData(
       ],
       error: s.error,
       notes: s.isAccount
-          ? const [
+          ? [
               watchAccountLimitations,
               'Discovery stops after 20 unused addresses. Payments beyond a larger gap can be missed.',
             ]

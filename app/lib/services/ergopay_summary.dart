@@ -1,4 +1,5 @@
 import '../format.dart';
+import '../l10n/l10n.dart';
 import '../ui/confirm_transaction_sheet.dart';
 import 'wallet_service.dart';
 
@@ -85,12 +86,10 @@ class ErgoPaySummary {
   /// Something the user should read before signing, or null.
   String? get warning {
     if (!inputsKnown) {
-      return 'Input values could not be fetched from the node, so the total '
-          'you spend is unknown. Check the outputs carefully.';
+      return appL10n.ergopayWarningInputsUnknown;
     }
     if (!allInputsOwned) {
-      return 'Some inputs are not from this wallet. The dApp is adding its '
-          'own boxes to this transaction.';
+      return appL10n.ergopayWarningForeignInputs;
     }
     return null;
   }
@@ -106,16 +105,17 @@ class ErgoPaySummary {
     }
 
     final spend = spendNano;
+    final l = appL10n;
     return [
       if (recipients.length > 1)
-        ConfirmTxRow('Recipients', '${recipients.length}'),
-      ConfirmTxRow('Sent', formatErg(sentNano), bold: spend == null),
+        ConfirmTxRow(l.ergopayRowRecipients, '${recipients.length}'),
+      ConfirmTxRow(l.ergopayRowSent, formatErg(sentNano), bold: spend == null),
       if (tokensOut.isNotEmpty)
-        ConfirmTxRow('Tokens out', tokensOut.map(tokenText).join(', ')),
-      ConfirmTxRow('Miner fee', formatErg(feeNano)),
-      ConfirmTxRow('Change to you', formatErg(changeNano)),
-      if (spend != null) ConfirmTxRow('You spend', formatErg(spend), bold: true),
-      ConfirmTxRow('Inputs', '$inputCount'),
+        ConfirmTxRow(l.ergopayRowTokensOut, tokensOut.map(tokenText).join(', ')),
+      ConfirmTxRow(l.commonMinerFee, formatErg(feeNano)),
+      ConfirmTxRow(l.ergopayRowChange, formatErg(changeNano)),
+      if (spend != null) ConfirmTxRow(l.ergopayRowYouSpend, formatErg(spend), bold: true),
+      ConfirmTxRow(l.ergopayRowInputs, '$inputCount'),
     ];
   }
 }
