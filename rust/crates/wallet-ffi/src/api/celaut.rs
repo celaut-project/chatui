@@ -103,6 +103,9 @@ pub enum CelautErrorKind {
     LimitReached,
     /// The wallet cannot make the transaction, for example with too little ERG.
     Wallet,
+    /// The node does not know the client id of the app: it forgot it. The app asks the
+    /// user: a new client (the old balance is lost) or a retry later.
+    ClientUnknown,
 }
 
 /// The error of [`celaut_peer_info`].
@@ -116,6 +119,7 @@ pub struct CelautError {
 pub(crate) fn error_of(e: ClientError) -> CelautError {
     use CelautErrorKind as K;
     let kind = match &e {
+        e if e.is_unknown_client() => K::ClientUnknown,
         ClientError::Wire(WireError::Identity(IdentityError::PeerMismatch { .. })) => {
             K::IdentityMismatch
         }
@@ -343,5 +347,11 @@ mod tests {
         assert_eq!(e.kind, CelautErrorKind::BadSignature);
         let e = error_of(ClientError::Wire(WireError::Timeout));
         assert_eq!(e.kind, CelautErrorKind::Timeout);
+        let e = error_of(ClientError::Wire(WireError::Call(
+            "This RPC requires a client_id minted by GenerateClient first.".into(),
+        )));
+        assert_eq!(e.kind, CelautErrorKind::ClientUnknown);
+        let e = error_of(ClientError::Wire(WireError::Call("other".into())));
+        assert_eq!(e.kind, CelautErrorKind::Protocol);
     }
 }
