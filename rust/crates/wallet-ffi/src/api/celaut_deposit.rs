@@ -685,6 +685,11 @@ pub async fn celaut_deposit_notify(
                 accepted,
             };
         }
+        if accepted {
+            if let (Some(node), Ok(mu)) = (d.nodes.get_mut(&record.peer_id), record.mu.parse()) {
+                node.add_paid(mu);
+            }
+        }
         d.add_event(EventRecord {
             peer_id: record.peer_id.clone(),
             kind: if accepted {
