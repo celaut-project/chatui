@@ -4094,9 +4094,9 @@
     }
   },
   "celautDepositRowTitle": "Celaut deposit",
-  "celautDepositRowSubtitle": "Pay a node in ERG from this wallet",
+  "celautDepositRowSubtitle": "Pay a node in ERG from a full wallet",
   "celautDepositScreenTitle": "Celaut deposit",
-  "celautDepositIntro": "Pay ERG to a node to get MU, the unit of account of the node. The node gets a plain payment and can keep it, so deposit small amounts. The balance stays with the client id of this app session. The app does not keep that id yet, so the balance is lost when the app stops.",
+  "celautDepositIntro": "Pay ERG to a node to get MU, the unit of account of the node. You choose the full wallet that pays; read-only wallets cannot pay. The node gets a plain payment and can keep it, so deposit small amounts. The balance stays with the client id of the app on that node, which the app keeps in its encrypted Celaut database for all wallets.",
   "celautDepositNodeLabel": "Node address",
   "celautDepositNodeHint": "host:port",
   "celautDepositCheck": "Check the node",
@@ -4145,7 +4145,6 @@
   "celautDepositAmountInvalid": "Enter an amount of 0.001 ERG or more.",
   "celautDepositPrepare": "Prepare the deposit",
   "celautDepositPreparing": "Preparing…",
-  "celautDepositWatchOnly": "This wallet cannot sign. Open a wallet with its recovery phrase to make a deposit.",
   "celautDepositConfirmTitle": "Confirm the deposit",
   "celautDepositConfirmLabel": "Deposit",
   "celautDepositRowNode": "Node",
@@ -4204,5 +4203,117 @@
         "type": "String"
       }
     }
-  }
+  },
+  "celautUnknown": "unknown",
+  "celautNoFullWallet": "This needs a full wallet: a wallet with its recovery phrase on this device. Read-only wallets cannot pay a node or start or stop an instance. Create or restore a wallet first.",
+  "celautDepositPayerTitle": "Paying wallet",
+  "celautDepositPayerLabel": "Full wallet that pays",
+  "celautDepositPayerBalance": "Balance: {amount}",
+  "@celautDepositPayerBalance": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "celautDepositPayerOpen": "This wallet is open. It signs the deposit.",
+  "celautDepositPayerLocked": "This wallet is locked. Open it from the wallets list, then come back to pay with it.",
+  "celautDepositSaveDefault": "Save as the default payer",
+  "celautDepositIsDefault": "This is the default payer.",
+  "celautDepositRowPayer": "Paid by",
+  "celautDepositRowPayerBalance": "Balance of the paying wallet",
+  "celautDepositSentTitle": "Sent deposits",
+  "celautDepositSentRow": "{amount} ({mu} MU) to {node}",
+  "@celautDepositSentRow": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "mu": {
+        "type": "String"
+      },
+      "node": {
+        "type": "String"
+      }
+    }
+  },
+  "celautDepositSentExpired": "The deposit token expired. The node refuses this deposit now.",
+  "celautDefaultPayerRowTitle": "Default payer",
+  "celautDefaultPayerRowSubtitle": "The full wallet that the deposit screen chooses first",
+  "celautDefaultPayerNone": "No default",
+  "celautComputeHomeRowTitle": "Compute home (preview)",
+  "celautComputeHomeRowSubtitle": "Show the compute of your nodes first on the home screen. The wallet home stays the default.",
+  "celautHomeComputeTitle": "Offered compute",
+  "celautHomeOfferedNote": "Sums of what the reachable nodes advertise: offered, not free.",
+  "celautHomeNodes": "Nodes counted: {counted}. Not reachable: {unreachable}.",
+  "@celautHomeNodes": {
+    "placeholders": {
+      "counted": {
+        "type": "String"
+      },
+      "unreachable": {
+        "type": "String"
+      }
+    }
+  },
+  "celautHomeNoNodes": "The app has no node yet. Check a node in Settings, Developer.",
+  "celautHomeMoneyTitle": "Money for compute",
+  "celautHomeWalletsTotal": "ERG in all wallets: {amount}",
+  "@celautHomeWalletsTotal": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "celautHomeCredit": "Credit on nodes: {amount}",
+  "@celautHomeCredit": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "celautHomeCreditNode": "{node}: {mu} MU, at {rate} MU per nanoERG = {amount}",
+  "@celautHomeCreditNode": {
+    "placeholders": {
+      "node": {
+        "type": "String"
+      },
+      "mu": {
+        "type": "String"
+      },
+      "rate": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "celautHomeInstancesTitle": "Running instances",
+  "celautHomeNoInstances": "No instance runs.",
+  "celautHomeCostSoFar": "Cost so far: {mu} MU ({amount})",
+  "@celautHomeCostSoFar": {
+    "placeholders": {
+      "mu": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "celautHomeStop": "Stop",
+  "celautHomeStopped": "Stopped. Refund: {mu} MU.",
+  "@celautHomeStopped": {
+    "placeholders": {
+      "mu": {
+        "type": "String"
+      }
+    }
+  },
+  "celautHomeWallets": "Wallets",
+  "celautHomeRefresh": "Refresh",
+  "celautHomeLoading": "Asking the nodes…"
 }

@@ -5501,14 +5501,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautDepositRowSubtitle =>
-      'Paga a un nodo en ERG desde esta billetera';
+      'Paga a un nodo en ERG desde una billetera completa';
 
   @override
   String get celautDepositScreenTitle => 'Depósito en Celaut';
 
   @override
   String get celautDepositIntro =>
-      'Paga ERG a un nodo para obtener MU, la unidad de cuenta del nodo. El nodo recibe un pago simple y puede quedárselo, así que deposita cantidades pequeñas. El saldo queda con el ID de cliente de esta sesión de la app. La app todavía no guarda ese ID, así que el saldo se pierde cuando la app se cierra.';
+      'Paga ERG a un nodo para obtener MU, la unidad de cuenta del nodo. Tú eliges la billetera completa que paga; las billeteras de solo lectura no pueden pagar. El nodo recibe un pago simple y puede quedárselo, así que deposita cantidades pequeñas. El saldo queda con el ID de cliente de la app en ese nodo, que la app guarda en su base de datos cifrada de Celaut para todas las billeteras.';
 
   @override
   String get celautDepositNodeLabel => 'Dirección del nodo';
@@ -5569,10 +5569,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautDepositPreparing => 'Preparando…';
-
-  @override
-  String get celautDepositWatchOnly =>
-      'Esta billetera no puede firmar. Abre una billetera con su frase de recuperación para hacer un depósito.';
 
   @override
   String get celautDepositConfirmTitle => 'Confirmar el depósito';
@@ -5638,4 +5634,140 @@ class AppLocalizationsEs extends AppLocalizations {
   String celautDepositSendFailed(String error) {
     return 'No se envió la transacción: $error';
   }
+
+  @override
+  String get celautUnknown => 'desconocido';
+
+  @override
+  String get celautNoFullWallet =>
+      'Esto necesita una billetera completa: una billetera con su frase de recuperación en este dispositivo. Las billeteras de solo lectura no pueden pagar a un nodo ni iniciar o detener una instancia. Primero crea o restaura una billetera.';
+
+  @override
+  String get celautDepositPayerTitle => 'Billetera que paga';
+
+  @override
+  String get celautDepositPayerLabel => 'Billetera completa que paga';
+
+  @override
+  String celautDepositPayerBalance(String amount) {
+    return 'Saldo: $amount';
+  }
+
+  @override
+  String get celautDepositPayerOpen =>
+      'Esta billetera está abierta. Firma el depósito.';
+
+  @override
+  String get celautDepositPayerLocked =>
+      'Esta billetera está bloqueada. Ábrela desde la lista de billeteras y vuelve para pagar con ella.';
+
+  @override
+  String get celautDepositSaveDefault =>
+      'Guardar como billetera de pago predeterminada';
+
+  @override
+  String get celautDepositIsDefault =>
+      'Esta es la billetera de pago predeterminada.';
+
+  @override
+  String get celautDepositRowPayer => 'Pagado por';
+
+  @override
+  String get celautDepositRowPayerBalance => 'Saldo de la billetera que paga';
+
+  @override
+  String get celautDepositSentTitle => 'Depósitos enviados';
+
+  @override
+  String celautDepositSentRow(String amount, String mu, String node) {
+    return '$amount ($mu MU) a $node';
+  }
+
+  @override
+  String get celautDepositSentExpired =>
+      'El token de depósito expiró. El nodo rechaza este depósito ahora.';
+
+  @override
+  String get celautDefaultPayerRowTitle => 'Billetera de pago predeterminada';
+
+  @override
+  String get celautDefaultPayerRowSubtitle =>
+      'La billetera completa que la pantalla de depósito elige primero';
+
+  @override
+  String get celautDefaultPayerNone => 'Sin predeterminada';
+
+  @override
+  String get celautComputeHomeRowTitle => 'Inicio de cómputo (vista previa)';
+
+  @override
+  String get celautComputeHomeRowSubtitle =>
+      'Muestra primero el cómputo de tus nodos en la pantalla de inicio. El inicio de billeteras sigue siendo el predeterminado.';
+
+  @override
+  String get celautHomeComputeTitle => 'Cómputo ofrecido';
+
+  @override
+  String get celautHomeOfferedNote =>
+      'Sumas de lo que anuncian los nodos alcanzables: ofrecido, no libre.';
+
+  @override
+  String celautHomeNodes(String counted, String unreachable) {
+    return 'Nodos contados: $counted. No alcanzables: $unreachable.';
+  }
+
+  @override
+  String get celautHomeNoNodes =>
+      'La app todavía no tiene nodos. Revisa un nodo en Ajustes, Desarrollador.';
+
+  @override
+  String get celautHomeMoneyTitle => 'Dinero para cómputo';
+
+  @override
+  String celautHomeWalletsTotal(String amount) {
+    return 'ERG en todas las billeteras: $amount';
+  }
+
+  @override
+  String celautHomeCredit(String amount) {
+    return 'Crédito en los nodos: $amount';
+  }
+
+  @override
+  String celautHomeCreditNode(
+    String node,
+    String mu,
+    String rate,
+    String amount,
+  ) {
+    return '$node: $mu MU, a $rate MU por nanoERG = $amount';
+  }
+
+  @override
+  String get celautHomeInstancesTitle => 'Instancias activas';
+
+  @override
+  String get celautHomeNoInstances => 'No hay instancias en ejecución.';
+
+  @override
+  String celautHomeCostSoFar(String mu, String amount) {
+    return 'Costo hasta ahora: $mu MU ($amount)';
+  }
+
+  @override
+  String get celautHomeStop => 'Detener';
+
+  @override
+  String celautHomeStopped(String mu) {
+    return 'Detenida. Reembolso: $mu MU.';
+  }
+
+  @override
+  String get celautHomeWallets => 'Billeteras';
+
+  @override
+  String get celautHomeRefresh => 'Actualizar';
+
+  @override
+  String get celautHomeLoading => 'Consultando a los nodos…';
 }

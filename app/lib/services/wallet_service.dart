@@ -2310,7 +2310,11 @@ class WalletService with WidgetsBindingObserver {
   /// Prepare a Celaut deposit of [amountNanoErg] to [node] (milestone M3): a deposit
   /// token from the node, and a send preparation with the token in R4. Show it with
   /// the confirmation sheet and send it with [sendErgDetailed].
+  ///
+  /// [payerWalletId] is the full wallet that the user chose to pay. It must be the open
+  /// wallet, because only that one can sign (`docs/celaut/ui.md`, section 1).
   Future<DepositPreparedView> prepareCelautDeposit({
+    required String payerWalletId,
     required NodeAddress node,
     required String senderAddress,
     List<String>? spendAddresses,
@@ -2319,6 +2323,9 @@ class WalletService with WidgetsBindingObserver {
     String? nodeUrl,
   }) async {
     _requireUnlocked();
+    if (_currentWalletId != payerWalletId) {
+      throw ArgusException(code: 'WALLET_LOCKED', message: appL10n.coreWalletLocked);
+    }
     return celautDepositPrepare(
       handleId: _handleId!,
       node: node,

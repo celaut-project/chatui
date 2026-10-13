@@ -5425,14 +5425,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get celautDepositRowTitle => 'Celaut deposit';
 
   @override
-  String get celautDepositRowSubtitle => 'Pay a node in ERG from this wallet';
+  String get celautDepositRowSubtitle => 'Pay a node in ERG from a full wallet';
 
   @override
   String get celautDepositScreenTitle => 'Celaut deposit';
 
   @override
   String get celautDepositIntro =>
-      'Pay ERG to a node to get MU, the unit of account of the node. The node gets a plain payment and can keep it, so deposit small amounts. The balance stays with the client id of this app session. The app does not keep that id yet, so the balance is lost when the app stops.';
+      'Pay ERG to a node to get MU, the unit of account of the node. You choose the full wallet that pays; read-only wallets cannot pay. The node gets a plain payment and can keep it, so deposit small amounts. The balance stays with the client id of the app on that node, which the app keeps in its encrypted Celaut database for all wallets.';
 
   @override
   String get celautDepositNodeLabel => 'Node address';
@@ -5493,10 +5493,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get celautDepositPreparing => 'Preparing…';
-
-  @override
-  String get celautDepositWatchOnly =>
-      'This wallet cannot sign. Open a wallet with its recovery phrase to make a deposit.';
 
   @override
   String get celautDepositConfirmTitle => 'Confirm the deposit';
@@ -5562,4 +5558,138 @@ class AppLocalizationsEn extends AppLocalizations {
   String celautDepositSendFailed(String error) {
     return 'The transaction was not sent: $error';
   }
+
+  @override
+  String get celautUnknown => 'unknown';
+
+  @override
+  String get celautNoFullWallet =>
+      'This needs a full wallet: a wallet with its recovery phrase on this device. Read-only wallets cannot pay a node or start or stop an instance. Create or restore a wallet first.';
+
+  @override
+  String get celautDepositPayerTitle => 'Paying wallet';
+
+  @override
+  String get celautDepositPayerLabel => 'Full wallet that pays';
+
+  @override
+  String celautDepositPayerBalance(String amount) {
+    return 'Balance: $amount';
+  }
+
+  @override
+  String get celautDepositPayerOpen =>
+      'This wallet is open. It signs the deposit.';
+
+  @override
+  String get celautDepositPayerLocked =>
+      'This wallet is locked. Open it from the wallets list, then come back to pay with it.';
+
+  @override
+  String get celautDepositSaveDefault => 'Save as the default payer';
+
+  @override
+  String get celautDepositIsDefault => 'This is the default payer.';
+
+  @override
+  String get celautDepositRowPayer => 'Paid by';
+
+  @override
+  String get celautDepositRowPayerBalance => 'Balance of the paying wallet';
+
+  @override
+  String get celautDepositSentTitle => 'Sent deposits';
+
+  @override
+  String celautDepositSentRow(String amount, String mu, String node) {
+    return '$amount ($mu MU) to $node';
+  }
+
+  @override
+  String get celautDepositSentExpired =>
+      'The deposit token expired. The node refuses this deposit now.';
+
+  @override
+  String get celautDefaultPayerRowTitle => 'Default payer';
+
+  @override
+  String get celautDefaultPayerRowSubtitle =>
+      'The full wallet that the deposit screen chooses first';
+
+  @override
+  String get celautDefaultPayerNone => 'No default';
+
+  @override
+  String get celautComputeHomeRowTitle => 'Compute home (preview)';
+
+  @override
+  String get celautComputeHomeRowSubtitle =>
+      'Show the compute of your nodes first on the home screen. The wallet home stays the default.';
+
+  @override
+  String get celautHomeComputeTitle => 'Offered compute';
+
+  @override
+  String get celautHomeOfferedNote =>
+      'Sums of what the reachable nodes advertise: offered, not free.';
+
+  @override
+  String celautHomeNodes(String counted, String unreachable) {
+    return 'Nodes counted: $counted. Not reachable: $unreachable.';
+  }
+
+  @override
+  String get celautHomeNoNodes =>
+      'The app has no node yet. Check a node in Settings, Developer.';
+
+  @override
+  String get celautHomeMoneyTitle => 'Money for compute';
+
+  @override
+  String celautHomeWalletsTotal(String amount) {
+    return 'ERG in all wallets: $amount';
+  }
+
+  @override
+  String celautHomeCredit(String amount) {
+    return 'Credit on nodes: $amount';
+  }
+
+  @override
+  String celautHomeCreditNode(
+    String node,
+    String mu,
+    String rate,
+    String amount,
+  ) {
+    return '$node: $mu MU, at $rate MU per nanoERG = $amount';
+  }
+
+  @override
+  String get celautHomeInstancesTitle => 'Running instances';
+
+  @override
+  String get celautHomeNoInstances => 'No instance runs.';
+
+  @override
+  String celautHomeCostSoFar(String mu, String amount) {
+    return 'Cost so far: $mu MU ($amount)';
+  }
+
+  @override
+  String get celautHomeStop => 'Stop';
+
+  @override
+  String celautHomeStopped(String mu) {
+    return 'Stopped. Refund: $mu MU.';
+  }
+
+  @override
+  String get celautHomeWallets => 'Wallets';
+
+  @override
+  String get celautHomeRefresh => 'Refresh';
+
+  @override
+  String get celautHomeLoading => 'Asking the nodes…';
 }

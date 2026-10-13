@@ -33,7 +33,17 @@ class DepositStrings {
   static String get amountInvalid => appL10n.celautDepositAmountInvalid;
   static String get prepare => appL10n.celautDepositPrepare;
   static String get preparing => appL10n.celautDepositPreparing;
-  static String get watchOnly => appL10n.celautDepositWatchOnly;
+
+  // Paying wallet (docs/celaut/ui.md, section 1)
+  static String get payerTitle => appL10n.celautDepositPayerTitle;
+  static String get payerLabel => appL10n.celautDepositPayerLabel;
+  static String payerBalance(String amount) => appL10n.celautDepositPayerBalance(amount);
+  static String get payerOpen => appL10n.celautDepositPayerOpen;
+  static String get payerLocked => appL10n.celautDepositPayerLocked;
+  static String get saveDefault => appL10n.celautDepositSaveDefault;
+  static String get isDefault => appL10n.celautDepositIsDefault;
+  static String get noFullWallet => appL10n.celautNoFullWallet;
+  static String get unknown => appL10n.celautUnknown;
 
   // Confirmation sheet
   static String get confirmTitle => appL10n.celautDepositConfirmTitle;
@@ -44,6 +54,8 @@ class DepositStrings {
   static String get rowRate => appL10n.celautDepositRowRate;
   static String get rowTotal => appL10n.celautDepositRowTotal;
   static String get rowUsed => appL10n.celautDepositRowUsed;
+  static String get rowPayer => appL10n.celautDepositRowPayer;
+  static String get rowPayerBalance => appL10n.celautDepositRowPayerBalance;
   static String confirmDetail(int minutes) =>
       appL10n.celautDepositConfirmDetail('$minutes');
 
@@ -56,4 +68,15 @@ class DepositStrings {
   static String refused(String message) => appL10n.celautDepositRefused(message);
   static String get cancelled => appL10n.celautDepositCancelled;
   static String sendFailed(String error) => appL10n.celautDepositSendFailed(error);
+
+  // Deposits sent in this run or an earlier one
+  static String get sentTitle => appL10n.celautDepositSentTitle;
+  static String sentRow(String amount, String mu, String node) =>
+      appL10n.celautDepositSentRow(amount, mu, node);
+  static String get sentExpired => appL10n.celautDepositSentExpired;
+
+  // Settings: the default payer
+  static String get defaultPayerTitle => appL10n.celautDefaultPayerRowTitle;
+  static String get defaultPayerSubtitle => appL10n.celautDefaultPayerRowSubtitle;
+  static String get defaultPayerNone => appL10n.celautDefaultPayerNone;
 }

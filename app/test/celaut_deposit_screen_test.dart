@@ -3,6 +3,7 @@ import 'package:argus_wallet/bridge/api/celaut_deposit.dart';
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
 import 'package:argus_wallet/bridge/frb_generated.dart';
 import 'package:argus_wallet/celaut/deposit_strings.dart';
+import 'package:argus_wallet/celaut/payers.dart';
 import 'package:argus_wallet/format.dart';
 import 'package:argus_wallet/ui/celaut/deposit_confirm.dart';
 import 'package:argus_wallet/ui/celaut/deposit_screen.dart';
@@ -26,6 +27,7 @@ DepositPreparedView _prepared({int amount = 10000000, String mu = '10000000'}) =
       minerFeeNanoErg: 1100000,
       changeNanoErg: 88900000,
       inputCount: 1,
+      txId: _tx,
       boxId: 'b0' * 32,
       limitNanoErg: BigInt.from(50000000),
       depositedNanoErg: BigInt.from(amount),
@@ -38,7 +40,18 @@ class DepositApi extends RustLibApi {
   final cancels = <String>[];
   final notifies = <({String deposit, String tx})>[];
   final notifyAnswers = <Object>[];
+  final sending = <String>[];
+  var sent = <DepositSentView>[];
   String balance = '4500000';
+
+  @override
+  Future<String> crateApiCelautDepositCelautDepositSending({required String depositId}) async {
+    sending.add(depositId);
+    return _tx;
+  }
+
+  @override
+  List<DepositSentView> crateApiCelautDepositCelautSentDeposits() => sent;
 
   @override
   Future<DepositNodeView> crateApiCelautDepositCelautDepositNode({
@@ -59,8 +72,7 @@ class DepositApi extends RustLibApi {
   Future<void> crateApiCelautDepositCelautSetDepositLimit({
     required String peerId,
     required BigInt limitNanoErg,
-  }) async =>
-      limits.add((peer: peerId, limit: limitNanoErg));
+  }) async => limits.add((peer: peerId, limit: limitNanoErg));
 
   @override
   Future<void> crateApiCelautDepositCelautDepositCancel({required String depositId}) async =>
@@ -82,21 +94,33 @@ class DepositApi extends RustLibApi {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class FakeWallet implements DepositWallet {
-  String? cannot;
-  final prepares = <({NodeAddress node, int amount})>[];
+const _main = PayerWallet(walletId: 'w1', name: 'Main', balanceNano: 250000000, open: true);
+const _spare = PayerWallet(walletId: 'w2', name: 'Spare', balanceNano: null, open: false);
+
+class FakeWallets implements DepositWallets {
+  FakeWallets([this.list = const [_main, _spare]]);
+
+  List<PayerWallet> list;
+  String? saved;
+  final prepares = <({String payer, NodeAddress node, int amount})>[];
   final sends = <int>[];
 
   @override
-  String? cannotSign(BuildContext context) => cannot;
+  Future<List<PayerWallet>> payers() async => list;
+
+  @override
+  Future<String?> loadDefault() async => saved;
+
+  @override
+  Future<void> saveDefault(String walletId) async => saved = walletId;
 
   @override
   Future<DepositPreparedView> prepare(
-    BuildContext context,
+    PayerWallet payer,
     NodeAddress node,
     int amountNanoErg,
   ) async {
-    prepares.add((node: node, amount: amountNanoErg));
+    prepares.add((payer: payer.walletId, node: node, amount: amountNanoErg));
     return _prepared(amount: amountNanoErg, mu: '$amountNanoErg');
   }
 
@@ -108,13 +132,13 @@ class FakeWallet implements DepositWallet {
 }
 
 DepositDoneView _done({bool accepted = true}) => DepositDoneView(
-      depositId: 'dep-1',
-      txId: _tx,
-      boxId: 'b0' * 32,
-      accepted: accepted,
-      nodeMessage: accepted ? null : 'Error: payment not valid.',
-      clientBalanceMu: accepted ? '14500000' : '4500000',
-    );
+  depositId: 'dep-1',
+  txId: _tx,
+  boxId: 'b0' * 32,
+  accepted: accepted,
+  nodeMessage: accepted ? null : 'Error: payment not valid.',
+  clientBalanceMu: accepted ? '14500000' : '4500000',
+);
 
 void main() {
   final api = DepositApi();
@@ -125,17 +149,19 @@ void main() {
     api.cancels.clear();
     api.notifies.clear();
     api.notifyAnswers.clear();
+    api.sending.clear();
+    api.sent = [];
   });
 
   group('confirmation sheet', () {
     Widget host(void Function(ConfirmChoice) onResult) => MaterialApp(
-          home: Builder(
-            builder: (ctx) => TextButton(
-              onPressed: () async => onResult(await showDepositConfirmation(ctx, _prepared())),
-              child: const Text('open'),
-            ),
-          ),
-        );
+      home: Builder(
+        builder: (ctx) => TextButton(
+          onPressed: () async => onResult(await showDepositConfirmation(ctx, _prepared(), _main)),
+          child: const Text('open'),
+        ),
+      ),
+    );
 
     testWidgets('shows the ERG, the MU that it buys, the fee and the limit', (tester) async {
       tester.view.physicalSize = const Size(390, 2000);
@@ -147,6 +173,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text(DepositStrings.confirmTitle), findsOneWidget);
+      // The wallet that pays and its balance (docs/celaut/ui.md, section 1).
+      expect(find.text(DepositStrings.rowPayer), findsOneWidget);
+      expect(find.text('Main'), findsOneWidget);
+      expect(find.text(DepositStrings.rowPayerBalance), findsOneWidget);
+      expect(find.text(formatErg(250000000)), findsOneWidget);
       expect(find.text(formatErg(10000000)), findsOneWidget);
       expect(find.text('10,000,000 MU'), findsOneWidget);
       expect(find.text(DepositStrings.rate('1')), findsOneWidget);
@@ -176,14 +207,15 @@ void main() {
   });
 
   group('deposit screen', () {
-    late FakeWallet wallet;
+    late FakeWallets wallet;
 
-    Future<void> pump(WidgetTester tester) async {
+    Future<void> pump(WidgetTester tester, [FakeWallets? wallets]) async {
       tester.view.physicalSize = const Size(390, 4000);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      wallet = FakeWallet();
-      await tester.pumpWidget(MaterialApp(home: DepositScreen(wallet: wallet)));
+      wallet = wallets ?? FakeWallets();
+      await tester.pumpWidget(MaterialApp(home: DepositScreen(wallets: wallet)));
+      await tester.pumpAndSettle();
     }
 
     Future<void> check(WidgetTester tester) async {
@@ -192,8 +224,9 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('checks the node, deposits, waits for the box and shows the balance',
-        (tester) async {
+    testWidgets('checks the node, deposits, waits for the box and shows the balance', (
+      tester,
+    ) async {
       await pump(tester);
       await check(tester);
       expect(api.nodeCalls.single, const NodeAddress(host: '127.0.0.1', port: 18460));
@@ -208,6 +241,9 @@ void main() {
 
       await tester.tap(find.text(DepositStrings.confirmLabel));
       await tester.pumpAndSettle();
+      expect(wallet.prepares.single.payer, 'w1');
+      // The deposit is "sent" in the database before the send.
+      expect(api.sending.single, 'dep-1');
       expect(wallet.sends.single, 42);
       expect(api.notifies.single, (deposit: 'dep-1', tx: _tx));
       expect(api.cancels, isEmpty);
@@ -230,8 +266,7 @@ void main() {
       expect(find.text(DepositStrings.cancelled), findsOneWidget);
     });
 
-    testWidgets('a box that is late can be waited for again; a refusal is shown',
-        (tester) async {
+    testWidgets('a box that is late can be waited for again; a refusal is shown', (tester) async {
       await pump(tester);
       await check(tester);
       api.notifyAnswers.addAll([
@@ -254,7 +289,7 @@ void main() {
       expect(find.byKey(const Key('deposit-wait-again')), findsNothing);
     });
 
-    testWidgets('bad amounts and a wallet that cannot sign prepare nothing', (tester) async {
+    testWidgets('bad amounts and a locked payer prepare nothing', (tester) async {
       await pump(tester);
       await check(tester);
       for (final bad in ['', '0.0005', 'lots']) {
@@ -264,11 +299,74 @@ void main() {
         expect(find.text(DepositStrings.amountInvalid), findsOneWidget, reason: bad);
       }
       await tester.enterText(find.byKey(const Key('deposit-amount')), '0.01');
-      wallet.cannot = DepositStrings.watchOnly;
+      await tester.tap(find.byKey(const Key('deposit-payer')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Spare').last);
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('deposit-prepare')));
       await tester.pumpAndSettle();
-      expect(find.text(DepositStrings.watchOnly), findsOneWidget);
+      expect(find.text(DepositStrings.payerLocked), findsWidgets);
       expect(wallet.prepares, isEmpty);
+    });
+
+    testWidgets('with no full wallet the screen says so and does not start', (tester) async {
+      await pump(tester, FakeWallets(const []));
+      expect(find.byKey(const Key('deposit-no-full-wallet')), findsOneWidget);
+      expect(find.text(DepositStrings.noFullWallet), findsOneWidget);
+      // No payer choice, no node, no deposit.
+      expect(find.byKey(const Key('deposit-payer')), findsNothing);
+      expect(find.byKey(const Key('deposit-node')), findsNothing);
+      expect(find.byKey(const Key('deposit-prepare')), findsNothing);
+      expect(api.nodeCalls, isEmpty);
+    });
+
+    testWidgets('shows the paying wallet, its balance, and saves the default', (tester) async {
+      await pump(tester);
+      // The open wallet comes first when no default is saved.
+      expect(find.text('Main'), findsOneWidget);
+      expect(find.text(DepositStrings.payerBalance(formatErg(250000000))), findsOneWidget);
+      expect(find.text(DepositStrings.payerOpen), findsOneWidget);
+      await tester.tap(find.byKey(const Key('deposit-save-default')));
+      await tester.pumpAndSettle();
+      expect(wallet.saved, 'w1');
+      expect(find.byKey(const Key('deposit-is-default')), findsOneWidget);
+
+      // Another payer: unknown balance is "unknown", not 0.
+      await tester.tap(find.byKey(const Key('deposit-payer')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Spare').last);
+      await tester.pumpAndSettle();
+      expect(find.text(DepositStrings.payerBalance(DepositStrings.unknown)), findsOneWidget);
+      expect(find.text(DepositStrings.payerLocked), findsOneWidget);
+      expect(find.byKey(const Key('deposit-save-default')), findsOneWidget);
+    });
+
+    testWidgets('the saved default payer is chosen first', (tester) async {
+      await pump(tester, FakeWallets()..saved = 'w2');
+      expect(find.text('Spare'), findsOneWidget);
+      expect(find.byKey(const Key('deposit-is-default')), findsOneWidget);
+    });
+
+    testWidgets('a deposit sent in an earlier run can be waited for', (tester) async {
+      api.sent = [
+        DepositSentView(
+          depositId: 'dep-old',
+          peerId: _peer,
+          address: '127.0.0.1:18460',
+          txId: _tx,
+          amountNanoErg: BigInt.from(10000000),
+          amountMu: '10000000',
+          madeAt: 1,
+          expired: false,
+        ),
+      ];
+      api.notifyAnswers.add(_done());
+      await pump(tester, FakeWallets(const []));
+      expect(find.byKey(const Key('deposit-sent-dep-old')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('deposit-sent-wait-dep-old')));
+      await tester.pumpAndSettle();
+      expect(api.notifies.single, (deposit: 'dep-old', tx: _tx));
+      expect(find.text(DepositStrings.accepted('14,500,000')), findsOneWidget);
     });
 
     testWidgets('the limit of the node is set in ERG', (tester) async {
@@ -279,10 +377,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(api.limits.single, (peer: _peer, limit: BigInt.from(20000000)));
       expect(api.nodeCalls.length, 2);
-      expect(
-        find.text(DepositStrings.used(formatErg(0), formatErg(20000000))),
-        findsOneWidget,
-      );
+      expect(find.text(DepositStrings.used(formatErg(0), formatErg(20000000))), findsOneWidget);
 
       await tester.enterText(find.byKey(const Key('deposit-limit')), 'x');
       await tester.tap(find.byKey(const Key('deposit-set-limit')));

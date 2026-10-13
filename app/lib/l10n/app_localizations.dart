@@ -8588,7 +8588,7 @@ abstract class AppLocalizations {
   /// No description provided for @celautDepositRowSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Pay a node in ERG from this wallet'**
+  /// **'Pay a node in ERG from a full wallet'**
   String get celautDepositRowSubtitle;
 
   /// No description provided for @celautDepositScreenTitle.
@@ -8600,7 +8600,7 @@ abstract class AppLocalizations {
   /// No description provided for @celautDepositIntro.
   ///
   /// In en, this message translates to:
-  /// **'Pay ERG to a node to get MU, the unit of account of the node. The node gets a plain payment and can keep it, so deposit small amounts. The balance stays with the client id of this app session. The app does not keep that id yet, so the balance is lost when the app stops.'**
+  /// **'Pay ERG to a node to get MU, the unit of account of the node. You choose the full wallet that pays; read-only wallets cannot pay. The node gets a plain payment and can keep it, so deposit small amounts. The balance stays with the client id of the app on that node, which the app keeps in its encrypted Celaut database for all wallets.'**
   String get celautDepositIntro;
 
   /// No description provided for @celautDepositNodeLabel.
@@ -8705,12 +8705,6 @@ abstract class AppLocalizations {
   /// **'Preparing…'**
   String get celautDepositPreparing;
 
-  /// No description provided for @celautDepositWatchOnly.
-  ///
-  /// In en, this message translates to:
-  /// **'This wallet cannot sign. Open a wallet with its recovery phrase to make a deposit.'**
-  String get celautDepositWatchOnly;
-
   /// No description provided for @celautDepositConfirmTitle.
   ///
   /// In en, this message translates to:
@@ -8812,6 +8806,221 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The transaction was not sent: {error}'**
   String celautDepositSendFailed(String error);
+
+  /// No description provided for @celautUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'unknown'**
+  String get celautUnknown;
+
+  /// No description provided for @celautNoFullWallet.
+  ///
+  /// In en, this message translates to:
+  /// **'This needs a full wallet: a wallet with its recovery phrase on this device. Read-only wallets cannot pay a node or start or stop an instance. Create or restore a wallet first.'**
+  String get celautNoFullWallet;
+
+  /// No description provided for @celautDepositPayerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Paying wallet'**
+  String get celautDepositPayerTitle;
+
+  /// No description provided for @celautDepositPayerLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Full wallet that pays'**
+  String get celautDepositPayerLabel;
+
+  /// No description provided for @celautDepositPayerBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Balance: {amount}'**
+  String celautDepositPayerBalance(String amount);
+
+  /// No description provided for @celautDepositPayerOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'This wallet is open. It signs the deposit.'**
+  String get celautDepositPayerOpen;
+
+  /// No description provided for @celautDepositPayerLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'This wallet is locked. Open it from the wallets list, then come back to pay with it.'**
+  String get celautDepositPayerLocked;
+
+  /// No description provided for @celautDepositSaveDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as the default payer'**
+  String get celautDepositSaveDefault;
+
+  /// No description provided for @celautDepositIsDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'This is the default payer.'**
+  String get celautDepositIsDefault;
+
+  /// No description provided for @celautDepositRowPayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid by'**
+  String get celautDepositRowPayer;
+
+  /// No description provided for @celautDepositRowPayerBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Balance of the paying wallet'**
+  String get celautDepositRowPayerBalance;
+
+  /// No description provided for @celautDepositSentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent deposits'**
+  String get celautDepositSentTitle;
+
+  /// No description provided for @celautDepositSentRow.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} ({mu} MU) to {node}'**
+  String celautDepositSentRow(String amount, String mu, String node);
+
+  /// No description provided for @celautDepositSentExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'The deposit token expired. The node refuses this deposit now.'**
+  String get celautDepositSentExpired;
+
+  /// No description provided for @celautDefaultPayerRowTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Default payer'**
+  String get celautDefaultPayerRowTitle;
+
+  /// No description provided for @celautDefaultPayerRowSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The full wallet that the deposit screen chooses first'**
+  String get celautDefaultPayerRowSubtitle;
+
+  /// No description provided for @celautDefaultPayerNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No default'**
+  String get celautDefaultPayerNone;
+
+  /// No description provided for @celautComputeHomeRowTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Compute home (preview)'**
+  String get celautComputeHomeRowTitle;
+
+  /// No description provided for @celautComputeHomeRowSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the compute of your nodes first on the home screen. The wallet home stays the default.'**
+  String get celautComputeHomeRowSubtitle;
+
+  /// No description provided for @celautHomeComputeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Offered compute'**
+  String get celautHomeComputeTitle;
+
+  /// No description provided for @celautHomeOfferedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Sums of what the reachable nodes advertise: offered, not free.'**
+  String get celautHomeOfferedNote;
+
+  /// No description provided for @celautHomeNodes.
+  ///
+  /// In en, this message translates to:
+  /// **'Nodes counted: {counted}. Not reachable: {unreachable}.'**
+  String celautHomeNodes(String counted, String unreachable);
+
+  /// No description provided for @celautHomeNoNodes.
+  ///
+  /// In en, this message translates to:
+  /// **'The app has no node yet. Check a node in Settings, Developer.'**
+  String get celautHomeNoNodes;
+
+  /// No description provided for @celautHomeMoneyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Money for compute'**
+  String get celautHomeMoneyTitle;
+
+  /// No description provided for @celautHomeWalletsTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'ERG in all wallets: {amount}'**
+  String celautHomeWalletsTotal(String amount);
+
+  /// No description provided for @celautHomeCredit.
+  ///
+  /// In en, this message translates to:
+  /// **'Credit on nodes: {amount}'**
+  String celautHomeCredit(String amount);
+
+  /// No description provided for @celautHomeCreditNode.
+  ///
+  /// In en, this message translates to:
+  /// **'{node}: {mu} MU, at {rate} MU per nanoERG = {amount}'**
+  String celautHomeCreditNode(
+    String node,
+    String mu,
+    String rate,
+    String amount,
+  );
+
+  /// No description provided for @celautHomeInstancesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Running instances'**
+  String get celautHomeInstancesTitle;
+
+  /// No description provided for @celautHomeNoInstances.
+  ///
+  /// In en, this message translates to:
+  /// **'No instance runs.'**
+  String get celautHomeNoInstances;
+
+  /// No description provided for @celautHomeCostSoFar.
+  ///
+  /// In en, this message translates to:
+  /// **'Cost so far: {mu} MU ({amount})'**
+  String celautHomeCostSoFar(String mu, String amount);
+
+  /// No description provided for @celautHomeStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get celautHomeStop;
+
+  /// No description provided for @celautHomeStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped. Refund: {mu} MU.'**
+  String celautHomeStopped(String mu);
+
+  /// No description provided for @celautHomeWallets.
+  ///
+  /// In en, this message translates to:
+  /// **'Wallets'**
+  String get celautHomeWallets;
+
+  /// No description provided for @celautHomeRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get celautHomeRefresh;
+
+  /// No description provided for @celautHomeLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Asking the nodes…'**
+  String get celautHomeLoading;
 }
 
 class _AppLocalizationsDelegate
