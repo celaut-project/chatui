@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../bridge/api/celaut_deposit.dart';
+import '../celaut/celaut_database.dart';
 import '../bridge/api/celaut_service.dart' show NodeAddress;
 import '../bridge/argus_error.dart';
 import '../bridge/frb_generated.dart';
@@ -1304,6 +1305,8 @@ class WalletService with WidgetsBindingObserver {
     // The unconfirmed-spending setting, which every spend's input gathering
     // in Rust follows, must be applied before any transaction is built.
     await spendPolicy.apply();
+    // The Celaut data of the app (one database, not one per wallet).
+    await openCelautDatabase();
     _initialized = true;
     await _migrateLegacyIfNeeded();
   }
