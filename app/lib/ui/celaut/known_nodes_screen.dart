@@ -8,6 +8,7 @@ import '../../celaut/host_port.dart';
 import '../../format.dart';
 import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
+import '../scan_screen.dart';
 import '../settings/settings_shared.dart';
 import '../widgets/soft_card.dart';
 import 'client_unknown_dialog.dart';
@@ -32,14 +33,23 @@ class AppKnownNodes implements KnownNodes {
   void remove(String peerId) => celautRemoveNode(peerId: peerId);
 }
 
-/// The node list of the app (`docs/celaut/ui.md`, section 4): add a node by its address,
-/// remove a node. Only these nodes are in the sums of the home screen. A removed node
+/// The node list of the app (`docs/celaut/ui.md`, section 4): add a node by its address
+/// or by a QR code (`docs/celaut/wire.md`, section 6), remove a node. Only these nodes are in the sums of the home screen. A removed node
 /// keeps its client id and its deposits in the database, so adding it again restores
 /// them.
 class KnownNodesScreen extends StatefulWidget {
-  const KnownNodesScreen({super.key, this.nodes = const AppKnownNodes(), this.newClient});
+  const KnownNodesScreen({
+    super.key,
+    this.nodes = const AppKnownNodes(),
+    this.newClient,
+    this.scan,
+  });
 
   final KnownNodes nodes;
+
+  /// Read a QR code: the text, or null when the user goes back. The app opens the
+  /// camera ([ScanScreen]); tests give their own.
+  final Future<String?> Function(BuildContext context)? scan;
 
   /// Make a new client on a node that forgot the client id. Tests give their own.
   final Future<NewClientView> Function(NodeAddress node)? newClient;
@@ -109,6 +119,29 @@ class _KnownNodesScreenState extends State<KnownNodesScreen> {
     }
   }
 
+  /// A scanned address goes into the field and then through [_add], the same check as
+  /// a typed address. Text that is not a node address shows the error of a bad typed
+  /// address and stores nothing.
+  Future<void> _scan() async {
+    final scan = widget.scan ??
+        (context) => Navigator.push<String>(context, fadeRoute(const ScanScreen()));
+    final raw = await scan(context);
+    if (!mounted || raw == null) return;
+    final parsed = parseNodeQr(raw);
+    if (parsed.value == null) {
+      setState(() {
+        _addressError = parsed.error == HostPortError.port
+            ? CelautStrings.portInvalid
+            : CelautStrings.addressInvalid;
+        _note = null;
+        _error = null;
+      });
+      return;
+    }
+    _addressCtrl.text = parsed.value.toString();
+    await _add();
+  }
+
   void _remove(KnownNodeView n) {
     try {
       widget.nodes.remove(n.peerId);
@@ -144,6 +177,12 @@ class _KnownNodesScreenState extends State<KnownNodesScreen> {
                   labelText: CelautStrings.addressLabel,
                   hintText: CelautStrings.addressHint,
                   errorText: _addressError,
+                  suffixIcon: IconButton(
+                    key: const Key('nodes-scan'),
+                    tooltip: l.celautNodesScan,
+                    onPressed: _adding ? null : _scan,
+                    icon: const Icon(Icons.qr_code_scanner),
+                  ),
                 ),
                 onSubmitted: (_) => _adding ? null : _add(),
               ),

@@ -9146,7 +9146,7 @@ abstract class AppLocalizations {
   /// No description provided for @celautNodesIntro.
   ///
   /// In en, this message translates to:
-  /// **'The node list of the app. Only these nodes are in the sums of the home screen. A removed node keeps its deposits and its client in the app, so adding it again restores them.'**
+  /// **'The node list of the app. Add a node by its address or with a QR code. Only these nodes are in the sums of the home screen. A removed node keeps its deposits and its client in the app, so adding it again restores them.'**
   String get celautNodesIntro;
 
   /// No description provided for @celautNodesAdd.
@@ -9208,6 +9208,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add and remove the nodes in the sums of the home screen'**
   String get celautNodesRowSubtitle;
+
+  /// No description provided for @celautNodesScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan a QR code'**
+  String get celautNodesScan;
 }
 
 class _AppLocalizationsDelegate
