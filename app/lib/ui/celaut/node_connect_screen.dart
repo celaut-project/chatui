@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../bridge/api/celaut.dart';
 import '../../celaut/celaut_strings.dart';
+import '../../l10n/l10n.dart';
 import '../../celaut/host_port.dart';
 import '../../theme/argus_theme.dart';
 import '../settings/settings_shared.dart';
@@ -62,7 +63,7 @@ class _NodeConnectScreenState extends State<NodeConnectScreen> {
       _errorDetail = null;
     });
     try {
-      // No file for the last advertisements yet: the app keeps them in memory.
+      // The client id and the advertisement go into the Celaut database of the app.
       final info = await celautPeerInfo(
         host: target.host,
         port: target.port,
@@ -173,7 +174,8 @@ class _NodeConnectScreenState extends State<NodeConnectScreen> {
         context,
         empty: CelautStrings.noRates,
         rows: [
-          for (final r in info.rates) _pairRow(context, r.key, r.value),
+          for (final r in info.rates)
+            _pairRow(context, r.key, r.value.isEmpty ? appL10n.celautUnknown : r.value),
         ],
       ),
       if (info.rates.isNotEmpty) SettingsNote(CelautStrings.ratesNote),
@@ -213,7 +215,10 @@ class _NodeConnectScreenState extends State<NodeConnectScreen> {
         child: Text(empty, style: TextStyle(fontSize: 13.5, color: ArgusColors.of(context).muted)),
       );
     }
-    return SoftCard(padding: EdgeInsets.zero, child: DividedColumn(indent: 16, children: rows));
+    return SoftCard(
+      padding: EdgeInsets.zero,
+      child: DividedColumn(indent: 16, children: rows),
+    );
   }
 
   Widget _row(BuildContext context, String title, List<String> lines) {
@@ -223,7 +228,10 @@ class _NodeConnectScreenState extends State<NodeConnectScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SelectableText(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14.5)),
+          SelectableText(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14.5),
+          ),
           for (final line in lines) ...[
             const SizedBox(height: 3),
             SelectableText(line, style: TextStyle(fontSize: 12.5, color: colors.muted)),
@@ -263,15 +271,18 @@ class _NodeConnectScreenState extends State<NodeConnectScreen> {
     ]);
   }
 
+  /// What the node advertises for one architecture. A value that the node does not give
+  /// is "unknown", never left out or 0 (`docs/celaut/ui.md`, section 2).
   Widget _resourcesRow(BuildContext context, NodeResourcesView r) {
+    final unknown = appL10n.celautUnknown;
     return _row(context, r.architecture.isEmpty ? '?' : r.architecture, [
-      if (r.cpuCores != null) '${CelautStrings.cpuLabel}: ${CelautStrings.cores(r.cpuCores!)}',
-      if (r.memLimitBytes != null)
-        '${CelautStrings.memoryLabel}: ${CelautStrings.bytes(r.memLimitBytes!)}',
-      if (r.diskSpaceBytes != null)
-        '${CelautStrings.diskLabel}: ${CelautStrings.bytes(r.diskSpaceBytes!)}',
+      '${CelautStrings.cpuLabel}: ${r.cpuCores == null ? unknown : CelautStrings.cores(r.cpuCores!)}',
+      '${CelautStrings.memoryLabel}: '
+          '${r.memLimitBytes == null ? unknown : CelautStrings.bytes(r.memLimitBytes!)}',
+      '${CelautStrings.diskLabel}: '
+          '${r.diskSpaceBytes == null ? unknown : CelautStrings.bytes(r.diskSpaceBytes!)}',
       for (final b in r.benchmark)
-        '${CelautStrings.benchmarkLabel} ${b.key}: ${b.value.isEmpty ? '-' : b.value}',
+        '${CelautStrings.benchmarkLabel} ${b.key}: ${b.value.isEmpty ? unknown : b.value}',
     ]);
   }
 }
