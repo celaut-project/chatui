@@ -370,6 +370,14 @@ class AppLocalizationsEs extends AppLocalizations {
       'La app no puede leer ni escribir su lista de anuncios conocidos.';
 
   @override
+  String get celautErrorLimitReached =>
+      'Este depósito supera el límite que pusiste para este nodo.';
+
+  @override
+  String get celautErrorWallet =>
+      'La billetera no puede crear esta transacción. Comprueba el saldo y la red.';
+
+  @override
   String celautDetailLabel(String detail) {
     return 'Detalle: $detail';
   }

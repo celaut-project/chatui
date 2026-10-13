@@ -60,6 +60,8 @@ class CelautStrings {
         CelautErrorKind.proofOfWork => appL10n.celautErrorProofOfWork,
         CelautErrorKind.protocol => appL10n.celautErrorProtocol,
         CelautErrorKind.storage => appL10n.celautErrorStorage,
+        CelautErrorKind.limitReached => appL10n.celautErrorLimitReached,
+        CelautErrorKind.wallet => appL10n.celautErrorWallet,
       };
 
   static String detailLabel(String detail) => appL10n.celautDetailLabel(detail);

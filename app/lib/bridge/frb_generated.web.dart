@@ -8,6 +8,7 @@
 
 import 'api.dart';
 import 'api/celaut.dart';
+import 'api/celaut_deposit.dart';
 import 'api/celaut_service.dart';
 import 'api/mempool.dart';
 import 'api/storage_rent.dart';
@@ -50,6 +51,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CelautErrorKind dco_decode_celaut_error_kind(dynamic raw);
+
+  @protected
+  DepositDoneView dco_decode_deposit_done_view(dynamic raw);
+
+  @protected
+  DepositNodeView dco_decode_deposit_node_view(dynamic raw);
+
+  @protected
+  DepositPreparedView dco_decode_deposit_prepared_view(dynamic raw);
 
   @protected
   double dco_decode_f_32(dynamic raw);
@@ -191,6 +201,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CelautErrorKind sse_decode_celaut_error_kind(SseDeserializer deserializer);
+
+  @protected
+  DepositDoneView sse_decode_deposit_done_view(SseDeserializer deserializer);
+
+  @protected
+  DepositNodeView sse_decode_deposit_node_view(SseDeserializer deserializer);
+
+  @protected
+  DepositPreparedView sse_decode_deposit_prepared_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
   double sse_decode_f_32(SseDeserializer deserializer);
@@ -353,6 +374,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_celaut_error_kind(
     CelautErrorKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_deposit_done_view(
+    DepositDoneView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_deposit_node_view(
+    DepositNodeView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_deposit_prepared_view(
+    DepositPreparedView self,
     SseSerializer serializer,
   );
 

@@ -104,6 +104,10 @@ pub enum CelautErrorKind {
     Protocol,
     /// The file with the last advertisements failed.
     Storage,
+    /// A deposit would pass the limit of the node.
+    LimitReached,
+    /// The wallet cannot make the transaction, for example with too little ERG.
+    Wallet,
 }
 
 /// The error of [`celaut_peer_info`].

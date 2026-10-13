@@ -716,6 +716,18 @@ abstract class AppLocalizations {
   /// **'The app cannot read or write its list of known advertisements.'**
   String get celautErrorStorage;
 
+  /// No description provided for @celautErrorLimitReached.
+  ///
+  /// In en, this message translates to:
+  /// **'This deposit would pass the limit that you set for this node.'**
+  String get celautErrorLimitReached;
+
+  /// No description provided for @celautErrorWallet.
+  ///
+  /// In en, this message translates to:
+  /// **'The wallet cannot make this transaction. Check the balance and the network.'**
+  String get celautErrorWallet;
+
   /// No description provided for @celautDetailLabel.
   ///
   /// In en, this message translates to:

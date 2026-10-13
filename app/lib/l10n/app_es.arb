@@ -102,6 +102,8 @@
   "celautErrorProofOfWork": "El nodo pide más trabajo del que la app hace para un cliente nuevo, o no aceptó el trabajo.",
   "celautErrorProtocol": "El nodo rechazó la solicitud o envió una respuesta que la app no puede usar.",
   "celautErrorStorage": "La app no puede leer ni escribir su lista de anuncios conocidos.",
+  "celautErrorLimitReached": "Este depósito supera el límite que pusiste para este nodo.",
+  "celautErrorWallet": "La billetera no puede crear esta transacción. Comprueba el saldo y la red.",
   "celautDetailLabel": "Detalle: {detail}",
   "celautCores": "{count, plural, =1{{value} núcleo} other{{value} núcleos}}",
   "celautMemoryLabel": "Memoria",

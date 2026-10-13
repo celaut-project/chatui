@@ -118,9 +118,8 @@ fn check_registers(registers: &HashMap<String, String>) -> Result<(), SendError>
                 "{name} is missing: registers start at R4 and have no gap"
             )));
         };
-        let bytes = hex::decode(value).map_err(|_| {
-            SendError::BadRegisters(format!("{name} is not hexadecimal"))
-        })?;
+        let bytes = hex::decode(value)
+            .map_err(|_| SendError::BadRegisters(format!("{name} is not hexadecimal")))?;
         if bytes.is_empty() {
             return Err(SendError::BadRegisters(format!("{name} is empty")));
         }
@@ -424,15 +423,8 @@ mod tests {
         let ids: Vec<String> = (0..123).map(|i| format!("tok{i:04}")).collect();
         let assets: Vec<(&str, &str)> = ids.iter().map(|id| (id.as_str(), "7")).collect();
         let inputs = vec![make_box("5000000000", assets)];
-        let built = build_send_tx(
-            &inputs,
-            RECIPIENT_TREE,
-            USER_TREE,
-            1_000_000_000,
-            None,
-            1,
-        )
-        .unwrap();
+        let built =
+            build_send_tx(&inputs, RECIPIENT_TREE, USER_TREE, 1_000_000_000, None, 1).unwrap();
         let change: Vec<_> = built
             .unsigned_tx
             .outputs
@@ -496,8 +488,14 @@ mod tests {
         assert!(outputs[2].additional_registers.is_empty());
         assert_eq!(built.summary.recipient_erg, 10_000_000);
         assert_eq!(built.summary.miner_fee, TX_FEE);
-        assert_eq!(built.summary.change_erg, 1_000_000_000 - 10_000_000 - TX_FEE);
-        let out_total: i64 = outputs.iter().map(|o| o.value.parse::<i64>().unwrap()).sum();
+        assert_eq!(
+            built.summary.change_erg,
+            1_000_000_000 - 10_000_000 - TX_FEE
+        );
+        let out_total: i64 = outputs
+            .iter()
+            .map(|o| o.value.parse::<i64>().unwrap())
+            .sum();
         assert_eq!(out_total, 1_000_000_000, "ERG is conserved");
     }
 
@@ -529,7 +527,10 @@ mod tests {
         .unwrap();
         assert_eq!(built.unsigned_tx.outputs.len(), 2); // recipient + fee
         assert_eq!(built.summary.miner_fee, TX_FEE + 400_000);
-        assert_eq!(built.unsigned_tx.outputs[0].additional_registers["R4"], "0e0174");
+        assert_eq!(
+            built.unsigned_tx.outputs[0].additional_registers["R4"],
+            "0e0174"
+        );
     }
 
     #[test]
@@ -558,7 +559,10 @@ mod tests {
                 1,
             )
             .unwrap_err();
-            assert!(matches!(err, SendError::BadRegisters(_)), "{registers:?}: {err}");
+            assert!(
+                matches!(err, SendError::BadRegisters(_)),
+                "{registers:?}: {err}"
+            );
         }
         let two = HashMap::from([
             ("R4".to_string(), value.clone()),
@@ -612,15 +616,8 @@ mod tests {
             &(1_000_000_000 + TX_FEE + 1_500_000).to_string(),
             assets,
         )];
-        let err = build_send_tx(
-            &inputs,
-            RECIPIENT_TREE,
-            USER_TREE,
-            1_000_000_000,
-            None,
-            1,
-        )
-        .unwrap_err();
+        let err =
+            build_send_tx(&inputs, RECIPIENT_TREE, USER_TREE, 1_000_000_000, None, 1).unwrap_err();
         match err {
             SendError::TokenChangeInsufficientErg { have, min } => {
                 assert_eq!(have, 1_500_000);

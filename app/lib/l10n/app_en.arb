@@ -247,6 +247,8 @@
   "celautErrorProofOfWork": "The node asks for more work than the app does for a new client, or it did not accept the work.",
   "celautErrorProtocol": "The node refused the request or sent an answer that the app cannot use.",
   "celautErrorStorage": "The app cannot read or write its list of known advertisements.",
+  "celautErrorLimitReached": "This deposit would pass the limit that you set for this node.",
+  "celautErrorWallet": "The wallet cannot make this transaction. Check the balance and the network.",
   "celautDetailLabel": "Detail: {detail}",
   "@celautDetailLabel": {
     "placeholders": {

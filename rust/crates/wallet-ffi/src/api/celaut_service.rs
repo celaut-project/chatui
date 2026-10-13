@@ -20,7 +20,7 @@ use once_cell::sync::Lazy;
 
 use super::celaut::{error_of, invalid, CelautError, CelautErrorKind};
 
-type Session = Arc<NodeSession<Connection>>;
+pub(crate) type Session = Arc<NodeSession<Connection>>;
 
 // The state stays in Rust: not part of the Dart API.
 #[flutter_rust_bridge::frb(ignore)]
@@ -102,7 +102,7 @@ fn service_id(text: &str) -> Result<[u8; 32], CelautError> {
 
 /// The session of `address`: the one that exists, or a new client on the node. A new
 /// client gets the free credit of the node.
-async fn session(address: &NodeAddress) -> Result<Session, CelautError> {
+pub(crate) async fn session(address: &NodeAddress) -> Result<Session, CelautError> {
     check(address)?;
     let key = key(address);
     if let Some(s) = state()?.sessions.get(&key) {
@@ -123,7 +123,7 @@ async fn session(address: &NodeAddress) -> Result<Session, CelautError> {
 
 /// Forget the session of `address` after a connection error, so that the next call
 /// connects again. Its balance on the node is lost with its client id.
-fn forget_if_broken(address: &NodeAddress, error: &ClientError) {
+pub(crate) fn forget_if_broken(address: &NodeAddress, error: &ClientError) {
     if matches!(error, ClientError::Wire(WireError::Connect(_))) {
         if let Ok(mut s) = STATE.lock() {
             s.sessions.remove(&key(address));

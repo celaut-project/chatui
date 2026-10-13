@@ -82,6 +82,12 @@ enum CelautErrorKind {
 
   /// The file with the last advertisements failed.
   storage,
+
+  /// A deposit would pass the limit of the node.
+  limitReached,
+
+  /// The wallet cannot make the transaction, for example with too little ERG.
+  wallet,
 }
 
 /// One key and its value, as text.

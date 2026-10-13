@@ -228,7 +228,11 @@ pub async fn generate_deposit_token<T: Transport>(
     client_id: &str,
 ) -> Result<String, WireError> {
     let answer = transport
-        .call("GenerateDepositToken", vec![client_part(1, client_id)], &[1])
+        .call(
+            "GenerateDepositToken",
+            vec![client_part(1, client_id)],
+            &[1],
+        )
         .await?;
     let message: TokenMessage = find(&answer, 1, "TokenMessage")?;
     if message.token.is_empty() {

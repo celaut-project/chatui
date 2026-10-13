@@ -369,6 +369,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'The app cannot read or write its list of known advertisements.';
 
   @override
+  String get celautErrorLimitReached =>
+      'This deposit would pass the limit that you set for this node.';
+
+  @override
+  String get celautErrorWallet =>
+      'The wallet cannot make this transaction. Check the balance and the network.';
+
+  @override
   String celautDetailLabel(String detail) {
     return 'Detail: $detail';
   }

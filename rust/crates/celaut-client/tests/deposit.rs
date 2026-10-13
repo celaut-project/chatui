@@ -4,8 +4,8 @@
 mod common;
 
 use celaut_client::deposit::{
-    check_deposit_token, find_deposit_box, unspent_boxes_url, DepositBox, DepositError,
-    ErgPayment, NODO_DEFAULT_EXPLORER,
+    check_deposit_token, find_deposit_box, unspent_boxes_url, DepositBox, DepositError, ErgPayment,
+    NODO_DEFAULT_EXPLORER,
 };
 use celaut_client::{ClientError, MemoryPeerStore, NodeSession};
 use celaut_proto::celaut::contract::Ledger;
@@ -24,13 +24,19 @@ const SCRIPT_HEX: &str = "0008cd03a0f4d3b1c2e5f60718293a4b5c6d7e8f90a1b2c3d4e5f6
 /// The ledger declaration of an Ergo payment contract, as nodo makes it
 /// (`ledger_descriptors.py`, sorted `key=value` lines). Only some of the keys.
 fn ergo_formal(network: &str, binding: &str) -> Vec<u8> {
-    let mut pairs = vec![
+    let mut pairs = [
         ("asset.native".to_string(), "ERG".to_string()),
         ("chain".to_string(), "ergo".to_string()),
         ("network".to_string(), network.to_string()),
-        ("payment.accepted".to_string(), "that box exists and is unspent, in a block or in the mempool".to_string()),
+        (
+            "payment.accepted".to_string(),
+            "that box exists and is unspent, in a block or in the mempool".to_string(),
+        ),
         ("payment.deposit_token".to_string(), binding.to_string()),
-        ("payment.xattr.script".to_string(), "ErgoTree bytes (propositionBytes) that receive the payment".to_string()),
+        (
+            "payment.xattr.script".to_string(),
+            "ErgoTree bytes (propositionBytes) that receive the payment".to_string(),
+        ),
     ];
     pairs.sort();
     pairs
@@ -82,7 +88,12 @@ fn script() -> Vec<u8> {
 }
 
 fn erg_contract() -> Contract {
-    contract("ergo", "ERG", ergo_formal("mainnet", R4_BINDING), Some(&script()))
+    contract(
+        "ergo",
+        "ERG",
+        ergo_formal("mainnet", R4_BINDING),
+        Some(&script()),
+    )
 }
 
 fn peer_with(rates: Vec<ContractRate>) -> Peer {
@@ -101,7 +112,10 @@ fn the_erg_contract_is_kept_without_a_change() {
         Some(&script()),
     );
     let peer = peer_with(vec![
-        rate(contract("bitcoin", "BTC", Vec::new(), Some(b"\x00\x14")), "1400000"),
+        rate(
+            contract("bitcoin", "BTC", Vec::new(), Some(b"\x00\x14")),
+            "1400000",
+        ),
         rate(token_contract, "5"),
         rate(erg_contract(), "0"),
         rate(erg_contract(), "3"),
@@ -159,7 +173,12 @@ fn only_ergo_mainnet_with_the_token_in_r4_is_paid() {
     }
     // A declaration that does not name the binding is accepted (R4 is the rule of
     // `docs/celaut/wire.md`).
-    let unnamed = contract("ergo", "ERG", b"chain=ergo\nnetwork=mainnet".to_vec(), Some(&script()));
+    let unnamed = contract(
+        "ergo",
+        "ERG",
+        b"chain=ergo\nnetwork=mainnet".to_vec(),
+        Some(&script()),
+    );
     assert!(ErgPayment::of(&peer_with(vec![rate(unnamed, "1")])).is_ok());
 }
 
@@ -184,7 +203,10 @@ fn the_payment_buys_the_mu_of_the_amount() {
         &(u128::MAX / 2).to_string(),
     )]))
     .unwrap();
-    assert!(matches!(huge.mu_for(u64::MAX), Err(DepositError::BadAmount(_))));
+    assert!(matches!(
+        huge.mu_for(u64::MAX),
+        Err(DepositError::BadAmount(_))
+    ));
     assert!(matches!(
         erg.payment("has space", 1),
         Err(DepositError::BadToken(_))
@@ -261,7 +283,10 @@ fn the_first_box_with_the_token_in_r4_is_the_deposit() {
         })
     );
     assert_eq!(find_deposit_box(&boxes, "1b4e28ba"), None);
-    assert_eq!(find_deposit_box(&serde_json::json!({"items": []}), TOKEN), None);
+    assert_eq!(
+        find_deposit_box(&serde_json::json!({"items": []}), TOKEN),
+        None
+    );
     assert_eq!(find_deposit_box(&serde_json::json!([]), TOKEN), None);
 }
 
@@ -286,9 +311,13 @@ async fn session(more: Vec<Vec<bee_rpc::buffer::Buffer>>) -> NodeSession<FixedSt
         stream_of(1, &peer),
     ];
     answers.extend(more);
-    NodeSession::open(FixedStreams::new(answers), &peer_id, &MemoryPeerStore::new())
-        .await
-        .expect("open")
+    NodeSession::open(
+        FixedStreams::new(answers),
+        &peer_id,
+        &MemoryPeerStore::new(),
+    )
+    .await
+    .expect("open")
 }
 
 fn token_answer(token: &str) -> Vec<bee_rpc::buffer::Buffer> {
@@ -335,7 +364,10 @@ async fn payable_sends_the_payment_and_the_client() {
     s.payable(&payment).await.unwrap();
     let (method, parts) = s.transport().request(2);
     assert_eq!(method, "Payable");
-    assert_eq!(parts.iter().map(|p| p.index).collect::<Vec<_>>(), vec![1, 2]);
+    assert_eq!(
+        parts.iter().map(|p| p.index).collect::<Vec<_>>(),
+        vec![1, 2]
+    );
     let sent = Payment::decode(parts[0].data.as_slice()).unwrap();
     assert_eq!(sent, payment);
     // The contract goes back byte for byte.
