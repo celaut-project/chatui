@@ -5551,13 +5551,14 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get celautDepositLimitLabel => 'Límite para este nodo en ERG';
+  String get celautDepositLimitLabel =>
+      'Límite para este nodo en ERG (1 ERG como máximo)';
 
   @override
   String get celautDepositSetLimit => 'Fijar el límite';
 
   @override
-  String get celautDepositLimitInvalid => 'Escribe un límite en ERG, 0 o más.';
+  String get celautDepositLimitInvalid => 'Escribe un límite en ERG, de 0 a 1.';
 
   @override
   String get celautDepositAmountLabel => 'Cantidad en ERG';
@@ -5660,11 +5661,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautDepositPayerOpen =>
-      'Esta billetera está abierta. Firma el depósito.';
+      'Esta billetera está abierta. La app pide su PIN o su huella antes del depósito.';
 
   @override
   String get celautDepositPayerLocked =>
-      'Esta billetera está bloqueada. Ábrela desde la lista de billeteras y vuelve para pagar con ella.';
+      'Esta billetera está bloqueada. La app pide su PIN o su huella antes del depósito, y la abre.';
 
   @override
   String get celautDepositSaveDefault =>
@@ -5703,11 +5704,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get celautDefaultPayerNone => 'Sin predeterminada';
 
   @override
-  String get celautComputeHomeRowTitle => 'Inicio de cómputo (vista previa)';
+  String get celautComputeHomeRowTitle => 'Inicio de cómputo';
 
   @override
   String get celautComputeHomeRowSubtitle =>
-      'Muestra primero el cómputo de tus nodos en la pantalla de inicio. El inicio de billeteras sigue siendo el predeterminado.';
+      'La pantalla de inicio muestra primero el cómputo de tus nodos. Es lo predeterminado. Desactívalo para ver primero la lista de billeteras.';
 
   @override
   String get celautHomeComputeTitle => 'Cómputo ofrecido';
@@ -5723,30 +5724,10 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautHomeNoNodes =>
-      'La app todavía no tiene nodos. Revisa un nodo en Ajustes, Desarrollador.';
+      'La lista de nodos está vacía. Añade un nodo con Nodos.';
 
   @override
   String get celautHomeMoneyTitle => 'Dinero para cómputo';
-
-  @override
-  String celautHomeWalletsTotal(String amount) {
-    return 'ERG en todas las billeteras: $amount';
-  }
-
-  @override
-  String celautHomeCredit(String amount) {
-    return 'Crédito en los nodos: $amount';
-  }
-
-  @override
-  String celautHomeCreditNode(
-    String node,
-    String mu,
-    String rate,
-    String amount,
-  ) {
-    return '$node: $mu, a $rate por nanoERG = $amount';
-  }
 
   @override
   String get celautHomeInstancesTitle => 'Instancias activas';
@@ -5775,4 +5756,142 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautHomeLoading => 'Consultando a los nodos…';
+
+  @override
+  String get celautErrorClientUnknown =>
+      'El nodo no conoce el cliente de esta app: lo olvidó. Elige un nuevo cliente o reintenta más tarde.';
+
+  @override
+  String celautAtLeast(String value, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count nodos desconocidos',
+      one: '1 nodo desconocido',
+    );
+    return 'al menos $value ($_temp0)';
+  }
+
+  @override
+  String celautAtLeastWallets(String value, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count billeteras desconocidas',
+      one: '1 billetera desconocida',
+    );
+    return 'al menos $value ($_temp0)';
+  }
+
+  @override
+  String get celautHomeTagline => 'Cómputo';
+
+  @override
+  String get celautHomeFullWallets => 'Billeteras completas · pueden pagar';
+
+  @override
+  String get celautHomeWatched =>
+      'Direcciones y cuentas observadas · no pueden pagar';
+
+  @override
+  String get celautHomePaidCredit => 'Crédito pagado en los nodos';
+
+  @override
+  String get celautHomeFreeCredit => 'Crédito gratuito en los nodos';
+
+  @override
+  String celautHomeUsd(String amount) {
+    return '≈ $amount';
+  }
+
+  @override
+  String get celautHomeUsdUnknown => 'USD desconocido';
+
+  @override
+  String get celautHomeUsdSource =>
+      'USD según el precio ERG/USD del oracle pool, leído en la cadena. El crédito gratuito cuenta como gastado primero.';
+
+  @override
+  String celautHomeNodeCredit(String paid, String free, String rate) {
+    return 'Pagado $paid · gratuito $free · $rate MU por nanoERG';
+  }
+
+  @override
+  String get celautHomeNodeUnreachable => 'No alcanzable';
+
+  @override
+  String get celautHomeNodesButton => 'Nodos';
+
+  @override
+  String get celautHomeClientUnknownAction => 'Elegir qué hacer';
+
+  @override
+  String get celautOpenFullWalletNeeded =>
+      'Iniciar y detener necesitan una billetera completa abierta. Primero la app pide el PIN o la huella de una billetera completa.';
+
+  @override
+  String get celautClientUnknownTitle => 'El nodo olvidó el cliente';
+
+  @override
+  String celautClientUnknownBody(String node) {
+    return 'El nodo $node no conoce el ID de cliente de esta app. Crea un nuevo cliente ahora o reintenta más tarde.';
+  }
+
+  @override
+  String get celautClientUnknownWarning =>
+      'Un nuevo cliente empieza solo con el crédito gratuito del nodo. El saldo del cliente anterior se pierde, también el ERG que depositaste en él.';
+
+  @override
+  String get celautClientUnknownNew => 'Nuevo cliente';
+
+  @override
+  String get celautClientUnknownRetry => 'Reintentar más tarde';
+
+  @override
+  String get celautClientUnknownDone =>
+      'La app ahora usa un nuevo cliente en este nodo.';
+
+  @override
+  String get celautNodesTitle => 'Nodos';
+
+  @override
+  String get celautNodesIntro =>
+      'La lista de nodos de la app. Solo estos nodos entran en las sumas de la pantalla de inicio. Un nodo quitado conserva sus depósitos y su cliente en la app, así que añadirlo de nuevo los recupera.';
+
+  @override
+  String get celautNodesAdd => 'Añadir';
+
+  @override
+  String get celautNodesEmpty => 'La lista de nodos está vacía.';
+
+  @override
+  String get celautNodesRemove => 'Quitar';
+
+  @override
+  String get celautNodesRemoved =>
+      'Se quitó el nodo. Sus depósitos quedan en la app.';
+
+  @override
+  String get celautNodesAdded => 'Se añadió el nodo.';
+
+  @override
+  String celautNodesDeposited(String amount) {
+    return 'Depósitos de la app: $amount';
+  }
+
+  @override
+  String celautUnlockTitle(String name) {
+    return 'PIN de $name';
+  }
+
+  @override
+  String get celautUnlockFailed => 'La billetera no se abrió.';
+
+  @override
+  String get celautDepositAuthNeeded =>
+      'El depósito necesita el PIN o la huella de la billetera que paga. No se envió nada.';
+
+  @override
+  String get celautNodesRowSubtitle =>
+      'Añade y quita los nodos de las sumas de la pantalla de inicio';
 }

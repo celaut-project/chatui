@@ -221,6 +221,7 @@ void main() {
       CelautErrorKind.invalidInput: 'address is not valid',
       CelautErrorKind.limitReached: 'would pass the limit',
       CelautErrorKind.wallet: 'The wallet cannot make this transaction',
+      CelautErrorKind.clientUnknown: 'does not know the client of this app',
     };
     for (final entry in cases.entries) {
       testWidgets('${entry.key.name} shows its text and the detail', (tester) async {

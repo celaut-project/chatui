@@ -5475,13 +5475,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get celautDepositLimitLabel => 'Limit for this node in ERG';
+  String get celautDepositLimitLabel =>
+      'Limit for this node in ERG (1 ERG at most)';
 
   @override
   String get celautDepositSetLimit => 'Set the limit';
 
   @override
-  String get celautDepositLimitInvalid => 'Enter a limit in ERG, 0 or more.';
+  String get celautDepositLimitInvalid => 'Enter a limit in ERG, from 0 to 1.';
 
   @override
   String get celautDepositAmountLabel => 'Amount in ERG';
@@ -5584,11 +5585,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get celautDepositPayerOpen =>
-      'This wallet is open. It signs the deposit.';
+      'This wallet is open. The app asks for its PIN or fingerprint before the deposit.';
 
   @override
   String get celautDepositPayerLocked =>
-      'This wallet is locked. Open it from the wallets list, then come back to pay with it.';
+      'This wallet is locked. The app asks for its PIN or fingerprint before the deposit, and opens it.';
 
   @override
   String get celautDepositSaveDefault => 'Save as the default payer';
@@ -5625,11 +5626,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get celautDefaultPayerNone => 'No default';
 
   @override
-  String get celautComputeHomeRowTitle => 'Compute home (preview)';
+  String get celautComputeHomeRowTitle => 'Compute home';
 
   @override
   String get celautComputeHomeRowSubtitle =>
-      'Show the compute of your nodes first on the home screen. The wallet home stays the default.';
+      'The home screen shows the compute of your nodes first. This is the default. Turn it off to see the wallets list first.';
 
   @override
   String get celautHomeComputeTitle => 'Offered compute';
@@ -5645,30 +5646,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get celautHomeNoNodes =>
-      'The app has no node yet. Check a node in Settings, Developer.';
+      'The node list is empty. Add a node with Nodes.';
 
   @override
   String get celautHomeMoneyTitle => 'Money for compute';
-
-  @override
-  String celautHomeWalletsTotal(String amount) {
-    return 'ERG in all wallets: $amount';
-  }
-
-  @override
-  String celautHomeCredit(String amount) {
-    return 'Credit on nodes: $amount';
-  }
-
-  @override
-  String celautHomeCreditNode(
-    String node,
-    String mu,
-    String rate,
-    String amount,
-  ) {
-    return '$node: $mu, at $rate per nanoERG = $amount';
-  }
 
   @override
   String get celautHomeInstancesTitle => 'Running instances';
@@ -5697,4 +5678,141 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get celautHomeLoading => 'Asking the nodes…';
+
+  @override
+  String get celautErrorClientUnknown =>
+      'The node does not know the client of this app: it forgot it. Choose a new client or retry later.';
+
+  @override
+  String celautAtLeast(String value, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count nodes unknown',
+      one: '1 node unknown',
+    );
+    return 'at least $value ($_temp0)';
+  }
+
+  @override
+  String celautAtLeastWallets(String value, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count wallets unknown',
+      one: '1 wallet unknown',
+    );
+    return 'at least $value ($_temp0)';
+  }
+
+  @override
+  String get celautHomeTagline => 'Compute';
+
+  @override
+  String get celautHomeFullWallets => 'Full wallets · can pay';
+
+  @override
+  String get celautHomeWatched => 'Watched addresses and accounts · cannot pay';
+
+  @override
+  String get celautHomePaidCredit => 'Paid credit on nodes';
+
+  @override
+  String get celautHomeFreeCredit => 'Free credit on nodes';
+
+  @override
+  String celautHomeUsd(String amount) {
+    return '≈ $amount';
+  }
+
+  @override
+  String get celautHomeUsdUnknown => 'USD unknown';
+
+  @override
+  String get celautHomeUsdSource =>
+      'USD from the ERG/USD oracle pool price, read on-chain. The free credit counts as spent first.';
+
+  @override
+  String celautHomeNodeCredit(String paid, String free, String rate) {
+    return 'Paid $paid · free $free · $rate MU per nanoERG';
+  }
+
+  @override
+  String get celautHomeNodeUnreachable => 'Not reachable';
+
+  @override
+  String get celautHomeNodesButton => 'Nodes';
+
+  @override
+  String get celautHomeClientUnknownAction => 'Choose what to do';
+
+  @override
+  String get celautOpenFullWalletNeeded =>
+      'Start and stop need an open full wallet. The app asks for the PIN or fingerprint of a full wallet first.';
+
+  @override
+  String get celautClientUnknownTitle => 'The node forgot the client';
+
+  @override
+  String celautClientUnknownBody(String node) {
+    return 'The node $node does not know the client id of this app. Make a new client now, or retry later.';
+  }
+
+  @override
+  String get celautClientUnknownWarning =>
+      'A new client starts with only the free credit of the node. The balance of the old client is lost, also the ERG that you deposited to it.';
+
+  @override
+  String get celautClientUnknownNew => 'New client';
+
+  @override
+  String get celautClientUnknownRetry => 'Retry later';
+
+  @override
+  String get celautClientUnknownDone =>
+      'The app now uses a new client on this node.';
+
+  @override
+  String get celautNodesTitle => 'Nodes';
+
+  @override
+  String get celautNodesIntro =>
+      'The node list of the app. Only these nodes are in the sums of the home screen. A removed node keeps its deposits and its client in the app, so adding it again restores them.';
+
+  @override
+  String get celautNodesAdd => 'Add';
+
+  @override
+  String get celautNodesEmpty => 'The node list is empty.';
+
+  @override
+  String get celautNodesRemove => 'Remove';
+
+  @override
+  String get celautNodesRemoved =>
+      'The node was removed. Its deposits stay in the app.';
+
+  @override
+  String get celautNodesAdded => 'The node was added.';
+
+  @override
+  String celautNodesDeposited(String amount) {
+    return 'Deposits of the app: $amount';
+  }
+
+  @override
+  String celautUnlockTitle(String name) {
+    return 'PIN of $name';
+  }
+
+  @override
+  String get celautUnlockFailed => 'The wallet did not open.';
+
+  @override
+  String get celautDepositAuthNeeded =>
+      'The deposit needs the PIN or fingerprint of the paying wallet. Nothing was sent.';
+
+  @override
+  String get celautNodesRowSubtitle =>
+      'Add and remove the nodes in the sums of the home screen';
 }
