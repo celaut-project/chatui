@@ -16,8 +16,9 @@
 use celaut_balancer::amount;
 use celaut_proto::celaut::{Amount, Contract, Payment, Peer};
 
-/// The explorer that a node uses when its config gives none: the default of Ergo AppKit
-/// for mainnet. The node looks for the deposit box there.
+/// The explorer that a node uses: the default of Ergo AppKit for mainnet. The node looks
+/// for the deposit box there. A node does not advertise its explorer, so the app uses
+/// this one, fixed.
 pub const NODO_DEFAULT_EXPLORER: &str = "https://api.ergoplatform.com";
 
 /// The longest deposit token that this client puts in a register. A node gives the

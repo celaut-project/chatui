@@ -17,8 +17,8 @@ Updated on 2026-10-13, master at `ad48099` plus the M3 PR.
 | `bee-rpc-over-grpc-rs` | M1a done. Tag `v0.1.0` (`a832abc`) has the whole API: frames, blocks, signal, skip, hashes and the generic bidi call over tonic. `celaut-wire` uses it as a git dependency. Its license is GPL-3.0-only, and chatui is GPL-3.0-only too (section 7, question 10) |
 | M1: connect to a node and show its advertisement | Done. Merged in PR #9 |
 | M2: quote, start, tunnel, stop on free credit | Done. Merged in PR #11. `celaut-wire` (the M2 calls and `ServiceTunnel`), `celaut-balancer`, `celaut-client` (node sessions, quotes, the local port), the FFI functions in `api/celaut_service.rs` and the debug screen (Settings, Developer). Checked on our own node, from the client crate and from the app in the Android emulator (see M2 in section 5). Not tested: a phone, a node on the internet, more than one node |
-| M3: deposit with the wallet | Implemented; e2e done on mainnet on 2026-10-13 (PR #13). `GenerateDepositToken`, the deposit transaction with the token in R4, the confirmation sheet of the wallet, the wait for the box on the explorer of the node, one `Payable`, and a limit per node (Settings, Developer, Celaut deposit). Reworked on 2026-10-13 for `docs/celaut/ui.md` (PR #14): the user chooses one full wallet to pay, read-only wallets are never payers, a default payer in the settings, and one encrypted Celaut database for the app (client ids, advertisements, instances and tokens, deposits, quotes, event log), so a deposit is not lost at a restart. Unit, FFI and widget tests, a read-only check on our own node, and one deposit of 0.01 ERG from the app in the emulator to our node: the node accepted it and the client got 10 000 000 MU (`docs/celaut/deposit-e2e.md`) |
-| Home screen (ui.md, section 2) | Data and a plain screen in PR #13, behind a developer setting (Settings, Developer, Compute home); the wallet home stays the default. The open points of ui.md section 4 (design, partial advertisements, USD) wait for Josemi |
+| M3: deposit with the wallet | Implemented; e2e done on mainnet on 2026-10-13 (PR #13). `GenerateDepositToken`, the deposit transaction with the token in R4, the confirmation sheet of the wallet, the wait for the box on the explorer of nodo, one `Payable`, and a limit of 1 ERG per node (Settings, Developer, Celaut deposit). The deposit screen asks for the PIN or fingerprint of the paying wallet. Reworked on 2026-10-13 for `docs/celaut/ui.md` (PR #14): the user chooses one full wallet to pay, read-only wallets are never payers, a default payer in the settings, and one encrypted Celaut database for the app (client ids, advertisements, instances and tokens, deposits, quotes, event log), so a deposit is not lost at a restart. Unit, FFI and widget tests, a read-only check on our own node, and one deposit of 0.01 ERG from the app in the emulator to our node: the node accepted it and the client got 10 000 000 MU (`docs/celaut/deposit-e2e.md`) |
+| Home screen (ui.md, section 2) | In PR #13: the compute home is the default home, in the design of the `celaut-design` landing page (answers of Josemi, 2026-10-13). Settings, Developer, Compute home turns it off. Partial sums read "at least X (N nodes unknown)", USD from the oracle pool price, full and watched wallets as two figures, paid and free credit apart, an explicit node list (Settings, Developer, Nodes, and the Nodes button), start and stop with an open full wallet only, and a choice when a node forgets the client id |
 | M4 and M5 | Not started |
 | Open questions (section 7) | Answered on 2026-10-11 and 2026-10-12 |
 
@@ -299,7 +299,9 @@ port came through an SSH port-forward, with no new firewall rule.
 output to the node script and the token in R4 (the send path in `ergo-tx/src/send.rs`
 writes no registers today), the existing confirmation and sign screens, wait until the
 box is on the explorer, then Payable once. The node needs no confirmation: the box can
-be in the mempool, but it must be unspent and visible on the explorer of the node.
+be in the mempool, but it must be unspent and visible on the explorer of the node. The
+explorer is the default of nodo (`https://api.ergoplatform.com`), fixed: a node does not
+advertise an explorer, and the app does not take one from the node.
 `Payment.contract` must be the `Contract` from GetPeerInfo without a change, because
 the node compares its declaration. A per-node limit and a confirmation screen
 that shows ERG and MU. Check: unit tests of the transaction; one end-to-end test on our
@@ -320,9 +322,12 @@ What M3 has (PR #13):
   `celaut_set_deposit_limit`, `celaut_deposit_prepare` (token, then a send preparation
   that `send_erg` signs and sends, as every send), `celaut_deposit_cancel`, and
   `celaut_deposit_notify` (waits up to 10 minutes for the box on
-  `https://api.ergoplatform.com`, then `Payable` once; a timeout sends nothing to the
-  node and can be repeated). The limit is 0.05 ERG per node by default and counts each
-  prepared deposit until it is cancelled.
+  `https://api.ergoplatform.com`, the fixed explorer of nodo, then `Payable` once; a
+  timeout sends nothing to the node and can be repeated; an accepted deposit goes to
+  the paid credit of the node). The limit is 1 ERG per node: it counts every deposit
+  of the app to that node, from any wallet and for any client id, until it is
+  cancelled before the send, and it is kept in the database. The user can set a lower
+  limit, not a higher one.
 - Dart: the screen "Celaut deposit" (Settings, Developer) and the confirmation sheet of
   the wallet with the ERG, the MU, the rate, the fee, the change, the total and the
   use of the limit. No "sign only" for a deposit.
@@ -370,16 +375,34 @@ Changes for `docs/celaut/ui.md` (2026-10-13):
   deposit that was only prepared is dropped at the next start.
 - The limit of a node counts every deposit of the app to it, from any wallet, and is
   kept in the database.
-- Compute home (ui.md, section 2), behind Settings, Developer, Compute home; off by
-  default. `celaut_compute_overview` asks every node of the database at the same time:
+- Compute home (ui.md, section 2), the default home screen (Settings, Developer,
+  Compute home turns it off). `celaut_compute_overview` asks every node of the node list
+  at the same time:
   the offered resources (CPU, memory, disk; advertised, not free) summed once per
   peer_id, the reachable and unreachable nodes, the credit of the app on each node in
   MU and in ERG at the rate of that node, and each instance with its cost so far (the
   charge of the start less the balance that the instance still has). A sum with an
-  unknown part is "unknown", never 0; the known part and the number of unknown nodes
-  are in the data for a later design. For a node with more than one architecture entry,
-  the largest entry counts. The screen has a plain layout, no USD, and a Wallets entry
-  to the wallets list.
+  unknown part reads "at least X (N nodes unknown)", and a sum with no known part is
+  "unknown", never 0. For a node with more than one architecture entry, the largest
+  entry counts (more cores, then more memory, then more disk), not the sum and not
+  values from different entries. The screen follows the `celaut-design` landing page
+  (palette, Playfair Display and Lato, the CELAUT wordmark, spaced capital labels,
+  hairlines) and has Wallets and Nodes entries.
+- Money on the home screen: the ERG of the full wallets and the ERG of the watched
+  addresses and accounts are two figures with their own labels; the credit on the nodes
+  is split into paid credit and free credit (the free credit counts as spent first);
+  each figure has a USD value from the ERG/USD oracle pool price that the wallet
+  already reads on-chain (`TokenPricer`), or "USD unknown".
+- Node list (ui.md, section 4): `celaut_known_nodes`, `celaut_add_node`,
+  `celaut_remove_node`. A removed node leaves the sums; its client id and its deposits
+  stay in the database, so adding it again restores them.
+- A node that forgets the client id gives the error kind `ClientUnknown`. The app shows
+  the error and asks: "New client" (`celaut_new_client`; the old balance is lost) or
+  "Retry later". It never makes a new client by itself.
+- Start and stop need an open full wallet. With only locked full wallets, the action
+  first asks for the PIN or fingerprint of one. The deposit asks for the PIN or
+  fingerprint of the paying wallet, also when it is open, with the unlock flow of the
+  app.
 - Missing values on the node and service screens show "unknown" (they were left out,
   or 0).
 
@@ -449,6 +472,17 @@ onion addresses for nodes are nodo work (decision 7 in section 7).
     into `libwallet_ffi.so`. Josemi decided that chatui is GPL-3.0-only. `LICENSE` has
     the text, and `NOTICE.md` keeps the MIT notice of Argus, from which chatui is
     forked. The workspace `license` is `GPL-3.0-only`.
+
+11. **Answers on PR #13 (2026-10-13):** the compute home is the default view, with the
+    `celaut-design` landing page as the reference; partial sums read "at least X (N
+    nodes unknown)" and a node counts with its largest architecture entry; USD from the
+    oracle pool price; full and watched ERG as two figures; the deposit asks for the PIN
+    or fingerprint of the paying wallet; start and stop need an open full wallet; an
+    explicit node list with add and remove (deposits kept); a forgotten client id is the
+    user's choice (new client or retry later); free credit apart from paid credit; the
+    limit is 1 ERG per node over all deposits of the app, kept across restarts; the
+    explorer stays fixed to the nodo default; the e2e deposit of 0.01 ERG was approved
+    and done. The nodo deposit check is issue celaut-project/nodo#541.
 
 ## 8. Notes for `docs/celaut/wire.md`
 

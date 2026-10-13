@@ -185,10 +185,14 @@ Notes:
      `{explorer}/api/v1/boxes/unspent/unconfirmed/byAddress/{address}` with no paging
      parameters. Its explorer is the default of Ergo AppKit for mainnet,
      `https://api.ergoplatform.com` (nodo builds `ErgoAppKit(node_url)` with no
-     explorer URL). The answer is a JSON list of boxes.
+     explorer URL). The answer is a JSON list of all the unspent boxes of the address:
+     the endpoint ignores `offset` and `limit`. A node does not advertise its explorer,
+     so the app uses this explorer too, fixed.
    - The node reads `additionalRegisters.R4.renderedValue` (the hex of the bytes of the
      `Coll[Byte]`, without the `0e` and the length), decodes it as UTF-8, and compares
-     it with the token. It reads only the first box with the token.
+     it with the token. It reads only the first box with the token. A box at the node
+     address with an R4 that is not hex of UTF-8 text stops the check for every deposit
+     while it comes first (celaut-project/nodo#541).
 
    **One attempt only:** the token becomes `payed` or `rejected`. Call it only after
    the box is visible on the explorer.
