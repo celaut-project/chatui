@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:argus_wallet/bridge/api/celaut.dart';
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
 import 'package:argus_wallet/bridge/frb_generated.dart';
+import 'package:argus_wallet/celaut/payers.dart';
 import 'package:argus_wallet/celaut/service_strings.dart';
 import 'package:argus_wallet/celaut/tunnel_http.dart';
 import 'package:argus_wallet/ui/celaut/service_screen.dart';
@@ -113,16 +114,24 @@ void main() {
     );
   });
 
-  Future<void> pump(WidgetTester tester, {TunnelHttp? http, bool fullWallet = true}) async {
+  Future<_Wallets> pump(
+    WidgetTester tester, {
+    TunnelHttp? http,
+    bool fullWallet = true,
+    bool open = true,
+    bool consent = true,
+  }) async {
     tester.view.physicalSize = const Size(390, 4000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
+    final wallets = _Wallets(full: fullWallet, open: open, consent: consent);
     await tester.pumpWidget(
       MaterialApp(
-        home: ServiceScreen(http: http, hasFullWallet: () async => fullWallet),
+        home: ServiceScreen(http: http, wallets: wallets),
       ),
     );
     await tester.pump();
+    return wallets;
   }
 
   Future<void> fill(
@@ -281,6 +290,58 @@ void main() {
     expect(api.stops, isEmpty);
   });
 
+  testWidgets('start and stop need an open full wallet: the app asks to open one', (
+    tester,
+  ) async {
+    api.instances = [
+      InstanceListView(
+        instanceId: 'old-1',
+        peerId: _cheap,
+        address: '127.0.0.1:18460',
+        serviceId: _service,
+        slots: Uint16List.fromList([3030]),
+        startedAt: 1,
+        startChargeMu: '1000000',
+      ),
+    ];
+    // The full wallet is locked and the user does not give the PIN: nothing stops.
+    final refused = await pump(tester, open: false, consent: false);
+    expect(find.byKey(const Key('service-wallet-locked')), findsOneWidget);
+    expect(find.text(appL10n.celautOpenFullWalletNeeded), findsOneWidget);
+    await tester.tap(find.byKey(const Key('service-app-stop-old-1')));
+    await tester.pumpAndSettle();
+    expect(refused.unlocked, ['w1']);
+    expect(api.stops, isEmpty);
+    await fill(tester);
+    await tester.tap(find.byKey(const Key('service-quote')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(Key('service-start-$_cheap')));
+    await tester.pumpAndSettle();
+    expect(refused.unlocked, ['w1', 'w1']);
+    expect(api.startCalls, isEmpty);
+  });
+
+  testWidgets('a locked full wallet opens with its PIN, then the stop runs', (tester) async {
+    api.instances = [
+      InstanceListView(
+        instanceId: 'old-1',
+        peerId: _cheap,
+        address: '127.0.0.1:18460',
+        serviceId: _service,
+        slots: Uint16List.fromList([3030]),
+        startedAt: 1,
+        startChargeMu: '1000000',
+      ),
+    ];
+    final wallets = await pump(tester, open: false);
+    await tester.tap(find.byKey(const Key('service-app-stop-old-1')));
+    await tester.pumpAndSettle();
+    expect(wallets.unlocked, ['w1']);
+    expect(api.stops, ['old-1']);
+    // The wallet is open now: the message is gone.
+    expect(find.byKey(const Key('service-wallet-locked')), findsNothing);
+  });
+
   testWidgets('an instance of an earlier run is listed and can be stopped', (tester) async {
     api.instances = [
       InstanceListView(
@@ -333,4 +394,28 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('service-quote')), findsOneWidget);
   });
+}
+
+class _Wallets implements FullWallets {
+  _Wallets({required this.full, required this.open, required this.consent});
+
+  final bool full;
+  bool open;
+  final bool consent;
+  final unlocked = <String>[];
+
+  @override
+  Future<List<PayerWallet>> payers() async => full
+      ? [PayerWallet(walletId: 'w1', name: 'Main', balanceNano: 1, open: open)]
+      : const [];
+
+  @override
+  Future<String?> loadDefault() async => null;
+
+  @override
+  Future<bool> unlock(BuildContext context, PayerWallet wallet) async {
+    unlocked.add(wallet.walletId);
+    if (consent) open = true;
+    return consent;
+  }
 }
