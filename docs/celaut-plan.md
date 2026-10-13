@@ -18,7 +18,7 @@ Updated on 2026-10-13, master at `ad48099` plus the M3 PR.
 | M1: connect to a node and show its advertisement | Done. Merged in PR #9 |
 | M2: quote, start, tunnel, stop on free credit | Done. Merged in PR #11. `celaut-wire` (the M2 calls and `ServiceTunnel`), `celaut-balancer`, `celaut-client` (node sessions, quotes, the local port), the FFI functions in `api/celaut_service.rs` and the debug screen (Settings, Developer). Checked on our own node, from the client crate and from the app in the Android emulator (see M2 in section 5). Not tested: a phone, a node on the internet, more than one node |
 | M3: deposit with the wallet | Implemented; e2e done on mainnet on 2026-10-13 (PR #13). `GenerateDepositToken`, the deposit transaction with the token in R4, the confirmation sheet of the wallet, the wait for the box on the explorer of nodo, one `Payable`, and a limit of 1 ERG per node (Settings, Developer, Celaut deposit). The deposit screen asks for the PIN or fingerprint of the paying wallet. Reworked on 2026-10-13 for `docs/celaut/ui.md` (PR #14): the user chooses one full wallet to pay, read-only wallets are never payers, a default payer in the settings, and one encrypted Celaut database for the app (client ids, advertisements, instances and tokens, deposits, quotes, event log), so a deposit is not lost at a restart. Unit, FFI and widget tests, a read-only check on our own node, and one deposit of 0.01 ERG from the app in the emulator to our node: the node accepted it and the client got 10 000 000 MU (`docs/celaut/deposit-e2e.md`) |
-| Home screen (ui.md, section 2) | In PR #13: the compute home is the default home, in the design of the `celaut-design` landing page (answers of Josemi, 2026-10-13). Settings, Developer, Compute home turns it off. Partial sums read "at least X (N nodes unknown)", USD from the oracle pool price, full and watched wallets as two figures, paid and free credit apart, an explicit node list (Settings, Developer, Nodes, and the Nodes button), start and stop with an open full wallet only, and a choice when a node forgets the client id |
+| Home screen (ui.md, section 2) | In PR #15 (after #13 was merged): the compute home is the default home, in the design of the `celaut-design` landing page (answers of Josemi, 2026-10-13). Settings, Developer, Compute home turns it off. Partial sums read "at least X (N nodes unknown)", USD from the oracle pool price, full and watched wallets as two figures, paid and free credit apart, an explicit node list (Settings, Developer, Nodes, and the Nodes button), start and stop with an open full wallet only, and a choice when a node forgets the client id |
 | M4 and M5 | Not started |
 | Open questions (section 7) | Answered on 2026-10-11 and 2026-10-12 |
 
@@ -482,7 +482,8 @@ onion addresses for nodes are nodo work (decision 7 in section 7).
     user's choice (new client or retry later); free credit apart from paid credit; the
     limit is 1 ERG per node over all deposits of the app, kept across restarts; the
     explorer stays fixed to the nodo default; the e2e deposit of 0.01 ERG was approved
-    and done. The nodo deposit check is issue celaut-project/nodo#541.
+    and done. The nodo deposit check is issue celaut-project/nodo#541. The answers are
+    implemented in PR #15.
 
 ## 8. Notes for `docs/celaut/wire.md`
 
