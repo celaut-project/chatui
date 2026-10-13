@@ -29,8 +29,8 @@
 //! ```
 //!
 //! Optional: `CELAUT_NODE_HOST` (default `127.0.0.1`), `CELAUT_E2E_ERGO_NODE` (the Ergo
-//! node of the wallet; default: the list of the app), `CELAUT_E2E_EXPLORER` (default:
-//! the explorer of nodo).
+//! node of the wallet; default: the list of the app). The explorer is always the one of
+//! nodo.
 
 use super::*;
 
@@ -158,7 +158,7 @@ async fn deposit_end_to_end() {
     let tx_id = sent["tx_id"].as_str().expect("tx_id").to_string();
     println!("tx id              {tx_id}");
 
-    let done = celaut_deposit_notify(prepared.deposit_id, tx_id, env("CELAUT_E2E_EXPLORER"))
+    let done = celaut_deposit_notify(prepared.deposit_id, tx_id)
         .await
         .expect("notify");
     println!("box                {}", done.box_id);

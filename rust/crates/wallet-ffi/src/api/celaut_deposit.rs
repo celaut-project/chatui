@@ -566,17 +566,17 @@ fn keep_broadcast_tx_id(deposit_id: &str, tx_id: &str) -> Result<(), CelautError
 }
 
 /// After `send_erg` gave `tx_id`: wait until the explorer shows the deposit box unspent
-/// (the mempool is enough), then call `Payable` once.
+/// (the mempool is enough), then call `Payable` once. If the node accepts the payment,
+/// the MU of the deposit go to the paid credit of the node in the database.
 ///
-/// `explorer_url` is the explorer of the node; empty means the default of nodo
-/// (`https://api.ergoplatform.com`). If the box does not come in 10 minutes, the answer
-/// is a `Timeout` and nothing was sent to the node: call this again later, before the
-/// deposit token expires.
+/// The explorer is the default of nodo (`https://api.ergoplatform.com`), as on the node:
+/// it is fixed, and the node does not advertise one. If the box does not come in 10
+/// minutes, the answer is a `Timeout` and nothing was sent to the node: call this again
+/// later, before the deposit token expires.
 #[flutter_rust_bridge::frb]
 pub async fn celaut_deposit_notify(
     deposit_id: String,
     tx_id: String,
-    explorer_url: Option<String>,
 ) -> Result<DepositDoneView, CelautError> {
     let tx_id = tx_id.trim().to_ascii_lowercase();
     if tx_id.len() != 64 || !tx_id.bytes().all(|b| b.is_ascii_hexdigit()) {
@@ -611,11 +611,7 @@ pub async fn celaut_deposit_notify(
     let token = record.deposit_token.clone();
     let nano_erg = record.nano_erg;
 
-    let explorer = explorer_url
-        .map(|u| u.trim().to_string())
-        .filter(|u| !u.is_empty())
-        .unwrap_or_else(|| NODO_DEFAULT_EXPLORER.to_string());
-    let url = unspent_boxes_url(&explorer, &record.pay_to_address);
+    let url = unspent_boxes_url(NODO_DEFAULT_EXPLORER, &record.pay_to_address);
     let Some(found) = wait_for_box(|| fetch_boxes(&url), &token, WAIT_INTERVAL, WAIT_LIMIT).await
     else {
         return Err(CelautError {
@@ -920,11 +916,11 @@ mod tests {
             .unwrap_err();
             assert_eq!(err.kind, CelautErrorKind::InvalidInput, "{amount}");
         }
-        let err = celaut_deposit_notify("nope".into(), "ab".repeat(32), None)
+        let err = celaut_deposit_notify("nope".into(), "ab".repeat(32))
             .await
             .unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);
-        let err = celaut_deposit_notify("nope".into(), "tx".into(), None)
+        let err = celaut_deposit_notify("nope".into(), "tx".into())
             .await
             .unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);
