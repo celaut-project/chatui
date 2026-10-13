@@ -1,4 +1,7 @@
+import 'package:argus_wallet/celaut/deposit_strings.dart';
 import 'package:argus_wallet/celaut/payers.dart';
+import 'package:argus_wallet/ui/celaut/default_payer_dialog.dart';
+import 'package:flutter/material.dart';
 import 'package:argus_wallet/ui/home/overview_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -56,6 +59,30 @@ void main() {
     });
   });
 
+  testWidgets('the default payer dialog offers only full wallets and saves one', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final payers = payerWallets([watchedAddress, seedLocked, seedOpen]);
+    await tester.pumpWidget(
+      _Host((ctx) => showDefaultPayerDialog(ctx, payers: payers, current: null)),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.text('Cold'), findsNothing);
+    expect(find.byKey(const Key('default-payer-w1')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('default-payer-w2')));
+    await tester.pumpAndSettle();
+    expect(await const DefaultPayerStore().load(), 'w2');
+  });
+
+  testWidgets('with no full wallet the default payer dialog says so', (tester) async {
+    await tester.pumpWidget(
+      _Host((ctx) => showDefaultPayerDialog(ctx, payers: const [], current: null)),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.text(DepositStrings.noFullWallet), findsOneWidget);
+  });
+
   test('the default payer is saved in the settings', () async {
     SharedPreferences.setMockInitialValues({});
     const store = DefaultPayerStore();
@@ -67,4 +94,15 @@ void main() {
     await store.save(null);
     expect(await store.load(), isNull);
   });
+}
+
+class _Host extends StatelessWidget {
+  const _Host(this.onTap);
+  final Future<void> Function(BuildContext) onTap;
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+    home: Builder(
+      builder: (ctx) => TextButton(onPressed: () => onTap(ctx), child: const Text('open')),
+    ),
+  );
 }
