@@ -87,7 +87,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _open(Widget page) async {
     await Navigator.push(context, fadeRoute(page));
-    if (mounted) setState(() => _walletsFuture = walletService.listWallets());
+    if (!mounted) return;
+    // setState takes a callback that returns nothing: an arrow here would return the
+    // Future of the list, which setState refuses.
+    setState(() {
+      _walletsFuture = walletService.listWallets();
+    });
   }
 
   @override
