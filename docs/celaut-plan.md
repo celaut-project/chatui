@@ -498,8 +498,8 @@ onion addresses for nodes are nodo work (decision 7 in section 7).
     cores first). A known value is larger than an unknown one, and values of different
     entries are not mixed or added. Answer 7: add a node by QR code in the next PR,
     beside the address field. A scanned address goes through the same node check as a
-    typed one. The QR format is a proposal in `docs/celaut/wire.md`, section 6, and is
-    open for Josemi. Other answers on PR #15 keep the defaults of the code.
+    typed one. The QR format is in `docs/celaut/wire.md`, section 6; Josemi accepted it
+    on 2026-10-13. Other answers on PR #15 keep the defaults of the code.
 
 ## 8. Notes for `docs/celaut/wire.md`
 

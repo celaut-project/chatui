@@ -214,10 +214,10 @@ Notes:
 - TCP: message boundaries carry no meaning. UDP: one message = one datagram.
 - Half-closing the request closes the write side of the TCP connection to the service.
 
-## 6. Node address in a QR code (proposal, decision for Josemi)
+## 6. Node address in a QR code
 
-nodo has no QR format for a node address. The app reads two forms. The text is trimmed
-first.
+Josemi accepted this format on 2026-10-13. nodo itself has no QR format for a node
+address. The app reads two forms. The text is trimmed first.
 
 1. **URI:** `celaut://node?addr=<host>:<port>`
    - The scheme is `celaut` and the host is `node` (both case-insensitive).
@@ -237,6 +237,3 @@ A scanned address then goes through the same check as a typed address:
 `celaut_add_node` connects to the node and checks its identity (section 1) before
 anything is stored. A node that does not answer or fails the check gives the same
 error as a typed address.
-
-Open for Josemi: the scheme and host (`celaut://node`), the parameter name `addr`, and
-whether unknown parameters are ignored (the default) or refused.
