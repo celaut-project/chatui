@@ -59,7 +59,7 @@ impl PeerStore for MemoryPeerStore {
     }
 }
 
-fn keep_newer(peers: &mut BTreeMap<String, Seen>, peer_id: &str, seen: Seen) {
+pub(crate) fn keep_newer(peers: &mut BTreeMap<String, Seen>, peer_id: &str, seen: Seen) {
     match peers.get(peer_id) {
         Some(old) if old.ts > seen.ts => {}
         _ => {

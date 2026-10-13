@@ -21,9 +21,11 @@
 //! - [`deposit`]: the ERG payment contract of a node, the `Payment` of `Payable`, and the
 //!   check of the deposit box on the explorer. The wallet makes the transaction.
 //!
-//! The client ids and instance tokens are kept in memory only. A deposit goes to the
-//! client id of the session, so it is lost when the app stops. Encrypted storage of the
-//! client ids is the next step.
+//! Storage, for the whole app (`docs/celaut/ui.md`):
+//!
+//! - [`db`]: one encrypted database for all the Celaut data of the app (client ids,
+//!   advertisements, instances and their tokens, deposits, quotes, the event log). No
+//!   database per wallet, and no wallet key in it.
 //!
 //! Input from a peer must never make this crate panic.
 #![forbid(unsafe_code)]
@@ -32,6 +34,7 @@
     deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)
 )]
 
+pub mod db;
 pub mod deposit;
 pub mod local_port;
 pub mod peer;
@@ -44,6 +47,7 @@ use celaut_proto::celaut::{Client, Peer};
 use celaut_wire::gateway::{generate_client, get_peer_info, GenerateClientReply};
 use celaut_wire::{ConnectOptions, Connection, Transport, WireError};
 
+pub use db::{CelautData, CelautDb, DbError};
 pub use deposit::{DepositBox, DepositError, ErgPayment};
 pub use local_port::LocalPort;
 pub use peer::PeerError;

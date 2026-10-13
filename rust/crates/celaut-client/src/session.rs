@@ -63,6 +63,23 @@ impl<T: Transport> NodeSession<T> {
         })
     }
 
+    /// A session with the client id that the app already has on the node, so that its
+    /// balance on the node stays usable. The advertisement is checked as in
+    /// [`NodeSession::open`].
+    pub async fn resume(
+        transport: T,
+        peer_id: &str,
+        client_id: String,
+        store: &dyn PeerStore,
+    ) -> Result<Self, ClientError> {
+        let info = fetch_node_info_as(&transport, &client_id, peer_id, store).await?;
+        Ok(NodeSession {
+            transport,
+            client_id,
+            info,
+        })
+    }
+
     /// The identity of the node.
     pub fn peer_id(&self) -> &str {
         &self.info.peer_id
