@@ -364,8 +364,9 @@ onion addresses for nodes are nodo work (decision 7 in section 7).
     forked. The workspace `license` is `GPL-3.0-only`.
 
 11. **Wallets, storage and home screen (decided, 2026-10-13):** full wallets (seed,
-    can sign) and read-only wallets can both be used to manage instances, with one
-    database for all Celaut data and none per wallet. A deposit uses one full wallet.
+    can sign) manage instances and pay nodes. Read-only wallets only view balances and
+    history. All Celaut data is in one database, none per wallet. A deposit uses one
+    full wallet.
     The home screen shows the compute that the connected nodes offer (the sum of their
     resources) and the money for compute first; the ERG of each wallet is second level.
     The full rules are in `docs/celaut/ui.md`. New screens must follow them.

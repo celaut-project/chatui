@@ -25,8 +25,9 @@
   the service with the highest score. The user can also launch by service hash, or
   upload a package from the phone.
 - **Wallets and storage (2026-10-13):** the app has full wallets (with the seed, can sign)
-  and read-only wallets. All of them can be used to manage instances, with one database
-  for Celaut data (no database per wallet). A node is paid with one full wallet, chosen at
+  and read-only wallets. Only full wallets manage instances (start, stop) and pay nodes;
+  read-only wallets are for viewing. All Celaut data is in one database (no database per
+  wallet). A node is paid with one full wallet, chosen at
   the time of the deposit. See [ui.md](ui.md).
 - **Home screen (2026-10-13):** it shows the compute that the connected nodes offer
   (sum of their resources) and the money for compute first. The ERG of each wallet is

@@ -10,11 +10,12 @@ The app holds more than one wallet. A wallet has one of two types:
 
 | Type | Has the seed | Can sign | Use |
 |---|---|---|---|
-| Full wallet | yes | yes | Pay nodes, send ERG and tokens |
-| Read-only wallet (watch-only) | no | no | See balance and history |
+| Full wallet | yes | yes | Manage instances, pay nodes, send ERG and tokens |
+| Read-only wallet (watch-only) | no | no | See balance and history only |
 
 Both types exist in the app today (watch-only accounts, `watch_account_service.dart`).
 Keep both.
+Read-only wallets never start, stop or pay for an instance.
 
 Rules:
 
@@ -22,13 +23,17 @@ Rules:
   tokens, node sessions, quotes and the reputation event log are kept in **one
   database for the whole app**. There is no database per wallet. Do not add a
   `wallet_id` key to the Celaut tables.
-- Every wallet, full or read-only, is shown in the Celaut screens. All of them can be
-  used to manage instances (see them, see the cost, stop them), because the instance
-  belongs to the app, not to a wallet.
-- A wallet matters only when the app **pays a node** (a deposit, M3). The app then
-  uses **one** wallet for that payment. Only a full wallet can pay. A read-only wallet
-  is not offered in the payment choice. If the app has no full wallet, the deposit
-  screen says so and does not start.
+- Instances are managed only with a **full wallet**: start, stop and any action that
+  needs a signature or the seed. A read-only wallet cannot manage instances, because it
+  has no seed. The instance data itself is still app-wide (see the rule above), so a
+  full wallet can manage any instance the app holds, whichever wallet started it.
+- A full wallet is also the only kind that **pays a node** (a deposit, M3). The app
+  uses **one** full wallet for each payment. A read-only wallet is not offered in the
+  payment choice. If the app has no full wallet, the deposit screen says so and does
+  not start, and instance actions that need a full wallet are disabled with the same
+  message.
+- Read-only wallets are still shown in the Celaut screens, for balance and history
+  only.
 - The payment wallet is chosen at the time of the deposit. The deposit screen shows
   which wallet pays and its balance. A default wallet can be saved in the settings.
 - The data of a node (deposit, client id, balance) does not record which wallet paid,
@@ -73,7 +78,7 @@ Rules for the numbers:
 | Milestone | Change |
 |---|---|
 | M3 | The deposit uses one full wallet that the user chooses. The confirmation screen shows the wallet, ERG and MU. Only full wallets are in the choice |
-| M4 | The conversation screen and the instance list read from the single database. They do not depend on a wallet |
+| M4 | The conversation screen and the instance list read from the single database. Starting or stopping an instance needs a full wallet |
 | Home | The home screen follows section 2. Do it with the first screen that needs the node data (M3), or in its own PR before it |
 | Storage | The Celaut store (client ids, instance tokens) is one encrypted store for the app, as the plan already says. See plan section 3 |
 
