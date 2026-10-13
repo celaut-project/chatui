@@ -53,7 +53,8 @@ String walletsSum({required int knownNano, required int unknown, required int co
   return appL10n.celautUnknown;
 }
 
-/// The USD value of [nanoErg] at [usdPerErg] (the oracle pool price), as "$1,234.56".
+/// The USD value of [nanoErg] at [usdPerErg] (the oracle pool price), as "$1,234.56",
+/// or with two significant digits under one cent ("$0.0054").
 /// Null if the amount or the price is not known: the screen then says "USD unknown",
 /// never $0.
 String? usdOf(BigInt? nanoErg, double? usdPerErg) {
@@ -61,7 +62,8 @@ String? usdOf(BigInt? nanoErg, double? usdPerErg) {
     return null;
   }
   final usd = nanoErg.toDouble() / 1e9 * usdPerErg;
-  if (usd > 0 && usd < 0.01) return '< \$0.01';
+  // Less than a cent: two significant digits, so that a small credit is not "\$0.00".
+  if (usd > 0 && usd < 0.01) return '\$${usd.toStringAsPrecision(2)}';
   final cents = (usd * 100).round();
   final whole = groupMu('${cents ~/ 100}');
   final rest = (cents % 100).toString().padLeft(2, '0');

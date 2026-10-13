@@ -363,7 +363,8 @@ void main() {
     test('USD from the oracle price, unknown without it', () {
       expect(usdOf(BigInt.from(1000000000), 1.5), '\$1.50');
       expect(usdOf(BigInt.from(1234567000000000), 1.0), '\$1,234,567.00');
-      expect(usdOf(BigInt.from(1000), 1.0), '< \$0.01');
+      expect(usdOf(BigInt.from(1000), 1.0), '\$0.0000010');
+      expect(usdOf(BigInt.from(8900000), 0.6), '\$0.0053');
       expect(usdOf(BigInt.zero, 1.0), '\$0.00');
       expect(usdOf(BigInt.from(1000000000), null), isNull);
       expect(usdOf(BigInt.from(1000000000), 0), isNull);
