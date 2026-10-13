@@ -26,6 +26,8 @@
 //! - [`db`]: one encrypted database for all the Celaut data of the app (client ids,
 //!   advertisements, instances and their tokens, deposits, quotes, the event log). No
 //!   database per wallet, and no wallet key in it.
+//! - [`overview`]: the sums of the compute overview (the offered resources per unique
+//!   peer_id, and the credit on the nodes); a missing value is unknown, never 0.
 //!
 //! Input from a peer must never make this crate panic.
 #![forbid(unsafe_code)]
@@ -37,6 +39,7 @@
 pub mod db;
 pub mod deposit;
 pub mod local_port;
+pub mod overview;
 pub mod peer;
 pub mod pow;
 pub mod quotes;
