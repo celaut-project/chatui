@@ -68,15 +68,18 @@ and the hash of `config.yaml` stay the same.
 1. Build and install the debug APK on the emulator (AOSP image, no Google services).
    Forward the Gateway to the host: `ssh -f -N -L 18460:127.0.0.1:53460 node-host`. The
    emulator reaches the host at `10.0.2.2`.
-2. In the app, create a new wallet (the test wallet). Send 0.02 ERG to its first address
-   from the funding wallet. Wait for one confirmation.
-3. Dry run, no transaction: Settings, Developer, Celaut deposit. Node `10.0.2.2:18460`,
+2. In the app, create a new wallet (the test wallet), a full wallet. Send 0.02 ERG to
+   its first address from the funding wallet. Wait for one confirmation. Keep it open.
+3. Dry run, no transaction: Settings, Developer, Celaut deposit. The paying wallet is
+   the test wallet (only full wallets are offered). Node `10.0.2.2:18460`,
    Check the node. The card shows the pay-to address above, 1 MU per nanoERG and
    4 500 000 MU. Amount 0.01, Prepare the deposit. The sheet shows 0.01 ERG, 10,000,000 MU,
    the fee 0.0011 ERG and the pay-to address. Tap Cancel. The node got a deposit token
    only; it expires after one hour.
-4. The deposit: Prepare the deposit again, then Deposit. Keep the app open: the balance
-   on the node belongs to the client id of this app session. The screen shows the
+4. The deposit: Prepare the deposit again, then Deposit. The balance on the node belongs
+   to the client id of the app on that node, which is in the Celaut database of the app,
+   so a restart does not lose it; a sent deposit that waits for the node is listed on
+   the screen after a restart. The screen shows the
    transaction id, then "The app waits until the explorer shows the box", then "The
    node accepted the deposit. Balance of the client: 14,500,000 MU".
 5. Optional: in Celaut service, start `tiny` on the same node with a start balance of
