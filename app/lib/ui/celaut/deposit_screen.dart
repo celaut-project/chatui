@@ -9,14 +9,15 @@ import '../../celaut/deposit_strings.dart';
 import '../../celaut/host_port.dart';
 import '../../celaut/payers.dart';
 import '../../format.dart';
+import '../../l10n/l10n.dart';
 import '../../services/network_controller.dart';
 import '../../services/wallet_service.dart';
 import '../../services/wallet_sync_controller.dart';
 import '../../theme/argus_theme.dart';
 import '../confirm_transaction_sheet.dart';
-import '../home/overview_model.dart';
 import '../settings/settings_shared.dart';
 import '../widgets/soft_card.dart';
+import 'client_unknown_dialog.dart';
 import 'deposit_confirm.dart';
 
 /// The smallest deposit: the minimum value of an Ergo box.
@@ -26,14 +27,10 @@ const minDepositNano = 1000000;
 /// [AppDepositWallets]; tests give their own.
 ///
 /// Only full wallets pay (`docs/celaut/ui.md`, section 1): the user chooses one at each
-/// deposit, and a default can be saved. Read-only wallets are never offered.
-abstract class DepositWallets {
-  /// The full wallets of the app, in the order of the wallets list.
-  Future<List<PayerWallet>> payers();
-
-  /// The saved default payer (a wallet id), if any.
-  Future<String?> loadDefault();
-
+/// deposit, and a default can be saved. Read-only wallets are never offered. Before the
+/// deposit the screen asks for the PIN or fingerprint of the chosen wallet
+/// ([FullWallets.unlock]), also when it is already open.
+abstract class DepositWallets implements FullWallets {
   Future<void> saveDefault(String walletId);
 
   /// Prepare the deposit (`celaut_deposit_prepare`) with the addresses of [payer]. The
@@ -46,22 +43,8 @@ abstract class DepositWallets {
 }
 
 /// The wallets of the app.
-class AppDepositWallets implements DepositWallets {
+class AppDepositWallets extends AppFullWallets implements DepositWallets {
   const AppDepositWallets();
-
-  @override
-  Future<List<PayerWallet>> payers() async {
-    final model = WalletsOverviewModel();
-    try {
-      await model.loadWallets();
-      return payerWallets(model.entries());
-    } finally {
-      model.dispose();
-    }
-  }
-
-  @override
-  Future<String?> loadDefault() => const DefaultPayerStore().load();
 
   @override
   Future<void> saveDefault(String walletId) => const DefaultPayerStore().save(walletId);
@@ -97,9 +80,12 @@ class AppDepositWallets implements DepositWallets {
 /// once (`Payable`). With no full wallet in the app, the screen says so and does not
 /// start.
 class DepositScreen extends StatefulWidget {
-  const DepositScreen({super.key, this.wallets = const AppDepositWallets()});
+  const DepositScreen({super.key, this.wallets = const AppDepositWallets(), this.newClient});
 
   final DepositWallets wallets;
+
+  /// Make a new client on a node that forgot the client id. Tests give their own.
+  final Future<NewClientView> Function(NodeAddress node)? newClient;
 
   @override
   State<DepositScreen> createState() => _DepositScreenState();
@@ -192,6 +178,19 @@ class _DepositScreenState extends State<DepositScreen> {
       });
     } on CelautError catch (e) {
       if (mounted) setState(() => _error = e);
+      if (mounted && e.kind == CelautErrorKind.clientUnknown) {
+        final choice = await showClientUnknownChoice(
+          context,
+          node: node,
+          error: e.message,
+          newClient: widget.newClient,
+        );
+        if (choice == ClientUnknownChoice.newClient && mounted) {
+          setState(() => _checking = false);
+          await _check();
+          return;
+        }
+      }
     } finally {
       if (mounted) setState(() => _checking = false);
     }
@@ -222,19 +221,32 @@ class _DepositScreenState extends State<DepositScreen> {
       setState(() => _amountError = DepositStrings.amountInvalid);
       return;
     }
-    final payer = _payer;
-    final cannot = payer == null
-        ? DepositStrings.noFullWallet
-        : (payer.open ? null : DepositStrings.payerLocked);
+    var payer = _payer;
     setState(() {
-      _amountError = cannot;
+      _amountError = payer == null ? DepositStrings.noFullWallet : null;
       _error = null;
       _note = null;
       _done = null;
       _txId = null;
       _sent = null;
     });
-    if (cannot != null || payer == null) return;
+    if (payer == null) return;
+
+    // The PIN or the fingerprint of the paying wallet, also when it is open. A locked
+    // wallet opens with it.
+    final consent = await widget.wallets.unlock(context, payer);
+    if (!mounted) return;
+    if (!consent) {
+      setState(() => _note = appL10n.celautDepositAuthNeeded);
+      return;
+    }
+    await _loadPayers();
+    if (!mounted) return;
+    payer = _payer;
+    if (payer == null || !payer.open) {
+      setState(() => _note = appL10n.celautDepositAuthNeeded);
+      return;
+    }
 
     setState(() => _preparing = true);
     DepositPreparedView prepared;
