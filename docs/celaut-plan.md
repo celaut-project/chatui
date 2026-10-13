@@ -1,7 +1,7 @@
 # Celaut client plan
 
 This plan puts the Celaut part of chatui into milestones. The design is in the notes
-in `docs/celaut/` (decisions, wire, balancer, catalog). This plan follows those
+in `docs/celaut/` (decisions, ui, wire, balancer, catalog). This plan follows those
 decisions and does not change them. Each milestone ends with a check that a reviewer
 can run.
 
@@ -290,7 +290,7 @@ port came through an SSH port-forward, with no new firewall rule.
   and `config.yaml` as before; no instance or tunnel of the check left. What stays on
   the node: the built container of `tiny`, and the test clients in its database.
 
-**M3: deposit with the wallet.** GenerateDepositToken, an Ergo transaction with one
+**M3: deposit with the wallet.** The deposit uses one full wallet that the user chooses; read-only wallets cannot pay (`docs/celaut/ui.md`, section 1). GenerateDepositToken, an Ergo transaction with one
 output to the node script and the token in R4 (the send path in `ergo-tx/src/send.rs`
 writes no registers today), the existing confirmation and sign screens, wait until the
 box is on the explorer, then Payable once. The node needs no confirmation: the box can
@@ -300,7 +300,7 @@ the node compares its declaration. A per-node limit and a confirmation screen
 that shows ERG and MU. Check: unit tests of the transaction; one end-to-end test on our
 own node only after approval of the amount (see section 6).
 
-**M4: conversation screen.** Select a skill or a service hash, launch it, and talk to
+**M4: conversation screen.** The instance data is in one database for the app, not per wallet (`docs/celaut/ui.md`). Select a skill or a service hash, launch it, and talk to
 it through the tunnel. Show the cost so far, and stop the instance when the user
 leaves. First write the "chat" convention (HTTP with JSON, decision 3 in section 7).
 Check: a conversation with a simple echo service that follows it.
@@ -362,6 +362,13 @@ onion addresses for nodes are nodo work (decision 7 in section 7).
     into `libwallet_ffi.so`. Josemi decided that chatui is GPL-3.0-only. `LICENSE` has
     the text, and `NOTICE.md` keeps the MIT notice of Argus, from which chatui is
     forked. The workspace `license` is `GPL-3.0-only`.
+
+11. **Wallets, storage and home screen (decided, 2026-10-13):** full wallets (seed,
+    can sign) and read-only wallets can both be used to manage instances, with one
+    database for all Celaut data and none per wallet. A deposit uses one full wallet.
+    The home screen shows the compute that the connected nodes offer (the sum of their
+    resources) and the money for compute first; the ERG of each wallet is second level.
+    The full rules are in `docs/celaut/ui.md`. New screens must follow them.
 
 ## 8. Notes for `docs/celaut/wire.md`
 
