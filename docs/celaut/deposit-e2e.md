@@ -109,3 +109,42 @@ grows by 10 000 000 MU.
 The transaction id, the box id, the balance before and after, the node log lines of the
 payment (`Check payment process to …`, `Payment is valid.`), and the state of the node
 after the test.
+
+## Result on 2026-10-13 (path A, mainnet)
+
+Approved amount: 0.025 ERG at most out of the funding wallet. Used: 0.0211 ERG.
+
+| Step | Transaction | Amount | Fee |
+|---|---|---|---|
+| Funding wallet → test wallet `9fJKzKwb…g9eUwi` | [`b4210364…b57fef`](https://explorer.ergoplatform.com/en/transactions/b421036436094b5a1832cfb36aac9bf1f460fe6b80ec2e0c6ddba463b8b57fef) (block 1 893 728) | 0.02 ERG | 0.0011 ERG |
+| Test wallet → node `9gYud7au…k88Q`, token in R4 | [`fb43709f…3d1006`](https://explorer.ergoplatform.com/en/transactions/fb43709f9f8b277c974449196c173bfc484e8ed6e8d4daf04a5663da0b3d1006) (block 1 893 733) | 0.01 ERG | 0.0011 ERG |
+
+- Deposit box `ae949565bd765db4f0a176e958a29d2c2be5d4b380a8664770bd706c8bbe060e`,
+  10 000 000 nanoERG, R4 = the token `7db2e50e-8e59-4586-8640-ba56aa1f2407`.
+- Node log: `Check payment process to 7db2e50e-… of 10000000`, then `Payment is valid.`
+  In the node database the token is `payed`, one payment row `in`/`accepted` of
+  10 000 000 MU, and the client has 14 500 000 MU.
+- The app: "The node accepted the deposit. Balance of the client: 14,500,000 MU"
+  (before: 4 500 000 MU, the free credit).
+- Restart: after a stop of the app between the send and `Payable`, the deposit was in
+  "Sent deposits" and "Wait again" finished it. After a second restart, the home screen
+  shows 14 500 000 MU on the node: the client id stayed in the Celaut database.
+- Costs: fees 0.0022 ERG. The 0.01 ERG is in the hot wallet of our node. 0.0089 ERG
+  stays in the test wallet.
+- Node before and after: same PID, `nodo doctor` 23 OK and 0 FAIL or WARN, same
+  `nft list table inet nodo` and `config.yaml` hashes, no instance.
+
+Two faults that the check found, both fixed in this PR:
+
+1. After "Check the node", the screen became empty: the theme gives `OutlinedButton` a
+   minimum size of `Size.fromHeight(52)`, which is an infinite width in the `Row` of the
+   limit. The widget tests did not use the app theme. A test with the app theme now
+   covers it.
+2. The id of the transaction before the signature (`dc3f4502…`) was not the id of the
+   broadcast (`fb43709f…`): the signer sets the creation height of the outputs to the
+   height of the chain, and a block came between "Prepare" and "Deposit". The app then
+   refused to call `Payable` ("sent with another transaction"). Now `Payable` keeps the
+   id of the broadcast. The token finds the box, not the id.
+
+The emulator window is `FLAG_SECURE` by default. For screenshots, turn off Settings,
+Security, "Block screenshots", and turn it on again after.

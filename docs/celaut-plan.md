@@ -17,7 +17,7 @@ Updated on 2026-10-13, master at `ad48099` plus the M3 PR.
 | `bee-rpc-over-grpc-rs` | M1a done. Tag `v0.1.0` (`a832abc`) has the whole API: frames, blocks, signal, skip, hashes and the generic bidi call over tonic. `celaut-wire` uses it as a git dependency. Its license is GPL-3.0-only, and chatui is GPL-3.0-only too (section 7, question 10) |
 | M1: connect to a node and show its advertisement | Done. Merged in PR #9 |
 | M2: quote, start, tunnel, stop on free credit | Done. Merged in PR #11. `celaut-wire` (the M2 calls and `ServiceTunnel`), `celaut-balancer`, `celaut-client` (node sessions, quotes, the local port), the FFI functions in `api/celaut_service.rs` and the debug screen (Settings, Developer). Checked on our own node, from the client crate and from the app in the Android emulator (see M2 in section 5). Not tested: a phone, a node on the internet, more than one node |
-| M3: deposit with the wallet | Implemented; e2e pending amount approval (PR #13, draft). `GenerateDepositToken`, the deposit transaction with the token in R4, the confirmation sheet of the wallet, the wait for the box on the explorer of the node, one `Payable`, and a limit per node (Settings, Developer, Celaut deposit). Reworked on 2026-10-13 for `docs/celaut/ui.md` (PR #14): the user chooses one full wallet to pay, read-only wallets are never payers, a default payer in the settings, and one encrypted Celaut database for the app (client ids, advertisements, instances and tokens, deposits, quotes, event log), so a deposit is not lost at a restart. Unit, FFI and widget tests, and a read-only check on our own node. The end-to-end deposit waits for the approval of the amount (`docs/celaut/deposit-e2e.md`) |
+| M3: deposit with the wallet | Implemented; e2e done on mainnet on 2026-10-13 (PR #13). `GenerateDepositToken`, the deposit transaction with the token in R4, the confirmation sheet of the wallet, the wait for the box on the explorer of the node, one `Payable`, and a limit per node (Settings, Developer, Celaut deposit). Reworked on 2026-10-13 for `docs/celaut/ui.md` (PR #14): the user chooses one full wallet to pay, read-only wallets are never payers, a default payer in the settings, and one encrypted Celaut database for the app (client ids, advertisements, instances and tokens, deposits, quotes, event log), so a deposit is not lost at a restart. Unit, FFI and widget tests, a read-only check on our own node, and one deposit of 0.01 ERG from the app in the emulator to our node: the node accepted it and the client got 10 000 000 MU (`docs/celaut/deposit-e2e.md`) |
 | Home screen (ui.md, section 2) | Data and a plain screen in PR #13, behind a developer setting (Settings, Developer, Compute home); the wallet home stays the default. The open points of ui.md section 4 (design, partial advertisements, USD) wait for Josemi |
 | M4 and M5 | Not started |
 | Open questions (section 7) | Answered on 2026-10-11 and 2026-10-12 |
@@ -31,8 +31,8 @@ Do the next tasks in this order. Each task is one PR into master.
    [bee-rpc-protocol/bee-rpc-over-grpc-rs](https://github.com/bee-rpc-protocol/bee-rpc-over-grpc-rs).
    Done: tag `v0.1.0`.
 4. **M1**: done (PR #9). **M2**: done (PR #11).
-5. **M3**: implemented (PR #13); the end-to-end deposit waits for the approval of the
-   amount. Then **M4** and **M5**.
+5. **M3**: implemented (PR #13); the end-to-end deposit on mainnet passed on
+   2026-10-13. Then **M4** and **M5**.
 
 Josemi answered all the open questions on 2026-10-11 and 2026-10-12 (section 7).
 
