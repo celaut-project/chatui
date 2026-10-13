@@ -548,6 +548,8 @@ class _DepositScreenState extends State<DepositScreen> {
                 const SizedBox(width: 10),
                 OutlinedButton(
                   key: const Key('deposit-set-limit'),
+                  // The theme minimum is Size.fromHeight: infinite width in a Row.
+                  style: OutlinedButton.styleFrom(minimumSize: const Size(0, 52)),
                   onPressed: busy ? null : _setLimit,
                   child: Text(DepositStrings.setLimit),
                 ),

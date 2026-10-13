@@ -5,6 +5,7 @@ import 'package:argus_wallet/bridge/frb_generated.dart';
 import 'package:argus_wallet/celaut/deposit_strings.dart';
 import 'package:argus_wallet/celaut/payers.dart';
 import 'package:argus_wallet/format.dart';
+import 'package:argus_wallet/theme/argus_theme.dart';
 import 'package:argus_wallet/ui/celaut/deposit_confirm.dart';
 import 'package:argus_wallet/ui/celaut/deposit_screen.dart';
 import 'package:argus_wallet/ui/confirm_transaction_sheet.dart';
@@ -209,12 +210,12 @@ void main() {
   group('deposit screen', () {
     late FakeWallets wallet;
 
-    Future<void> pump(WidgetTester tester, [FakeWallets? wallets]) async {
+    Future<void> pump(WidgetTester tester, [FakeWallets? wallets, ThemeData? theme]) async {
       tester.view.physicalSize = const Size(390, 4000);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       wallet = wallets ?? FakeWallets();
-      await tester.pumpWidget(MaterialApp(home: DepositScreen(wallets: wallet)));
+      await tester.pumpWidget(MaterialApp(theme: theme, home: DepositScreen(wallets: wallet)));
       await tester.pumpAndSettle();
     }
 
@@ -397,6 +398,14 @@ void main() {
         expect(tester.getSemantics(find.byKey(Key(key))).label, label);
       }
       handle.dispose();
+    });
+
+    testWidgets('the card after the check lays out with the app theme', (tester) async {
+      // The theme gives buttons an infinite minimum width. In a Row that fails.
+      await pump(tester, null, argusTheme(watchful: false));
+      await check(tester);
+      expect(tester.takeException(), isNull);
+      expect(tester.getSize(find.byKey(const Key('deposit-set-limit'))).width, lessThan(390));
     });
 
     testWidgets('a bad node address calls nothing', (tester) async {
