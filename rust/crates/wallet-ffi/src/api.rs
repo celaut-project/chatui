@@ -35,6 +35,9 @@ pub mod celaut_service;
 /// Celaut deposits: pay a node in ERG from one full wallet (milestone M3).
 pub mod celaut_deposit;
 
+/// The compute overview of the home screen: offered compute, credit, instances.
+pub mod celaut_home;
+
 fn err_str<E: Into<ArgusError>>(e: E) -> String {
     e.into().to_json_string()
 }

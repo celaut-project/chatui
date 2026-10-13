@@ -10,6 +10,7 @@ import 'api.dart';
 import 'api/celaut.dart';
 import 'api/celaut_db.dart';
 import 'api/celaut_deposit.dart';
+import 'api/celaut_home.dart';
 import 'api/celaut_service.dart';
 import 'api/mempool.dart';
 import 'api/storage_rent.dart';
@@ -48,6 +49,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt dco_decode_box_autoadd_u_64(dynamic raw);
 
   @protected
+  BytesTotalView dco_decode_bytes_total_view(dynamic raw);
+
+  @protected
   CelautDatabaseView dco_decode_celaut_database_view(dynamic raw);
 
   @protected
@@ -55,6 +59,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CelautErrorKind dco_decode_celaut_error_kind(dynamic raw);
+
+  @protected
+  ComputeOverviewView dco_decode_compute_overview_view(dynamic raw);
+
+  @protected
+  CoresTotalView dco_decode_cores_total_view(dynamic raw);
 
   @protected
   DepositDoneView dco_decode_deposit_done_view(dynamic raw);
@@ -108,6 +118,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<NodeAddress> dco_decode_list_node_address(dynamic raw);
 
   @protected
+  List<NodeComputeView> dco_decode_list_node_compute_view(dynamic raw);
+
+  @protected
   List<NodeResourcesView> dco_decode_list_node_resources_view(dynamic raw);
 
   @protected
@@ -132,7 +145,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<QuoteView> dco_decode_list_quote_view(dynamic raw);
 
   @protected
+  List<RunningInstanceView> dco_decode_list_running_instance_view(dynamic raw);
+
+  @protected
+  NanoErgTotalView dco_decode_nano_erg_total_view(dynamic raw);
+
+  @protected
   NodeAddress dco_decode_node_address(dynamic raw);
+
+  @protected
+  NodeComputeView dco_decode_node_compute_view(dynamic raw);
 
   @protected
   NodeResourcesView dco_decode_node_resources_view(dynamic raw);
@@ -174,6 +196,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   QuotesView dco_decode_quotes_view(dynamic raw);
 
   @protected
+  RunningInstanceView dco_decode_running_instance_view(dynamic raw);
+
+  @protected
   StopView dco_decode_stop_view(dynamic raw);
 
   @protected
@@ -213,6 +238,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
 
   @protected
+  BytesTotalView sse_decode_bytes_total_view(SseDeserializer deserializer);
+
+  @protected
   CelautDatabaseView sse_decode_celaut_database_view(
     SseDeserializer deserializer,
   );
@@ -222,6 +250,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CelautErrorKind sse_decode_celaut_error_kind(SseDeserializer deserializer);
+
+  @protected
+  ComputeOverviewView sse_decode_compute_overview_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  CoresTotalView sse_decode_cores_total_view(SseDeserializer deserializer);
 
   @protected
   DepositDoneView sse_decode_deposit_done_view(SseDeserializer deserializer);
@@ -285,6 +321,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<NodeAddress> sse_decode_list_node_address(SseDeserializer deserializer);
 
   @protected
+  List<NodeComputeView> sse_decode_list_node_compute_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<NodeResourcesView> sse_decode_list_node_resources_view(
     SseDeserializer deserializer,
   );
@@ -315,7 +356,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<QuoteView> sse_decode_list_quote_view(SseDeserializer deserializer);
 
   @protected
+  List<RunningInstanceView> sse_decode_list_running_instance_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  NanoErgTotalView sse_decode_nano_erg_total_view(SseDeserializer deserializer);
+
+  @protected
   NodeAddress sse_decode_node_address(SseDeserializer deserializer);
+
+  @protected
+  NodeComputeView sse_decode_node_compute_view(SseDeserializer deserializer);
 
   @protected
   NodeResourcesView sse_decode_node_resources_view(
@@ -359,6 +411,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   QuotesView sse_decode_quotes_view(SseDeserializer deserializer);
+
+  @protected
+  RunningInstanceView sse_decode_running_instance_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
   StopView sse_decode_stop_view(SseDeserializer deserializer);
@@ -406,6 +463,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
 
   @protected
+  void sse_encode_bytes_total_view(
+    BytesTotalView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_celaut_database_view(
     CelautDatabaseView self,
     SseSerializer serializer,
@@ -417,6 +480,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_celaut_error_kind(
     CelautErrorKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_compute_overview_view(
+    ComputeOverviewView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_cores_total_view(
+    CoresTotalView self,
     SseSerializer serializer,
   );
 
@@ -502,6 +577,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_node_compute_view(
+    List<NodeComputeView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_node_resources_view(
     List<NodeResourcesView> self,
     SseSerializer serializer,
@@ -547,7 +628,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_running_instance_view(
+    List<RunningInstanceView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_nano_erg_total_view(
+    NanoErgTotalView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_node_address(NodeAddress self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_node_compute_view(
+    NodeComputeView self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_node_resources_view(
@@ -599,6 +698,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_quotes_view(QuotesView self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_running_instance_view(
+    RunningInstanceView self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_stop_view(StopView self, SseSerializer serializer);
