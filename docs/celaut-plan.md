@@ -384,7 +384,7 @@ Changes for `docs/celaut/ui.md` (2026-10-13):
   charge of the start less the balance that the instance still has). A sum with an
   unknown part reads "at least X (N nodes unknown)", and a sum with no known part is
   "unknown", never 0. For a node with more than one architecture entry, the largest
-  entry counts (more cores, then more memory, then more disk), not the sum and not
+  entry counts (more memory, then more cores, then more disk), not the sum and not
   values from different entries. The screen follows the `celaut-design` landing page
   (palette, Playfair Display and Lato, the CELAUT wordmark, spaced capital labels,
   hairlines) and has Wallets and Nodes entries.

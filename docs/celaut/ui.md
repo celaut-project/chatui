@@ -88,7 +88,9 @@ Rules for the numbers:
 - A sum with a missing part reads "at least X (N nodes unknown)". The data keeps the
   known part and the number of nodes without the value.
 - A node that advertises several architecture entries counts with its **largest**
-  entry, not the sum of them.
+  entry, not the sum of them. The largest entry has the most memory; with equal
+  memory, the most cores; then the most disk. A known value is larger than an unknown
+  value. The values of different entries are not mixed.
 - Do not add the resources of one node twice when the node is reachable through more
   than one URI. The key is the peer_id.
 - Show a value as "unknown" when it is missing. Do not show 0.
