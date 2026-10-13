@@ -1,4 +1,4 @@
-//! The typed Gateway calls of milestones M1 and M2.
+//! The typed Gateway calls of milestones M1, M2 and M3.
 //!
 //! Indices come from `nodo:protos/gateway_bee.py` (`GATEWAY_RPCS`).
 
@@ -7,8 +7,8 @@ use std::time::Duration;
 use bee_rpc::frame::Part;
 use celaut_proto::celaut::metadata::hash_tag::Hash;
 use celaut_proto::celaut::{
-    Client, Configuration, EstimatedCost, Metrics, Peer, PoWRequired, RecursionGuard, Refund,
-    ServiceInstance, TokenMessage,
+    Client, Configuration, EstimatedCost, Metrics, Payment, Peer, PoWRequired, RecursionGuard,
+    Refund, ServiceInstance, TokenMessage,
 };
 use prost::Message;
 
@@ -206,4 +206,55 @@ pub async fn get_metrics<T: Transport>(transport: &T, token: &str) -> Result<Met
         Some(part) => decode(part, "the Metrics"),
         None => Ok(Metrics::default()),
     }
+}
+
+fn client_part(index: i32, client_id: &str) -> Part {
+    let client = Client {
+        client_id: client_id.to_string(),
+        ..Default::default()
+    };
+    Part::new(index, client.encode_to_vec())
+}
+
+/// `GenerateDepositToken`: send the `Client` (index 1), get a `TokenMessage` (1) with a
+/// new deposit token.
+///
+/// The node only writes the token in its database, as `pending` for this client
+/// (`nodo:src/payment_system/payment_process.py`, `generate_deposit_token`). Nothing
+/// goes on a ledger. The token is the text of a UUID4 with hyphens, and it expires
+/// after one hour (`DEPOSIT_TOKEN_TTL`).
+pub async fn generate_deposit_token<T: Transport>(
+    transport: &T,
+    client_id: &str,
+) -> Result<String, WireError> {
+    let answer = transport
+        .call("GenerateDepositToken", vec![client_part(1, client_id)], &[1])
+        .await?;
+    let message: TokenMessage = find(&answer, 1, "TokenMessage")?;
+    if message.token.is_empty() {
+        return Err(WireError::Protocol(
+            "the node gave an empty deposit token".to_string(),
+        ));
+    }
+    Ok(message.token)
+}
+
+/// `Payable`: send the `Payment` (index 1) and the `Client` (2). The node accepts the
+/// payment with an OK status and an empty answer (index 1 is `buffer.Empty`). It refuses
+/// it with an error status.
+///
+/// The node makes one check per deposit token: after it, the token is `payed` or
+/// `rejected` (`nodo:src/payment_system/payment_process.py`, `validate_payment_process`).
+/// Call it only when the payment is visible to the node.
+pub async fn payable<T: Transport>(
+    transport: &T,
+    client_id: &str,
+    payment: &Payment,
+) -> Result<(), WireError> {
+    let parts = vec![
+        Part::new(1, payment.encode_to_vec()),
+        client_part(2, client_id),
+    ];
+    transport.call("Payable", parts, &[1]).await?;
+    Ok(())
 }

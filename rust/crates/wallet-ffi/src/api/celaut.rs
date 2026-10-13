@@ -7,7 +7,7 @@
 use std::sync::Arc;
 
 use celaut_client::{
-    connect_and_fetch, ClientError, FilePeerStore, MemoryPeerStore, NodeInfo, PeerError, PeerStore,
+    connect_and_fetch, ClientError, DepositError, FilePeerStore, MemoryPeerStore, NodeInfo, PeerError, PeerStore,
 };
 use celaut_proto::celaut::peer::Uri;
 use celaut_proto::celaut::{ArchitectureResources, Contract, ContractRate, Sysresources};
@@ -131,6 +131,8 @@ pub(crate) fn error_of(e: ClientError) -> CelautError {
         ClientError::Store(_) => K::Storage,
         ClientError::PowTooHard(_) | ClientError::PowRejected => K::ProofOfWork,
         ClientError::Protocol(_) | ClientError::Random | ClientError::Amount(_) => K::Protocol,
+        ClientError::Deposit(DepositError::BadAmount(_)) => K::InvalidInput,
+        ClientError::Deposit(_) => K::Protocol,
     };
     CelautError {
         kind,

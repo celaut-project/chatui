@@ -16,8 +16,14 @@
 //! - [`local_port`]: a TCP port on 127.0.0.1 for one port of an instance. Each TCP
 //!   connection is one `ServiceTunnel` stream.
 //!
-//! The client ids and instance tokens are kept in memory only. Encrypted storage comes
-//! with the deposits (M3), because only then a balance is worth keeping.
+//! Milestone M3, a deposit in ERG:
+//!
+//! - [`deposit`]: the ERG payment contract of a node, the `Payment` of `Payable`, and the
+//!   check of the deposit box on the explorer. The wallet makes the transaction.
+//!
+//! The client ids and instance tokens are kept in memory only. A deposit goes to the
+//! client id of the session, so it is lost when the app stops. Encrypted storage of the
+//! client ids is the next step.
 //!
 //! Input from a peer must never make this crate panic.
 #![forbid(unsafe_code)]
@@ -26,6 +32,7 @@
     deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)
 )]
 
+pub mod deposit;
 pub mod local_port;
 pub mod peer;
 pub mod pow;
@@ -37,6 +44,7 @@ use celaut_proto::celaut::{Client, Peer};
 use celaut_wire::gateway::{generate_client, get_peer_info, GenerateClientReply};
 use celaut_wire::{ConnectOptions, Connection, Transport, WireError};
 
+pub use deposit::{DepositBox, DepositError, ErgPayment};
 pub use local_port::LocalPort;
 pub use peer::PeerError;
 pub use quotes::{quotes, QuoteFailure, Quotes};
@@ -70,6 +78,9 @@ pub enum ClientError {
     /// An amount of the node cannot be used.
     #[error(transparent)]
     Amount(#[from] celaut_balancer::BalancerError),
+    /// A deposit cannot be made.
+    #[error(transparent)]
+    Deposit(#[from] DepositError),
 }
 
 /// The advertisement of a node, after the checks.
