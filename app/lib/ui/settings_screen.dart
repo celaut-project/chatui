@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'cold_signing_screen.dart';
 
 import '../celaut/celaut_strings.dart';
+import '../celaut/compute_home_flag.dart';
+import '../celaut/deposit_strings.dart';
+import '../celaut/payers.dart';
 import '../celaut/service_strings.dart';
 import '../format.dart';
 import '../l10n/l10n.dart';
@@ -14,6 +17,8 @@ import '../services/watch_only_service.dart';
 import '../theme/argus_theme.dart';
 import '../theme/theme_controller.dart';
 import 'celaut/node_connect_screen.dart';
+import 'celaut/default_payer_dialog.dart';
+import 'celaut/deposit_screen.dart';
 import 'celaut/service_screen.dart';
 import 'home/overview_model.dart';
 import 'home/watched_actions.dart';
@@ -73,6 +78,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// and a watched wallet's page have none.
   String? get _walletId => widget.watched != null ? null : widget.walletId;
 
+  Future<void> _chooseDefaultPayer() async {
+    final payers = await const AppDepositWallets().payers();
+    final current = await const DefaultPayerStore().load();
+    if (!mounted) return;
+    await showDefaultPayerDialog(context, payers: payers, current: current);
+  }
+
   Future<void> _open(Widget page) async {
     await Navigator.push(context, fadeRoute(page));
     if (mounted) setState(() => _walletsFuture = walletService.listWallets());
@@ -131,6 +143,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         title: ServiceStrings.rowTitle,
                         subtitle: ServiceStrings.rowSubtitle,
                         onTap: () => _open(const ServiceScreen()),
+                      ),
+                      SettingsRow(
+                        icon: Icons.account_balance_wallet_outlined,
+                        title: DepositStrings.rowTitle,
+                        subtitle: DepositStrings.rowSubtitle,
+                        onTap: () => _open(const DepositScreen()),
+                      ),
+                      SettingsRow(
+                        key: const Key('settings-default-payer'),
+                        icon: Icons.how_to_reg_outlined,
+                        title: DepositStrings.defaultPayerTitle,
+                        subtitle: DepositStrings.defaultPayerSubtitle,
+                        onTap: _chooseDefaultPayer,
+                      ),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: computeHomeFlag,
+                        builder: (context, on, _) => SettingsRow(
+                          icon: Icons.memory_outlined,
+                          title: context.l10n.celautComputeHomeRowTitle,
+                          subtitle: context.l10n.celautComputeHomeRowSubtitle,
+                          trailing: Switch(
+                            key: const Key('settings-compute-home'),
+                            value: on,
+                            onChanged: computeHomeFlag.set,
+                          ),
+                        ),
                       ),
                     ],
                   ),

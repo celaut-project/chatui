@@ -8,9 +8,11 @@ class ServiceStrings {
 
   // Screen
   static const screenTitle = 'Celaut service';
-  static const intro = 'Ask nodes for the price of a service, start it on one of them, '
-      'and call it through a port on this device. A new client gets free credit from '
-      'each node, so nothing is paid. The node must already have the service.';
+  static const intro =
+      'Ask nodes for the price of a service, start it on one of them, '
+      'and call it through a port on this device. The app uses its own client on each '
+      'node: a new client gets free credit from the node, and a deposit adds to it. '
+      'Starting and stopping need a full wallet. The node must already have the service.';
   static const nodesLabel = 'Node addresses';
   static const nodesHint = 'One host:port on each line';
   static const serviceLabel = 'Service id';
@@ -31,8 +33,8 @@ class ServiceStrings {
   static const quotesTitle = 'Quotes, best first';
   static const noQuotes = 'No node gave a quote.';
   static const failuresTitle = 'Nodes without a quote';
-  static String cost(String mu) => 'Start: $mu MU';
-  static String maintenance(String mu, int seconds) => 'Then $mu MU every $seconds s';
+  static String cost(String mu) => 'Start: $mu';
+  static String maintenance(String mu, int seconds) => 'Then $mu every $seconds s';
   static String compared(String? nanoErg) => nanoErg == null
       ? 'No ERG rate: the price cannot be compared with other nodes.'
       : 'For the comparison: $nanoErg nanoERG';
@@ -48,15 +50,21 @@ class ServiceStrings {
   static const call = 'Call GET';
   static String answer(int status) => 'HTTP $status';
   static const refresh = 'Refresh the balance';
-  static String clientBalance(String mu) => 'Balance of the client: $mu MU';
-  static String instanceBalance(String mu) => 'Balance of the instance: $mu MU';
+  static String clientBalance(String mu) => 'Balance of the client: $mu';
+  static String instanceBalance(String mu) => 'Balance of the instance: $mu';
+  static String costSoFar(String mu) => 'Cost so far: $mu';
   static String streams(BigInt n) => 'Tunnel streams opened: $n (one per TCP connection)';
-  static const keepAliveNote = 'The node charges each new TCP connection to the local port. '
+  static const keepAliveNote =
+      'The node charges each new TCP connection to the local port. '
       'This screen keeps one connection alive for all its calls.';
   static String tunnelError(String e) => 'Last tunnel error: $e';
   static const stop = 'Stop';
   static const stopping = 'Stopping…';
   static String stopped(String refund, String balance) =>
-      'Stopped. Refund: $refund MU. Balance of the client: $balance MU.';
+      'Stopped. Refund: $refund. Balance of the client: $balance.';
+
+  // The instances of the app, also from an earlier run
+  static const appInstancesTitle = 'Instances of the app';
+  static String appInstance(String service, String node) => 'Service $service on $node';
   static String callFailed(String e) => 'The call failed: $e';
 }

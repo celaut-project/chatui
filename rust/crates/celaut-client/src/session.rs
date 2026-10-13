@@ -6,12 +6,14 @@
 //! that balance.
 
 use celaut_balancer::{amount, erg_rate};
-use celaut_proto::celaut::{Configuration, EstimatedCost, Instance};
+use celaut_proto::celaut::{Configuration, EstimatedCost, Instance, Payment};
 use celaut_wire::gateway::{
-    get_metrics, get_service_estimated_cost, start_service, stop_service, ServiceRequest,
+    generate_deposit_token, get_metrics, get_service_estimated_cost, payable, start_service,
+    stop_service, ServiceRequest,
 };
 use celaut_wire::Transport;
 
+use crate::deposit::{check_deposit_token, ErgPayment};
 use crate::{fetch_node_info_as, obtain_client_id, ClientError, NodeInfo, PeerStore};
 
 /// A service instance that this client started.
@@ -53,6 +55,23 @@ impl<T: Transport> NodeSession<T> {
         store: &dyn PeerStore,
     ) -> Result<Self, ClientError> {
         let client_id = obtain_client_id(&transport).await?;
+        let info = fetch_node_info_as(&transport, &client_id, peer_id, store).await?;
+        Ok(NodeSession {
+            transport,
+            client_id,
+            info,
+        })
+    }
+
+    /// A session with the client id that the app already has on the node, so that its
+    /// balance on the node stays usable. The advertisement is checked as in
+    /// [`NodeSession::open`].
+    pub async fn resume(
+        transport: T,
+        peer_id: &str,
+        client_id: String,
+        store: &dyn PeerStore,
+    ) -> Result<Self, ClientError> {
         let info = fetch_node_info_as(&transport, &client_id, peer_id, store).await?;
         Ok(NodeSession {
             transport,
@@ -136,6 +155,26 @@ impl<T: Transport> NodeSession<T> {
     pub async fn instance_balance(&self, token: &str) -> Result<u128, ClientError> {
         let metrics = get_metrics(&self.transport, token).await?;
         Ok(amount(metrics.balance.as_ref())?)
+    }
+
+    /// The ERG payment contract of the node, from the checked advertisement.
+    pub fn erg_payment(&self) -> Result<ErgPayment, ClientError> {
+        Ok(ErgPayment::of(&self.info.peer)?)
+    }
+
+    /// `GenerateDepositToken` for this client. The node only writes the token in its
+    /// database; nothing goes on a ledger. The token is checked before it is given,
+    /// because the wallet writes it on the ledger.
+    pub async fn deposit_token(&self) -> Result<String, ClientError> {
+        let token = generate_deposit_token(&self.transport, &self.client_id).await?;
+        check_deposit_token(&token)?;
+        Ok(token)
+    }
+
+    /// `Payable` for this client. The node checks a deposit token once only: call it
+    /// when the deposit box is visible on the explorer of the node.
+    pub async fn payable(&self, payment: &Payment) -> Result<(), ClientError> {
+        Ok(payable(&self.transport, &self.client_id, payment).await?)
     }
 }
 

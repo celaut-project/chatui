@@ -2,21 +2,30 @@ import 'package:flutter/material.dart';
 
 import '../../bridge/api/celaut.dart';
 import '../../bridge/api/celaut_service.dart';
+import '../../celaut/celaut_format.dart';
 import '../../celaut/celaut_strings.dart';
 import '../../celaut/host_port.dart';
 import '../../celaut/service_strings.dart';
 import '../../celaut/tunnel_http.dart';
+import '../../format.dart';
+import '../../l10n/l10n.dart';
+import '../../services/wallet_service.dart';
 import '../../theme/argus_theme.dart';
 import '../settings/settings_shared.dart';
 import '../widgets/soft_card.dart';
 
 /// Debug screen of milestone M2: quote a service on several nodes, start it on one,
-/// call it through a local port, and stop it. All on the free credit of a new client.
+/// call it through a local port, and stop it, on the balance of the client of the app
+/// on that node. Start and stop need a full wallet in the app (`docs/celaut/ui.md`):
+/// without one they are off, with the same message as the deposit screen.
 class ServiceScreen extends StatefulWidget {
-  const ServiceScreen({super.key, this.http});
+  const ServiceScreen({super.key, this.http, this.hasFullWallet});
 
   /// The HTTP client of the local ports. Tests give their own.
   final TunnelHttp? http;
+
+  /// True if the app has a full wallet. Tests give their own.
+  final Future<bool> Function()? hasFullWallet;
 
   @override
   State<ServiceScreen> createState() => _ServiceScreenState();
@@ -46,6 +55,52 @@ class _ServiceScreenState extends State<ServiceScreen> {
   String? _answer;
   StopView? _stopped;
   CelautError? _error;
+  bool _fullWallet = false;
+  List<InstanceListView> _appInstances = const [];
+  String? _stoppingId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWallets();
+  }
+
+  Future<void> _loadWallets() async {
+    final check =
+        widget.hasFullWallet ?? () async => (await walletService.listWallets()).isNotEmpty;
+    final full = await check();
+    if (!mounted) return;
+    setState(() {
+      _fullWallet = full;
+      _appInstances = celautInstances();
+    });
+  }
+
+  /// The instances of the app that this screen does not show above.
+  List<InstanceListView> get _otherInstances => [
+    for (final i in _appInstances)
+      if (i.instanceId != _instance?.instanceId) i,
+  ];
+
+  Future<void> _stopOther(InstanceListView instance) async {
+    setState(() {
+      _stoppingId = instance.instanceId;
+      _error = null;
+    });
+    try {
+      final stopped = await celautStopService(instanceId: instance.instanceId);
+      if (mounted) setState(() => _stopped = stopped);
+    } on CelautError catch (e) {
+      if (mounted) setState(() => _error = e);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _stoppingId = null;
+          _appInstances = celautInstances();
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -71,8 +126,9 @@ class _ServiceScreenState extends State<ServiceScreen> {
     }
     if (nodesError == null && nodes.isEmpty) nodesError = ServiceStrings.nodesEmpty;
     final service = _serviceCtrl.text.trim().toLowerCase();
-    final serviceError =
-        RegExp(r'^[0-9a-f]{64}$').hasMatch(service) ? null : ServiceStrings.serviceInvalid;
+    final serviceError = RegExp(r'^[0-9a-f]{64}$').hasMatch(service)
+        ? null
+        : ServiceStrings.serviceInvalid;
     final initial = _initialCtrl.text.trim();
     final initialError = initial.isEmpty || RegExp(r'^0*[1-9][0-9]*$').hasMatch(initial)
         ? null
@@ -126,6 +182,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
         _ports.clear();
         _status = null;
         _answer = null;
+        _appInstances = celautInstances();
       });
     } on CelautError catch (e) {
       if (mounted) setState(() => _error = e);
@@ -189,6 +246,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
         _ports.clear();
         _status = null;
         _answer = null;
+        _appInstances = celautInstances();
       });
     } on CelautError catch (e) {
       if (mounted) setState(() => _error = e);
@@ -206,6 +264,16 @@ class _ServiceScreenState extends State<ServiceScreen> {
       title: ServiceStrings.screenTitle,
       children: [
         const SettingsNote(ServiceStrings.intro),
+        if (!_fullWallet) ...[
+          SoftCard(
+            child: Text(
+              appL10n.celautNoFullWallet,
+              key: const Key('service-no-full-wallet'),
+              style: TextStyle(color: rustFor(context)),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
         SoftCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -263,11 +331,15 @@ class _ServiceScreenState extends State<ServiceScreen> {
         if (stopped != null)
           SoftCard(
             child: Text(
-              ServiceStrings.stopped(stopped.refundMu, stopped.clientBalanceMu),
+              ServiceStrings.stopped(
+                muOrUnknown(stopped.refundMu),
+                muOrUnknown(stopped.clientBalanceMu),
+              ),
               key: const Key('service-stopped'),
             ),
           ),
         if (instance != null) ..._instanceCard(context, instance),
+        if (_otherInstances.isNotEmpty) ..._appInstancesCards(context),
         if (quotes != null) ..._quotesCards(context, quotes),
       ],
     );
@@ -280,28 +352,41 @@ class _ServiceScreenState extends State<ServiceScreen> {
       SectionLabel(ServiceStrings.quotesTitle),
       const SizedBox(height: 10),
       if (quotes.quotes.isEmpty)
-        SoftCard(child: Text(ServiceStrings.noQuotes, style: TextStyle(color: muted))),
+        SoftCard(
+          child: Text(ServiceStrings.noQuotes, style: TextStyle(color: muted)),
+        ),
       for (final q in quotes.quotes) ...[
         SoftCard(
           child: Column(
             key: Key('service-quote-${q.peerId}'),
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SelectableText('${HostPort(q.address.host, q.address.port)}',
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              SelectableText(
+                '${HostPort(q.address.host, q.address.port)}',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
               SelectableText(q.peerId, style: TextStyle(fontSize: 12, color: muted)),
               const SizedBox(height: 6),
-              Text(ServiceStrings.cost(q.costMu)),
-              Text(ServiceStrings.maintenance(q.maxMaintenanceMu, q.maintenanceSecondsLoop)),
-              Text(ServiceStrings.compared(q.comparedNanoErg),
-                  style: TextStyle(fontSize: 12.5, color: muted)),
+              Text(ServiceStrings.cost(muOrUnknown(q.costMu))),
+              Text(
+                ServiceStrings.maintenance(
+                  muOrUnknown(q.maxMaintenanceMu),
+                  q.maintenanceSecondsLoop,
+                ),
+              ),
+              Text(
+                ServiceStrings.compared(q.comparedNanoErg),
+                style: TextStyle(fontSize: 12.5, color: muted),
+              ),
               const SizedBox(height: 8),
               OutlinedButton(
                 key: Key('service-start-${q.peerId}'),
-                onPressed: _startingPeer != null || _instance != null ? null : () => _start(q),
-                child: Text(_startingPeer == q.peerId
-                    ? ServiceStrings.starting
-                    : ServiceStrings.start),
+                onPressed: !_fullWallet || _startingPeer != null || _instance != null
+                    ? null
+                    : () => _start(q),
+                child: Text(
+                  _startingPeer == q.peerId ? ServiceStrings.starting : ServiceStrings.start,
+                ),
               ),
             ],
           ),
@@ -317,11 +402,15 @@ class _ServiceScreenState extends State<ServiceScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${HostPort(f.address.host, f.address.port)}',
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(
+                  '${HostPort(f.address.host, f.address.port)}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
                 Text(CelautStrings.errorText(f.kind)),
-                SelectableText(CelautStrings.detailLabel(f.message),
-                    style: TextStyle(fontSize: 12, color: muted)),
+                SelectableText(
+                  CelautStrings.detailLabel(f.message),
+                  style: TextStyle(fontSize: 12, color: muted),
+                ),
               ],
             ),
           ),
@@ -341,15 +430,22 @@ class _ServiceScreenState extends State<ServiceScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SelectableText(instance.peerId, style: TextStyle(fontSize: 12, color: muted)),
-            Text(ServiceStrings.clientBalance(instance.clientBalanceMu)),
+            Text(ServiceStrings.clientBalance(muOrUnknown(instance.clientBalanceMu))),
             if (status != null) ...[
-              Text(ServiceStrings.instanceBalance(status.instanceBalanceMu),
-                  key: const Key('service-instance-balance')),
-              Text(ServiceStrings.streams(status.streamsOpened),
-                  key: const Key('service-streams')),
+              Text(
+                ServiceStrings.instanceBalance(muOrUnknown(status.instanceBalanceMu)),
+                key: const Key('service-instance-balance'),
+              ),
+              Text(
+                ServiceStrings.costSoFar(muOrUnknown(status.costSoFarMu)),
+                key: const Key('service-cost-so-far'),
+              ),
+              Text(ServiceStrings.streams(status.streamsOpened), key: const Key('service-streams')),
               if (status.lastTunnelError != null)
-                Text(ServiceStrings.tunnelError(status.lastTunnelError!),
-                    style: TextStyle(color: rustFor(context))),
+                Text(
+                  ServiceStrings.tunnelError(status.lastTunnelError!),
+                  style: TextStyle(color: rustFor(context)),
+                ),
             ],
             const SizedBox(height: 8),
             TextField(
@@ -368,8 +464,10 @@ class _ServiceScreenState extends State<ServiceScreen> {
                   child: const Text(ServiceStrings.openPort),
                 )
               else ...[
-                SelectableText(ServiceStrings.localPort(_ports[slot]!),
-                    key: Key('service-port-$slot')),
+                SelectableText(
+                  ServiceStrings.localPort(_ports[slot]!),
+                  key: Key('service-port-$slot'),
+                ),
                 OutlinedButton(
                   key: Key('service-call-$slot'),
                   onPressed: _calling ? null : () => _call(_ports[slot]!),
@@ -379,9 +477,11 @@ class _ServiceScreenState extends State<ServiceScreen> {
             ],
             if (_answer != null) ...[
               const SizedBox(height: 8),
-              SelectableText(_answer!,
-                  key: const Key('service-answer'),
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12.5)),
+              SelectableText(
+                _answer!,
+                key: const Key('service-answer'),
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 12.5),
+              ),
             ],
             const SizedBox(height: 8),
             Text(ServiceStrings.keepAliveNote, style: TextStyle(fontSize: 12.5, color: muted)),
@@ -399,7 +499,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
                 Expanded(
                   child: FilledButton(
                     key: const Key('service-stop'),
-                    onPressed: _stopping ? null : _stop,
+                    onPressed: !_fullWallet || _stopping ? null : _stop,
                     child: Text(_stopping ? ServiceStrings.stopping : ServiceStrings.stop),
                   ),
                 ),
@@ -411,18 +511,50 @@ class _ServiceScreenState extends State<ServiceScreen> {
     ];
   }
 
+  List<Widget> _appInstancesCards(BuildContext context) {
+    final muted = ArgusColors.of(context).muted;
+    return [
+      const SizedBox(height: 24),
+      SectionLabel(ServiceStrings.appInstancesTitle),
+      const SizedBox(height: 10),
+      for (final i in _otherInstances)
+        SoftCard(
+          child: Column(
+            key: Key('service-app-instance-${i.instanceId}'),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(ServiceStrings.appInstance(shorten(i.serviceId, head: 8, tail: 6), i.address)),
+              SelectableText(i.peerId, style: TextStyle(fontSize: 12, color: muted)),
+              const SizedBox(height: 6),
+              FilledButton(
+                key: Key('service-app-stop-${i.instanceId}'),
+                onPressed: !_fullWallet || _stoppingId != null ? null : () => _stopOther(i),
+                child: Text(
+                  _stoppingId == i.instanceId ? ServiceStrings.stopping : ServiceStrings.stop,
+                ),
+              ),
+            ],
+          ),
+        ),
+    ];
+  }
+
   Widget _errorCard(BuildContext context, CelautError e) {
     return SoftCard(
       child: Column(
         key: const Key('service-error'),
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(CelautStrings.errorText(e.kind),
-              style: TextStyle(fontSize: 14, color: rustFor(context))),
+          Text(
+            CelautStrings.errorText(e.kind),
+            style: TextStyle(fontSize: 14, color: rustFor(context)),
+          ),
           if (e.message.isNotEmpty) ...[
             const SizedBox(height: 6),
-            SelectableText(CelautStrings.detailLabel(e.message),
-                style: TextStyle(fontSize: 12, color: ArgusColors.of(context).muted)),
+            SelectableText(
+              CelautStrings.detailLabel(e.message),
+              style: TextStyle(fontSize: 12, color: ArgusColors.of(context).muted),
+            ),
           ],
         ],
       ),

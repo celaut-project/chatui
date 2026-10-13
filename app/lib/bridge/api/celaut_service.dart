@@ -7,9 +7,9 @@ import '../frb_generated.dart';
 import 'celaut.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `check`, `configuration`, `forget_if_broken`, `key`, `n`, `quote_view`, `service_id`, `session`, `state`, `unknown_instance`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Running`, `State`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `address_of_key`, `check`, `configuration`, `cost_so_far`, `forget_if_broken`, `instance`, `key`, `n`, `open_session`, `quote_view`, `service_id`, `session`, `state`, `unknown_instance`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `State`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
 
 /// Ask each node for the price of the service, and give the quotes best first
@@ -24,8 +24,9 @@ Future<QuotesView> celautQuoteService({
   initialMu: initialMu,
 );
 
-/// Start the service on the node. The node charges the quote to the free credit of the
-/// client. The node runs it itself (no delegation).
+/// Start the service on the node. The node charges the quote to the balance of the
+/// client of the app on that node. The node runs it itself (no delegation). The
+/// instance goes into the database of the app.
 Future<InstanceView> celautStartService({
   required NodeAddress node,
   required String serviceIdHex,
@@ -35,6 +36,10 @@ Future<InstanceView> celautStartService({
   serviceIdHex: serviceIdHex,
   initialMu: initialMu,
 );
+
+/// The instances that the app started and did not stop, whichever wallet was open.
+List<InstanceListView> celautInstances() =>
+    RustLib.instance.api.crateApiCelautServiceCelautInstances();
 
 /// A port on 127.0.0.1 for the slot of the instance. The same port while the
 /// instance runs. Each TCP connection to it opens one `ServiceTunnel` stream, which
@@ -51,16 +56,71 @@ Future<InstanceStatusView> celautInstanceStatus({required String instanceId}) =>
       instanceId: instanceId,
     );
 
-/// Close the local ports of the instance and stop it on the node.
+/// Close the local ports of the instance and stop it on the node. The instance leaves
+/// the database when the node confirms the stop.
 Future<StopView> celautStopService({required String instanceId}) => RustLib
     .instance
     .api
     .crateApiCelautServiceCelautStopService(instanceId: instanceId);
 
+/// An instance in the database, without its token.
+class InstanceListView {
+  final String instanceId;
+  final String peerId;
+
+  /// The address (`host:port`) of the node.
+  final String address;
+  final String serviceId;
+  final Uint16List slots;
+
+  /// The time of the start, in Unix seconds.
+  final PlatformInt64 startedAt;
+
+  /// What the start took from the balance of the client, in MU (empty if unknown).
+  final String startChargeMu;
+
+  const InstanceListView({
+    required this.instanceId,
+    required this.peerId,
+    required this.address,
+    required this.serviceId,
+    required this.slots,
+    required this.startedAt,
+    required this.startChargeMu,
+  });
+
+  @override
+  int get hashCode =>
+      instanceId.hashCode ^
+      peerId.hashCode ^
+      address.hashCode ^
+      serviceId.hashCode ^
+      slots.hashCode ^
+      startedAt.hashCode ^
+      startChargeMu.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is InstanceListView &&
+          runtimeType == other.runtimeType &&
+          instanceId == other.instanceId &&
+          peerId == other.peerId &&
+          address == other.address &&
+          serviceId == other.serviceId &&
+          slots == other.slots &&
+          startedAt == other.startedAt &&
+          startChargeMu == other.startChargeMu;
+}
+
 /// The state of an instance.
 class InstanceStatusView {
   /// The balance of the instance on the node, in MU.
   final String instanceBalanceMu;
+
+  /// What the instance cost so far, in MU: what the start took from the client,
+  /// less what the instance still has. Empty if unknown.
+  final String costSoFarMu;
 
   /// How many tunnel streams the local ports opened (one per TCP connection).
   final BigInt streamsOpened;
@@ -70,6 +130,7 @@ class InstanceStatusView {
 
   const InstanceStatusView({
     required this.instanceBalanceMu,
+    required this.costSoFarMu,
     required this.streamsOpened,
     this.lastTunnelError,
   });
@@ -77,6 +138,7 @@ class InstanceStatusView {
   @override
   int get hashCode =>
       instanceBalanceMu.hashCode ^
+      costSoFarMu.hashCode ^
       streamsOpened.hashCode ^
       lastTunnelError.hashCode;
 
@@ -86,6 +148,7 @@ class InstanceStatusView {
       other is InstanceStatusView &&
           runtimeType == other.runtimeType &&
           instanceBalanceMu == other.instanceBalanceMu &&
+          costSoFarMu == other.costSoFarMu &&
           streamsOpened == other.streamsOpened &&
           lastTunnelError == other.lastTunnelError;
 }
@@ -99,7 +162,8 @@ class InstanceView {
   /// The internal ports of the instance, for [`celaut_open_tunnel`].
   final Uint16List slots;
 
-  /// The balance of this client on the node after the start, in MU.
+  /// The balance of this client on the node after the start, in MU (empty if
+  /// unknown).
   final String clientBalanceMu;
 
   const InstanceView({
@@ -172,7 +236,8 @@ class QuoteFailureView {
           message == other.message;
 }
 
-/// One quote, in the MU of the node and, if the node gives an ERG rate, in nanoERG.
+/// One quote, in the MU of the node and, if the node gives an ERG rate, in nanoERG. An
+/// amount that the node did not give is empty (the screen shows "unknown", not 0).
 class QuoteView {
   final NodeAddress address;
   final String peerId;
@@ -249,7 +314,7 @@ class StopView {
   /// The unused balance of the instance that the node gave back to the client, in MU.
   final String refundMu;
 
-  /// The balance of the client after the stop, in MU.
+  /// The balance of the client after the stop, in MU (empty if unknown).
   final String clientBalanceMu;
 
   const StopView({required this.refundMu, required this.clientBalanceMu});

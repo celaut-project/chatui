@@ -20,6 +20,8 @@ class SecureStorageHandler(private val context: Context) : MethodChannel.MethodC
         private const val CHANNEL = "com.argus.wallet/secure_storage"
         private const val PREFS_NAME = "argus_secure_prefs"
         private const val WALLET_REGISTRY_KEY = "wallet_registry"
+        // The key of the Celaut database: one for the app, not one per wallet.
+        private const val CELAUT_DB_KEY = "celaut_db_key_v1"
 
         @Volatile
         var host: FragmentActivity? = null
@@ -219,6 +221,23 @@ class SecureStorageHandler(private val context: Context) : MethodChannel.MethodC
                     }
                     result.success(ids)
                 }
+                "loadCelautDbKey" -> result.success(getPrefs().getString(CELAUT_DB_KEY, null))
+                "saveCelautDbKey" -> {
+                    val key = call.argument<String>("key")
+                    if (key.isNullOrEmpty()) {
+                        result.error("INVALID_ARGS", "Missing key", null)
+                        return
+                    }
+                    if (!getPrefs().edit().putString(CELAUT_DB_KEY, key).commit()) {
+                        result.error("STORAGE_ERROR", "Failed to persist the Celaut key", null)
+                        return
+                    }
+                    result.success(null)
+                }
+                // Not in the cloud backup: the file is useless without the Keystore key.
+                "celautDbPath" -> result.success(
+                    java.io.File(java.io.File(context.noBackupFilesDir, "celaut"), "celaut.db").absolutePath
+                )
                 "loadPinGate" -> {
                     val prefs = getPrefs()
                     result.success(

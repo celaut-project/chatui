@@ -41,7 +41,9 @@ pub use multi_send::{
     build_multi_send_tx_with_fee, MultiSendBuildResult, MultiSendError, MultiSendSummary,
     RecipientSpec,
 };
-pub use send::{build_send_tx, SendBuildResult, SendError, SendSummary};
+pub use send::{
+    build_send_tx, build_send_tx_with_registers, SendBuildResult, SendError, SendSummary,
+};
 pub use sigma::*;
 pub use tx_helpers::{
     append_change_output, box_bytes, merge_assets, min_value_for, select_and_lay_out,
