@@ -23,6 +23,9 @@ import 'deposit_confirm.dart';
 /// The smallest deposit: the minimum value of an Ergo box.
 const minDepositNano = 1000000;
 
+/// The largest limit of the deposits to one node: 1 ERG (`docs/celaut/ui.md`, section 3).
+const maxLimitNano = 1000000000;
+
 /// What the deposit screen needs from the wallets of the app. The app uses
 /// [AppDepositWallets]; tests give their own.
 ///
@@ -200,7 +203,7 @@ class _DepositScreenState extends State<DepositScreen> {
     final info = _info;
     if (info == null) return;
     final limit = parseErgToNano(_limitCtrl.text.trim());
-    if (limit == null || limit < 0) {
+    if (limit == null || limit < 0 || limit > maxLimitNano) {
       setState(() => _limitError = DepositStrings.limitInvalid);
       return;
     }

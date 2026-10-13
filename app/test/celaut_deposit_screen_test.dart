@@ -469,11 +469,18 @@ void main() {
       expect(api.nodeCalls.length, 2);
       expect(find.text(DepositStrings.used(formatErg(0), formatErg(20000000))), findsOneWidget);
 
-      await tester.enterText(find.byKey(const Key('deposit-limit')), 'x');
+      for (final bad in ['x', '1.5', '-1']) {
+        await tester.enterText(find.byKey(const Key('deposit-limit')), bad);
+        await tester.tap(find.byKey(const Key('deposit-set-limit')));
+        await tester.pumpAndSettle();
+        expect(find.text(DepositStrings.limitInvalid), findsOneWidget, reason: bad);
+      }
+      expect(api.limits.length, 1);
+      // 1 ERG is the largest limit.
+      await tester.enterText(find.byKey(const Key('deposit-limit')), '1');
       await tester.tap(find.byKey(const Key('deposit-set-limit')));
       await tester.pumpAndSettle();
-      expect(find.text(DepositStrings.limitInvalid), findsOneWidget);
-      expect(api.limits.length, 1);
+      expect(api.limits.last.limit, BigInt.from(1000000000));
     });
 
     testWidgets('the buttons after the check have semantics labels', (tester) async {
