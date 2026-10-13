@@ -5,7 +5,8 @@ A node also announces most of this at runtime in `Peer.uri[].protocol_stack` (la
 `nodo:src/identity/transport_stack.py`. The per-RPC tables are in
 `nodo:protos/gateway_bee.py`.
 
-The `nodo:` line numbers are from nodo dev `e3d12301`. The protos and `gateway_bee.py`
+The `nodo:` line numbers are from nodo dev `e3d12301`. Section 4 (the deposit) was
+checked against nodo dev `ee5af5bc` and names functions, not lines. The protos and `gateway_bee.py`
 are the same as at `b5c1e8a5`, the commit that `celaut-proto` pins.
 
 ## 1. Transport
@@ -142,31 +143,61 @@ Notes:
 
 1. TLS channel; the peer_id comes from the certificate.
 2. `GenerateClient` → `client_id` (solve PoW if asked).
-3. `GetPeerInfo` → `Peer.payment_contracts`. Take the `ContractRate` with
-   `contract.ledger.tags[0] == "ergo"` and xattr `token_id == "ERG"`. Xattr `script` is
-   the node's P2PK ErgoTree. `mu_per_unit` is MU per nanoERG (default 1).
-4. `GenerateDepositToken` → a UUID string with hyphens. It expires after 3600 s.
+3. `GetPeerInfo` → `Peer.payment_contracts`. Take the first `ContractRate` with
+   `contract.ledger.tags[0] == "ergo"`, xattr `token_id == "ERG"` and `mu_per_unit` more
+   than 0 (the balancer takes the same one for the price). Xattr `script` is the
+   ErgoTree of the node wallet (P2PK). Xattr `contract_type` is
+   `proveDlog(decodePoint())`. `mu_per_unit` is MU per nanoERG, an integer (default 1,
+   `ledgers.ergo.payments.MU_PER_NANOERG`).
+   - `contract.ledger.formal` is the ledger declaration: `key=value` lines sorted by key
+     (`component_formal`, `nodo:src/utils/ledger_descriptors.py`). Pay only if it has
+     `chain=ergo` and `network=mainnet` (a node on another chain declares
+     `network=genesis <id>`), and if `payment.deposit_token` starts with `R4`.
+4. `GenerateDepositToken` (`Client` at 1) → `TokenMessage.token` at 1: the text of a
+   UUID4 with hyphens (36 characters, `str(uuid.uuid4())`). The node only writes it in its
+   database as `pending` for the client. Nothing goes on a ledger. It expires after
+   3600 s (`DEPOSIT_TOKEN_TTL`). The node refuses new tokens if
+   `client.ACCEPT_NEW_DEPOSITS` is false.
 5. Ergo transaction: one output with `ergoTree = script`, value at least
-   `amount_mu / mu_per_unit` nanoERG (minimum box value 1 000 000), `R4 = Coll[Byte]`
-   of the UTF-8 deposit token.
+   `amount_mu / mu_per_unit` nanoERG (minimum box value 1 000 000), and
+   `R4 = Coll[Byte]` of the UTF-8 deposit token: in EIP-12 the register is the hex of
+   `0e`, the length as VLQ (`24` for 36 bytes), and the bytes. The app sends exactly
+   `nanoERG`, and `Payment.amount = nanoERG × mu_per_unit` MU: the node divides and
+   rounds down, so it asks for that `nanoERG`.
 6. **`Payable`** with `Payment{deposit_token, contract (echo it unchanged), amount=MU}`
-   at 1 and `Client` at 2 (`nodo:src/gateway/gateway.py:291-313`,
-   `nodo:src/payment_system/payment_process.py:883-964`). The node accepts the payment
+   at 1 and `Client` at 2. The order does not matter: the node reads the whole request
+   (`parse_with_client`, `nodo:src/gateway/client_gate.py`). An accepted payment gives
+   an OK status and an empty answer (index 1 is `buffer.Empty`). A refused one gives an
+   error status, "Error: payment not valid." (`Payable` in `nodo:src/gateway/gateway.py`,
+   `validate_payment_process` in `nodo:src/payment_system/payment_process.py`, `_validate`
+   in `nodo:src/payment_system/contracts/ergo/interface.py`). The node accepts the payment
    only if all of these are true:
    - The deposit token is `pending` (not expired, not used) and belongs to a client
      that exists.
-   - `contract.ledger` is the same declaration as the ledger of the node, and the
-     contract selects a payment method of the node. A changed `Contract` fails, so send
-     the one from GetPeerInfo without a change.
+   - `contract.ledger` is the same declaration as the ledger of the node
+     (`same_declaration`), and the payment method is found by the ledger tag, the
+     SHA3-256 of xattr `contract_type` and xattr `token_id`. A changed `Contract` fails,
+     so send the one from GetPeerInfo without a change.
    - The address of `script` is the wallet address of the node.
-   - The explorer of the node
-     (`/api/v1/boxes/unspent/unconfirmed/byAddress/{address}`) shows an unspent box with
-     the deposit token in R4 and a value of at least the amount in nanoERG. The box needs
-     no confirmation: it can be in the mempool
-     (`nodo:src/payment_system/contracts/ergo/interface.py:956-1018`).
+   - The explorer of the node shows an unspent box with the deposit token in R4 and a
+     value of at least the amount in nanoERG. The box needs no confirmation: it can be
+     in the mempool. The node asks
+     `{explorer}/api/v1/boxes/unspent/unconfirmed/byAddress/{address}` with no paging
+     parameters. Its explorer is the default of Ergo AppKit for mainnet,
+     `https://api.ergoplatform.com` (nodo builds `ErgoAppKit(node_url)` with no
+     explorer URL). The answer is a JSON list of boxes.
+   - The node reads `additionalRegisters.R4.renderedValue` (the hex of the bytes of the
+     `Coll[Byte]`, without the `0e` and the length), decodes it as UTF-8, and compares
+     it with the token. It reads only the first box with the token.
 
    **One attempt only:** the token becomes `payed` or `rejected`. Call it only after
    the box is visible on the explorer.
+
+   Risks on the node side (nodo dev `ee5af5bc`): a box at the node address with an R4
+   that is not hexadecimal UTF-8 text (for example an `SInt`, rendered as `1`) makes the
+   check raise, and the node then refuses every deposit while that box is listed before
+   the deposit box. And a node wallet with many boxes can depend on the paging of the
+   explorer answer.
 7. Balance: `GetMetrics(TokenMessage{token=client_id})`.
 8. ServiceTunnel charges the instance: open fee 10 000 MU and 2 000 000 MU per GiB.
    StopService refunds the unused instance balance to the client.

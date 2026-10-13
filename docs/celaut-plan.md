@@ -7,7 +7,7 @@ can run.
 
 ## 0. Status and next tasks
 
-Updated on 2026-10-12, master at `c7044fe` plus the M2 PR.
+Updated on 2026-10-13, master at `ad48099` plus the M3 PR.
 
 | Item | Status |
 |---|---|
@@ -16,8 +16,9 @@ Updated on 2026-10-12, master at `c7044fe` plus the M2 PR.
 | M0b: trimmed wallet and new identity | Done. Merged in PR #3 (section 5). Spanish is a separate PR after it |
 | `bee-rpc-over-grpc-rs` | M1a done. Tag `v0.1.0` (`a832abc`) has the whole API: frames, blocks, signal, skip, hashes and the generic bidi call over tonic. `celaut-wire` uses it as a git dependency. Its license is GPL-3.0-only, and chatui is GPL-3.0-only too (section 7, question 10) |
 | M1: connect to a node and show its advertisement | Done. Merged in PR #9 |
-| M2: quote, start, tunnel, stop on free credit | Done, in review (PR #11). `celaut-wire` (the M2 calls and `ServiceTunnel`), `celaut-balancer`, `celaut-client` (node sessions, quotes, the local port), the FFI functions in `api/celaut_service.rs` and the debug screen (Settings, Developer). Checked on our own node, from the client crate and from the app in the Android emulator (see M2 in section 5). Not tested: a phone, a node on the internet, more than one node |
-| M3 to M5 | Not started |
+| M2: quote, start, tunnel, stop on free credit | Done. Merged in PR #11. `celaut-wire` (the M2 calls and `ServiceTunnel`), `celaut-balancer`, `celaut-client` (node sessions, quotes, the local port), the FFI functions in `api/celaut_service.rs` and the debug screen (Settings, Developer). Checked on our own node, from the client crate and from the app in the Android emulator (see M2 in section 5). Not tested: a phone, a node on the internet, more than one node |
+| M3: deposit with the wallet | Implemented; e2e pending amount approval (PR #13, draft). `GenerateDepositToken`, the deposit transaction with the token in R4, the confirmation sheet of the wallet, the wait for the box on the explorer of the node, one `Payable`, and a limit per node (Settings, Developer, Celaut deposit). Unit, FFI and widget tests, and a read-only check on our own node. The end-to-end deposit waits for the approval of the amount (`docs/celaut/deposit-e2e.md`) |
+| M4 and M5 | Not started |
 | Open questions (section 7) | Answered on 2026-10-11 and 2026-10-12 |
 
 Do the next tasks in this order. Each task is one PR into master.
@@ -28,8 +29,9 @@ Do the next tasks in this order. Each task is one PR into master.
 3. **bee-rpc in Rust** (M1a): the repo
    [bee-rpc-protocol/bee-rpc-over-grpc-rs](https://github.com/bee-rpc-protocol/bee-rpc-over-grpc-rs).
    Done: tag `v0.1.0`.
-4. **M1**: done (PR #9). **M2**: done, in review (PR #11).
-5. **M3**, **M4**, then **M5**.
+4. **M1**: done (PR #9). **M2**: done (PR #11).
+5. **M3**: implemented (PR #13); the end-to-end deposit waits for the approval of the
+   amount. Then **M4** and **M5**.
 
 Josemi answered all the open questions on 2026-10-11 and 2026-10-12 (section 7).
 
@@ -299,6 +301,53 @@ be in the mempool, but it must be unspent and visible on the explorer of the nod
 the node compares its declaration. A per-node limit and a confirmation screen
 that shows ERG and MU. Check: unit tests of the transaction; one end-to-end test on our
 own node only after approval of the amount (see section 6).
+
+What M3 has (PR #13):
+
+- `ergo-tx`: `build_send_tx_with_registers`, a send with registers on the recipient
+  output only. Registers start at R4 and have no gap; each value is the hex of a
+  serialized constant.
+- `celaut-wire`: `generate_deposit_token` and `payable`.
+- `celaut-client` (`deposit`): `ErgPayment::of` takes the ERG contract that the
+  balancer uses, keeps the `Contract` without a change, and refuses a declaration that
+  is not `chain=ergo`, `network=mainnet`, with the token in R4. The MU of a deposit is
+  `nanoERG × mu_per_unit`. A deposit token must be printable ASCII of 64 characters or
+  less. `find_deposit_box` reads an explorer answer as the node does.
+- FFI (`api/celaut_deposit.rs`): `celaut_deposit_node` (contract, balance, limit),
+  `celaut_set_deposit_limit`, `celaut_deposit_prepare` (token, then a send preparation
+  that `send_erg` signs and sends, as every send), `celaut_deposit_cancel`, and
+  `celaut_deposit_notify` (waits up to 10 minutes for the box on
+  `https://api.ergoplatform.com`, then `Payable` once; a timeout sends nothing to the
+  node and can be repeated). The limit is 0.05 ERG per node by default and counts each
+  prepared deposit until it is cancelled.
+- Dart: the screen "Celaut deposit" (Settings, Developer) and the confirmation sheet of
+  the wallet with the ERG, the MU, the rate, the fee, the change, the total and the
+  use of the limit. No "sign only" for a deposit.
+- Tests: the registers, the contract, the amounts, the change and the fee of the
+  transaction (`ergo-tx`, and ergo-lib reads R4 back in `wallet-ffi`); the contract,
+  the payment, the token and the explorer answer (`celaut-client/tests/deposit.rs`);
+  the limit and the wait (FFI); the confirmation sheet and the screen (Dart). The
+  end-to-end tests are `#[ignore]`d and need environment variables
+  (`api/celaut_deposit_e2e.rs`).
+
+Facts from nodo dev `ee5af5bc` (details in wire.md, section 4):
+
+- GenerateDepositToken writes a `pending` row in the database of the node and nothing
+  on a ledger. The token is a UUID4 with hyphens and expires after one hour.
+- The node finds the payment method by the ledger tag, the SHA3-256 of xattr
+  `contract_type` and xattr `token_id`, and checks the ledger declaration. That is why
+  the `Contract` goes back without a change.
+- The node reads `R4.renderedValue` on its explorer, the default of Ergo AppKit for
+  mainnet (`https://api.ergoplatform.com`), and checks only the first box with the
+  token.
+
+Not in M3: the client ids stay in memory only. A deposit goes to the client id of the
+session, and the balance is lost when the app stops. The screen says so. Encrypted
+storage of the client ids is the next step before deposits leave the developer screen.
+
+Read-only check on 2026-10-13, our node (nodo `ec1274d`): the node advertises the ERG
+contract on mainnet, with the token in R4, 1 MU per nanoERG; GenerateDepositToken gives a
+36-character token; free credit 4 500 000 MU. No transaction.
 
 **M4: conversation screen.** Select a skill or a service hash, launch it, and talk to
 it through the tunnel. Show the cost so far, and stop the instance when the user
