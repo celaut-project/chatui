@@ -1424,6 +1424,7 @@
   "celautDepositRate": "{mu} MU por nanoERG",
   "celautDepositBalance": "Saldo del cliente: {mu} MU",
   "celautDepositUsed": "Depósitos a este nodo: {used} de {limit}",
+  "celautDepositUsedValue": "{used} de {limit}",
   "celautDepositLimitLabel": "Límite para este nodo en ERG",
   "celautDepositSetLimit": "Fijar el límite",
   "celautDepositLimitInvalid": "Escribe un límite en ERG, 0 o más.",

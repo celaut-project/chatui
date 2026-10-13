@@ -5546,6 +5546,11 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String celautDepositUsedValue(String used, String limit) {
+    return '$used de $limit';
+  }
+
+  @override
   String get celautDepositLimitLabel => 'Límite para este nodo en ERG';
 
   @override

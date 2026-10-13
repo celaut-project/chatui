@@ -23,6 +23,8 @@ class DepositStrings {
   static String rate(String mu) => appL10n.celautDepositRate(mu);
   static String balance(String mu) => appL10n.celautDepositBalance(mu);
   static String used(String used, String limit) => appL10n.celautDepositUsed(used, limit);
+  static String usedValue(String used, String limit) =>
+      appL10n.celautDepositUsedValue(used, limit);
   static String get limitLabel => appL10n.celautDepositLimitLabel;
   static String get setLimit => appL10n.celautDepositSetLimit;
   static String get limitInvalid => appL10n.celautDepositLimitInvalid;

@@ -4137,6 +4137,18 @@
       }
     }
   },
+  "celautDepositUsedValue": "{used} of {limit}",
+  "@celautDepositUsedValue": {
+    "description": "Value of the row of the deposits to a node, in the confirmation sheet; the row label says what it is.",
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "limit": {
+        "type": "String"
+      }
+    }
+  },
   "celautDepositLimitLabel": "Limit for this node in ERG",
   "celautDepositSetLimit": "Set the limit",
   "celautDepositLimitInvalid": "Enter a limit in ERG, 0 or more.",

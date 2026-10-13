@@ -31,7 +31,10 @@ List<ConfirmTxRow> depositConfirmRows(
     ConfirmTxRow(DepositStrings.rowTotal, formatErg(amount + v.minerFeeNanoErg)),
     ConfirmTxRow(
       DepositStrings.rowUsed,
-      DepositStrings.used(formatErg(v.depositedNanoErg.toInt()), formatErg(v.limitNanoErg.toInt())),
+      DepositStrings.usedValue(
+        formatErg(v.depositedNanoErg.toInt()),
+        formatErg(v.limitNanoErg.toInt()),
+      ),
     ),
   ];
 }

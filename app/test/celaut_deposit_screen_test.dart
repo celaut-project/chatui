@@ -184,7 +184,7 @@ void main() {
       expect(find.text(formatErg(1100000)), findsOneWidget);
       expect(find.text(formatErg(11100000)), findsOneWidget);
       expect(
-        find.text(DepositStrings.used(formatErg(10000000), formatErg(50000000))),
+        find.text(DepositStrings.usedValue(formatErg(10000000), formatErg(50000000))),
         findsOneWidget,
       );
       expect(find.text(_address), findsOneWidget);

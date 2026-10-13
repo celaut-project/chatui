@@ -8657,6 +8657,12 @@ abstract class AppLocalizations {
   /// **'Deposits to this node: {used} of {limit}'**
   String celautDepositUsed(String used, String limit);
 
+  /// Value of the row of the deposits to a node, in the confirmation sheet; the row label says what it is.
+  ///
+  /// In en, this message translates to:
+  /// **'{used} of {limit}'**
+  String celautDepositUsedValue(String used, String limit);
+
   /// No description provided for @celautDepositLimitLabel.
   ///
   /// In en, this message translates to:
