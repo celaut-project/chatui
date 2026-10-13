@@ -40,7 +40,7 @@ const HEADER_LEN: usize = MAGIC.len() + 1;
 
 /// What the app knows about one node. The key is the peer_id, so a node with more than
 /// one address is one node.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NodeRecord {
     /// The client id of the app on this node. A bearer secret: the balance of the
     /// client on the node goes with it.
@@ -51,6 +51,87 @@ pub struct NodeRecord {
     /// The limit of the deposits to this node, in nanoERG, if the user changed it.
     #[serde(default)]
     pub deposit_limit_nano_erg: Option<u64>,
+    /// True if the node is in the node list of the user (`docs/celaut/ui.md`, section
+    /// 4). Only listed nodes are in the sums of the home screen. A removed node keeps
+    /// its record (client id, deposits), so adding it again restores them.
+    #[serde(default = "listed_by_default")]
+    pub listed: bool,
+    /// The MU that the node accepted from the deposits of the app for the current
+    /// client id, as text. `None` if the app did not count it yet.
+    #[serde(default)]
+    pub paid_mu: Option<String>,
+    /// The free credit that the node gave the current client id when it was made, in
+    /// MU, as text. `None` if the app does not know it.
+    #[serde(default)]
+    pub free_credit_mu: Option<String>,
+    /// The client ids that the app used on this node before the current one, the
+    /// oldest first. The balance of these clients is lost for the app.
+    #[serde(default)]
+    pub earlier_client_ids: Vec<String>,
+}
+
+fn listed_by_default() -> bool {
+    true
+}
+
+impl Default for NodeRecord {
+    /// A node that the user just added: in the list, no client yet.
+    fn default() -> Self {
+        NodeRecord {
+            client_id: String::new(),
+            addresses: Vec::new(),
+            deposit_limit_nano_erg: None,
+            listed: true,
+            paid_mu: None,
+            free_credit_mu: None,
+            earlier_client_ids: Vec::new(),
+        }
+    }
+}
+
+impl NodeRecord {
+    /// A record for a new client: nothing paid yet, and the free credit of the node if
+    /// the app could read it.
+    pub fn new_client(client_id: String, free_credit_mu: Option<u128>) -> Self {
+        NodeRecord {
+            client_id,
+            paid_mu: Some("0".into()),
+            free_credit_mu: free_credit_mu.map(|m| m.to_string()),
+            ..Default::default()
+        }
+    }
+
+    /// Use a new client id on this node. The old one goes into
+    /// [`NodeRecord::earlier_client_ids`]; its balance is lost for the app. The limit,
+    /// the addresses and the deposits of the node do not change.
+    pub fn replace_client(&mut self, client_id: String, free_credit_mu: Option<u128>) {
+        let old = std::mem::replace(&mut self.client_id, client_id);
+        if !old.is_empty() && old != self.client_id {
+            self.earlier_client_ids.push(old);
+        }
+        self.paid_mu = Some("0".into());
+        self.free_credit_mu = free_credit_mu.map(|m| m.to_string());
+    }
+
+    /// Add `mu` that the node accepted from a deposit to the paid credit.
+    pub fn add_paid(&mut self, mu: u128) {
+        let before = self
+            .paid_mu
+            .as_deref()
+            .and_then(|p| p.parse::<u128>().ok())
+            .unwrap_or(0);
+        self.paid_mu = Some(before.saturating_add(mu).to_string());
+    }
+
+    /// The paid credit, if known.
+    pub fn paid(&self) -> Option<u128> {
+        self.paid_mu.as_deref().and_then(|p| p.parse().ok())
+    }
+
+    /// The free credit of the current client, if known.
+    pub fn free_credit(&self) -> Option<u128> {
+        self.free_credit_mu.as_deref().and_then(|p| p.parse().ok())
+    }
 }
 
 /// An instance that the app started. Any full wallet of the app can stop it.
@@ -171,6 +252,39 @@ impl CelautData {
             .values()
             .filter(|d| d.peer_id == peer_id)
             .fold(0u64, |sum, d| sum.saturating_add(d.nano_erg))
+    }
+
+    /// The MU of the deposits to `peer_id` that the node accepted.
+    pub fn accepted_mu(&self, peer_id: &str) -> u128 {
+        self.deposits
+            .values()
+            .filter(|d| d.peer_id == peer_id)
+            .filter(|d| matches!(d.stage, DepositStage::PayableCalled { accepted: true, .. }))
+            .filter_map(|d| d.mu.parse::<u128>().ok())
+            .fold(0u128, u128::saturating_add)
+    }
+
+    /// Count the paid credit of the nodes that do not have it yet (a database of an
+    /// earlier version). Until this version the app never changed the client id of a
+    /// node, so every accepted deposit of the node went to the current client.
+    pub fn count_paid_credit(&mut self) {
+        let missing: Vec<String> = self
+            .nodes
+            .iter()
+            .filter(|(_, n)| n.paid_mu.is_none())
+            .map(|(p, _)| p.clone())
+            .collect();
+        for peer_id in missing {
+            let paid = self.accepted_mu(&peer_id);
+            if let Some(node) = self.nodes.get_mut(&peer_id) {
+                node.paid_mu = Some(paid.to_string());
+            }
+        }
+    }
+
+    /// The peer_ids of the nodes in the node list of the user.
+    pub fn listed_nodes(&self) -> impl Iterator<Item = (&String, &NodeRecord)> {
+        self.nodes.iter().filter(|(_, n)| n.listed)
     }
 
     /// Remember the address of a node, the last first.
@@ -460,6 +574,7 @@ mod tests {
                 client_id: "c1".into(),
                 addresses: vec!["node.example:53460".into()],
                 deposit_limit_nano_erg: Some(7),
+                ..Default::default()
             },
         );
         data.instances.insert(
@@ -645,5 +760,64 @@ mod tests {
         a.merge_missing(b);
         assert_eq!(a.nodes[&"aa".repeat(32)].client_id, "c1");
         assert_eq!(a.nodes[&"dd".repeat(32)].client_id, "c2");
+    }
+
+    #[test]
+    fn a_node_of_an_earlier_version_is_listed_and_gets_its_paid_credit() {
+        // A record as the earlier version wrote it: no list flag, no paid credit.
+        let json = r#"{"version":1,"nodes":{"p":{"client_id":"c1","addresses":["n:1"]}},
+            "deposits":{
+              "ok":{"peer_id":"p","address":"n:1","deposit_token":"t1","nano_erg":10,
+                    "mu":"10000000","pay_to_address":"9f","made_at":1,
+                    "stage":{"stage":"payable_called","tx_id":"a","accepted":true}},
+              "no":{"peer_id":"p","address":"n:1","deposit_token":"t2","nano_erg":5,
+                    "mu":"5","pay_to_address":"9f","made_at":2,
+                    "stage":{"stage":"payable_called","tx_id":"b","accepted":false}},
+              "wait":{"peer_id":"p","address":"n:1","deposit_token":"t3","nano_erg":7,
+                    "mu":"7","pay_to_address":"9f","made_at":3,
+                    "stage":{"stage":"sent","tx_id":"c"}}}}"#;
+        let mut data: CelautData = serde_json::from_str(json).unwrap();
+        assert!(data.nodes["p"].listed);
+        assert_eq!(data.nodes["p"].paid(), None);
+        data.count_paid_credit();
+        // Only the deposit that the node accepted is paid credit.
+        assert_eq!(data.nodes["p"].paid(), Some(10_000_000));
+        assert_eq!(data.nodes["p"].free_credit(), None);
+        // A second count changes nothing.
+        data.nodes.get_mut("p").unwrap().add_paid(1);
+        data.count_paid_credit();
+        assert_eq!(data.nodes["p"].paid(), Some(10_000_001));
+    }
+
+    #[test]
+    fn a_new_client_starts_with_no_paid_credit_and_keeps_the_old_id() {
+        let mut node = NodeRecord::new_client("c1".into(), Some(4_500_000));
+        assert_eq!(node.paid(), Some(0));
+        assert_eq!(node.free_credit(), Some(4_500_000));
+        node.add_paid(10_000_000);
+        node.deposit_limit_nano_erg = Some(3);
+        node.addresses = vec!["n:1".into()];
+        node.replace_client("c2".into(), None);
+        assert_eq!(node.client_id, "c2");
+        assert_eq!(node.earlier_client_ids, vec!["c1".to_string()]);
+        assert_eq!(node.paid(), Some(0));
+        assert_eq!(node.free_credit(), None);
+        // The limit and the addresses stay.
+        assert_eq!(node.deposit_limit_nano_erg, Some(3));
+        assert_eq!(node.addresses, vec!["n:1".to_string()]);
+    }
+
+    #[test]
+    fn a_removed_node_keeps_its_record_and_leaves_the_list() {
+        let mut data = CelautData::default();
+        sample(&mut data);
+        let peer = "aa".repeat(32);
+        data.nodes.get_mut(&peer).unwrap().listed = false;
+        assert_eq!(data.listed_nodes().count(), 0);
+        // The client id and the deposits stay.
+        assert_eq!(data.nodes[&peer].client_id, "c1");
+        assert_eq!(data.deposited_nano_erg(&peer), 10_000_000);
+        data.nodes.get_mut(&peer).unwrap().listed = true;
+        assert_eq!(data.listed_nodes().count(), 1);
     }
 }

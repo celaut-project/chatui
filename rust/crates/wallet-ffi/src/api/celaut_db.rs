@@ -73,7 +73,8 @@ pub fn celaut_new_database_key() -> Result<String, CelautError> {
 /// for all the Celaut calls. What the app already has in memory is added to it.
 ///
 /// A deposit that was only prepared in an earlier run is removed: its preparation
-/// ended with that run, so it was never sent. A file that the key cannot open is moved
+/// ended with that run, so it was never sent. A node of an earlier version gets its paid
+/// credit from its accepted deposits. A file that the key cannot open is moved
 /// to a new name, and a new database starts.
 #[flutter_rust_bridge::frb]
 pub fn celaut_open_database(
@@ -109,6 +110,7 @@ fn open_file(
             d.deposits
                 .retain(|_, deposit| deposit.stage != DepositStage::Prepared);
             d.merge_missing(memory);
+            d.count_paid_credit();
         })
         .map_err(storage_error)?;
     let view = opened.read(|d| CelautDatabaseView {
@@ -160,6 +162,7 @@ mod tests {
                 client_id: "client-1".into(),
                 addresses: vec!["node:1".into()],
                 deposit_limit_nano_erg: Some(5),
+                ..Default::default()
             },
         );
         memory.instances.insert(
