@@ -13,7 +13,7 @@ import '../services/ergopay_service.dart';
 import '../services/incoming_payment_watcher.dart';
 import '../services/network_controller.dart';
 import '../services/notification_service.dart';
-import '../services/portfolio.dart';
+import '../services/token_pricer.dart';
 import '../services/privacy_service.dart';
 import '../services/public_wallet_sync.dart';
 import '../services/secure_storage.dart';
@@ -24,7 +24,9 @@ import '../services/watch_account_service.dart';
 import '../services/watch_only_service.dart';
 import '../theme/argus_theme.dart';
 import 'assets_screen.dart';
+import '../celaut/wallet_money.dart';
 import 'celaut/compute_home_screen.dart';
+import 'celaut/known_nodes_screen.dart';
 import 'create_wallet_screen.dart';
 import 'ergopay_screen.dart';
 import 'home/erg_price_feed.dart';
@@ -72,9 +74,13 @@ import 'widgets/watch_account_list.dart';
 /// history the home screens chart, deep links and incoming-payment
 /// notifications.
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key, this.initializeWalletService});
+  const DashboardScreen({super.key, this.initializeWalletService, this.computeHome});
 
   final Future<void> Function()? initializeWalletService;
+
+  /// Whether the launch level is the compute home. Null: the setting decides (on by
+  /// default). Tests of the wallets list give false.
+  final bool? computeHome;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -158,6 +164,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     deepLinkController.addListener(_onDeepLink);
     computeHomeFlag.addListener(_onComputeHomeChanged);
     computeHomeFlag.load();
+    walletService.currentWalletId.addListener(_onActiveWalletChanged);
     _pollTimer = Timer.periodic(_fastPollInterval, (_) => _pollTick());
     _probeTimer = Timer.periodic(_probeInterval, (_) => _probeTick());
     _init();
@@ -171,9 +178,25 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (mounted) setState(() => _walletsLevel = false);
   }
 
+  /// A Celaut screen can open another full wallet (a deposit asks for the PIN or
+  /// fingerprint of the paying wallet and opens it). The page of the wallet that was
+  /// open then shows its gate again; the sync stays with the new open wallet.
+  void _onActiveWalletChanged() {
+    if (!mounted) return;
+    final active = walletService.activeWalletId;
+    if (_walletUnlocked && _walletId != null && active != _walletId) {
+      setState(() {
+        _walletUnlocked = false;
+        _incoming.reset();
+        _usePin = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
     computeHomeFlag.removeListener(_onComputeHomeChanged);
+    walletService.currentWalletId.removeListener(_onActiveWalletChanged);
     _pollTimer?.cancel();
     _probeTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
@@ -941,7 +964,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (_loading) return _splash();
     final open = _open;
     if (open == null) {
-      if (!computeHomeFlag.value) return _overviewScreen();
+      if (!(widget.computeHome ?? computeHomeFlag.value)) return _overviewScreen();
       if (!_walletsLevel) return _computeHome();
       return PopScope(
         canPop: false,
@@ -980,19 +1003,26 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  /// The compute home, behind the developer setting. The ERG of all the wallets comes
-  /// from the same figures as the wallets list; a wallet whose balance is unknown makes
-  /// the total unknown.
+  final _computeHomeKey = GlobalKey<ComputeHomeScreenState>();
+
+  /// The compute home, the default home screen (`docs/celaut/ui.md`, section 2). The ERG
+  /// of the full wallets and of the watched wallets come from the same figures as the
+  /// wallets list, as two figures; the USD price is the oracle pool price of the
+  /// pricer of the app.
   Widget _computeHome() {
     return ListenableBuilder(
-      listenable: _overview,
+      listenable: Listenable.merge([_overview, tokenPricer, walletService.currentWalletId]),
       builder: (context, _) {
-        final entries = _overview.entries();
-        final total = portfolioTotal([for (final e in entries) e.balanceNano]);
         return ComputeHomeScreen(
-          walletsTotalNano: total.unknown > 0 ? null : total.totalNano,
-          hasFullWallet: entries.any((e) => e.ref.kind == WalletKind.seed),
+          key: _computeHomeKey,
+          money: WalletMoney.of(_overview.entries()),
+          usdPerErg: tokenPricer.result.ergUsd,
+          refreshPrice: () => tokenPricer.refresh(),
           onWallets: () => setState(() => _walletsLevel = true),
+          onNodes: () async {
+            await Navigator.push(context, fadeRoute(const KnownNodesScreen()));
+            await _computeHomeKey.currentState?.refresh();
+          },
           onSettings: () => Navigator.push(context, fadeRoute(const SettingsScreen())),
         );
       },

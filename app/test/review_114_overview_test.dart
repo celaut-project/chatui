@@ -46,7 +46,7 @@ void main() {
     addTearDown(() => networkController.probing = false);
     await tester.pumpWidget(
       MaterialApp(
-        home: DashboardScreen(initializeWalletService: () async {}),
+        home: DashboardScreen(initializeWalletService: () async {}, computeHome: false),
       ),
     );
     await tester.pumpAndSettle();
