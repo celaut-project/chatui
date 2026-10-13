@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../bridge/argus_error.dart';
+import '../celaut/compute_home_flag.dart';
 import '../format.dart';
 import '../l10n/l10n.dart';
 import '../services/address_label_service.dart';
@@ -12,6 +13,7 @@ import '../services/ergopay_service.dart';
 import '../services/incoming_payment_watcher.dart';
 import '../services/network_controller.dart';
 import '../services/notification_service.dart';
+import '../services/portfolio.dart';
 import '../services/privacy_service.dart';
 import '../services/public_wallet_sync.dart';
 import '../services/secure_storage.dart';
@@ -22,6 +24,7 @@ import '../services/watch_account_service.dart';
 import '../services/watch_only_service.dart';
 import '../theme/argus_theme.dart';
 import 'assets_screen.dart';
+import 'celaut/compute_home_screen.dart';
 import 'create_wallet_screen.dart';
 import 'ergopay_screen.dart';
 import 'home/erg_price_feed.dart';
@@ -153,13 +156,24 @@ class _DashboardScreenState extends State<DashboardScreen>
     watchAccountService.addListener(_onWatchedListChanged);
     _sync.addListener(_onSyncChanged);
     deepLinkController.addListener(_onDeepLink);
+    computeHomeFlag.addListener(_onComputeHomeChanged);
+    computeHomeFlag.load();
     _pollTimer = Timer.periodic(_fastPollInterval, (_) => _pollTick());
     _probeTimer = Timer.periodic(_probeInterval, (_) => _probeTick());
     _init();
   }
 
+  /// The compute home is on: the launch level shows it, and the wallets list is one level
+  /// down (`docs/celaut/ui.md`, section 2).
+  bool _walletsLevel = false;
+
+  void _onComputeHomeChanged() {
+    if (mounted) setState(() => _walletsLevel = false);
+  }
+
   @override
   void dispose() {
+    computeHomeFlag.removeListener(_onComputeHomeChanged);
     _pollTimer?.cancel();
     _probeTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
@@ -926,7 +940,17 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget build(BuildContext context) {
     if (_loading) return _splash();
     final open = _open;
-    if (open == null) return _overviewScreen();
+    if (open == null) {
+      if (!computeHomeFlag.value) return _overviewScreen();
+      if (!_walletsLevel) return _computeHome();
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) setState(() => _walletsLevel = false);
+        },
+        child: _overviewScreen(),
+      );
+    }
     if (open.kind == WalletKind.seed) return _seedPage(open.id);
     return _watchedPage(open);
   }
@@ -953,6 +977,25 @@ class _DashboardScreenState extends State<DashboardScreen>
           ],
         ),
       ),
+    );
+  }
+
+  /// The compute home, behind the developer setting. The ERG of all the wallets comes
+  /// from the same figures as the wallets list; a wallet whose balance is unknown makes
+  /// the total unknown.
+  Widget _computeHome() {
+    return ListenableBuilder(
+      listenable: _overview,
+      builder: (context, _) {
+        final entries = _overview.entries();
+        final total = portfolioTotal([for (final e in entries) e.balanceNano]);
+        return ComputeHomeScreen(
+          walletsTotalNano: total.unknown > 0 ? null : total.totalNano,
+          hasFullWallet: entries.any((e) => e.ref.kind == WalletKind.seed),
+          onWallets: () => setState(() => _walletsLevel = true),
+          onSettings: () => Navigator.push(context, fadeRoute(const SettingsScreen())),
+        );
+      },
     );
   }
 

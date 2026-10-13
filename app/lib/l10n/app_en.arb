@@ -4274,7 +4274,7 @@
       }
     }
   },
-  "celautHomeCreditNode": "{node}: {mu} MU, at {rate} MU per nanoERG = {amount}",
+  "celautHomeCreditNode": "{node}: {mu}, at {rate} per nanoERG = {amount}",
   "@celautHomeCreditNode": {
     "placeholders": {
       "node": {
@@ -4293,7 +4293,7 @@
   },
   "celautHomeInstancesTitle": "Running instances",
   "celautHomeNoInstances": "No instance runs.",
-  "celautHomeCostSoFar": "Cost so far: {mu} MU ({amount})",
+  "celautHomeCostSoFar": "Cost so far: {mu} ({amount})",
   "@celautHomeCostSoFar": {
     "placeholders": {
       "mu": {
@@ -4305,7 +4305,7 @@
     }
   },
   "celautHomeStop": "Stop",
-  "celautHomeStopped": "Stopped. Refund: {mu} MU.",
+  "celautHomeStopped": "Stopped. Refund: {mu}.",
   "@celautHomeStopped": {
     "placeholders": {
       "mu": {

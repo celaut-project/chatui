@@ -5740,7 +5740,7 @@ class AppLocalizationsEs extends AppLocalizations {
     String rate,
     String amount,
   ) {
-    return '$node: $mu MU, a $rate MU por nanoERG = $amount';
+    return '$node: $mu, a $rate por nanoERG = $amount';
   }
 
   @override
@@ -5751,7 +5751,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String celautHomeCostSoFar(String mu, String amount) {
-    return 'Costo hasta ahora: $mu MU ($amount)';
+    return 'Costo hasta ahora: $mu ($amount)';
   }
 
   @override
@@ -5759,7 +5759,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String celautHomeStopped(String mu) {
-    return 'Detenida. Reembolso: $mu MU.';
+    return 'Detenida. Reembolso: $mu.';
   }
 
   @override

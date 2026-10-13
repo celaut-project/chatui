@@ -8966,7 +8966,7 @@ abstract class AppLocalizations {
   /// No description provided for @celautHomeCreditNode.
   ///
   /// In en, this message translates to:
-  /// **'{node}: {mu} MU, at {rate} MU per nanoERG = {amount}'**
+  /// **'{node}: {mu}, at {rate} per nanoERG = {amount}'**
   String celautHomeCreditNode(
     String node,
     String mu,
@@ -8989,7 +8989,7 @@ abstract class AppLocalizations {
   /// No description provided for @celautHomeCostSoFar.
   ///
   /// In en, this message translates to:
-  /// **'Cost so far: {mu} MU ({amount})'**
+  /// **'Cost so far: {mu} ({amount})'**
   String celautHomeCostSoFar(String mu, String amount);
 
   /// No description provided for @celautHomeStop.
@@ -9001,7 +9001,7 @@ abstract class AppLocalizations {
   /// No description provided for @celautHomeStopped.
   ///
   /// In en, this message translates to:
-  /// **'Stopped. Refund: {mu} MU.'**
+  /// **'Stopped. Refund: {mu}.'**
   String celautHomeStopped(String mu);
 
   /// No description provided for @celautHomeWallets.
