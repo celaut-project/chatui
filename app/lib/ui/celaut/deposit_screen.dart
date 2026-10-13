@@ -235,6 +235,9 @@ class _DepositScreenState extends State<DepositScreen> {
     });
     if (payer == null) return;
 
+    // Without this, the node field gets the focus back after the PIN dialog, and the
+    // keyboard covers the result.
+    FocusScope.of(context).unfocus();
     // The PIN or the fingerprint of the paying wallet, also when it is open. A locked
     // wallet opens with it.
     final consent = await widget.wallets.unlock(context, payer);
