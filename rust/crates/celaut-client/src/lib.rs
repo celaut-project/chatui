@@ -90,6 +90,53 @@ pub enum ClientError {
     Deposit(#[from] DepositError),
 }
 
+/// The texts of a node that does not know the client id. nodo `dev` refuses the call in
+/// `src/gateway/client_gate.py` (`require_caller`) with the first text; older nodes
+/// raise the second one in `src/manager/manager.py`.
+const UNKNOWN_CLIENT_TEXTS: [&str; 2] = [
+    "requires a client_id minted by generateclient",
+    "does not exists",
+];
+
+impl ClientError {
+    /// True if the node refused the call because it does not know the client id: the
+    /// node forgot it, or never made it. The app must then ask the user what to do
+    /// (`docs/celaut/ui.md`, section 3); it never makes a new client by itself.
+    pub fn is_unknown_client(&self) -> bool {
+        match self {
+            ClientError::Wire(WireError::Call(text)) => {
+                let lower = text.to_ascii_lowercase();
+                lower.contains("client") && UNKNOWN_CLIENT_TEXTS.iter().any(|t| lower.contains(t))
+            }
+            _ => false,
+        }
+    }
+}
+
+#[cfg(test)]
+mod unknown_client_tests {
+    use super::*;
+
+    #[test]
+    fn the_refusal_of_an_unknown_client_is_found() {
+        let dev = ClientError::Wire(WireError::Call(
+            "status: Unknown, message: \"Exception calling application: This RPC requires \
+             a client_id minted by GenerateClient first. Wrong or missing client_id: 'x'\""
+                .into(),
+        ));
+        assert!(dev.is_unknown_client());
+        let old = ClientError::Wire(WireError::Call("Client abc does not exists.".into()));
+        assert!(old.is_unknown_client());
+        // Other refusals are not this case.
+        let other = ClientError::Wire(WireError::Call(
+            "Client abc is calling too fast and is temporarily quarantined.".into(),
+        ));
+        assert!(!other.is_unknown_client());
+        assert!(!ClientError::Wire(WireError::Timeout).is_unknown_client());
+        assert!(!ClientError::Protocol("does not exists client".into()).is_unknown_client());
+    }
+}
+
 /// The advertisement of a node, after the checks.
 #[derive(Debug, Clone, PartialEq)]
 pub struct NodeInfo {

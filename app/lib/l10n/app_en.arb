@@ -4149,9 +4149,9 @@
       }
     }
   },
-  "celautDepositLimitLabel": "Limit for this node in ERG",
+  "celautDepositLimitLabel": "Limit for this node in ERG (1 ERG at most)",
   "celautDepositSetLimit": "Set the limit",
-  "celautDepositLimitInvalid": "Enter a limit in ERG, 0 or more.",
+  "celautDepositLimitInvalid": "Enter a limit in ERG, from 0 to 1.",
   "celautDepositAmountLabel": "Amount in ERG",
   "celautDepositAmountHint": "0.001 ERG or more",
   "celautDepositAmountInvalid": "Enter an amount of 0.001 ERG or more.",
@@ -4228,8 +4228,8 @@
       }
     }
   },
-  "celautDepositPayerOpen": "This wallet is open. It signs the deposit.",
-  "celautDepositPayerLocked": "This wallet is locked. Open it from the wallets list, then come back to pay with it.",
+  "celautDepositPayerOpen": "This wallet is open. The app asks for its PIN or fingerprint before the deposit.",
+  "celautDepositPayerLocked": "This wallet is locked. The app asks for its PIN or fingerprint before the deposit, and opens it.",
   "celautDepositSaveDefault": "Save as the default payer",
   "celautDepositIsDefault": "This is the default payer.",
   "celautDepositRowPayer": "Paid by",
@@ -4253,8 +4253,8 @@
   "celautDefaultPayerRowTitle": "Default payer",
   "celautDefaultPayerRowSubtitle": "The full wallet that the deposit screen chooses first",
   "celautDefaultPayerNone": "No default",
-  "celautComputeHomeRowTitle": "Compute home (preview)",
-  "celautComputeHomeRowSubtitle": "Show the compute of your nodes first on the home screen. The wallet home stays the default.",
+  "celautComputeHomeRowTitle": "Compute home",
+  "celautComputeHomeRowSubtitle": "The home screen shows the compute of your nodes first. This is the default. Turn it off to see the wallets list first.",
   "celautHomeComputeTitle": "Offered compute",
   "celautHomeOfferedNote": "Sums of what the reachable nodes advertise: offered, not free.",
   "celautHomeNodes": "Nodes counted: {counted}. Not reachable: {unreachable}.",
@@ -4268,41 +4268,8 @@
       }
     }
   },
-  "celautHomeNoNodes": "The app has no node yet. Check a node in Settings, Developer.",
+  "celautHomeNoNodes": "The node list is empty. Add a node with Nodes.",
   "celautHomeMoneyTitle": "Money for compute",
-  "celautHomeWalletsTotal": "ERG in all wallets: {amount}",
-  "@celautHomeWalletsTotal": {
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
-  "celautHomeCredit": "Credit on nodes: {amount}",
-  "@celautHomeCredit": {
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
-  "celautHomeCreditNode": "{node}: {mu}, at {rate} per nanoERG = {amount}",
-  "@celautHomeCreditNode": {
-    "placeholders": {
-      "node": {
-        "type": "String"
-      },
-      "mu": {
-        "type": "String"
-      },
-      "rate": {
-        "type": "String"
-      },
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
   "celautHomeInstancesTitle": "Running instances",
   "celautHomeNoInstances": "No instance runs.",
   "celautHomeCostSoFar": "Cost so far: {mu} ({amount})",
@@ -4327,5 +4294,100 @@
   },
   "celautHomeWallets": "Wallets",
   "celautHomeRefresh": "Refresh",
-  "celautHomeLoading": "Asking the nodes…"
+  "celautHomeLoading": "Asking the nodes…",
+  "celautErrorClientUnknown": "The node does not know the client of this app: it forgot it. Choose a new client or retry later.",
+  "celautAtLeast": "at least {value} ({count, plural, =1{1 node unknown} other{{count} nodes unknown}})",
+  "@celautAtLeast": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "celautAtLeastWallets": "at least {value} ({count, plural, =1{1 wallet unknown} other{{count} wallets unknown}})",
+  "@celautAtLeastWallets": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "celautHomeTagline": "Compute",
+  "celautHomeFullWallets": "Full wallets · can pay",
+  "celautHomeWatched": "Watched addresses and accounts · cannot pay",
+  "celautHomePaidCredit": "Paid credit on nodes",
+  "celautHomeFreeCredit": "Free credit on nodes",
+  "celautHomeUsd": "≈ {amount}",
+  "@celautHomeUsd": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "celautHomeUsdUnknown": "USD unknown",
+  "celautHomeUsdSource": "USD from the ERG/USD oracle pool price, read on-chain. The free credit counts as spent first.",
+  "celautHomeNodeCredit": "Paid {paid} · free {free} · {rate} MU per nanoERG",
+  "@celautHomeNodeCredit": {
+    "placeholders": {
+      "paid": {
+        "type": "String"
+      },
+      "free": {
+        "type": "String"
+      },
+      "rate": {
+        "type": "String"
+      }
+    }
+  },
+  "celautHomeNodeUnreachable": "Not reachable",
+  "celautHomeNodesButton": "Nodes",
+  "celautHomeClientUnknownAction": "Choose what to do",
+  "celautOpenFullWalletNeeded": "Start and stop need an open full wallet. The app asks for the PIN or fingerprint of a full wallet first.",
+  "celautClientUnknownTitle": "The node forgot the client",
+  "celautClientUnknownBody": "The node {node} does not know the client id of this app. Make a new client now, or retry later.",
+  "@celautClientUnknownBody": {
+    "placeholders": {
+      "node": {
+        "type": "String"
+      }
+    }
+  },
+  "celautClientUnknownWarning": "A new client starts with only the free credit of the node. The balance of the old client is lost, also the ERG that you deposited to it.",
+  "celautClientUnknownNew": "New client",
+  "celautClientUnknownRetry": "Retry later",
+  "celautClientUnknownDone": "The app now uses a new client on this node.",
+  "celautNodesTitle": "Nodes",
+  "celautNodesIntro": "The node list of the app. Only these nodes are in the sums of the home screen. A removed node keeps its deposits and its client in the app, so adding it again restores them.",
+  "celautNodesAdd": "Add",
+  "celautNodesEmpty": "The node list is empty.",
+  "celautNodesRemove": "Remove",
+  "celautNodesRemoved": "The node was removed. Its deposits stay in the app.",
+  "celautNodesAdded": "The node was added.",
+  "celautNodesDeposited": "Deposits of the app: {amount}",
+  "@celautNodesDeposited": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "celautUnlockTitle": "PIN of {name}",
+  "@celautUnlockTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "celautUnlockFailed": "The wallet did not open.",
+  "celautDepositAuthNeeded": "The deposit needs the PIN or fingerprint of the paying wallet. Nothing was sent.",
+  "celautNodesRowSubtitle": "Add and remove the nodes in the sums of the home screen"
 }

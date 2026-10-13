@@ -19,6 +19,7 @@ import '../theme/theme_controller.dart';
 import 'celaut/node_connect_screen.dart';
 import 'celaut/default_payer_dialog.dart';
 import 'celaut/deposit_screen.dart';
+import 'celaut/known_nodes_screen.dart';
 import 'celaut/service_screen.dart';
 import 'home/overview_model.dart';
 import 'home/watched_actions.dart';
@@ -87,7 +88,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _open(Widget page) async {
     await Navigator.push(context, fadeRoute(page));
-    if (mounted) setState(() => _walletsFuture = walletService.listWallets());
+    if (!mounted) return;
+    // setState takes a callback that returns nothing: an arrow here would return the
+    // Future of the list, which setState refuses.
+    setState(() {
+      _walletsFuture = walletService.listWallets();
+    });
   }
 
   @override
@@ -143,6 +149,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         title: ServiceStrings.rowTitle,
                         subtitle: ServiceStrings.rowSubtitle,
                         onTap: () => _open(const ServiceScreen()),
+                      ),
+                      SettingsRow(
+                        key: const Key('settings-nodes'),
+                        icon: Icons.hub_outlined,
+                        title: context.l10n.celautNodesTitle,
+                        subtitle: context.l10n.celautNodesRowSubtitle,
+                        onTap: () => _open(const KnownNodesScreen()),
                       ),
                       SettingsRow(
                         icon: Icons.account_balance_wallet_outlined,

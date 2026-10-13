@@ -5,27 +5,37 @@ import '../../bridge/api/celaut_service.dart';
 import '../../celaut/celaut_format.dart';
 import '../../celaut/celaut_strings.dart';
 import '../../celaut/host_port.dart';
+import '../../celaut/payers.dart';
 import '../../celaut/service_strings.dart';
 import '../../celaut/tunnel_http.dart';
 import '../../format.dart';
 import '../../l10n/l10n.dart';
-import '../../services/wallet_service.dart';
 import '../../theme/argus_theme.dart';
 import '../settings/settings_shared.dart';
 import '../widgets/soft_card.dart';
+import 'client_unknown_dialog.dart';
 
 /// Debug screen of milestone M2: quote a service on several nodes, start it on one,
 /// call it through a local port, and stop it, on the balance of the client of the app
-/// on that node. Start and stop need a full wallet in the app (`docs/celaut/ui.md`):
-/// without one they are off, with the same message as the deposit screen.
+/// on that node. Start and stop need a full wallet that is open (`docs/celaut/ui.md`):
+/// without a full wallet they are off, with the same message as the deposit screen;
+/// with only locked full wallets, they first ask for the PIN or fingerprint of one.
 class ServiceScreen extends StatefulWidget {
-  const ServiceScreen({super.key, this.http, this.hasFullWallet});
+  const ServiceScreen({
+    super.key,
+    this.http,
+    this.wallets = const AppFullWallets(),
+    this.newClient,
+  });
 
   /// The HTTP client of the local ports. Tests give their own.
   final TunnelHttp? http;
 
-  /// True if the app has a full wallet. Tests give their own.
-  final Future<bool> Function()? hasFullWallet;
+  /// The full wallets of the app. Tests give their own.
+  final FullWallets wallets;
+
+  /// Make a new client on a node that forgot the client id. Tests give their own.
+  final Future<NewClientView> Function(NodeAddress node)? newClient;
 
   @override
   State<ServiceScreen> createState() => _ServiceScreenState();
@@ -55,7 +65,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
   String? _answer;
   StopView? _stopped;
   CelautError? _error;
-  bool _fullWallet = false;
+  FullWalletGate _gate = FullWalletGate.none;
   List<InstanceListView> _appInstances = const [];
   String? _stoppingId;
 
@@ -66,14 +76,29 @@ class _ServiceScreenState extends State<ServiceScreen> {
   }
 
   Future<void> _loadWallets() async {
-    final check =
-        widget.hasFullWallet ?? () async => (await walletService.listWallets()).isNotEmpty;
-    final full = await check();
+    final payers = await widget.wallets.payers();
     if (!mounted) return;
     setState(() {
-      _fullWallet = full;
+      _gate = fullWalletGate(payers);
       _appInstances = celautInstances();
     });
+  }
+
+  /// Start and stop need an open full wallet: ask to open one if they are all locked.
+  Future<bool> _walletOpen() async {
+    final open = await ensureOpenFullWallet(context, widget.wallets);
+    await _loadWallets();
+    return open;
+  }
+
+  /// The node forgot the client id: the user chooses a new client or a retry later.
+  Future<void> _clientUnknown(NodeAddress node, CelautError e) async {
+    await showClientUnknownChoice(
+      context,
+      node: node,
+      error: e.message,
+      newClient: widget.newClient,
+    );
   }
 
   /// The instances of the app that this screen does not show above.
@@ -83,6 +108,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
   ];
 
   Future<void> _stopOther(InstanceListView instance) async {
+    if (!await _walletOpen() || !mounted) return;
     setState(() {
       _stoppingId = instance.instanceId;
       _error = null;
@@ -165,6 +191,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
   }
 
   Future<void> _start(QuoteView quote) async {
+    if (!await _walletOpen() || !mounted) return;
     setState(() {
       _startingPeer = quote.peerId;
       _error = null;
@@ -186,6 +213,9 @@ class _ServiceScreenState extends State<ServiceScreen> {
       });
     } on CelautError catch (e) {
       if (mounted) setState(() => _error = e);
+      if (mounted && e.kind == CelautErrorKind.clientUnknown) {
+        await _clientUnknown(quote.address, e);
+      }
     } finally {
       if (mounted) setState(() => _startingPeer = null);
     }
@@ -231,6 +261,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
   Future<void> _stop() async {
     final instance = _instance;
     if (instance == null) return;
+    if (!await _walletOpen() || !mounted) return;
     setState(() {
       _stopping = true;
       _error = null;
@@ -264,11 +295,21 @@ class _ServiceScreenState extends State<ServiceScreen> {
       title: ServiceStrings.screenTitle,
       children: [
         const SettingsNote(ServiceStrings.intro),
-        if (!_fullWallet) ...[
+        if (_gate == FullWalletGate.none) ...[
           SoftCard(
             child: Text(
               appL10n.celautNoFullWallet,
               key: const Key('service-no-full-wallet'),
+              style: TextStyle(color: rustFor(context)),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+        if (_gate == FullWalletGate.locked) ...[
+          SoftCard(
+            child: Text(
+              appL10n.celautOpenFullWalletNeeded,
+              key: const Key('service-wallet-locked'),
               style: TextStyle(color: rustFor(context)),
             ),
           ),
@@ -381,7 +422,9 @@ class _ServiceScreenState extends State<ServiceScreen> {
               const SizedBox(height: 8),
               OutlinedButton(
                 key: Key('service-start-${q.peerId}'),
-                onPressed: !_fullWallet || _startingPeer != null || _instance != null
+                onPressed: _gate == FullWalletGate.none ||
+                        _startingPeer != null ||
+                        _instance != null
                     ? null
                     : () => _start(q),
                 child: Text(
@@ -411,6 +454,15 @@ class _ServiceScreenState extends State<ServiceScreen> {
                   CelautStrings.detailLabel(f.message),
                   style: TextStyle(fontSize: 12, color: muted),
                 ),
+                if (f.kind == CelautErrorKind.clientUnknown)
+                  TextButton(
+                    key: Key('service-client-unknown-${f.address.host}:${f.address.port}'),
+                    onPressed: () => _clientUnknown(
+                      f.address,
+                      CelautError(kind: f.kind, message: f.message),
+                    ),
+                    child: Text(appL10n.celautHomeClientUnknownAction),
+                  ),
               ],
             ),
           ),
@@ -499,7 +551,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
                 Expanded(
                   child: FilledButton(
                     key: const Key('service-stop'),
-                    onPressed: !_fullWallet || _stopping ? null : _stop,
+                    onPressed: _gate == FullWalletGate.none || _stopping ? null : _stop,
                     child: Text(_stopping ? ServiceStrings.stopping : ServiceStrings.stop),
                   ),
                 ),
@@ -528,7 +580,9 @@ class _ServiceScreenState extends State<ServiceScreen> {
               const SizedBox(height: 6),
               FilledButton(
                 key: Key('service-app-stop-${i.instanceId}'),
-                onPressed: !_fullWallet || _stoppingId != null ? null : () => _stopOther(i),
+                onPressed: _gate == FullWalletGate.none || _stoppingId != null
+                    ? null
+                    : () => _stopOther(i),
                 child: Text(
                   _stoppingId == i.instanceId ? ServiceStrings.stopping : ServiceStrings.stop,
                 ),

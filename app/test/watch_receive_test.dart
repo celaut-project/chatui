@@ -59,7 +59,7 @@ void main() {
         args: const WalletRouteArgs(senderAddress: 'other', receiveAddress: 'other', changeAddress: 'other'),
         child: child!,
       ),
-      home: DashboardScreen(initializeWalletService: () async {}),
+      home: DashboardScreen(initializeWalletService: () async {}, computeHome: false),
       routes: {'/receive': (_) => const ReceiveScreen()},
     ));
     await tester.pumpAndSettle();

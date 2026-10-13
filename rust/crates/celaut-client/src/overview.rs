@@ -22,18 +22,6 @@ pub struct Offer {
     pub disk_bytes: Option<u64>,
 }
 
-/// One value of the advertisement of a node, for each architecture entry. A node can
-/// give more than one entry (one per architecture). The overview takes the largest
-/// entry for each value, so that two entries of one machine are not added.
-fn largest<T: PartialOrd + Copy>(values: impl Iterator<Item = Option<T>>) -> Option<T> {
-    values
-        .flatten()
-        .fold(None, |best: Option<T>, v| match best {
-            Some(b) if b >= v => Some(b),
-            _ => Some(v),
-        })
-}
-
 /// The cores of one entry: `cpu_quota / cpu_period` (the period is 100000 when absent).
 fn cores(entry: &ArchitectureResources) -> Option<f64> {
     let r = entry.resources.as_ref()?;
@@ -41,22 +29,43 @@ fn cores(entry: &ArchitectureResources) -> Option<f64> {
     r.cpu_quota.map(|q| q as f64 / period as f64)
 }
 
-/// The offer of a node from its advertisement.
-pub fn offer_of(peer: &Peer) -> Offer {
-    let entries = &peer.resources;
+/// The offer of one architecture entry.
+fn entry_offer(entry: &ArchitectureResources) -> Offer {
+    let r = entry.resources.as_ref();
     Offer {
-        cpu_cores: largest(entries.iter().map(cores)),
-        mem_bytes: largest(
-            entries
-                .iter()
-                .map(|e| e.resources.as_ref().and_then(|r| r.mem_limit)),
-        ),
-        disk_bytes: largest(
-            entries
-                .iter()
-                .map(|e| e.resources.as_ref().and_then(|r| r.disk_space)),
-        ),
+        cpu_cores: cores(entry),
+        mem_bytes: r.and_then(|r| r.mem_limit),
+        disk_bytes: r.and_then(|r| r.disk_space),
     }
+}
+
+/// The order of two entries: more cores first, then more memory, then more disk. A
+/// known value is larger than an unknown value.
+fn larger(a: &Offer, b: &Offer) -> std::cmp::Ordering {
+    fn known<T: PartialOrd>(a: Option<T>, b: Option<T>) -> std::cmp::Ordering {
+        use std::cmp::Ordering::*;
+        match (a, b) {
+            (Some(a), Some(b)) => a.partial_cmp(&b).unwrap_or(Equal),
+            (Some(_), None) => Greater,
+            (None, Some(_)) => Less,
+            (None, None) => Equal,
+        }
+    }
+    known(a.cpu_cores, b.cpu_cores)
+        .then(known(a.mem_bytes, b.mem_bytes))
+        .then(known(a.disk_bytes, b.disk_bytes))
+}
+
+/// The offer of a node from its advertisement. A node can give more than one entry (one
+/// per architecture). The node counts with its **largest** entry (`docs/celaut/ui.md`,
+/// section 2), not with the sum of the entries and not with values from different
+/// entries: the entries describe one machine. With two equal entries, the first counts.
+pub fn offer_of(peer: &Peer) -> Offer {
+    peer.resources
+        .iter()
+        .map(entry_offer)
+        .reduce(|best, o| if larger(&o, &best).is_gt() { o } else { best })
+        .unwrap_or_default()
 }
 
 /// A sum where some parts can be unknown.
@@ -73,6 +82,31 @@ impl<T: Copy> Total<T> {
     pub fn value(&self, parts: u32) -> Option<T> {
         (self.unknown == 0 && parts > 0).then_some(self.known)
     }
+
+    /// How the screen shows the sum (`docs/celaut/ui.md`, section 2).
+    pub fn shown(&self, parts: u32) -> Shown<T> {
+        if parts == 0 || self.unknown >= parts {
+            Shown::Unknown
+        } else if self.unknown == 0 {
+            Shown::Exact(self.known)
+        } else {
+            Shown::AtLeast {
+                known: self.known,
+                unknown: self.unknown,
+            }
+        }
+    }
+}
+
+/// How a sum is shown.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Shown<T> {
+    /// All the parts are known: the sum.
+    Exact(T),
+    /// Some parts are unknown: "at least `known` (`unknown` nodes unknown)".
+    AtLeast { known: T, unknown: u32 },
+    /// No part is known, or there is no part: "unknown", never 0.
+    Unknown,
 }
 
 /// The compute that the reachable nodes offer.
@@ -116,6 +150,26 @@ pub fn offered<'a>(offers: impl IntoIterator<Item = (&'a str, Offer)>) -> Offere
 pub fn nano_erg_of(mu: u128, mu_per_nano_erg: Option<u128>) -> Option<u128> {
     let rate = mu_per_nano_erg.filter(|r| *r > 0)?;
     Some(mu / rate)
+}
+
+/// The balance of a client on a node, in two parts: what the user paid and the free
+/// credit (`docs/celaut/ui.md`, section 2).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct CreditParts {
+    pub paid_mu: u128,
+    pub free_mu: u128,
+}
+
+/// Split the balance of a client. The node keeps one balance, so the app counts the
+/// free credit as spent first: the paid part is the smaller of the balance and the MU
+/// that the node accepted from deposits, and the rest is free credit. `None` if the
+/// paid MU is not known.
+pub fn split_credit(balance_mu: u128, paid_mu: Option<u128>) -> Option<CreditParts> {
+    let paid = balance_mu.min(paid_mu?);
+    Some(CreditParts {
+        paid_mu: paid,
+        free_mu: balance_mu - paid,
+    })
 }
 
 /// The credit of the app on the nodes in nanoERG, from the credit of each node
@@ -191,19 +245,120 @@ mod tests {
     }
 
     #[test]
-    fn the_offer_of_a_node_takes_the_largest_entry() {
+    fn the_offer_of_a_node_is_its_largest_entry_not_the_sum() {
         let peer = Peer {
             resources: vec![
-                entry(Some(200_000), Some(1 << 30), None),
+                entry(Some(200_000), Some(1 << 30), Some(9)),
                 entry(Some(400_000), Some(1 << 20), None),
             ],
             ..Default::default()
         };
+        // The entry with more cores counts, with its own memory and disk. The values
+        // of the two entries are not added and not mixed.
         let o = offer_of(&peer);
         assert_eq!(o.cpu_cores, Some(4.0));
-        assert_eq!(o.mem_bytes, Some(1 << 30));
+        assert_eq!(o.mem_bytes, Some(1 << 20));
         assert_eq!(o.disk_bytes, None);
         assert_eq!(offer_of(&Peer::default()), Offer::default());
+
+        // Equal cores: more memory counts.
+        let tie = Peer {
+            resources: vec![
+                entry(Some(200_000), Some(1), Some(5)),
+                entry(Some(200_000), Some(2), Some(1)),
+            ],
+            ..Default::default()
+        };
+        assert_eq!(offer_of(&tie), offer(Some(2.0), Some(2), Some(1)));
+
+        // A known value is larger than an unknown one.
+        let partial = Peer {
+            resources: vec![
+                entry(None, Some(8), Some(8)),
+                entry(Some(100_000), None, None),
+            ],
+            ..Default::default()
+        };
+        assert_eq!(offer_of(&partial), offer(Some(1.0), None, None));
+
+        // Two nodes with two entries each: the sum is over the largest entries.
+        let a = offer_of(&peer);
+        let b = offer_of(&tie);
+        let total = offered([("a", a), ("b", b)]);
+        assert_eq!(total.cpu_cores.shown(total.nodes), Shown::Exact(6.0));
+        assert_eq!(
+            total.mem_bytes.shown(total.nodes),
+            Shown::Exact((1 << 20) + 2)
+        );
+    }
+
+    #[test]
+    fn a_partial_sum_is_at_least_the_known_part() {
+        let total = offered([
+            ("a", offer(Some(2.0), Some(4), None)),
+            ("b", offer(None, Some(8), None)),
+            ("c", offer(Some(1.0), None, None)),
+        ]);
+        assert_eq!(
+            total.cpu_cores.shown(total.nodes),
+            Shown::AtLeast {
+                known: 3.0,
+                unknown: 1
+            }
+        );
+        assert_eq!(
+            total.mem_bytes.shown(total.nodes),
+            Shown::AtLeast {
+                known: 12,
+                unknown: 1
+            }
+        );
+        // No node gives the disk: unknown, not "at least 0".
+        assert_eq!(total.disk_bytes.shown(total.nodes), Shown::Unknown);
+        // No node at all: unknown, not 0.
+        let none = offered(std::iter::empty());
+        assert_eq!(none.cpu_cores.shown(none.nodes), Shown::Unknown);
+        // All known: the exact sum.
+        let all = offered([("a", offer(Some(1.0), Some(1), Some(1)))]);
+        assert_eq!(all.disk_bytes.shown(all.nodes), Shown::Exact(1));
+    }
+
+    #[test]
+    fn the_free_credit_is_apart_from_the_paid_credit() {
+        // 4.5M MU free and 10M MU paid, nothing spent.
+        assert_eq!(
+            split_credit(14_500_000, Some(10_000_000)),
+            Some(CreditParts {
+                paid_mu: 10_000_000,
+                free_mu: 4_500_000
+            })
+        );
+        // 1M MU spent: it comes from the free credit first.
+        assert_eq!(
+            split_credit(13_500_000, Some(10_000_000)),
+            Some(CreditParts {
+                paid_mu: 10_000_000,
+                free_mu: 3_500_000
+            })
+        );
+        // More spent than the free credit: the rest comes from the paid credit.
+        assert_eq!(
+            split_credit(2_000_000, Some(10_000_000)),
+            Some(CreditParts {
+                paid_mu: 2_000_000,
+                free_mu: 0
+            })
+        );
+        // Nothing paid: all free.
+        assert_eq!(
+            split_credit(4_500_000, Some(0)),
+            Some(CreditParts {
+                paid_mu: 0,
+                free_mu: 4_500_000
+            })
+        );
+        // The paid MU is not known: no split.
+        assert_eq!(split_credit(4_500_000, None), None);
     }
 
     #[test]

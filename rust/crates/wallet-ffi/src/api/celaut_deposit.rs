@@ -15,8 +15,13 @@
 //! wallet can pay (`docs/celaut/ui.md`). The database does not record which wallet paid;
 //! the history of that wallet has the transaction.
 //!
-//! The limit of a node counts every deposit that was prepared, sent or not, until the
-//! user cancels it before the send.
+//! The limit of a node is 1 ERG (`docs/celaut/ui.md`, section 3). It counts every
+//! deposit of the app to that node, from any wallet and for any client id, that was
+//! prepared, sent or not, until the user cancels it before the send. It is in the
+//! database, so a restart keeps it. The user can set a lower limit, not a higher one.
+//!
+//! The explorer is fixed to the default of nodo (`NODO_DEFAULT_EXPLORER`). A node does
+//! not advertise an explorer, and the app does not take one from the node.
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -35,8 +40,9 @@ use super::celaut::{error_of, invalid, CelautError, CelautErrorKind};
 use super::celaut_db::{db, now_seconds, storage_error};
 use super::celaut_service::{address_of_key, forget_if_broken, key, session, NodeAddress};
 
-/// The limit of a node until the user changes it: 0.05 ERG.
-pub const DEFAULT_LIMIT_NANO_ERG: u64 = 50_000_000;
+/// The limit of the deposits of the app to one node: 1 ERG. It is the default and the
+/// largest limit.
+pub const LIMIT_NANO_ERG: u64 = 1_000_000_000;
 
 /// How long a node keeps a deposit token pending (`DEPOSIT_TOKEN_TTL` of nodo).
 pub const DEPOSIT_TOKEN_SECONDS: u32 = 3600;
@@ -64,12 +70,12 @@ fn forget_preparation(deposit_id: &str) {
     }
 }
 
-/// The limit of the node `peer_id`, in nanoERG.
+/// The limit of the node `peer_id`, in nanoERG: 1 ERG, or a lower limit of the user.
 fn limit(data: &CelautData, peer_id: &str) -> u64 {
     data.nodes
         .get(peer_id)
         .and_then(|n| n.deposit_limit_nano_erg)
-        .unwrap_or(DEFAULT_LIMIT_NANO_ERG)
+        .map_or(LIMIT_NANO_ERG, |l| l.min(LIMIT_NANO_ERG))
 }
 
 /// Count `record` against the limit of its node and keep it, or refuse it.
@@ -166,13 +172,17 @@ pub async fn celaut_deposit_node(node: NodeAddress) -> Result<DepositNodeView, C
     })
 }
 
-/// Set the limit of the deposits to the node `peer_id`, in nanoERG. 0 stops the deposits
-/// to that node. The node must be in the database (check it first).
+/// Set a lower limit of the deposits to the node `peer_id`, in nanoERG. 0 stops the
+/// deposits to that node. The limit cannot be more than 1 ERG. The node must be in the
+/// database (check it first).
 #[flutter_rust_bridge::frb]
 pub fn celaut_set_deposit_limit(peer_id: String, limit_nano_erg: u64) -> Result<(), CelautError> {
     let peer_id = peer_id.trim().to_ascii_lowercase();
     if peer_id.len() != 64 || !peer_id.bytes().all(|b| b.is_ascii_hexdigit()) {
         return Err(invalid("The node id must be 64 hexadecimal characters."));
+    }
+    if limit_nano_erg > LIMIT_NANO_ERG {
+        return Err(invalid("The limit of a node cannot be more than 1 ERG."));
     }
     db().update(|d| match d.nodes.get_mut(&peer_id) {
         Some(node) => {
@@ -556,17 +566,17 @@ fn keep_broadcast_tx_id(deposit_id: &str, tx_id: &str) -> Result<(), CelautError
 }
 
 /// After `send_erg` gave `tx_id`: wait until the explorer shows the deposit box unspent
-/// (the mempool is enough), then call `Payable` once.
+/// (the mempool is enough), then call `Payable` once. If the node accepts the payment,
+/// the MU of the deposit go to the paid credit of the node in the database.
 ///
-/// `explorer_url` is the explorer of the node; empty means the default of nodo
-/// (`https://api.ergoplatform.com`). If the box does not come in 10 minutes, the answer
-/// is a `Timeout` and nothing was sent to the node: call this again later, before the
-/// deposit token expires.
+/// The explorer is the default of nodo (`https://api.ergoplatform.com`), as on the node:
+/// it is fixed, and the node does not advertise one. If the box does not come in 10
+/// minutes, the answer is a `Timeout` and nothing was sent to the node: call this again
+/// later, before the deposit token expires.
 #[flutter_rust_bridge::frb]
 pub async fn celaut_deposit_notify(
     deposit_id: String,
     tx_id: String,
-    explorer_url: Option<String>,
 ) -> Result<DepositDoneView, CelautError> {
     let tx_id = tx_id.trim().to_ascii_lowercase();
     if tx_id.len() != 64 || !tx_id.bytes().all(|b| b.is_ascii_hexdigit()) {
@@ -601,11 +611,7 @@ pub async fn celaut_deposit_notify(
     let token = record.deposit_token.clone();
     let nano_erg = record.nano_erg;
 
-    let explorer = explorer_url
-        .map(|u| u.trim().to_string())
-        .filter(|u| !u.is_empty())
-        .unwrap_or_else(|| NODO_DEFAULT_EXPLORER.to_string());
-    let url = unspent_boxes_url(&explorer, &record.pay_to_address);
+    let url = unspent_boxes_url(NODO_DEFAULT_EXPLORER, &record.pay_to_address);
     let Some(found) = wait_for_box(|| fetch_boxes(&url), &token, WAIT_INTERVAL, WAIT_LIMIT).await
     else {
         return Err(CelautError {
@@ -679,6 +685,11 @@ pub async fn celaut_deposit_notify(
                 accepted,
             };
         }
+        if accepted {
+            if let (Some(node), Ok(mu)) = (d.nodes.get_mut(&record.peer_id), record.mu.parse()) {
+                node.add_paid(mu);
+            }
+        }
         d.add_event(EventRecord {
             peer_id: record.peer_id.clone(),
             kind: if accepted {
@@ -731,14 +742,14 @@ mod tests {
     #[test]
     fn the_limit_counts_every_prepared_deposit() {
         let mut d = CelautData::default();
-        assert_eq!(limit(&d, PEER), DEFAULT_LIMIT_NANO_ERG);
-        reserve(&mut d, "a", record(PEER, 30_000_000)).unwrap();
-        reserve(&mut d, "b", record(PEER, 20_000_000)).unwrap();
+        assert_eq!(limit(&d, PEER), 1_000_000_000);
+        reserve(&mut d, "a", record(PEER, 600_000_000)).unwrap();
+        reserve(&mut d, "b", record(PEER, 400_000_000)).unwrap();
         let err = reserve(&mut d, "c", record(PEER, 1)).unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::LimitReached);
-        assert_eq!(d.deposited_nano_erg(PEER), 50_000_000);
+        assert_eq!(d.deposited_nano_erg(PEER), 1_000_000_000);
         d.deposits.remove("b");
-        reserve(&mut d, "b", record(PEER, 20_000_000)).unwrap();
+        reserve(&mut d, "b", record(PEER, 400_000_000)).unwrap();
         d.nodes.insert(
             PEER.into(),
             celaut_client::db::NodeRecord {
@@ -781,6 +792,62 @@ mod tests {
         .unwrap();
         celaut_set_deposit_limit(peer.to_uppercase(), 7).unwrap();
         assert_eq!(db().read(|d| limit(d, &peer)), 7);
+        // Not more than 1 ERG.
+        let err = celaut_set_deposit_limit(peer.clone(), LIMIT_NANO_ERG + 1).unwrap_err();
+        assert_eq!(err.kind, CelautErrorKind::InvalidInput);
+        celaut_set_deposit_limit(peer.clone(), LIMIT_NANO_ERG).unwrap();
+        assert_eq!(db().read(|d| limit(d, &peer)), LIMIT_NANO_ERG);
+        // A higher limit in a database of an earlier version counts as 1 ERG.
+        db().update(|d| d.nodes.get_mut(&peer).unwrap().deposit_limit_nano_erg = Some(u64::MAX))
+            .unwrap();
+        assert_eq!(db().read(|d| limit(d, &peer)), LIMIT_NANO_ERG);
+    }
+
+    #[test]
+    fn the_limit_counts_the_deposits_of_every_wallet_after_a_restart() {
+        let dir = std::env::temp_dir().join(format!(
+            "celaut-limit-{}",
+            &super::super::celaut_db::celaut_new_database_key().unwrap()[..16]
+        ));
+        let path = dir.join("celaut.db");
+        let key = [9u8; 32];
+        {
+            let db = celaut_client::CelautDb::open(&path, &key).unwrap();
+            // Wallet A pays 0.7 ERG, then wallet B pays 0.2 ERG. The database records no
+            // wallet: both count for the node. One deposit was refused by the node, one
+            // was for a client id that the node forgot: they count too.
+            db.update(|d| {
+                let mut a = record(PEER, 700_000_000);
+                a.stage = DepositStage::PayableCalled {
+                    tx_id: "a".into(),
+                    accepted: true,
+                };
+                let mut b = record(PEER, 200_000_000);
+                b.stage = DepositStage::Sent { tx_id: "b".into() };
+                let mut refused = record(PEER, 50_000_000);
+                refused.stage = DepositStage::PayableCalled {
+                    tx_id: "c".into(),
+                    accepted: false,
+                };
+                reserve(d, "wallet-a", a).unwrap();
+                reserve(d, "wallet-b", b).unwrap();
+                reserve(d, "refused", refused).unwrap();
+            })
+            .unwrap();
+        }
+        // The restart: a new open of the same file.
+        let db = celaut_client::CelautDb::open(&path, &key).unwrap();
+        db.update(|d| {
+            assert_eq!(d.deposited_nano_erg(PEER), 950_000_000);
+            assert_eq!(
+                reserve(d, "more", record(PEER, 60_000_000))
+                    .unwrap_err()
+                    .kind,
+                CelautErrorKind::LimitReached
+            );
+            reserve(d, "last", record(PEER, 50_000_000)).unwrap();
+        })
+        .unwrap();
     }
 
     #[test]
@@ -854,11 +921,11 @@ mod tests {
             .unwrap_err();
             assert_eq!(err.kind, CelautErrorKind::InvalidInput, "{amount}");
         }
-        let err = celaut_deposit_notify("nope".into(), "ab".repeat(32), None)
+        let err = celaut_deposit_notify("nope".into(), "ab".repeat(32))
             .await
             .unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);
-        let err = celaut_deposit_notify("nope".into(), "tx".into(), None)
+        let err = celaut_deposit_notify("nope".into(), "tx".into())
             .await
             .unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);

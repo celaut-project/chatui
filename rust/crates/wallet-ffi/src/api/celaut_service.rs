@@ -114,6 +114,10 @@ fn service_id(text: &str) -> Result<[u8; 32], CelautError> {
 /// with a new client (which gets the free credit of the node) that goes into the
 /// database. The client id is in the database before the session is used, so that a
 /// deposit to it is never lost.
+///
+/// If the node does not know the stored client id, the answer is a
+/// [`CelautErrorKind::ClientUnknown`] error, and nothing changes: the user chooses
+/// between [`celaut_new_client`] and a retry later (`docs/celaut/ui.md`, section 3).
 pub(crate) async fn open_session(
     connection: Connection,
     address_key: &str,
@@ -122,28 +126,96 @@ pub(crate) async fn open_session(
     let db = db();
     let peer_id = connection.peer_id().to_string();
     let stored = db.read(|d| d.nodes.get(&peer_id).map(|n| n.client_id.clone()));
-    let session = match stored {
+    let session = match stored.filter(|c| !c.is_empty()) {
         Some(client_id) => NodeSession::resume(connection, &peer_id, client_id, &*db)
             .await
             .map_err(error_of)?,
-        None => {
-            let session = NodeSession::open(connection, &peer_id, &*db)
-                .await
-                .map_err(error_of)?;
-            let client_id = session.client_id().to_string();
-            db.update(|d| {
-                d.nodes.entry(peer_id.clone()).or_insert(NodeRecord {
-                    client_id,
-                    ..Default::default()
-                });
-            })
-            .map_err(storage_error)?;
-            session
-        }
+        None => new_client_session(connection, &peer_id).await?,
     };
     db.update(|d| d.note_address(&peer_id, address_key))
         .map_err(storage_error)?;
     Ok(session)
+}
+
+/// A new client on the node (`GenerateClient`), kept in the database at once. An old
+/// client id of the node goes to its earlier ids. Then the balance of the new client is
+/// read: it is the free credit of the node.
+async fn new_client_session(
+    connection: Connection,
+    peer_id: &str,
+) -> Result<NodeSession<Connection>, CelautError> {
+    let db = db();
+    let session = NodeSession::open(connection, peer_id, &*db)
+        .await
+        .map_err(error_of)?;
+    let client_id = session.client_id().to_string();
+    let keep = |free: Option<u128>| {
+        db.update(|d| match d.nodes.get_mut(peer_id) {
+            Some(node) if node.client_id == client_id => {
+                node.free_credit_mu = free.map(|f| f.to_string());
+            }
+            Some(node) => node.replace_client(client_id.clone(), free),
+            None => {
+                d.nodes.insert(
+                    peer_id.to_string(),
+                    NodeRecord::new_client(client_id.clone(), free),
+                );
+            }
+        })
+        .map_err(storage_error)
+    };
+    keep(None)?;
+    if let Ok(free) = session.balance().await {
+        keep(Some(free))?;
+    }
+    Ok(session)
+}
+
+/// The client of the app on a node after [`celaut_new_client`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NewClientView {
+    pub peer_id: String,
+    /// The free credit of the new client, in MU of the node. `None` is unknown.
+    pub free_credit_mu: Option<String>,
+    /// How many client ids of this node the app used before. Their balance is lost for
+    /// the app.
+    pub earlier_clients: u32,
+}
+
+/// Make a new client on the node, after the node forgot the stored client id and the
+/// user chose "New client". The balance of the old client is lost for the app. The
+/// deposits of the node and its limit stay in the database.
+#[flutter_rust_bridge::frb]
+pub async fn celaut_new_client(node: NodeAddress) -> Result<NewClientView, CelautError> {
+    check(&node)?;
+    let key = key(&node);
+    let connection = Connection::connect(node.host.trim(), node.port, ConnectOptions::default())
+        .await
+        .map_err(|e| error_of(e.into()))?;
+    let session = {
+        let _one = OPENING.lock().await;
+        let peer_id = connection.peer_id().to_string();
+        new_client_session(connection, &peer_id).await?
+    };
+    let peer_id = session.peer_id().to_string();
+    db().update(|d| d.note_address(&peer_id, &key))
+        .map_err(storage_error)?;
+    {
+        // A connection at another address of this node still has the old client id.
+        let mut s = state()?;
+        s.sessions.retain(|_, open| open.peer_id() != peer_id);
+        s.sessions.insert(key, Arc::new(session));
+    }
+    Ok(db().read(|d| {
+        let node = d.nodes.get(&peer_id);
+        NewClientView {
+            peer_id: peer_id.clone(),
+            free_credit_mu: node.and_then(|n| n.free_credit_mu.clone()),
+            earlier_clients: node
+                .map(|n| u32::try_from(n.earlier_client_ids.len()).unwrap_or(u32::MAX))
+                .unwrap_or(0),
+        }
+    }))
 }
 
 /// The session of `address`: the open one, or a new connection with the client id of

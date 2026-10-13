@@ -5,6 +5,7 @@ import 'package:argus_wallet/bridge/frb_generated.dart';
 import 'package:argus_wallet/celaut/deposit_strings.dart';
 import 'package:argus_wallet/celaut/payers.dart';
 import 'package:argus_wallet/format.dart';
+import 'package:argus_wallet/l10n/l10n.dart';
 import 'package:argus_wallet/theme/argus_theme.dart';
 import 'package:argus_wallet/ui/celaut/deposit_confirm.dart';
 import 'package:argus_wallet/ui/celaut/deposit_screen.dart';
@@ -45,6 +46,9 @@ class DepositApi extends RustLibApi {
   var sent = <DepositSentView>[];
   String balance = '4500000';
 
+  /// Errors for the next node checks, the first first.
+  final nodeErrors = <CelautError>[];
+
   @override
   Future<String> crateApiCelautDepositCelautDepositSending({required String depositId}) async {
     sending.add(depositId);
@@ -59,12 +63,13 @@ class DepositApi extends RustLibApi {
     required NodeAddress node,
   }) async {
     nodeCalls.add(node);
+    if (nodeErrors.isNotEmpty) throw nodeErrors.removeAt(0);
     return DepositNodeView(
       peerId: _peer,
       payToAddress: _address,
       muPerNanoErg: '1',
       clientBalanceMu: balance,
-      limitNanoErg: limits.isEmpty ? BigInt.from(50000000) : limits.last.limit,
+      limitNanoErg: limits.isEmpty ? BigInt.from(1000000000) : limits.last.limit,
       depositedNanoErg: BigInt.zero,
     );
   }
@@ -83,7 +88,6 @@ class DepositApi extends RustLibApi {
   Future<DepositDoneView> crateApiCelautDepositCelautDepositNotify({
     required String depositId,
     required String txId,
-    String? explorerUrl,
   }) async {
     notifies.add((deposit: depositId, tx: txId));
     final a = notifyAnswers.removeAt(0);
@@ -103,6 +107,27 @@ class FakeWallets implements DepositWallets {
 
   List<PayerWallet> list;
   String? saved;
+
+  /// True if the user gives the PIN or the fingerprint when the screen asks.
+  bool consent = true;
+  final unlocks = <String>[];
+
+  @override
+  Future<bool> unlock(BuildContext context, PayerWallet wallet) async {
+    unlocks.add(wallet.walletId);
+    if (!consent) return false;
+    // The chosen wallet is now the open one; the other full wallets are locked.
+    list = [
+      for (final p in list)
+        PayerWallet(
+          walletId: p.walletId,
+          name: p.name,
+          balanceNano: p.balanceNano,
+          open: p.walletId == wallet.walletId,
+        ),
+    ];
+    return true;
+  }
   final prepares = <({String payer, NodeAddress node, int amount})>[];
   final sends = <int>[];
 
@@ -243,6 +268,8 @@ void main() {
       await tester.tap(find.text(DepositStrings.confirmLabel));
       await tester.pumpAndSettle();
       expect(wallet.prepares.single.payer, 'w1');
+      // The PIN or fingerprint of the paying wallet was asked, though it was open.
+      expect(wallet.unlocks, ['w1']);
       // The deposit is "sent" in the database before the send.
       expect(api.sending.single, 'dep-1');
       expect(wallet.sends.single, 42);
@@ -290,7 +317,7 @@ void main() {
       expect(find.byKey(const Key('deposit-wait-again')), findsNothing);
     });
 
-    testWidgets('bad amounts and a locked payer prepare nothing', (tester) async {
+    testWidgets('bad amounts, and no PIN or fingerprint, prepare nothing', (tester) async {
       await pump(tester);
       await check(tester);
       for (final bad in ['', '0.0005', 'lots']) {
@@ -299,15 +326,77 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text(DepositStrings.amountInvalid), findsOneWidget, reason: bad);
       }
+      expect(wallet.unlocks, isEmpty);
       await tester.enterText(find.byKey(const Key('deposit-amount')), '0.01');
       await tester.tap(find.byKey(const Key('deposit-payer')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Spare').last);
       await tester.pumpAndSettle();
+      wallet.consent = false;
       await tester.tap(find.byKey(const Key('deposit-prepare')));
       await tester.pumpAndSettle();
-      expect(find.text(DepositStrings.payerLocked), findsWidgets);
+      expect(wallet.unlocks, ['w2']);
+      expect(find.text(appL10n.celautDepositAuthNeeded), findsOneWidget);
       expect(wallet.prepares, isEmpty);
+    });
+
+    testWidgets('a locked payer opens with its PIN or fingerprint, then pays', (tester) async {
+      await pump(tester);
+      await check(tester);
+      await tester.tap(find.byKey(const Key('deposit-payer')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Spare').last);
+      await tester.pumpAndSettle();
+      expect(find.text(DepositStrings.payerLocked), findsOneWidget);
+      await tester.tap(find.byKey(const Key('deposit-prepare')));
+      await tester.pumpAndSettle();
+      expect(wallet.unlocks, ['w2']);
+      expect(wallet.prepares.single.payer, 'w2');
+      // The confirmation is up; cancel it: nothing is sent.
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(wallet.sends, isEmpty);
+      expect(api.cancels.single, 'dep-1');
+    });
+
+    testWidgets('a node that forgot the client: the user chooses', (tester) async {
+      final made = <String>[];
+      tester.view.physicalSize = const Size(390, 4000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      wallet = FakeWallets();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DepositScreen(
+            wallets: wallet,
+            newClient: (node) async {
+              made.add('${node.host}:${node.port}');
+              return NewClientView(peerId: _peer, earlierClients: 1);
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      const forgot = CelautError(
+        kind: CelautErrorKind.clientUnknown,
+        message: 'This RPC requires a client_id minted by GenerateClient first.',
+      );
+      // "Retry later": nothing changes.
+      api.nodeErrors.add(forgot);
+      await check(tester);
+      expect(find.byKey(const Key('client-unknown-dialog')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('client-unknown-retry')));
+      await tester.pumpAndSettle();
+      expect(made, isEmpty);
+      expect(api.nodeCalls.length, 1);
+      // "New client": the app makes it, then checks the node again.
+      api.nodeErrors.add(forgot);
+      await check(tester);
+      await tester.tap(find.byKey(const Key('client-unknown-new')));
+      await tester.pumpAndSettle();
+      expect(made, ['127.0.0.1:18460']);
+      expect(api.nodeCalls.length, 3);
+      expect(find.text(DepositStrings.payTo(_address)), findsOneWidget);
     });
 
     testWidgets('with no full wallet the screen says so and does not start', (tester) async {
@@ -380,11 +469,18 @@ void main() {
       expect(api.nodeCalls.length, 2);
       expect(find.text(DepositStrings.used(formatErg(0), formatErg(20000000))), findsOneWidget);
 
-      await tester.enterText(find.byKey(const Key('deposit-limit')), 'x');
+      for (final bad in ['x', '1.5', '-1']) {
+        await tester.enterText(find.byKey(const Key('deposit-limit')), bad);
+        await tester.tap(find.byKey(const Key('deposit-set-limit')));
+        await tester.pumpAndSettle();
+        expect(find.text(DepositStrings.limitInvalid), findsOneWidget, reason: bad);
+      }
+      expect(api.limits.length, 1);
+      // 1 ERG is the largest limit.
+      await tester.enterText(find.byKey(const Key('deposit-limit')), '1');
       await tester.tap(find.byKey(const Key('deposit-set-limit')));
       await tester.pumpAndSettle();
-      expect(find.text(DepositStrings.limitInvalid), findsOneWidget);
-      expect(api.limits.length, 1);
+      expect(api.limits.last.limit, BigInt.from(1000000000));
     });
 
     testWidgets('the buttons after the check have semantics labels', (tester) async {

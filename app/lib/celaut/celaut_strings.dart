@@ -62,6 +62,7 @@ class CelautStrings {
         CelautErrorKind.storage => appL10n.celautErrorStorage,
         CelautErrorKind.limitReached => appL10n.celautErrorLimitReached,
         CelautErrorKind.wallet => appL10n.celautErrorWallet,
+        CelautErrorKind.clientUnknown => appL10n.celautErrorClientUnknown,
       };
 
   static String detailLabel(String detail) => appL10n.celautDetailLabel(detail);

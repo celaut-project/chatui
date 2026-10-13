@@ -26,8 +26,10 @@ node, the transaction with the token in R4, the box on the explorer of the node,
 - Path B (the Rust test, no app): total out of the paying wallet 0.0111 ERG. Cost in
   fees: 0.0011 ERG. 0.01 ERG moves to the node wallet.
 
-The limit of a node in the app is 0.05 ERG by default. The Rust test refuses more than
-that.
+The limit of a node in the app is 1 ERG, for all the deposits of the app to that node.
+The Rust test has its own cap of 0.05 ERG and refuses more than that. The explorer is
+always the default of nodo (`https://api.ergoplatform.com`); the test has no setting
+for it.
 
 ## The node
 

@@ -213,6 +213,7 @@ Future<void> pumpHome(
   PaletteSpec? palette,
   Map<String, WidgetBuilder> routes = const {},
   TransitionBuilder? builder,
+  bool computeHome = false,
 }) async {
   networkController.probing = true;
   addTearDown(() => networkController.probing = false);
@@ -242,7 +243,9 @@ Future<void> pumpHome(
           );
           return builder == null ? scaled : builder(context, scaled);
         },
-        home: DashboardScreen(initializeWalletService: () async {}),
+        // The wallets list, which these tests are about; the compute home is the default
+        // of the app and has its own tests.
+        home: DashboardScreen(initializeWalletService: () async {}, computeHome: computeHome),
         routes: {
           '/receive': (_) => const ReceiveScreen(),
           ...routes,

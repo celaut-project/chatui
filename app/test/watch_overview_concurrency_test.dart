@@ -56,7 +56,7 @@ void main() {
     // address and scans the account, which has no snapshot yet.
     await tester.pumpWidget(
       MaterialApp(
-        home: DashboardScreen(initializeWalletService: () async {}),
+        home: DashboardScreen(initializeWalletService: () async {}, computeHome: false),
       ),
     );
     for (var i = 0; i < 10; i++) {

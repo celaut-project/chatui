@@ -103,6 +103,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   KeyValueView dco_decode_key_value_view(dynamic raw);
 
   @protected
+  KnownNodeView dco_decode_known_node_view(dynamic raw);
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
@@ -113,6 +116,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<KeyValueView> dco_decode_list_key_value_view(dynamic raw);
+
+  @protected
+  List<KnownNodeView> dco_decode_list_known_node_view(dynamic raw);
 
   @protected
   List<NodeAddress> dco_decode_list_node_address(dynamic raw);
@@ -149,6 +155,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NanoErgTotalView dco_decode_nano_erg_total_view(dynamic raw);
+
+  @protected
+  NewClientView dco_decode_new_client_view(dynamic raw);
 
   @protected
   NodeAddress dco_decode_node_address(dynamic raw);
@@ -300,6 +309,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   KeyValueView sse_decode_key_value_view(SseDeserializer deserializer);
 
   @protected
+  KnownNodeView sse_decode_known_node_view(SseDeserializer deserializer);
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
@@ -314,6 +326,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<KeyValueView> sse_decode_list_key_value_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<KnownNodeView> sse_decode_list_known_node_view(
     SseDeserializer deserializer,
   );
 
@@ -362,6 +379,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NanoErgTotalView sse_decode_nano_erg_total_view(SseDeserializer deserializer);
+
+  @protected
+  NewClientView sse_decode_new_client_view(SseDeserializer deserializer);
 
   @protected
   NodeAddress sse_decode_node_address(SseDeserializer deserializer);
@@ -550,6 +570,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_key_value_view(KeyValueView self, SseSerializer serializer);
 
   @protected
+  void sse_encode_known_node_view(KnownNodeView self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
@@ -567,6 +590,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_key_value_view(
     List<KeyValueView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_known_node_view(
+    List<KnownNodeView> self,
     SseSerializer serializer,
   );
 
@@ -638,6 +667,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     NanoErgTotalView self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_new_client_view(NewClientView self, SseSerializer serializer);
 
   @protected
   void sse_encode_node_address(NodeAddress self, SseSerializer serializer);

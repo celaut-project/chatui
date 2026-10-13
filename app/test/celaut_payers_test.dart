@@ -1,5 +1,8 @@
 import 'package:argus_wallet/celaut/deposit_strings.dart';
 import 'package:argus_wallet/celaut/payers.dart';
+import 'package:argus_wallet/celaut/wallet_money.dart';
+import 'package:argus_wallet/format.dart';
+import 'package:argus_wallet/l10n/l10n.dart';
 import 'package:argus_wallet/ui/celaut/default_payer_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:argus_wallet/ui/home/overview_model.dart';
@@ -30,6 +33,37 @@ void main() {
     state: OverviewRowState.watched,
     balanceNano: 100,
   );
+
+  group('money of the wallets', () {
+    test('full wallets and watched wallets are two separate figures', () {
+      final money = WalletMoney.of([watchedAddress, seedLocked, watchedAccount, seedOpen]);
+      // Full: Main (5000000) and Spare (unknown balance).
+      expect(money.full.count, 2);
+      expect(money.full.unknown, 1);
+      expect(money.full.knownNano, 5000000);
+      expect(money.full.exactNano, isNull);
+      expect(money.full.text, appL10n.celautAtLeastWallets(formatErg(5000000), 1));
+      // Watched: the address and the account, never added to the full wallets.
+      expect(money.watched.count, 2);
+      expect(money.watched.exactNano, BigInt.from(900000100));
+      expect(money.watched.text, formatErg(900000100));
+    });
+
+    test('no wallet of a kind is 0 ERG; all unknown is unknown', () {
+      final money = WalletMoney.of([watchedAddress]);
+      expect(money.full.count, 0);
+      expect(money.full.exactNano, BigInt.zero);
+      expect(money.full.text, formatErg(0));
+      final unknown = WalletMoney.of([seedLocked]);
+      expect(unknown.full.text, appL10n.celautUnknown);
+    });
+
+    test('start and stop need an open full wallet', () {
+      expect(WalletMoney.of([watchedAddress, watchedAccount]).gate, FullWalletGate.none);
+      expect(WalletMoney.of([seedLocked, watchedAddress]).gate, FullWalletGate.locked);
+      expect(WalletMoney.of([seedLocked, seedOpen]).gate, FullWalletGate.open);
+    });
+  });
 
   group('payer wallets', () {
     test('only full wallets are offered as payers', () {

@@ -88,6 +88,10 @@ enum CelautErrorKind {
 
   /// The wallet cannot make the transaction, for example with too little ERG.
   wallet,
+
+  /// The node does not know the client id of the app: it forgot it. The app asks the
+  /// user: a new client (the old balance is lost) or a retry later.
+  clientUnknown,
 }
 
 /// One key and its value, as text.
