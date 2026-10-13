@@ -5,31 +5,56 @@
 
 import '../frb_generated.dart';
 import 'celaut.dart';
+import 'celaut_service.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `bytes_total`, `reach`, `to_i64`
+// These functions are ignored because they are not marked as `pub`: `at_least`, `bytes_total`, `known_node`, `nano_erg_total`, `reach`, `to_i64`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Reached`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
-/// Ask every node of the app for its advertisement and the balance of the client, and
-/// every instance for its balance. The nodes are asked at the same time.
+/// Ask every node of the node list for its advertisement and the balance of the client,
+/// and every instance for its balance. The nodes are asked at the same time. A removed
+/// node is asked only if an instance of the app runs on it, and it is not in the sums.
 Future<ComputeOverviewView> celautComputeOverview() =>
     RustLib.instance.api.crateApiCelautHomeCelautComputeOverview();
+
+/// The node list of the user: the nodes in the sums of the home screen.
+List<KnownNodeView> celautKnownNodes() =>
+    RustLib.instance.api.crateApiCelautHomeCelautKnownNodes();
+
+/// Add the node at `node` to the node list. The app checks the node first (its identity
+/// and advertisement). A node that was removed comes back with its client id and its
+/// deposits. If the node forgot the client id, the answer is a `ClientUnknown` error and
+/// the node is not added.
+Future<KnownNodeView> celautAddNode({required NodeAddress node}) =>
+    RustLib.instance.api.crateApiCelautHomeCelautAddNode(node: node);
+
+/// Take the node `peer_id` out of the node list and out of the sums of the home screen.
+/// Its record stays in the database: the client id, the deposits and the limit. Adding
+/// the node again restores them.
+void celautRemoveNode({required String peerId}) =>
+    RustLib.instance.api.crateApiCelautHomeCelautRemoveNode(peerId: peerId);
 
 /// [`CoresTotalView`] for a number of bytes.
 class BytesTotalView {
   final PlatformInt64? total;
   final PlatformInt64 known;
   final int unknownNodes;
+  final bool atLeast;
 
   const BytesTotalView({
     this.total,
     required this.known,
     required this.unknownNodes,
+    required this.atLeast,
   });
 
   @override
-  int get hashCode => total.hashCode ^ known.hashCode ^ unknownNodes.hashCode;
+  int get hashCode =>
+      total.hashCode ^
+      known.hashCode ^
+      unknownNodes.hashCode ^
+      atLeast.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -38,7 +63,8 @@ class BytesTotalView {
           runtimeType == other.runtimeType &&
           total == other.total &&
           known == other.known &&
-          unknownNodes == other.unknownNodes;
+          unknownNodes == other.unknownNodes &&
+          atLeast == other.atLeast;
 }
 
 /// The compute overview.
@@ -54,6 +80,12 @@ class ComputeOverviewView {
 
   /// The credit of the app on all its nodes, in nanoERG.
   final NanoErgTotalView creditNanoErg;
+
+  /// The part of that credit that the user paid, in nanoERG.
+  final NanoErgTotalView paidNanoErg;
+
+  /// The part of that credit that is free credit of the nodes, in nanoERG.
+  final NanoErgTotalView freeNanoErg;
   final List<NodeComputeView> nodes;
   final List<RunningInstanceView> instances;
 
@@ -64,6 +96,8 @@ class ComputeOverviewView {
     required this.memBytes,
     required this.diskBytes,
     required this.creditNanoErg,
+    required this.paidNanoErg,
+    required this.freeNanoErg,
     required this.nodes,
     required this.instances,
   });
@@ -76,6 +110,8 @@ class ComputeOverviewView {
       memBytes.hashCode ^
       diskBytes.hashCode ^
       creditNanoErg.hashCode ^
+      paidNanoErg.hashCode ^
+      freeNanoErg.hashCode ^
       nodes.hashCode ^
       instances.hashCode;
 
@@ -90,26 +126,36 @@ class ComputeOverviewView {
           memBytes == other.memBytes &&
           diskBytes == other.diskBytes &&
           creditNanoErg == other.creditNanoErg &&
+          paidNanoErg == other.paidNanoErg &&
+          freeNanoErg == other.freeNanoErg &&
           nodes == other.nodes &&
           instances == other.instances;
 }
 
-/// A sum where some parts can be unknown. `total` is `None` (the screen shows
-/// "unknown") if a part is unknown or there is no part; `known` and `unknown_nodes` are
-/// the known part and the number of unknown parts.
+/// A sum where some parts can be unknown (`docs/celaut/ui.md`, section 2):
+/// - `total` is the sum when every part is known;
+/// - else, if `at_least` is true, the screen shows "at least `known` (`unknown_nodes`
+///   nodes unknown)";
+/// - else nothing is known, and the screen shows "unknown", never 0.
 class CoresTotalView {
   final double? total;
   final double known;
   final int unknownNodes;
+  final bool atLeast;
 
   const CoresTotalView({
     this.total,
     required this.known,
     required this.unknownNodes,
+    required this.atLeast,
   });
 
   @override
-  int get hashCode => total.hashCode ^ known.hashCode ^ unknownNodes.hashCode;
+  int get hashCode =>
+      total.hashCode ^
+      known.hashCode ^
+      unknownNodes.hashCode ^
+      atLeast.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -118,7 +164,38 @@ class CoresTotalView {
           runtimeType == other.runtimeType &&
           total == other.total &&
           known == other.known &&
-          unknownNodes == other.unknownNodes;
+          unknownNodes == other.unknownNodes &&
+          atLeast == other.atLeast;
+}
+
+/// A node in the node list of the user (`docs/celaut/ui.md`, section 4).
+class KnownNodeView {
+  final String peerId;
+
+  /// The addresses (`host:port`) where the app reached the node, the last first.
+  final List<String> addresses;
+
+  /// The deposits of the app to this node, from every wallet, in nanoERG.
+  final BigInt depositedNanoErg;
+
+  const KnownNodeView({
+    required this.peerId,
+    required this.addresses,
+    required this.depositedNanoErg,
+  });
+
+  @override
+  int get hashCode =>
+      peerId.hashCode ^ addresses.hashCode ^ depositedNanoErg.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is KnownNodeView &&
+          runtimeType == other.runtimeType &&
+          peerId == other.peerId &&
+          addresses == other.addresses &&
+          depositedNanoErg == other.depositedNanoErg;
 }
 
 /// [`CoresTotalView`] for nanoERG, as text.
@@ -126,15 +203,21 @@ class NanoErgTotalView {
   final String? total;
   final String known;
   final int unknownNodes;
+  final bool atLeast;
 
   const NanoErgTotalView({
     this.total,
     required this.known,
     required this.unknownNodes,
+    required this.atLeast,
   });
 
   @override
-  int get hashCode => total.hashCode ^ known.hashCode ^ unknownNodes.hashCode;
+  int get hashCode =>
+      total.hashCode ^
+      known.hashCode ^
+      unknownNodes.hashCode ^
+      atLeast.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -143,7 +226,8 @@ class NanoErgTotalView {
           runtimeType == other.runtimeType &&
           total == other.total &&
           known == other.known &&
-          unknownNodes == other.unknownNodes;
+          unknownNodes == other.unknownNodes &&
+          atLeast == other.atLeast;
 }
 
 /// One node of the app.
@@ -171,6 +255,19 @@ class NodeComputeView {
   /// The credit in nanoERG, at the rate of the node.
   final String? creditNanoErg;
 
+  /// The part of the balance that the user paid, in MU and in nanoERG. The free credit
+  /// counts as spent first.
+  final String? paidMu;
+  final String? paidNanoErg;
+
+  /// The part of the balance that is free credit of the node, in MU and in nanoERG.
+  final String? freeMu;
+  final String? freeNanoErg;
+
+  /// True if the node does not know the client id of the app (it forgot it). The
+  /// screen asks the user: a new client, or a retry later.
+  final bool clientUnknown;
+
   const NodeComputeView({
     required this.peerId,
     required this.address,
@@ -182,6 +279,11 @@ class NodeComputeView {
     this.creditMu,
     this.muPerNanoErg,
     this.creditNanoErg,
+    this.paidMu,
+    this.paidNanoErg,
+    this.freeMu,
+    this.freeNanoErg,
+    required this.clientUnknown,
   });
 
   @override
@@ -195,7 +297,12 @@ class NodeComputeView {
       diskBytes.hashCode ^
       creditMu.hashCode ^
       muPerNanoErg.hashCode ^
-      creditNanoErg.hashCode;
+      creditNanoErg.hashCode ^
+      paidMu.hashCode ^
+      paidNanoErg.hashCode ^
+      freeMu.hashCode ^
+      freeNanoErg.hashCode ^
+      clientUnknown.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -211,7 +318,12 @@ class NodeComputeView {
           diskBytes == other.diskBytes &&
           creditMu == other.creditMu &&
           muPerNanoErg == other.muPerNanoErg &&
-          creditNanoErg == other.creditNanoErg;
+          creditNanoErg == other.creditNanoErg &&
+          paidMu == other.paidMu &&
+          paidNanoErg == other.paidNanoErg &&
+          freeMu == other.freeMu &&
+          freeNanoErg == other.freeNanoErg &&
+          clientUnknown == other.clientUnknown;
 }
 
 /// An instance that the app started and did not stop.

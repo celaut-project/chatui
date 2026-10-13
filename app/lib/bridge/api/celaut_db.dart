@@ -19,7 +19,8 @@ String celautNewDatabaseKey() =>
 /// for all the Celaut calls. What the app already has in memory is added to it.
 ///
 /// A deposit that was only prepared in an earlier run is removed: its preparation
-/// ended with that run, so it was never sent. A file that the key cannot open is moved
+/// ended with that run, so it was never sent. A node of an earlier version gets its paid
+/// credit from its accepted deposits. A file that the key cannot open is moved
 /// to a new name, and a new database starts.
 Future<CelautDatabaseView> celautOpenDatabase({
   required String path,

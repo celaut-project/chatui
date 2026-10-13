@@ -15,8 +15,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Future<DepositNodeView> celautDepositNode({required NodeAddress node}) =>
     RustLib.instance.api.crateApiCelautDepositCelautDepositNode(node: node);
 
-/// Set the limit of the deposits to the node `peer_id`, in nanoERG. 0 stops the deposits
-/// to that node. The node must be in the database (check it first).
+/// Set a lower limit of the deposits to the node `peer_id`, in nanoERG. 0 stops the
+/// deposits to that node. The limit cannot be more than 1 ERG. The node must be in the
+/// database (check it first).
 Future<void> celautSetDepositLimit({
   required String peerId,
   required BigInt limitNanoErg,
@@ -72,20 +73,19 @@ List<DepositSentView> celautSentDeposits() =>
     RustLib.instance.api.crateApiCelautDepositCelautSentDeposits();
 
 /// After `send_erg` gave `tx_id`: wait until the explorer shows the deposit box unspent
-/// (the mempool is enough), then call `Payable` once.
+/// (the mempool is enough), then call `Payable` once. If the node accepts the payment,
+/// the MU of the deposit go to the paid credit of the node in the database.
 ///
-/// `explorer_url` is the explorer of the node; empty means the default of nodo
-/// (`https://api.ergoplatform.com`). If the box does not come in 10 minutes, the answer
-/// is a `Timeout` and nothing was sent to the node: call this again later, before the
-/// deposit token expires.
+/// The explorer is the default of nodo (`https://api.ergoplatform.com`), as on the node:
+/// it is fixed, and the node does not advertise one. If the box does not come in 10
+/// minutes, the answer is a `Timeout` and nothing was sent to the node: call this again
+/// later, before the deposit token expires.
 Future<DepositDoneView> celautDepositNotify({
   required String depositId,
   required String txId,
-  String? explorerUrl,
 }) => RustLib.instance.api.crateApiCelautDepositCelautDepositNotify(
   depositId: depositId,
   txId: txId,
-  explorerUrl: explorerUrl,
 );
 
 /// The end of a deposit.

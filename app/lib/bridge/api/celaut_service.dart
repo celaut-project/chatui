@@ -7,10 +7,16 @@ import '../frb_generated.dart';
 import 'celaut.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `address_of_key`, `check`, `configuration`, `cost_so_far`, `forget_if_broken`, `instance`, `key`, `n`, `open_session`, `quote_view`, `service_id`, `session`, `state`, `unknown_instance`
+// These functions are ignored because they are not marked as `pub`: `address_of_key`, `check`, `configuration`, `cost_so_far`, `forget_if_broken`, `instance`, `key`, `n`, `new_client_session`, `open_session`, `quote_view`, `service_id`, `session`, `state`, `unknown_instance`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `State`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
+
+/// Make a new client on the node, after the node forgot the stored client id and the
+/// user chose "New client". The balance of the old client is lost for the app. The
+/// deposits of the node and its limit stay in the database.
+Future<NewClientView> celautNewClient({required NodeAddress node}) =>
+    RustLib.instance.api.crateApiCelautServiceCelautNewClient(node: node);
 
 /// Ask each node for the price of the service, and give the quotes best first
 /// (`docs/celaut/balancer.md`). The nodes must already have the service.
@@ -189,6 +195,37 @@ class InstanceView {
           peerId == other.peerId &&
           slots == other.slots &&
           clientBalanceMu == other.clientBalanceMu;
+}
+
+/// The client of the app on a node after [`celaut_new_client`].
+class NewClientView {
+  final String peerId;
+
+  /// The free credit of the new client, in MU of the node. `None` is unknown.
+  final String? freeCreditMu;
+
+  /// How many client ids of this node the app used before. Their balance is lost for
+  /// the app.
+  final int earlierClients;
+
+  const NewClientView({
+    required this.peerId,
+    this.freeCreditMu,
+    required this.earlierClients,
+  });
+
+  @override
+  int get hashCode =>
+      peerId.hashCode ^ freeCreditMu.hashCode ^ earlierClients.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NewClientView &&
+          runtimeType == other.runtimeType &&
+          peerId == other.peerId &&
+          freeCreditMu == other.freeCreditMu &&
+          earlierClients == other.earlierClients;
 }
 
 /// The address of a node.
