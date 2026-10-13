@@ -8578,6 +8578,240 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Some watched balances are unavailable.\n{errors}'**
   String watchSomeUnavailable(String errors);
+
+  /// No description provided for @celautDepositRowTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Celaut deposit'**
+  String get celautDepositRowTitle;
+
+  /// No description provided for @celautDepositRowSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay a node in ERG from this wallet'**
+  String get celautDepositRowSubtitle;
+
+  /// No description provided for @celautDepositScreenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Celaut deposit'**
+  String get celautDepositScreenTitle;
+
+  /// No description provided for @celautDepositIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay ERG to a node to get MU, the unit of account of the node. The node gets a plain payment and can keep it, so deposit small amounts. The balance stays with the client id of this app session. The app does not keep that id yet, so the balance is lost when the app stops.'**
+  String get celautDepositIntro;
+
+  /// No description provided for @celautDepositNodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Node address'**
+  String get celautDepositNodeLabel;
+
+  /// No description provided for @celautDepositNodeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'host:port'**
+  String get celautDepositNodeHint;
+
+  /// No description provided for @celautDepositCheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Check the node'**
+  String get celautDepositCheck;
+
+  /// No description provided for @celautDepositChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking the node…'**
+  String get celautDepositChecking;
+
+  /// No description provided for @celautDepositNodeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Contract of the node'**
+  String get celautDepositNodeTitle;
+
+  /// No description provided for @celautDepositPayTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay to {address}'**
+  String celautDepositPayTo(String address);
+
+  /// No description provided for @celautDepositRate.
+  ///
+  /// In en, this message translates to:
+  /// **'{mu} MU per nanoERG'**
+  String celautDepositRate(String mu);
+
+  /// No description provided for @celautDepositBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Balance of the client: {mu} MU'**
+  String celautDepositBalance(String mu);
+
+  /// No description provided for @celautDepositUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Deposits to this node: {used} of {limit}'**
+  String celautDepositUsed(String used, String limit);
+
+  /// No description provided for @celautDepositLimitLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Limit for this node in ERG'**
+  String get celautDepositLimitLabel;
+
+  /// No description provided for @celautDepositSetLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Set the limit'**
+  String get celautDepositSetLimit;
+
+  /// No description provided for @celautDepositLimitInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a limit in ERG, 0 or more.'**
+  String get celautDepositLimitInvalid;
+
+  /// No description provided for @celautDepositAmountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount in ERG'**
+  String get celautDepositAmountLabel;
+
+  /// No description provided for @celautDepositAmountHint.
+  ///
+  /// In en, this message translates to:
+  /// **'0.001 ERG or more'**
+  String get celautDepositAmountHint;
+
+  /// No description provided for @celautDepositAmountInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an amount of 0.001 ERG or more.'**
+  String get celautDepositAmountInvalid;
+
+  /// No description provided for @celautDepositPrepare.
+  ///
+  /// In en, this message translates to:
+  /// **'Prepare the deposit'**
+  String get celautDepositPrepare;
+
+  /// No description provided for @celautDepositPreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing…'**
+  String get celautDepositPreparing;
+
+  /// No description provided for @celautDepositWatchOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This wallet cannot sign. Open a wallet with its recovery phrase to make a deposit.'**
+  String get celautDepositWatchOnly;
+
+  /// No description provided for @celautDepositConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm the deposit'**
+  String get celautDepositConfirmTitle;
+
+  /// No description provided for @celautDepositConfirmLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Deposit'**
+  String get celautDepositConfirmLabel;
+
+  /// No description provided for @celautDepositRowNode.
+  ///
+  /// In en, this message translates to:
+  /// **'Node'**
+  String get celautDepositRowNode;
+
+  /// No description provided for @celautDepositRowAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get celautDepositRowAmount;
+
+  /// No description provided for @celautDepositRowMu.
+  ///
+  /// In en, this message translates to:
+  /// **'Buys'**
+  String get celautDepositRowMu;
+
+  /// No description provided for @celautDepositRowRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate'**
+  String get celautDepositRowRate;
+
+  /// No description provided for @celautDepositRowTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total from the wallet'**
+  String get celautDepositRowTotal;
+
+  /// No description provided for @celautDepositRowUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Deposits to this node'**
+  String get celautDepositRowUsed;
+
+  /// No description provided for @celautDepositConfirmDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'The node can keep a plain payment. The app tells the node once, when the explorer shows the box. The token of this deposit expires in {minutes} minutes.'**
+  String celautDepositConfirmDetail(String minutes);
+
+  /// No description provided for @celautDepositWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent. The app waits until the explorer shows the box…'**
+  String get celautDepositWaiting;
+
+  /// No description provided for @celautDepositWaitAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Wait again'**
+  String get celautDepositWaitAgain;
+
+  /// No description provided for @celautDepositTx.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction: {id}'**
+  String celautDepositTx(String id);
+
+  /// No description provided for @celautDepositBox.
+  ///
+  /// In en, this message translates to:
+  /// **'Deposit box: {id}'**
+  String celautDepositBox(String id);
+
+  /// No description provided for @celautDepositAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'The node accepted the deposit. Balance of the client: {mu} MU.'**
+  String celautDepositAccepted(String mu);
+
+  /// No description provided for @celautDepositRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'The node refused the payment: {message}'**
+  String celautDepositRefused(String message);
+
+  /// No description provided for @celautDepositCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'The deposit was cancelled. Nothing was sent.'**
+  String get celautDepositCancelled;
+
+  /// No description provided for @celautDepositSendFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The transaction was not sent: {error}'**
+  String celautDepositSendFailed(String error);
 }
 
 class _AppLocalizationsDelegate

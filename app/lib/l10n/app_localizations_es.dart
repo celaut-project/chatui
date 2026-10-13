@@ -5495,4 +5495,147 @@ class AppLocalizationsEs extends AppLocalizations {
   String watchSomeUnavailable(String errors) {
     return 'Algunos saldos observados no están disponibles.\n$errors';
   }
+
+  @override
+  String get celautDepositRowTitle => 'Depósito en Celaut';
+
+  @override
+  String get celautDepositRowSubtitle =>
+      'Paga a un nodo en ERG desde esta billetera';
+
+  @override
+  String get celautDepositScreenTitle => 'Depósito en Celaut';
+
+  @override
+  String get celautDepositIntro =>
+      'Paga ERG a un nodo para obtener MU, la unidad de cuenta del nodo. El nodo recibe un pago simple y puede quedárselo, así que deposita cantidades pequeñas. El saldo queda con el ID de cliente de esta sesión de la app. La app todavía no guarda ese ID, así que el saldo se pierde cuando la app se cierra.';
+
+  @override
+  String get celautDepositNodeLabel => 'Dirección del nodo';
+
+  @override
+  String get celautDepositNodeHint => 'host:puerto';
+
+  @override
+  String get celautDepositCheck => 'Comprobar el nodo';
+
+  @override
+  String get celautDepositChecking => 'Comprobando el nodo…';
+
+  @override
+  String get celautDepositNodeTitle => 'Contrato del nodo';
+
+  @override
+  String celautDepositPayTo(String address) {
+    return 'Pagar a $address';
+  }
+
+  @override
+  String celautDepositRate(String mu) {
+    return '$mu MU por nanoERG';
+  }
+
+  @override
+  String celautDepositBalance(String mu) {
+    return 'Saldo del cliente: $mu MU';
+  }
+
+  @override
+  String celautDepositUsed(String used, String limit) {
+    return 'Depósitos a este nodo: $used de $limit';
+  }
+
+  @override
+  String get celautDepositLimitLabel => 'Límite para este nodo en ERG';
+
+  @override
+  String get celautDepositSetLimit => 'Fijar el límite';
+
+  @override
+  String get celautDepositLimitInvalid => 'Escribe un límite en ERG, 0 o más.';
+
+  @override
+  String get celautDepositAmountLabel => 'Cantidad en ERG';
+
+  @override
+  String get celautDepositAmountHint => '0.001 ERG o más';
+
+  @override
+  String get celautDepositAmountInvalid =>
+      'Escribe una cantidad de 0.001 ERG o más.';
+
+  @override
+  String get celautDepositPrepare => 'Preparar el depósito';
+
+  @override
+  String get celautDepositPreparing => 'Preparando…';
+
+  @override
+  String get celautDepositWatchOnly =>
+      'Esta billetera no puede firmar. Abre una billetera con su frase de recuperación para hacer un depósito.';
+
+  @override
+  String get celautDepositConfirmTitle => 'Confirmar el depósito';
+
+  @override
+  String get celautDepositConfirmLabel => 'Depositar';
+
+  @override
+  String get celautDepositRowNode => 'Nodo';
+
+  @override
+  String get celautDepositRowAmount => 'Cantidad';
+
+  @override
+  String get celautDepositRowMu => 'Compra';
+
+  @override
+  String get celautDepositRowRate => 'Tasa';
+
+  @override
+  String get celautDepositRowTotal => 'Total desde la billetera';
+
+  @override
+  String get celautDepositRowUsed => 'Depósitos a este nodo';
+
+  @override
+  String celautDepositConfirmDetail(String minutes) {
+    return 'El nodo puede quedarse un pago simple. La app avisa al nodo una sola vez, cuando el explorador muestra la caja. El token de este depósito vence en $minutes minutos.';
+  }
+
+  @override
+  String get celautDepositWaiting =>
+      'Enviado. La app espera hasta que el explorador muestre la caja…';
+
+  @override
+  String get celautDepositWaitAgain => 'Esperar de nuevo';
+
+  @override
+  String celautDepositTx(String id) {
+    return 'Transacción: $id';
+  }
+
+  @override
+  String celautDepositBox(String id) {
+    return 'Caja del depósito: $id';
+  }
+
+  @override
+  String celautDepositAccepted(String mu) {
+    return 'El nodo aceptó el depósito. Saldo del cliente: $mu MU.';
+  }
+
+  @override
+  String celautDepositRefused(String message) {
+    return 'El nodo rechazó el pago: $message';
+  }
+
+  @override
+  String get celautDepositCancelled =>
+      'Se canceló el depósito. No se envió nada.';
+
+  @override
+  String celautDepositSendFailed(String error) {
+    return 'No se envió la transacción: $error';
+  }
 }

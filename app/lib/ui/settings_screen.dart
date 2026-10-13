@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'cold_signing_screen.dart';
 
 import '../celaut/celaut_strings.dart';
+import '../celaut/deposit_strings.dart';
 import '../celaut/service_strings.dart';
 import '../format.dart';
 import '../l10n/l10n.dart';
@@ -14,6 +15,7 @@ import '../services/watch_only_service.dart';
 import '../theme/argus_theme.dart';
 import '../theme/theme_controller.dart';
 import 'celaut/node_connect_screen.dart';
+import 'celaut/deposit_screen.dart';
 import 'celaut/service_screen.dart';
 import 'home/overview_model.dart';
 import 'home/watched_actions.dart';
@@ -131,6 +133,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         title: ServiceStrings.rowTitle,
                         subtitle: ServiceStrings.rowSubtitle,
                         onTap: () => _open(const ServiceScreen()),
+                      ),
+                      SettingsRow(
+                        icon: Icons.account_balance_wallet_outlined,
+                        title: DepositStrings.rowTitle,
+                        subtitle: DepositStrings.rowSubtitle,
+                        onTap: () => _open(const DepositScreen()),
                       ),
                     ],
                   ),

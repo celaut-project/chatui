@@ -5420,4 +5420,146 @@ class AppLocalizationsEn extends AppLocalizations {
   String watchSomeUnavailable(String errors) {
     return 'Some watched balances are unavailable.\n$errors';
   }
+
+  @override
+  String get celautDepositRowTitle => 'Celaut deposit';
+
+  @override
+  String get celautDepositRowSubtitle => 'Pay a node in ERG from this wallet';
+
+  @override
+  String get celautDepositScreenTitle => 'Celaut deposit';
+
+  @override
+  String get celautDepositIntro =>
+      'Pay ERG to a node to get MU, the unit of account of the node. The node gets a plain payment and can keep it, so deposit small amounts. The balance stays with the client id of this app session. The app does not keep that id yet, so the balance is lost when the app stops.';
+
+  @override
+  String get celautDepositNodeLabel => 'Node address';
+
+  @override
+  String get celautDepositNodeHint => 'host:port';
+
+  @override
+  String get celautDepositCheck => 'Check the node';
+
+  @override
+  String get celautDepositChecking => 'Checking the node…';
+
+  @override
+  String get celautDepositNodeTitle => 'Contract of the node';
+
+  @override
+  String celautDepositPayTo(String address) {
+    return 'Pay to $address';
+  }
+
+  @override
+  String celautDepositRate(String mu) {
+    return '$mu MU per nanoERG';
+  }
+
+  @override
+  String celautDepositBalance(String mu) {
+    return 'Balance of the client: $mu MU';
+  }
+
+  @override
+  String celautDepositUsed(String used, String limit) {
+    return 'Deposits to this node: $used of $limit';
+  }
+
+  @override
+  String get celautDepositLimitLabel => 'Limit for this node in ERG';
+
+  @override
+  String get celautDepositSetLimit => 'Set the limit';
+
+  @override
+  String get celautDepositLimitInvalid => 'Enter a limit in ERG, 0 or more.';
+
+  @override
+  String get celautDepositAmountLabel => 'Amount in ERG';
+
+  @override
+  String get celautDepositAmountHint => '0.001 ERG or more';
+
+  @override
+  String get celautDepositAmountInvalid =>
+      'Enter an amount of 0.001 ERG or more.';
+
+  @override
+  String get celautDepositPrepare => 'Prepare the deposit';
+
+  @override
+  String get celautDepositPreparing => 'Preparing…';
+
+  @override
+  String get celautDepositWatchOnly =>
+      'This wallet cannot sign. Open a wallet with its recovery phrase to make a deposit.';
+
+  @override
+  String get celautDepositConfirmTitle => 'Confirm the deposit';
+
+  @override
+  String get celautDepositConfirmLabel => 'Deposit';
+
+  @override
+  String get celautDepositRowNode => 'Node';
+
+  @override
+  String get celautDepositRowAmount => 'Amount';
+
+  @override
+  String get celautDepositRowMu => 'Buys';
+
+  @override
+  String get celautDepositRowRate => 'Rate';
+
+  @override
+  String get celautDepositRowTotal => 'Total from the wallet';
+
+  @override
+  String get celautDepositRowUsed => 'Deposits to this node';
+
+  @override
+  String celautDepositConfirmDetail(String minutes) {
+    return 'The node can keep a plain payment. The app tells the node once, when the explorer shows the box. The token of this deposit expires in $minutes minutes.';
+  }
+
+  @override
+  String get celautDepositWaiting =>
+      'Sent. The app waits until the explorer shows the box…';
+
+  @override
+  String get celautDepositWaitAgain => 'Wait again';
+
+  @override
+  String celautDepositTx(String id) {
+    return 'Transaction: $id';
+  }
+
+  @override
+  String celautDepositBox(String id) {
+    return 'Deposit box: $id';
+  }
+
+  @override
+  String celautDepositAccepted(String mu) {
+    return 'The node accepted the deposit. Balance of the client: $mu MU.';
+  }
+
+  @override
+  String celautDepositRefused(String message) {
+    return 'The node refused the payment: $message';
+  }
+
+  @override
+  String get celautDepositCancelled =>
+      'The deposit was cancelled. Nothing was sent.';
+
+  @override
+  String celautDepositSendFailed(String error) {
+    return 'The transaction was not sent: $error';
+  }
 }

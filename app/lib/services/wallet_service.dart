@@ -6,6 +6,8 @@ import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
+import '../bridge/api/celaut_deposit.dart';
+import '../bridge/api/celaut_service.dart' show NodeAddress;
 import '../bridge/argus_error.dart';
 import '../bridge/frb_generated.dart';
 import '../l10n/l10n.dart';
@@ -2300,6 +2302,29 @@ class WalletService with WidgetsBindingObserver {
       (map['wallet_delta_nano_erg'] as num?)?.toInt(),
     );
     return map;
+  }
+
+  /// Prepare a Celaut deposit of [amountNanoErg] to [node] (milestone M3): a deposit
+  /// token from the node, and a send preparation with the token in R4. Show it with
+  /// the confirmation sheet and send it with [sendErgDetailed].
+  Future<DepositPreparedView> prepareCelautDeposit({
+    required NodeAddress node,
+    required String senderAddress,
+    List<String>? spendAddresses,
+    required String changeAddress,
+    required int amountNanoErg,
+    String? nodeUrl,
+  }) async {
+    _requireUnlocked();
+    return celautDepositPrepare(
+      handleId: _handleId!,
+      node: node,
+      senderAddress: senderAddress,
+      spendAddresses: spendAddresses ?? const [],
+      changeAddress: changeAddress,
+      amountNanoErg: BigInt.from(amountNanoErg),
+      nodeUrl: nodeUrl,
+    );
   }
 
   final Map<String, String> _broadcastWarnings = {};

@@ -4092,5 +4092,117 @@
         "type": "String"
       }
     }
+  },
+  "celautDepositRowTitle": "Celaut deposit",
+  "celautDepositRowSubtitle": "Pay a node in ERG from this wallet",
+  "celautDepositScreenTitle": "Celaut deposit",
+  "celautDepositIntro": "Pay ERG to a node to get MU, the unit of account of the node. The node gets a plain payment and can keep it, so deposit small amounts. The balance stays with the client id of this app session. The app does not keep that id yet, so the balance is lost when the app stops.",
+  "celautDepositNodeLabel": "Node address",
+  "celautDepositNodeHint": "host:port",
+  "celautDepositCheck": "Check the node",
+  "celautDepositChecking": "Checking the node…",
+  "celautDepositNodeTitle": "Contract of the node",
+  "celautDepositPayTo": "Pay to {address}",
+  "@celautDepositPayTo": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "celautDepositRate": "{mu} MU per nanoERG",
+  "@celautDepositRate": {
+    "placeholders": {
+      "mu": {
+        "type": "String"
+      }
+    }
+  },
+  "celautDepositBalance": "Balance of the client: {mu} MU",
+  "@celautDepositBalance": {
+    "placeholders": {
+      "mu": {
+        "type": "String"
+      }
+    }
+  },
+  "celautDepositUsed": "Deposits to this node: {used} of {limit}",
+  "@celautDepositUsed": {
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "limit": {
+        "type": "String"
+      }
+    }
+  },
+  "celautDepositLimitLabel": "Limit for this node in ERG",
+  "celautDepositSetLimit": "Set the limit",
+  "celautDepositLimitInvalid": "Enter a limit in ERG, 0 or more.",
+  "celautDepositAmountLabel": "Amount in ERG",
+  "celautDepositAmountHint": "0.001 ERG or more",
+  "celautDepositAmountInvalid": "Enter an amount of 0.001 ERG or more.",
+  "celautDepositPrepare": "Prepare the deposit",
+  "celautDepositPreparing": "Preparing…",
+  "celautDepositWatchOnly": "This wallet cannot sign. Open a wallet with its recovery phrase to make a deposit.",
+  "celautDepositConfirmTitle": "Confirm the deposit",
+  "celautDepositConfirmLabel": "Deposit",
+  "celautDepositRowNode": "Node",
+  "celautDepositRowAmount": "Amount",
+  "celautDepositRowMu": "Buys",
+  "celautDepositRowRate": "Rate",
+  "celautDepositRowTotal": "Total from the wallet",
+  "celautDepositRowUsed": "Deposits to this node",
+  "celautDepositConfirmDetail": "The node can keep a plain payment. The app tells the node once, when the explorer shows the box. The token of this deposit expires in {minutes} minutes.",
+  "@celautDepositConfirmDetail": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "celautDepositWaiting": "Sent. The app waits until the explorer shows the box…",
+  "celautDepositWaitAgain": "Wait again",
+  "celautDepositTx": "Transaction: {id}",
+  "@celautDepositTx": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "celautDepositBox": "Deposit box: {id}",
+  "@celautDepositBox": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "celautDepositAccepted": "The node accepted the deposit. Balance of the client: {mu} MU.",
+  "@celautDepositAccepted": {
+    "placeholders": {
+      "mu": {
+        "type": "String"
+      }
+    }
+  },
+  "celautDepositRefused": "The node refused the payment: {message}",
+  "@celautDepositRefused": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "celautDepositCancelled": "The deposit was cancelled. Nothing was sent.",
+  "celautDepositSendFailed": "The transaction was not sent: {error}",
+  "@celautDepositSendFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   }
 }
