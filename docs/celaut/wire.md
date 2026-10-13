@@ -213,3 +213,30 @@ Notes:
 - Response: `Buffer{head{0}, chunk (64 KiB or less), separator}`.
 - TCP: message boundaries carry no meaning. UDP: one message = one datagram.
 - Half-closing the request closes the write side of the TCP connection to the service.
+
+## 6. Node address in a QR code (proposal, decision for Josemi)
+
+nodo has no QR format for a node address. The app reads two forms. The text is trimmed
+first.
+
+1. **URI:** `celaut://node?addr=<host>:<port>`
+   - The scheme is `celaut` and the host is `node` (both case-insensitive).
+   - `addr` comes exactly once. Its value is percent-decoded and must be `host:port` or
+     `[ipv6]:port`, the same as in the address field. The port is required.
+   - No user info, no port after `node`, no path other than `/`, and no fragment.
+   - Other query parameters are ignored, so that a later version can add one (for
+     example the expected peer_id) without breaking older apps.
+   - Example: `celaut://node?addr=203.0.113.7:53460`.
+2. **Bare address:** `host:port` or `[ipv6]:port`, with no scheme.
+
+Any other text is not a node address (for example an Ergo address, an ErgoPay link or
+a web link). The app shows the same error as for a bad typed address and stores
+nothing.
+
+A scanned address then goes through the same check as a typed address:
+`celaut_add_node` connects to the node and checks its identity (section 1) before
+anything is stored. A node that does not answer or fails the check gives the same
+error as a typed address.
+
+Open for Josemi: the scheme and host (`celaut://node`), the parameter name `addr`, and
+whether unknown parameters are ignored (the default) or refused.
