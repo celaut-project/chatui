@@ -208,6 +208,15 @@ void main() {
     expect(find.byKey(const Key('compute-home-usd-source')), findsOneWidget);
   });
 
+  testWidgets('the money figures end on the right edge of the page', (tester) async {
+    await pump(tester);
+    final value = tester.getTopRight(find.text(formatErg(250000000)));
+    final usd = tester.getTopRight(find.text(appL10n.celautHomeUsd('\$0.50')));
+    // 390 px wide, 24 px gutter.
+    expect(value.dx, closeTo(366, 1));
+    expect(usd.dx, closeTo(366, 1));
+  });
+
   testWidgets('without the oracle price the USD is unknown, not \$0', (tester) async {
     await pump(tester, usdPerErg: null);
     final l = appL10n;

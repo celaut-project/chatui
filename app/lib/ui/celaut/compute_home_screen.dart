@@ -609,12 +609,16 @@ class _MoneyRow extends StatelessWidget {
             Expanded(child: Text(title, style: t.primary)),
             const SizedBox(width: 12),
             Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(value, textAlign: TextAlign.end, style: t.primary),
-                  Text(usd, textAlign: TextAlign.end, style: t.secondary),
-                ],
+              // Align fills the slot, so the figures end on the right edge of the page.
+              child: Align(
+                alignment: AlignmentDirectional.topEnd,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(value, textAlign: TextAlign.end, style: t.primary),
+                    Text(usd, textAlign: TextAlign.end, style: t.secondary),
+                  ],
+                ),
               ),
             ),
           ],
