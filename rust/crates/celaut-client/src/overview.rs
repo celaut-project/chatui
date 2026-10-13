@@ -152,6 +152,26 @@ pub fn nano_erg_of(mu: u128, mu_per_nano_erg: Option<u128>) -> Option<u128> {
     Some(mu / rate)
 }
 
+/// The balance of a client on a node, in two parts: what the user paid and the free
+/// credit (`docs/celaut/ui.md`, section 2).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct CreditParts {
+    pub paid_mu: u128,
+    pub free_mu: u128,
+}
+
+/// Split the balance of a client. The node keeps one balance, so the app counts the
+/// free credit as spent first: the paid part is the smaller of the balance and the MU
+/// that the node accepted from deposits, and the rest is free credit. `None` if the
+/// paid MU is not known.
+pub fn split_credit(balance_mu: u128, paid_mu: Option<u128>) -> Option<CreditParts> {
+    let paid = balance_mu.min(paid_mu?);
+    Some(CreditParts {
+        paid_mu: paid,
+        free_mu: balance_mu - paid,
+    })
+}
+
 /// The credit of the app on the nodes in nanoERG, from the credit of each node
 /// (`None` if unknown: the node is unreachable, or gives no balance or no rate). Each
 /// peer_id counts once.
@@ -233,11 +253,112 @@ mod tests {
             ],
             ..Default::default()
         };
+        // The entry with more cores counts, with its own memory and disk. The values
+        // of the two entries are not added and not mixed.
         let o = offer_of(&peer);
         assert_eq!(o.cpu_cores, Some(4.0));
-        assert_eq!(o.mem_bytes, Some(1 << 30));
+        assert_eq!(o.mem_bytes, Some(1 << 20));
         assert_eq!(o.disk_bytes, None);
         assert_eq!(offer_of(&Peer::default()), Offer::default());
+
+        // Equal cores: more memory counts.
+        let tie = Peer {
+            resources: vec![
+                entry(Some(200_000), Some(1), Some(5)),
+                entry(Some(200_000), Some(2), Some(1)),
+            ],
+            ..Default::default()
+        };
+        assert_eq!(offer_of(&tie), offer(Some(2.0), Some(2), Some(1)));
+
+        // A known value is larger than an unknown one.
+        let partial = Peer {
+            resources: vec![
+                entry(None, Some(8), Some(8)),
+                entry(Some(100_000), None, None),
+            ],
+            ..Default::default()
+        };
+        assert_eq!(offer_of(&partial), offer(Some(1.0), None, None));
+
+        // Two nodes with two entries each: the sum is over the largest entries.
+        let a = offer_of(&peer);
+        let b = offer_of(&tie);
+        let total = offered([("a", a), ("b", b)]);
+        assert_eq!(total.cpu_cores.shown(total.nodes), Shown::Exact(6.0));
+        assert_eq!(
+            total.mem_bytes.shown(total.nodes),
+            Shown::Exact((1 << 20) + 2)
+        );
+    }
+
+    #[test]
+    fn a_partial_sum_is_at_least_the_known_part() {
+        let total = offered([
+            ("a", offer(Some(2.0), Some(4), None)),
+            ("b", offer(None, Some(8), None)),
+            ("c", offer(Some(1.0), None, None)),
+        ]);
+        assert_eq!(
+            total.cpu_cores.shown(total.nodes),
+            Shown::AtLeast {
+                known: 3.0,
+                unknown: 1
+            }
+        );
+        assert_eq!(
+            total.mem_bytes.shown(total.nodes),
+            Shown::AtLeast {
+                known: 12,
+                unknown: 1
+            }
+        );
+        // No node gives the disk: unknown, not "at least 0".
+        assert_eq!(total.disk_bytes.shown(total.nodes), Shown::Unknown);
+        // No node at all: unknown, not 0.
+        let none = offered(std::iter::empty());
+        assert_eq!(none.cpu_cores.shown(none.nodes), Shown::Unknown);
+        // All known: the exact sum.
+        let all = offered([("a", offer(Some(1.0), Some(1), Some(1)))]);
+        assert_eq!(all.disk_bytes.shown(all.nodes), Shown::Exact(1));
+    }
+
+    #[test]
+    fn the_free_credit_is_apart_from_the_paid_credit() {
+        // 4.5M MU free and 10M MU paid, nothing spent.
+        assert_eq!(
+            split_credit(14_500_000, Some(10_000_000)),
+            Some(CreditParts {
+                paid_mu: 10_000_000,
+                free_mu: 4_500_000
+            })
+        );
+        // 1M MU spent: it comes from the free credit first.
+        assert_eq!(
+            split_credit(13_500_000, Some(10_000_000)),
+            Some(CreditParts {
+                paid_mu: 10_000_000,
+                free_mu: 3_500_000
+            })
+        );
+        // More spent than the free credit: the rest comes from the paid credit.
+        assert_eq!(
+            split_credit(2_000_000, Some(10_000_000)),
+            Some(CreditParts {
+                paid_mu: 2_000_000,
+                free_mu: 0
+            })
+        );
+        // Nothing paid: all free.
+        assert_eq!(
+            split_credit(4_500_000, Some(0)),
+            Some(CreditParts {
+                paid_mu: 0,
+                free_mu: 4_500_000
+            })
+        );
+        // The paid MU is not known: no split.
+        assert_eq!(split_credit(4_500_000, None), None);
     }
 
     #[test]
