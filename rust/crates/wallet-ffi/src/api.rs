@@ -26,10 +26,13 @@ pub mod mempool;
 /// Celaut nodes: connect to a node and show its advertisement (milestone M1).
 pub mod celaut;
 
+/// The Celaut database of the app: one for all the wallets (`docs/celaut/ui.md`).
+pub mod celaut_db;
+
 /// Celaut services: quotes, start, a local port for the tunnel, stop (milestone M2).
 pub mod celaut_service;
 
-/// Celaut deposits: pay a node in ERG from this wallet (milestone M3).
+/// Celaut deposits: pay a node in ERG from one full wallet (milestone M3).
 pub mod celaut_deposit;
 
 fn err_str<E: Into<ArgusError>>(e: E) -> String {

@@ -1,4 +1,4 @@
-//! Celaut deposits in ERG from the wallet of the app (milestone M3).
+//! Celaut deposits in ERG from one full wallet of the app (milestone M3).
 //!
 //! 1. [`celaut_deposit_node`]: the ERG payment contract of the node, the balance of the
 //!    client, and the limit of the node.
@@ -8,28 +8,32 @@
 //! 3. [`celaut_deposit_notify`]: wait until the explorer of the node shows the box
 //!    unspent (the mempool is enough), then `Payable` once.
 //!
-//! The deposit goes to the client id of the session of the node (`celaut_service`). Like
-//! the sessions, the deposits and the limits live in memory only: when the app stops,
-//! the balance on the node stays with a client id that the app no longer has.
+//! The deposit goes to the client id of the app on the node. The client ids, the
+//! deposits and the limits are in the database of the app (`celaut_db`), one for all the
+//! wallets, so a restart keeps them: a deposit that was sent can be checked by the node
+//! after a restart. The user chooses the paying wallet at each deposit, and only a full
+//! wallet can pay (`docs/celaut/ui.md`). The database does not record which wallet paid;
+//! the history of that wallet has the transaction.
 //!
-//! The limit of a node counts every deposit that was prepared in this process, sent or
-//! not, until the user cancels it before the send.
+//! The limit of a node counts every deposit that was prepared, sent or not, until the
+//! user cancels it before the send.
 
 use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Mutex;
 use std::time::Duration;
 
+use celaut_client::db::{DepositRecord, DepositStage, EventKind, EventRecord};
 use celaut_client::deposit::{
     find_deposit_box, unspent_boxes_url, DepositBox, NODO_DEFAULT_EXPLORER,
 };
-use celaut_client::new_client_id;
-use celaut_proto::celaut::Payment;
+use celaut_client::{new_client_id, CelautData};
 use citadel_core::constants::MIN_BOX_VALUE_NANO;
 use once_cell::sync::Lazy;
 
 use super::celaut::{error_of, invalid, CelautError, CelautErrorKind};
-use super::celaut_service::{forget_if_broken, session, NodeAddress, Session};
+use super::celaut_db::{db, now_seconds, storage_error};
+use super::celaut_service::{address_of_key, forget_if_broken, key, session, NodeAddress};
 
 /// The limit of a node until the user changes it: 0.05 ERG.
 pub const DEFAULT_LIMIT_NANO_ERG: u64 = 50_000_000;
@@ -43,93 +47,67 @@ const WAIT_LIMIT: Duration = Duration::from_secs(600);
 const WAIT_INTERVAL: Duration = Duration::from_secs(5);
 const EXPLORER_TIMEOUT: Duration = Duration::from_secs(20);
 
-#[flutter_rust_bridge::frb(ignore)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum Stage {
-    /// The preparation waits for the confirmation of the user.
-    Prepared,
-    /// The transaction was sent; the box is not yet seen on the explorer.
-    Sent { tx_id: String },
-    /// `Payable` was called. It is never called again for this deposit.
-    PayableCalled,
+/// The send preparation of each prepared deposit. It is in memory only: it ends with the
+/// process, as the preparations of the wallet do.
+static PREPARATIONS: Lazy<Mutex<HashMap<String, u64>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+
+fn preparation_of(deposit_id: &str) -> Option<u64> {
+    PREPARATIONS
+        .lock()
+        .ok()
+        .and_then(|p| p.get(deposit_id).copied())
 }
 
-#[flutter_rust_bridge::frb(ignore)]
-struct Pending {
-    peer_id: String,
-    node: NodeAddress,
-    session: Session,
-    payment: Payment,
-    nano_erg: u64,
-    pay_to_address: String,
-    preparation_id: u64,
-    stage: Stage,
-}
-
-#[flutter_rust_bridge::frb(ignore)]
-#[derive(Default)]
-struct Deposits {
-    pending: HashMap<String, Pending>,
-    /// The limit of each node (peer_id), if the user changed it.
-    limits: HashMap<String, u64>,
-    /// The nanoERG of the deposits of each node (peer_id) in this process.
-    used: HashMap<String, u64>,
-}
-
-impl Deposits {
-    fn limit(&self, peer_id: &str) -> u64 {
-        self.limits
-            .get(peer_id)
-            .copied()
-            .unwrap_or(DEFAULT_LIMIT_NANO_ERG)
+fn forget_preparation(deposit_id: &str) {
+    if let Ok(mut p) = PREPARATIONS.lock() {
+        p.remove(deposit_id);
     }
+}
 
-    fn used(&self, peer_id: &str) -> u64 {
-        self.used.get(peer_id).copied().unwrap_or(0)
-    }
+/// The limit of the node `peer_id`, in nanoERG.
+fn limit(data: &CelautData, peer_id: &str) -> u64 {
+    data.nodes
+        .get(peer_id)
+        .and_then(|n| n.deposit_limit_nano_erg)
+        .unwrap_or(DEFAULT_LIMIT_NANO_ERG)
+}
 
-    /// Count `nano_erg` against the limit of the node, or refuse it.
-    fn reserve(&mut self, peer_id: &str, nano_erg: u64) -> Result<(), CelautError> {
-        let limit = self.limit(peer_id);
-        let used = self.used(peer_id);
-        match used.checked_add(nano_erg) {
-            Some(total) if total <= limit => {
-                self.used.insert(peer_id.to_string(), total);
-                Ok(())
-            }
-            _ => Err(CelautError {
-                kind: CelautErrorKind::LimitReached,
-                message: format!(
-                    "{nano_erg} nanoERG with the {used} nanoERG of the earlier deposits is more \
-                     than the limit of this node, {limit} nanoERG"
-                ),
-            }),
+/// Count `record` against the limit of its node and keep it, or refuse it.
+fn reserve(
+    data: &mut CelautData,
+    deposit_id: &str,
+    record: DepositRecord,
+) -> Result<(), CelautError> {
+    let limit = limit(data, &record.peer_id);
+    let used = data.deposited_nano_erg(&record.peer_id);
+    match used.checked_add(record.nano_erg) {
+        Some(total) if total <= limit => {
+            data.deposits.insert(deposit_id.to_string(), record);
+            Ok(())
         }
-    }
-
-    fn release(&mut self, peer_id: &str, nano_erg: u64) {
-        let left = self.used(peer_id).saturating_sub(nano_erg);
-        self.used.insert(peer_id.to_string(), left);
+        _ => Err(CelautError {
+            kind: CelautErrorKind::LimitReached,
+            message: format!(
+                "{} nanoERG with the {used} nanoERG of the earlier deposits is more \
+                 than the limit of this node, {limit} nanoERG",
+                record.nano_erg
+            ),
+        }),
     }
 }
 
-static DEPOSITS: Lazy<Mutex<Deposits>> = Lazy::new(|| Mutex::new(Deposits::default()));
-
-fn deposits() -> Result<std::sync::MutexGuard<'static, Deposits>, CelautError> {
-    DEPOSITS.lock().map_err(|_| CelautError {
-        kind: CelautErrorKind::Storage,
-        message: "the state of the Celaut deposits is broken".into(),
-    })
-}
-
-fn release(peer_id: &str, nano_erg: u64) {
-    if let Ok(mut d) = DEPOSITS.lock() {
-        d.release(peer_id, nano_erg);
+/// Give the amount of a deposit that was not sent back to the limit of its node.
+fn release(deposit_id: &str) {
+    forget_preparation(deposit_id);
+    if let Err(e) = db().update(|d| {
+        d.deposits.remove(deposit_id);
+    }) {
+        tracing::warn!("a released deposit stays in the database: {e}");
     }
 }
 
 fn unknown_deposit() -> CelautError {
-    invalid("This deposit is not known. It was cancelled, or the app restarted.")
+    invalid("This deposit is not known. It was cancelled, or it was never sent.")
 }
 
 fn wallet_error(message: String) -> CelautError {
@@ -158,7 +136,7 @@ pub struct DepositNodeView {
     /// The balance of the client of this app on the node, in MU.
     pub client_balance_mu: String,
     pub limit_nano_erg: u64,
-    /// The deposits to this node in this process, in nanoERG.
+    /// The deposits of the app to this node, from every wallet, in nanoERG.
     pub deposited_nano_erg: u64,
 }
 
@@ -176,10 +154,11 @@ pub async fn celaut_deposit_node(node: NodeAddress) -> Result<DepositNodeView, C
         }
     };
     let peer_id = session.peer_id().to_string();
-    let d = deposits()?;
+    let (limit_nano_erg, deposited_nano_erg) =
+        db().read(|d| (limit(d, &peer_id), d.deposited_nano_erg(&peer_id)));
     Ok(DepositNodeView {
-        limit_nano_erg: d.limit(&peer_id),
-        deposited_nano_erg: d.used(&peer_id),
+        limit_nano_erg,
+        deposited_nano_erg,
         peer_id,
         pay_to_address,
         mu_per_nano_erg: erg.mu_per_nano_erg.to_string(),
@@ -188,15 +167,21 @@ pub async fn celaut_deposit_node(node: NodeAddress) -> Result<DepositNodeView, C
 }
 
 /// Set the limit of the deposits to the node `peer_id`, in nanoERG. 0 stops the deposits
-/// to that node.
+/// to that node. The node must be in the database (check it first).
 #[flutter_rust_bridge::frb]
 pub fn celaut_set_deposit_limit(peer_id: String, limit_nano_erg: u64) -> Result<(), CelautError> {
     let peer_id = peer_id.trim().to_ascii_lowercase();
     if peer_id.len() != 64 || !peer_id.bytes().all(|b| b.is_ascii_hexdigit()) {
         return Err(invalid("The node id must be 64 hexadecimal characters."));
     }
-    deposits()?.limits.insert(peer_id, limit_nano_erg);
-    Ok(())
+    db().update(|d| match d.nodes.get_mut(&peer_id) {
+        Some(node) => {
+            node.deposit_limit_nano_erg = Some(limit_nano_erg);
+            Ok(())
+        }
+        None => Err(invalid("This node is not known. Check the node first.")),
+    })
+    .map_err(storage_error)?
 }
 
 /// A deposit that waits for the confirmation of the user.
@@ -215,10 +200,12 @@ pub struct DepositPreparedView {
     pub miner_fee_nano_erg: i64,
     pub change_nano_erg: i64,
     pub input_count: u32,
+    /// The id of the deposit transaction, known before the signature.
+    pub tx_id: String,
     /// The id of the deposit box, known before the signature (empty if unknown).
     pub box_id: String,
     pub limit_nano_erg: u64,
-    /// The deposits to this node in this process, this one included, in nanoERG.
+    /// The deposits of the app to this node, this one included, in nanoERG.
     pub deposited_nano_erg: u64,
     /// The node refuses the payment if `Payable` comes later than this, after the token
     /// was made.
@@ -288,24 +275,34 @@ pub async fn celaut_deposit_prepare(
     let script_hex = hex::encode(&erg.script);
     let pay_to_address = address_of(&script_hex)?;
     let peer_id = session.peer_id().to_string();
-    deposits()?.reserve(&peer_id, amount_nano_erg)?;
+    let deposit_id = new_client_id().map_err(error_of)?;
+    let record = DepositRecord {
+        peer_id: peer_id.clone(),
+        address: key(&node),
+        deposit_token: String::new(),
+        nano_erg: amount_nano_erg,
+        mu: amount_mu.to_string(),
+        pay_to_address: pay_to_address.clone(),
+        tx_id: String::new(),
+        made_at: now_seconds(),
+        stage: DepositStage::Prepared,
+    };
+    db().update(|d| reserve(d, &deposit_id, record))
+        .map_err(storage_error)??;
 
     // From here, an error gives the reservation back.
     let token = match session.deposit_token().await {
         Ok(t) => t,
         Err(e) => {
-            release(&peer_id, amount_nano_erg);
+            release(&deposit_id);
             forget_if_broken(&node, &e);
             return Err(error_of(e));
         }
     };
-    let payment = match erg.payment(&token, amount_nano_erg) {
-        Ok(p) => p,
-        Err(e) => {
-            release(&peer_id, amount_nano_erg);
-            return Err(error_of(e.into()));
-        }
-    };
+    if let Err(e) = erg.payment(&token, amount_nano_erg) {
+        release(&deposit_id);
+        return Err(error_of(e.into()));
+    }
     let r4 = ergo_tx::sigma::encode_sigma_coll_byte(token.as_bytes());
     let registers = HashMap::from([("R4".to_string(), r4.clone())]);
     let prepared = match crate::api::prepare_registered_send(
@@ -322,81 +319,165 @@ pub async fn celaut_deposit_prepare(
     {
         Ok(p) => p,
         Err(e) => {
-            release(&peer_id, amount_nano_erg);
+            release(&deposit_id);
             return Err(wallet_error(e));
         }
     };
     if let Err(e) = check_deposit_output(&prepared.unsigned_tx, &script_hex, amount_nano_erg, &r4) {
         crate::api::drop_preparation(prepared.preparation_id);
-        release(&peer_id, amount_nano_erg);
+        release(&deposit_id);
         return Err(CelautError {
             kind: CelautErrorKind::Protocol,
             message: format!("the prepared deposit is wrong: {e}"),
         });
     }
-    let box_id = ergo_tx::chain::derive_output_boxes(&prepared.unsigned_tx)
-        .ok()
-        .and_then(|(_, outputs)| outputs.into_iter().next().map(|b| b.box_id))
-        .unwrap_or_default();
-    let deposit_id = match new_client_id() {
-        Ok(id) => id,
+    let (tx_id, box_id) = match ergo_tx::chain::derive_output_boxes(&prepared.unsigned_tx) {
+        Ok((tx_id, outputs)) => (
+            tx_id,
+            outputs
+                .into_iter()
+                .next()
+                .map(|b| b.box_id)
+                .unwrap_or_default(),
+        ),
         Err(e) => {
             crate::api::drop_preparation(prepared.preparation_id);
-            release(&peer_id, amount_nano_erg);
-            return Err(error_of(e));
+            release(&deposit_id);
+            return Err(CelautError {
+                kind: CelautErrorKind::Protocol,
+                message: format!("the id of the deposit transaction is not known: {e}"),
+            });
         }
     };
-
-    let mut d = deposits()?;
-    let view = DepositPreparedView {
-        deposit_id: deposit_id.clone(),
+    let stored = db().update(|d| {
+        if let Some(r) = d.deposits.get_mut(&deposit_id) {
+            r.deposit_token = token.clone();
+            r.tx_id = tx_id.clone();
+        }
+        (limit(d, &peer_id), d.deposited_nano_erg(&peer_id))
+    });
+    let (limit_nano_erg, deposited_nano_erg) = match stored {
+        Ok(v) => v,
+        Err(e) => {
+            // Without the token in the database, a restart could not finish the deposit.
+            crate::api::drop_preparation(prepared.preparation_id);
+            release(&deposit_id);
+            return Err(storage_error(e));
+        }
+    };
+    if let Ok(mut p) = PREPARATIONS.lock() {
+        p.insert(deposit_id.clone(), prepared.preparation_id);
+    }
+    Ok(DepositPreparedView {
+        deposit_id,
         preparation_id: prepared.preparation_id,
-        peer_id: peer_id.clone(),
-        pay_to_address: pay_to_address.clone(),
+        peer_id,
+        pay_to_address,
         amount_nano_erg,
         amount_mu: amount_mu.to_string(),
         mu_per_nano_erg: erg.mu_per_nano_erg.to_string(),
         miner_fee_nano_erg: prepared.miner_fee,
         change_nano_erg: prepared.change_erg,
         input_count: u32::try_from(prepared.input_count).unwrap_or(u32::MAX),
+        tx_id,
         box_id,
-        limit_nano_erg: d.limit(&peer_id),
-        deposited_nano_erg: d.used(&peer_id),
+        limit_nano_erg,
+        deposited_nano_erg,
         token_seconds: DEPOSIT_TOKEN_SECONDS,
-    };
-    d.pending.insert(
-        deposit_id,
-        Pending {
-            peer_id,
-            node,
-            session,
-            payment,
-            nano_erg: amount_nano_erg,
-            pay_to_address,
-            preparation_id: prepared.preparation_id,
-            stage: Stage::Prepared,
-        },
-    );
-    Ok(view)
+    })
 }
 
-/// Forget a deposit that the user did not confirm, and give its amount back to the limit
-/// of the node. A deposit that was sent cannot be cancelled.
+/// Forget a deposit that the user did not confirm, or whose send did not use the
+/// preparation, and give its amount back to the limit of the node. A deposit that was
+/// sent cannot be cancelled.
 #[flutter_rust_bridge::frb]
 pub fn celaut_deposit_cancel(deposit_id: String) -> Result<(), CelautError> {
-    let mut d = deposits()?;
-    let pending = d.pending.get(&deposit_id).ok_or_else(unknown_deposit)?;
-    if pending.stage != Stage::Prepared || !crate::api::preparation_waits(pending.preparation_id) {
+    let stage = db()
+        .read(|d| d.deposits.get(&deposit_id).map(|r| r.stage.clone()))
+        .ok_or_else(unknown_deposit)?;
+    let preparation = preparation_of(&deposit_id);
+    let waits = preparation.is_some_and(crate::api::preparation_waits);
+    let before_payable = matches!(stage, DepositStage::Prepared | DepositStage::Sent { .. });
+    if !before_payable || !waits {
         return Err(invalid(
             "This deposit was sent. Wait for it with the explorer, then the node checks it.",
         ));
     }
-    let Some(pending) = d.pending.remove(&deposit_id) else {
+    if let Some(id) = preparation {
+        crate::api::drop_preparation(id);
+    }
+    forget_preparation(&deposit_id);
+    db().update(|d| {
+        d.deposits.remove(&deposit_id);
+    })
+    .map_err(storage_error)
+}
+
+/// Call this just before `send_erg` of the deposit. The deposit is then "sent" in the
+/// database, with the transaction id that was known before the signature, so that a
+/// stop of the app during the send does not lose it: after a restart the deposit is in
+/// [`celaut_sent_deposits`]. If the send fails without the use of the preparation,
+/// [`celaut_deposit_cancel`] still works.
+#[flutter_rust_bridge::frb]
+pub fn celaut_deposit_sending(deposit_id: String) -> Result<String, CelautError> {
+    if !preparation_of(&deposit_id).is_some_and(crate::api::preparation_waits) {
         return Err(unknown_deposit());
-    };
-    d.release(&pending.peer_id, pending.nano_erg);
-    crate::api::drop_preparation(pending.preparation_id);
-    Ok(())
+    }
+    db().update(|d| match d.deposits.get_mut(&deposit_id) {
+        Some(r) if r.stage == DepositStage::Prepared => {
+            r.stage = DepositStage::Sent {
+                tx_id: r.tx_id.clone(),
+            };
+            Ok(r.tx_id.clone())
+        }
+        Some(r) => match &r.stage {
+            DepositStage::Sent { tx_id } => Ok(tx_id.clone()),
+            _ => Err(invalid("The node already checked this deposit.")),
+        },
+        None => Err(unknown_deposit()),
+    })
+    .map_err(storage_error)?
+}
+
+/// A deposit that was sent and that the node did not check yet.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DepositSentView {
+    pub deposit_id: String,
+    pub peer_id: String,
+    /// The address (`host:port`) of the node.
+    pub address: String,
+    pub tx_id: String,
+    pub amount_nano_erg: u64,
+    pub amount_mu: String,
+    /// The time of the preparation, in Unix seconds.
+    pub made_at: i64,
+    /// True if the deposit token expired: the node refuses this deposit now.
+    pub expired: bool,
+}
+
+/// The deposits that were sent and that the node did not check yet, also from an
+/// earlier run of the app. Finish each with [`celaut_deposit_notify`].
+#[flutter_rust_bridge::frb(sync)]
+pub fn celaut_sent_deposits() -> Vec<DepositSentView> {
+    db().read(|d| {
+        d.deposits
+            .iter()
+            .filter_map(|(id, r)| match &r.stage {
+                DepositStage::Sent { tx_id } => Some(DepositSentView {
+                    deposit_id: id.clone(),
+                    peer_id: r.peer_id.clone(),
+                    address: r.address.clone(),
+                    tx_id: tx_id.clone(),
+                    amount_nano_erg: r.nano_erg,
+                    amount_mu: r.mu.clone(),
+                    made_at: r.made_at,
+                    expired: now_seconds().saturating_sub(r.made_at)
+                        > i64::from(DEPOSIT_TOKEN_SECONDS),
+                }),
+                _ => None,
+            })
+            .collect()
+    })
 }
 
 /// The end of a deposit.
@@ -473,38 +554,41 @@ pub async fn celaut_deposit_notify(
             "The transaction id must be 64 hexadecimal characters.",
         ));
     }
-    let (token, nano_erg, address) = {
-        let mut d = deposits()?;
-        let pending = d.pending.get_mut(&deposit_id).ok_or_else(unknown_deposit)?;
-        match &pending.stage {
-            Stage::Prepared => {
-                if crate::api::preparation_waits(pending.preparation_id) {
-                    return Err(invalid("This deposit was not sent yet."));
+    let record = db()
+        .read(|d| d.deposits.get(&deposit_id).cloned())
+        .ok_or_else(unknown_deposit)?;
+    match &record.stage {
+        DepositStage::Prepared => {
+            if preparation_of(&deposit_id).is_none_or(crate::api::preparation_waits) {
+                return Err(invalid("This deposit was not sent yet."));
+            }
+            let sent = DepositStage::Sent {
+                tx_id: tx_id.clone(),
+            };
+            db().update(|d| {
+                if let Some(r) = d.deposits.get_mut(&deposit_id) {
+                    r.stage = sent;
                 }
-                pending.stage = Stage::Sent {
-                    tx_id: tx_id.clone(),
-                };
-            }
-            Stage::Sent { tx_id: sent } if *sent == tx_id => {}
-            Stage::Sent { .. } => {
-                return Err(invalid("This deposit was sent with another transaction."));
-            }
-            Stage::PayableCalled => {
-                return Err(invalid("The node already checked this deposit."));
-            }
+            })
+            .map_err(storage_error)?;
+            forget_preparation(&deposit_id);
         }
-        (
-            pending.payment.deposit_token.clone(),
-            pending.nano_erg,
-            pending.pay_to_address.clone(),
-        )
-    };
+        DepositStage::Sent { tx_id: sent } if *sent == tx_id => {}
+        DepositStage::Sent { .. } => {
+            return Err(invalid("This deposit was sent with another transaction."));
+        }
+        DepositStage::PayableCalled { .. } => {
+            return Err(invalid("The node already checked this deposit."));
+        }
+    }
+    let token = record.deposit_token.clone();
+    let nano_erg = record.nano_erg;
 
     let explorer = explorer_url
         .map(|u| u.trim().to_string())
         .filter(|u| !u.is_empty())
         .unwrap_or_else(|| NODO_DEFAULT_EXPLORER.to_string());
-    let url = unspent_boxes_url(&explorer, &address);
+    let url = unspent_boxes_url(&explorer, &record.pay_to_address);
     let Some(found) = wait_for_box(|| fetch_boxes(&url), &token, WAIT_INTERVAL, WAIT_LIMIT).await
     else {
         return Err(CelautError {
@@ -527,20 +611,43 @@ pub async fn celaut_deposit_notify(
         });
     }
 
-    // One attempt only: the stage changes before the call, under the lock.
-    let (session, payment, node) = {
-        let mut d = deposits()?;
-        let pending = d.pending.get_mut(&deposit_id).ok_or_else(unknown_deposit)?;
-        if pending.stage == Stage::PayableCalled {
-            return Err(invalid("The node already checked this deposit."));
-        }
-        pending.stage = Stage::PayableCalled;
-        (
-            pending.session.clone(),
-            pending.payment.clone(),
-            pending.node.clone(),
-        )
-    };
+    let node = address_of_key(&record.address).ok_or_else(|| CelautError {
+        kind: CelautErrorKind::Storage,
+        message: format!("the address of the node is not valid: {}", record.address),
+    })?;
+    let session = session(&node).await?;
+    if session.peer_id() != record.peer_id {
+        return Err(CelautError {
+            kind: CelautErrorKind::IdentityMismatch,
+            message: format!(
+                "the node at {} is now {}, not the node of the deposit {}. Nothing was sent \
+                 to the node.",
+                record.address,
+                session.peer_id(),
+                record.peer_id
+            ),
+        });
+    }
+    let payment = session
+        .erg_payment()
+        .and_then(|erg| Ok(erg.payment(&token, nano_erg)?))
+        .map_err(error_of)?;
+
+    // One attempt only: the stage changes in the database before the call.
+    let once = db()
+        .update(|d| match d.deposits.get_mut(&deposit_id) {
+            Some(r) if matches!(r.stage, DepositStage::Sent { .. }) => {
+                r.stage = DepositStage::PayableCalled {
+                    tx_id: tx_id.clone(),
+                    accepted: false,
+                };
+                Ok(())
+            }
+            Some(_) => Err(invalid("The node already checked this deposit.")),
+            None => Err(unknown_deposit()),
+        })
+        .map_err(storage_error)?;
+    once?;
     let (accepted, node_message) = match session.payable(&payment).await {
         Ok(()) => (true, None),
         Err(e) => {
@@ -548,6 +655,26 @@ pub async fn celaut_deposit_notify(
             (false, Some(e.to_string()))
         }
     };
+    let logged = db().update(|d| {
+        if let Some(r) = d.deposits.get_mut(&deposit_id) {
+            r.stage = DepositStage::PayableCalled {
+                tx_id: tx_id.clone(),
+                accepted,
+            };
+        }
+        d.add_event(EventRecord {
+            peer_id: record.peer_id.clone(),
+            kind: if accepted {
+                EventKind::PaymentCommunicated
+            } else {
+                EventKind::PaymentNotAcknowledged
+            },
+            at: now_seconds(),
+        });
+    });
+    if let Err(e) = logged {
+        tracing::warn!("the answer of the node to the deposit is not stored: {e}");
+    }
     let client_balance_mu = session
         .balance()
         .await
@@ -570,39 +697,98 @@ mod tests {
 
     const PEER: &str = "aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11";
 
-    #[test]
-    fn the_limit_counts_every_prepared_deposit() {
-        let mut d = Deposits::default();
-        assert_eq!(d.limit(PEER), DEFAULT_LIMIT_NANO_ERG);
-        d.reserve(PEER, 30_000_000).unwrap();
-        d.reserve(PEER, 20_000_000).unwrap();
-        let err = d.reserve(PEER, 1).unwrap_err();
-        assert_eq!(err.kind, CelautErrorKind::LimitReached);
-        assert_eq!(d.used(PEER), 50_000_000);
-        d.release(PEER, 20_000_000);
-        d.reserve(PEER, 20_000_000).unwrap();
-        d.limits.insert(PEER.into(), 0);
-        assert_eq!(
-            d.reserve(PEER, 1).unwrap_err().kind,
-            CelautErrorKind::LimitReached
-        );
-        assert_eq!(
-            d.reserve(PEER, u64::MAX).unwrap_err().kind,
-            CelautErrorKind::LimitReached
-        );
-        // Another node has its own limit.
-        d.reserve(&"bb".repeat(32), 1_000_000).unwrap();
-        d.release("cc", 5);
-        assert_eq!(d.used("cc"), 0);
+    fn record(peer_id: &str, nano_erg: u64) -> DepositRecord {
+        DepositRecord {
+            peer_id: peer_id.into(),
+            address: "node:1".into(),
+            deposit_token: String::new(),
+            nano_erg,
+            mu: nano_erg.to_string(),
+            pay_to_address: "9f".into(),
+            tx_id: "ab".repeat(32),
+            made_at: 0,
+            stage: DepositStage::Prepared,
+        }
     }
 
     #[test]
-    fn the_limit_needs_a_node_id() {
+    fn the_limit_counts_every_prepared_deposit() {
+        let mut d = CelautData::default();
+        assert_eq!(limit(&d, PEER), DEFAULT_LIMIT_NANO_ERG);
+        reserve(&mut d, "a", record(PEER, 30_000_000)).unwrap();
+        reserve(&mut d, "b", record(PEER, 20_000_000)).unwrap();
+        let err = reserve(&mut d, "c", record(PEER, 1)).unwrap_err();
+        assert_eq!(err.kind, CelautErrorKind::LimitReached);
+        assert_eq!(d.deposited_nano_erg(PEER), 50_000_000);
+        d.deposits.remove("b");
+        reserve(&mut d, "b", record(PEER, 20_000_000)).unwrap();
+        d.nodes.insert(
+            PEER.into(),
+            celaut_client::db::NodeRecord {
+                client_id: "c".into(),
+                deposit_limit_nano_erg: Some(0),
+                ..Default::default()
+            },
+        );
+        assert_eq!(
+            reserve(&mut d, "d", record(PEER, 1)).unwrap_err().kind,
+            CelautErrorKind::LimitReached
+        );
+        assert_eq!(
+            reserve(&mut d, "e", record(PEER, u64::MAX))
+                .unwrap_err()
+                .kind,
+            CelautErrorKind::LimitReached
+        );
+        // Another node has its own limit.
+        reserve(&mut d, "f", record(&"bb".repeat(32), 1_000_000)).unwrap();
+        assert_eq!(d.deposited_nano_erg("cc"), 0);
+    }
+
+    #[test]
+    fn the_limit_needs_a_known_node() {
         assert!(celaut_set_deposit_limit("ab".into(), 1).is_err());
         assert!(celaut_set_deposit_limit("zz".repeat(32), 1).is_err());
         let peer = "cd".repeat(32);
+        let err = celaut_set_deposit_limit(peer.clone(), 7).unwrap_err();
+        assert_eq!(err.kind, CelautErrorKind::InvalidInput);
+        db().update(|d| {
+            d.nodes.insert(
+                peer.clone(),
+                celaut_client::db::NodeRecord {
+                    client_id: "c".into(),
+                    ..Default::default()
+                },
+            );
+        })
+        .unwrap();
         celaut_set_deposit_limit(peer.to_uppercase(), 7).unwrap();
-        assert_eq!(deposits().unwrap().limit(&peer), 7);
+        assert_eq!(db().read(|d| limit(d, &peer)), 7);
+    }
+
+    #[test]
+    fn a_sent_deposit_is_listed_and_a_prepared_one_is_not() {
+        let peer = "ce".repeat(32);
+        let mut sent = record(&peer, 2_000_000);
+        sent.stage = DepositStage::Sent {
+            tx_id: "ab".repeat(32),
+        };
+        db().update(|d| {
+            d.deposits.insert("sent-1".into(), sent);
+            d.deposits
+                .insert("prepared-1".into(), record(&peer, 1_000_000));
+        })
+        .unwrap();
+        let listed: Vec<_> = celaut_sent_deposits()
+            .into_iter()
+            .filter(|v| v.peer_id == peer)
+            .collect();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].deposit_id, "sent-1");
+        assert_eq!(listed[0].tx_id, "ab".repeat(32));
+        // A prepared deposit without its preparation (an earlier run) cannot cancel or
+        // be notified: it was never sent.
+        assert!(celaut_deposit_cancel("prepared-1".into()).is_err());
     }
 
     #[tokio::test]

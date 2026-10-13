@@ -1,45 +1,45 @@
 //! Celaut services on the free credit of a new client (milestone M2): quotes from
 //! several nodes, start, a local port for a slot of the instance, and stop.
 //!
-//! The state lives in Rust for the life of the process: one session (client id) per
-//! node address, and the started instances. Dart gets an instance id that is not the
-//! instance token, so the token never leaves Rust. Nothing is stored on disk yet: when
-//! the app stops, the instances keep running on the node until their balance ends.
+//! The client id of each node and the started instances are in the database of the app
+//! (`celaut_db`), one for all the wallets. A restart of the app keeps them: the next
+//! call to the node uses the same client id, and an instance can be stopped after a
+//! restart. Dart gets an instance id that is not the instance token, so the token never
+//! leaves Rust. The connections and the local ports are in memory only.
+//!
+//! Starting and stopping need a full wallet in the app (`docs/celaut/ui.md`); the screen
+//! checks that, because this side has no wallet.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use celaut_balancer::QuoteCache;
+use celaut_client::db::{InstanceRecord, NodeRecord, QuoteRecord};
 use celaut_client::session::parse_service_id;
-use celaut_client::{
-    new_client_id, quotes, ClientError, LocalPort, MemoryPeerStore, NodeSession, StartedInstance,
-};
+use celaut_client::{new_client_id, quotes, ClientError, LocalPort, NodeSession};
 use celaut_proto::celaut::{Amount, Configuration, EstimatedCost};
 use celaut_wire::{ConnectOptions, Connection, TunnelOpener, WireError};
 use once_cell::sync::Lazy;
 
 use super::celaut::{error_of, invalid, CelautError, CelautErrorKind};
+use super::celaut_db::{db, now_seconds, storage_error};
 
 pub(crate) type Session = Arc<NodeSession<Connection>>;
 
 // The state stays in Rust: not part of the Dart API.
 #[flutter_rust_bridge::frb(ignore)]
-struct Running {
-    session: Session,
-    started: StartedInstance,
-    ports: HashMap<u16, LocalPort>,
-}
-
-#[flutter_rust_bridge::frb(ignore)]
 #[derive(Default)]
 struct State {
+    /// The connections, by node address.
     sessions: HashMap<String, Session>,
-    instances: HashMap<String, Running>,
+    /// The local ports of each instance, by instance id.
+    ports: HashMap<String, HashMap<u16, LocalPort>>,
 }
 
 static STATE: Lazy<Mutex<State>> = Lazy::new(|| Mutex::new(State::default()));
 static QUOTES: Lazy<Mutex<QuoteCache>> = Lazy::new(|| Mutex::new(QuoteCache::new()));
-static PEERS: Lazy<MemoryPeerStore> = Lazy::new(MemoryPeerStore::new);
+/// One new session at a time, so that two calls do not make two clients on one node.
+static OPENING: Lazy<tokio::sync::Mutex<()>> = Lazy::new(|| tokio::sync::Mutex::new(()));
 
 fn state() -> Result<std::sync::MutexGuard<'static, State>, CelautError> {
     STATE.lock().map_err(|_| CelautError {
@@ -56,11 +56,21 @@ pub struct NodeAddress {
     pub port: u16,
 }
 
-fn key(address: &NodeAddress) -> String {
-    format!("{}:{}", address.host, address.port)
+pub(crate) fn key(address: &NodeAddress) -> String {
+    format!("{}:{}", address.host.trim(), address.port)
 }
 
-fn check(address: &NodeAddress) -> Result<(), CelautError> {
+/// The address of `host:port` text from the database.
+pub(crate) fn address_of_key(text: &str) -> Option<NodeAddress> {
+    let (host, port) = text.rsplit_once(':')?;
+    let port = port.parse().ok().filter(|p| *p != 0)?;
+    (!host.is_empty()).then(|| NodeAddress {
+        host: host.to_string(),
+        port,
+    })
+}
+
+pub(crate) fn check(address: &NodeAddress) -> Result<(), CelautError> {
     let host = address.host.trim();
     if host.is_empty() || host.contains(|c: char| c.is_whitespace() || c == '/') {
         return Err(invalid(
@@ -100,8 +110,44 @@ fn service_id(text: &str) -> Result<[u8; 32], CelautError> {
         .ok_or_else(|| invalid("The service id must be 64 hexadecimal characters."))
 }
 
-/// The session of `address`: the one that exists, or a new client on the node. A new
-/// client gets the free credit of the node.
+/// Check the node on `connection` with the client id that the database has for it, or
+/// with a new client (which gets the free credit of the node) that goes into the
+/// database. The client id is in the database before the session is used, so that a
+/// deposit to it is never lost.
+pub(crate) async fn open_session(
+    connection: Connection,
+    address_key: &str,
+) -> Result<NodeSession<Connection>, CelautError> {
+    let _one = OPENING.lock().await;
+    let db = db();
+    let peer_id = connection.peer_id().to_string();
+    let stored = db.read(|d| d.nodes.get(&peer_id).map(|n| n.client_id.clone()));
+    let session = match stored {
+        Some(client_id) => NodeSession::resume(connection, &peer_id, client_id, &*db)
+            .await
+            .map_err(error_of)?,
+        None => {
+            let session = NodeSession::open(connection, &peer_id, &*db)
+                .await
+                .map_err(error_of)?;
+            let client_id = session.client_id().to_string();
+            db.update(|d| {
+                d.nodes.entry(peer_id.clone()).or_insert(NodeRecord {
+                    client_id,
+                    ..Default::default()
+                });
+            })
+            .map_err(storage_error)?;
+            session
+        }
+    };
+    db.update(|d| d.note_address(&peer_id, address_key))
+        .map_err(storage_error)?;
+    Ok(session)
+}
+
+/// The session of `address`: the open one, or a new connection with the client id of
+/// the node from the database (or a new client on the node).
 pub(crate) async fn session(address: &NodeAddress) -> Result<Session, CelautError> {
     check(address)?;
     let key = key(address);
@@ -112,17 +158,13 @@ pub(crate) async fn session(address: &NodeAddress) -> Result<Session, CelautErro
         Connection::connect(address.host.trim(), address.port, ConnectOptions::default())
             .await
             .map_err(|e| error_of(e.into()))?;
-    let peer_id = connection.peer_id().to_string();
-    let session = NodeSession::open(connection, &peer_id, &*PEERS)
-        .await
-        .map_err(error_of)?;
-    let session = Arc::new(session);
+    let session = Arc::new(open_session(connection, &key).await?);
     // Another call may have made one at the same time: keep the first.
     Ok(state()?.sessions.entry(key).or_insert(session).clone())
 }
 
-/// Forget the session of `address` after a connection error, so that the next call
-/// connects again. Its balance on the node is lost with its client id.
+/// Forget the connection of `address` after a connection error, so that the next call
+/// connects again. The client id stays in the database.
 pub(crate) fn forget_if_broken(address: &NodeAddress, error: &ClientError) {
     if matches!(error, ClientError::Wire(WireError::Connect(_))) {
         if let Ok(mut s) = STATE.lock() {
@@ -131,7 +173,8 @@ pub(crate) fn forget_if_broken(address: &NodeAddress, error: &ClientError) {
     }
 }
 
-/// One quote, in the MU of the node and, if the node gives an ERG rate, in nanoERG.
+/// One quote, in the MU of the node and, if the node gives an ERG rate, in nanoERG. An
+/// amount that the node did not give is empty (the screen shows "unknown", not 0).
 #[derive(Debug, Clone, PartialEq)]
 pub struct QuoteView {
     pub address: NodeAddress,
@@ -162,11 +205,9 @@ pub struct QuotesView {
     pub failures: Vec<QuoteFailureView>,
 }
 
+/// The amount as text, or empty if the node did not give it.
 fn n(amount: &Option<Amount>) -> String {
-    amount
-        .as_ref()
-        .map(|a| a.n.clone())
-        .unwrap_or_else(|| "0".into())
+    amount.as_ref().map(|a| a.n.clone()).unwrap_or_default()
 }
 
 fn quote_view(address: NodeAddress, peer_id: String, q: &EstimatedCost) -> QuoteView {
@@ -231,6 +272,20 @@ pub async fn celaut_quote_service(
             message: e.message,
         });
     }
+    let at = now_seconds();
+    let stored = db().update(|d| {
+        for r in &answer.ranked {
+            d.add_quote(QuoteRecord {
+                peer_id: r.candidate.peer_id.clone(),
+                service_id: hex::encode(id),
+                cost_mu: n(&r.candidate.quote.cost),
+                at,
+            });
+        }
+    });
+    if let Err(e) = stored {
+        tracing::warn!("the quotes are not stored: {e}");
+    }
     let quotes = answer
         .ranked
         .iter()
@@ -252,12 +307,14 @@ pub struct InstanceView {
     pub peer_id: String,
     /// The internal ports of the instance, for [`celaut_open_tunnel`].
     pub slots: Vec<u16>,
-    /// The balance of this client on the node after the start, in MU.
+    /// The balance of this client on the node after the start, in MU (empty if
+    /// unknown).
     pub client_balance_mu: String,
 }
 
-/// Start the service on the node. The node charges the quote to the free credit of the
-/// client. The node runs it itself (no delegation).
+/// Start the service on the node. The node charges the quote to the balance of the
+/// client of the app on that node. The node runs it itself (no delegation). The
+/// instance goes into the database of the app.
 #[flutter_rust_bridge::frb]
 pub async fn celaut_start_service(
     node: NodeAddress,
@@ -267,6 +324,7 @@ pub async fn celaut_start_service(
     let id = service_id(&service_id_hex)?;
     let configuration = configuration(initial_mu)?;
     let session = session(&node).await?;
+    let before = session.balance().await.ok();
     let started = match session.start(id, configuration).await {
         Ok(s) => s,
         Err(e) => {
@@ -274,31 +332,96 @@ pub async fn celaut_start_service(
             return Err(error_of(e));
         }
     };
-    let balance = session
-        .balance()
-        .await
-        .map(|b| b.to_string())
-        .unwrap_or_default();
+    let after = session.balance().await.ok();
     let instance_id = new_client_id().map_err(error_of)?;
+    let record = InstanceRecord {
+        peer_id: session.peer_id().to_string(),
+        address: key(&node),
+        token: started.token.clone(),
+        service_id: hex::encode(id),
+        slots: started.slots(),
+        started_at: now_seconds(),
+        start_charge_mu: match (before, after) {
+            (Some(b), Some(a)) if b >= a => Some((b - a).to_string()),
+            _ => None,
+        },
+    };
     let view = InstanceView {
         instance_id: instance_id.clone(),
-        peer_id: session.peer_id().to_string(),
-        slots: started.slots(),
-        client_balance_mu: balance,
+        peer_id: record.peer_id.clone(),
+        slots: record.slots.clone(),
+        client_balance_mu: after.map(|b| b.to_string()).unwrap_or_default(),
     };
-    state()?.instances.insert(
-        instance_id,
-        Running {
-            session,
-            started,
-            ports: HashMap::new(),
-        },
-    );
+    db().update(|d| {
+        d.instances.insert(instance_id, record);
+    })
+    .map_err(storage_error)?;
     Ok(view)
 }
 
 fn unknown_instance() -> CelautError {
-    invalid("This instance is not known. It was stopped, or the app restarted.")
+    invalid("This instance is not known. It was stopped.")
+}
+
+/// The instance `instance_id` from the database, and a session on its node.
+async fn instance(instance_id: &str) -> Result<(Session, InstanceRecord), CelautError> {
+    let record = db()
+        .read(|d| d.instances.get(instance_id).cloned())
+        .ok_or_else(unknown_instance)?;
+    let address = address_of_key(&record.address).ok_or_else(|| CelautError {
+        kind: CelautErrorKind::Storage,
+        message: format!(
+            "the address of the instance is not valid: {}",
+            record.address
+        ),
+    })?;
+    let session = session(&address).await?;
+    if session.peer_id() != record.peer_id {
+        return Err(CelautError {
+            kind: CelautErrorKind::IdentityMismatch,
+            message: format!(
+                "the node at {} is now {}, not the node of the instance {}",
+                record.address,
+                session.peer_id(),
+                record.peer_id
+            ),
+        });
+    }
+    Ok((session, record))
+}
+
+/// An instance in the database, without its token.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InstanceListView {
+    pub instance_id: String,
+    pub peer_id: String,
+    /// The address (`host:port`) of the node.
+    pub address: String,
+    pub service_id: String,
+    pub slots: Vec<u16>,
+    /// The time of the start, in Unix seconds.
+    pub started_at: i64,
+    /// What the start took from the balance of the client, in MU (empty if unknown).
+    pub start_charge_mu: String,
+}
+
+/// The instances that the app started and did not stop, whichever wallet was open.
+#[flutter_rust_bridge::frb(sync)]
+pub fn celaut_instances() -> Vec<InstanceListView> {
+    db().read(|d| {
+        d.instances
+            .iter()
+            .map(|(id, r)| InstanceListView {
+                instance_id: id.clone(),
+                peer_id: r.peer_id.clone(),
+                address: r.address.clone(),
+                service_id: r.service_id.clone(),
+                slots: r.slots.clone(),
+                started_at: r.started_at,
+                start_charge_mu: r.start_charge_mu.clone().unwrap_or_default(),
+            })
+            .collect()
+    })
 }
 
 /// A port on 127.0.0.1 for the slot of the instance. The same port while the
@@ -306,30 +429,27 @@ fn unknown_instance() -> CelautError {
 /// the node charges (`TUNNEL_OPEN_MU`): keep HTTP connections alive.
 #[flutter_rust_bridge::frb]
 pub async fn celaut_open_tunnel(instance_id: String, slot: u16) -> Result<u16, CelautError> {
-    let (opener, token) = {
-        let s = state()?;
-        let running = s.instances.get(&instance_id).ok_or_else(unknown_instance)?;
-        if let Some(port) = running.ports.get(&slot) {
-            return Ok(port.port());
-        }
-        if !running.started.slots().contains(&slot) {
-            return Err(invalid("The instance has no such slot."));
-        }
-        let opener: Arc<dyn TunnelOpener> = Arc::new(running.session.transport().clone());
-        (opener, running.started.token.clone())
-    };
-    let port = LocalPort::bind(opener, token, slot)
+    if let Some(port) = state()?.ports.get(&instance_id).and_then(|p| p.get(&slot)) {
+        return Ok(port.port());
+    }
+    let (session, record) = instance(&instance_id).await?;
+    if !record.slots.contains(&slot) {
+        return Err(invalid("The instance has no such slot."));
+    }
+    let opener: Arc<dyn TunnelOpener> = Arc::new(session.transport().clone());
+    let port = LocalPort::bind(opener, record.token.clone(), slot)
         .await
         .map_err(|e| CelautError {
             kind: CelautErrorKind::Unreachable,
             message: format!("cannot open a local port: {e}"),
         })?;
     let mut s = state()?;
-    let running = s
-        .instances
-        .get_mut(&instance_id)
-        .ok_or_else(unknown_instance)?;
-    Ok(running.ports.entry(slot).or_insert(port).port())
+    Ok(s.ports
+        .entry(instance_id)
+        .or_default()
+        .entry(slot)
+        .or_insert(port)
+        .port())
 }
 
 /// The state of an instance.
@@ -337,10 +457,20 @@ pub async fn celaut_open_tunnel(instance_id: String, slot: u16) -> Result<u16, C
 pub struct InstanceStatusView {
     /// The balance of the instance on the node, in MU.
     pub instance_balance_mu: String,
+    /// What the instance cost so far, in MU: what the start took from the client,
+    /// less what the instance still has. Empty if unknown.
+    pub cost_so_far_mu: String,
     /// How many tunnel streams the local ports opened (one per TCP connection).
     pub streams_opened: u64,
     /// The last error of a tunnel stream, if any.
     pub last_tunnel_error: Option<String>,
+}
+
+/// What an instance cost so far: the charge of the start less the balance that the
+/// instance still has. `None` if the charge is not known.
+pub(crate) fn cost_so_far(start_charge_mu: Option<&str>, instance_balance: u128) -> Option<u128> {
+    let charge: u128 = start_charge_mu?.parse().ok()?;
+    Some(charge.saturating_sub(instance_balance))
 }
 
 /// The balance of the instance and the use of its tunnels.
@@ -348,21 +478,24 @@ pub struct InstanceStatusView {
 pub async fn celaut_instance_status(
     instance_id: String,
 ) -> Result<InstanceStatusView, CelautError> {
-    let (session, token, streams, last) = {
+    let (session, record) = instance(&instance_id).await?;
+    let (streams, last) = {
         let s = state()?;
-        let running = s.instances.get(&instance_id).ok_or_else(unknown_instance)?;
-        let streams = running.ports.values().map(LocalPort::streams_opened).sum();
-        let last = running.ports.values().find_map(LocalPort::last_error);
+        let ports = s.ports.get(&instance_id);
         (
-            running.session.clone(),
-            running.started.token.clone(),
-            streams,
-            last,
+            ports.map_or(0, |p| p.values().map(LocalPort::streams_opened).sum()),
+            ports.and_then(|p| p.values().find_map(LocalPort::last_error)),
         )
     };
-    let balance = session.instance_balance(&token).await.map_err(error_of)?;
+    let balance = session
+        .instance_balance(&record.token)
+        .await
+        .map_err(error_of)?;
     Ok(InstanceStatusView {
         instance_balance_mu: balance.to_string(),
+        cost_so_far_mu: cost_so_far(record.start_charge_mu.as_deref(), balance)
+            .map(|c| c.to_string())
+            .unwrap_or_default(),
         streams_opened: streams,
         last_tunnel_error: last,
     })
@@ -373,24 +506,21 @@ pub async fn celaut_instance_status(
 pub struct StopView {
     /// The unused balance of the instance that the node gave back to the client, in MU.
     pub refund_mu: String,
-    /// The balance of the client after the stop, in MU.
+    /// The balance of the client after the stop, in MU (empty if unknown).
     pub client_balance_mu: String,
 }
 
-/// Close the local ports of the instance and stop it on the node.
+/// Close the local ports of the instance and stop it on the node. The instance leaves
+/// the database when the node confirms the stop.
 #[flutter_rust_bridge::frb]
 pub async fn celaut_stop_service(instance_id: String) -> Result<StopView, CelautError> {
-    let running = state()?
-        .instances
-        .remove(&instance_id)
-        .ok_or_else(unknown_instance)?;
-    let Running {
-        session,
-        started,
-        ports,
-    } = running;
-    drop(ports);
-    let refund = session.stop(&started.token).await.map_err(error_of)?;
+    let (session, record) = instance(&instance_id).await?;
+    drop(state()?.ports.remove(&instance_id));
+    let refund = session.stop(&record.token).await.map_err(error_of)?;
+    db().update(|d| {
+        d.instances.remove(&instance_id);
+    })
+    .map_err(storage_error)?;
     let balance = session
         .balance()
         .await

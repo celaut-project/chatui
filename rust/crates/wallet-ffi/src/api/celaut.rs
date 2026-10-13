@@ -1,22 +1,17 @@
 //! Celaut nodes: connect to a node and read its advertisement (milestone M1).
 //!
 //! One async call. It opens a TLS connection, checks the identity in the certificate
-//! of the node, makes a client id, asks for the `Peer` and checks its signature (see
-//! `celaut-client`). The answer is plain data for the debug screen.
-
-use std::sync::Arc;
+//! of the node, uses the client id of the app on that node (or makes one), asks for the
+//! `Peer` and checks its signature (see `celaut-client`). The client id and the
+//! advertisement go into the database of the app (`celaut_db`). The answer is plain
+//! data for the debug screen.
 
 use celaut_client::{
-    connect_and_fetch, ClientError, DepositError, FilePeerStore, MemoryPeerStore, NodeInfo, PeerError, PeerStore,
+    connect_and_fetch, ClientError, DepositError, FilePeerStore, NodeInfo, PeerError,
 };
 use celaut_proto::celaut::peer::Uri;
 use celaut_proto::celaut::{ArchitectureResources, Contract, ContractRate, Sysresources};
-use celaut_wire::{ConnectOptions, IdentityError, WireError};
-use once_cell::sync::Lazy;
-
-/// The last advertisement per node, for the life of the process. Used when the caller
-/// gives no file.
-static MEMORY_STORE: Lazy<Arc<MemoryPeerStore>> = Lazy::new(|| Arc::new(MemoryPeerStore::new()));
+use celaut_wire::{ConnectOptions, Connection, IdentityError, WireError};
 
 /// One key and its value, as text.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -250,9 +245,9 @@ fn view_of(info: &NodeInfo) -> PeerInfoView {
 /// Connect to a Celaut node and read its advertisement.
 ///
 /// `host` is a name or an IP address without brackets. `expected_peer_id` is the
-/// identity that the node must prove, if the caller knows it. `store_path` is a file
-/// for the last accepted advertisement of each node. With `None`, the app keeps them in
-/// memory until it stops.
+/// identity that the node must prove, if the caller knows it. With `store_path` (a test
+/// file for the last accepted advertisements), the check uses a new client and nothing
+/// goes into the database of the app. With `None`, the node goes into the database.
 #[flutter_rust_bridge::frb]
 pub async fn celaut_peer_info(
     host: String,
@@ -272,18 +267,22 @@ pub async fn celaut_peer_info(
     let expected = expected_peer_id
         .map(|id| id.trim().to_string())
         .filter(|id| !id.is_empty());
-    let store: Arc<dyn PeerStore> = match store_path {
-        Some(path) => Arc::new(FilePeerStore::new(path)),
-        None => MEMORY_STORE.clone(),
-    };
     let options = ConnectOptions {
         expected_peer_id: expected,
         ..Default::default()
     };
-    connect_and_fetch(&host, port, options, store.as_ref())
+    if let Some(path) = store_path {
+        return connect_and_fetch(&host, port, options, &FilePeerStore::new(path))
+            .await
+            .map(|info| view_of(&info))
+            .map_err(error_of);
+    }
+    let connection = Connection::connect(&host, port, options)
         .await
-        .map(|info| view_of(&info))
-        .map_err(error_of)
+        .map_err(|e| error_of(e.into()))?;
+    let session =
+        super::celaut_service::open_session(connection, &format!("{host}:{port}")).await?;
+    Ok(view_of(session.info()))
 }
 
 #[cfg(test)]

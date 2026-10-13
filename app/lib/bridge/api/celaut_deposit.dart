@@ -8,17 +8,15 @@ import 'celaut.dart';
 import 'celaut_service.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `address_of`, `check_deposit_output`, `deposits`, `fetch_boxes`, `limit`, `release`, `release`, `reserve`, `unknown_deposit`, `used`, `wait_for_box`, `wallet_error`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Deposits`, `Pending`, `Stage`
+// These functions are ignored because they are not marked as `pub`: `address_of`, `check_deposit_output`, `fetch_boxes`, `forget_preparation`, `limit`, `preparation_of`, `release`, `reserve`, `unknown_deposit`, `wait_for_box`, `wallet_error`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`
-// These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
 
 /// The ERG payment contract of the node, the balance of the client, and the limit.
 Future<DepositNodeView> celautDepositNode({required NodeAddress node}) =>
     RustLib.instance.api.crateApiCelautDepositCelautDepositNode(node: node);
 
 /// Set the limit of the deposits to the node `peer_id`, in nanoERG. 0 stops the deposits
-/// to that node.
+/// to that node. The node must be in the database (check it first).
 Future<void> celautSetDepositLimit({
   required String peerId,
   required BigInt limitNanoErg,
@@ -49,12 +47,28 @@ Future<DepositPreparedView> celautDepositPrepare({
   nodeUrl: nodeUrl,
 );
 
-/// Forget a deposit that the user did not confirm, and give its amount back to the limit
-/// of the node. A deposit that was sent cannot be cancelled.
+/// Forget a deposit that the user did not confirm, or whose send did not use the
+/// preparation, and give its amount back to the limit of the node. A deposit that was
+/// sent cannot be cancelled.
 Future<void> celautDepositCancel({required String depositId}) => RustLib
     .instance
     .api
     .crateApiCelautDepositCelautDepositCancel(depositId: depositId);
+
+/// Call this just before `send_erg` of the deposit. The deposit is then "sent" in the
+/// database, with the transaction id that was known before the signature, so that a
+/// stop of the app during the send does not lose it: after a restart the deposit is in
+/// [`celaut_sent_deposits`]. If the send fails without the use of the preparation,
+/// [`celaut_deposit_cancel`] still works.
+Future<String> celautDepositSending({required String depositId}) => RustLib
+    .instance
+    .api
+    .crateApiCelautDepositCelautDepositSending(depositId: depositId);
+
+/// The deposits that were sent and that the node did not check yet, also from an
+/// earlier run of the app. Finish each with [`celaut_deposit_notify`].
+List<DepositSentView> celautSentDeposits() =>
+    RustLib.instance.api.crateApiCelautDepositCelautSentDeposits();
 
 /// After `send_erg` gave `tx_id`: wait until the explorer shows the deposit box unspent
 /// (the mempool is enough), then call `Payable` once.
@@ -135,7 +149,7 @@ class DepositNodeView {
   final String clientBalanceMu;
   final BigInt limitNanoErg;
 
-  /// The deposits to this node in this process, in nanoERG.
+  /// The deposits of the app to this node, from every wallet, in nanoERG.
   final BigInt depositedNanoErg;
 
   const DepositNodeView({
@@ -187,11 +201,14 @@ class DepositPreparedView {
   final PlatformInt64 changeNanoErg;
   final int inputCount;
 
+  /// The id of the deposit transaction, known before the signature.
+  final String txId;
+
   /// The id of the deposit box, known before the signature (empty if unknown).
   final String boxId;
   final BigInt limitNanoErg;
 
-  /// The deposits to this node in this process, this one included, in nanoERG.
+  /// The deposits of the app to this node, this one included, in nanoERG.
   final BigInt depositedNanoErg;
 
   /// The node refuses the payment if `Payable` comes later than this, after the token
@@ -209,6 +226,7 @@ class DepositPreparedView {
     required this.minerFeeNanoErg,
     required this.changeNanoErg,
     required this.inputCount,
+    required this.txId,
     required this.boxId,
     required this.limitNanoErg,
     required this.depositedNanoErg,
@@ -227,6 +245,7 @@ class DepositPreparedView {
       minerFeeNanoErg.hashCode ^
       changeNanoErg.hashCode ^
       inputCount.hashCode ^
+      txId.hashCode ^
       boxId.hashCode ^
       limitNanoErg.hashCode ^
       depositedNanoErg.hashCode ^
@@ -247,8 +266,63 @@ class DepositPreparedView {
           minerFeeNanoErg == other.minerFeeNanoErg &&
           changeNanoErg == other.changeNanoErg &&
           inputCount == other.inputCount &&
+          txId == other.txId &&
           boxId == other.boxId &&
           limitNanoErg == other.limitNanoErg &&
           depositedNanoErg == other.depositedNanoErg &&
           tokenSeconds == other.tokenSeconds;
+}
+
+/// A deposit that was sent and that the node did not check yet.
+class DepositSentView {
+  final String depositId;
+  final String peerId;
+
+  /// The address (`host:port`) of the node.
+  final String address;
+  final String txId;
+  final BigInt amountNanoErg;
+  final String amountMu;
+
+  /// The time of the preparation, in Unix seconds.
+  final PlatformInt64 madeAt;
+
+  /// True if the deposit token expired: the node refuses this deposit now.
+  final bool expired;
+
+  const DepositSentView({
+    required this.depositId,
+    required this.peerId,
+    required this.address,
+    required this.txId,
+    required this.amountNanoErg,
+    required this.amountMu,
+    required this.madeAt,
+    required this.expired,
+  });
+
+  @override
+  int get hashCode =>
+      depositId.hashCode ^
+      peerId.hashCode ^
+      address.hashCode ^
+      txId.hashCode ^
+      amountNanoErg.hashCode ^
+      amountMu.hashCode ^
+      madeAt.hashCode ^
+      expired.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DepositSentView &&
+          runtimeType == other.runtimeType &&
+          depositId == other.depositId &&
+          peerId == other.peerId &&
+          address == other.address &&
+          txId == other.txId &&
+          amountNanoErg == other.amountNanoErg &&
+          amountMu == other.amountMu &&
+          madeAt == other.madeAt &&
+          expired == other.expired;
 }

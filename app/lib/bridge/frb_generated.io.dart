@@ -5,6 +5,7 @@
 
 import 'api.dart';
 import 'api/celaut.dart';
+import 'api/celaut_db.dart';
 import 'api/celaut_deposit.dart';
 import 'api/celaut_service.dart';
 import 'api/mempool.dart';
@@ -45,6 +46,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt dco_decode_box_autoadd_u_64(dynamic raw);
 
   @protected
+  CelautDatabaseView dco_decode_celaut_database_view(dynamic raw);
+
+  @protected
   CelautError dco_decode_celaut_error(dynamic raw);
 
   @protected
@@ -60,6 +64,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DepositPreparedView dco_decode_deposit_prepared_view(dynamic raw);
 
   @protected
+  DepositSentView dco_decode_deposit_sent_view(dynamic raw);
+
+  @protected
   double dco_decode_f_32(dynamic raw);
 
   @protected
@@ -72,6 +79,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
+  InstanceListView dco_decode_instance_list_view(dynamic raw);
+
+  @protected
   InstanceStatusView dco_decode_instance_status_view(dynamic raw);
 
   @protected
@@ -82,6 +92,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<DepositSentView> dco_decode_list_deposit_sent_view(dynamic raw);
+
+  @protected
+  List<InstanceListView> dco_decode_list_instance_list_view(dynamic raw);
 
   @protected
   List<KeyValueView> dco_decode_list_key_value_view(dynamic raw);
@@ -195,6 +211,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
 
   @protected
+  CelautDatabaseView sse_decode_celaut_database_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   CelautError sse_decode_celaut_error(SseDeserializer deserializer);
 
   @protected
@@ -212,6 +233,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DepositSentView sse_decode_deposit_sent_view(SseDeserializer deserializer);
+
+  @protected
   double sse_decode_f_32(SseDeserializer deserializer);
 
   @protected
@@ -222,6 +246,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
+
+  @protected
+  InstanceListView sse_decode_instance_list_view(SseDeserializer deserializer);
 
   @protected
   InstanceStatusView sse_decode_instance_status_view(
@@ -236,6 +263,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<DepositSentView> sse_decode_list_deposit_sent_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<InstanceListView> sse_decode_list_instance_list_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<KeyValueView> sse_decode_list_key_value_view(
@@ -367,6 +404,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
 
   @protected
+  void sse_encode_celaut_database_view(
+    CelautDatabaseView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_celaut_error(CelautError self, SseSerializer serializer);
 
   @protected
@@ -394,6 +437,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_deposit_sent_view(
+    DepositSentView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_f_32(double self, SseSerializer serializer);
 
   @protected
@@ -404,6 +453,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_instance_list_view(
+    InstanceListView self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_instance_status_view(
@@ -419,6 +474,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_deposit_sent_view(
+    List<DepositSentView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_instance_list_view(
+    List<InstanceListView> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_key_value_view(

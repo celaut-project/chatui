@@ -100,6 +100,9 @@ pub struct DepositRecord {
     pub mu: String,
     /// The address that receives the deposit.
     pub pay_to_address: String,
+    /// The id of the deposit transaction, known before the signature.
+    #[serde(default)]
+    pub tx_id: String,
     /// The time of the preparation, in Unix seconds.
     pub made_at: i64,
     pub stage: DepositStage,
@@ -480,6 +483,7 @@ mod tests {
                 nano_erg: 10_000_000,
                 mu: "10000000".into(),
                 pay_to_address: "9f...".into(),
+                tx_id: "cc".repeat(32),
                 made_at: 2,
                 stage: DepositStage::Sent {
                     tx_id: "cc".repeat(32),
@@ -563,7 +567,10 @@ mod tests {
     #[test]
     fn a_key_of_the_wrong_length_is_refused() {
         let path = dir().join("celaut.db");
-        assert!(matches!(CelautDb::open(&path, &[1u8; 16]), Err(DbError::Key)));
+        assert!(matches!(
+            CelautDb::open(&path, &[1u8; 16]),
+            Err(DbError::Key)
+        ));
     }
 
     #[test]

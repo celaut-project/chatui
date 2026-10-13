@@ -12,9 +12,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// Connect to a Celaut node and read its advertisement.
 ///
 /// `host` is a name or an IP address without brackets. `expected_peer_id` is the
-/// identity that the node must prove, if the caller knows it. `store_path` is a file
-/// for the last accepted advertisement of each node. With `None`, the app keeps them in
-/// memory until it stops.
+/// identity that the node must prove, if the caller knows it. With `store_path` (a test
+/// file for the last accepted advertisements), the check uses a new client and nothing
+/// goes into the database of the app. With `None`, the node goes into the database.
 Future<PeerInfoView> celautPeerInfo({
   required String host,
   required int port,
