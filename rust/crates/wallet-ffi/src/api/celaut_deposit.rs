@@ -765,3 +765,7 @@ mod tests {
         assert_eq!(boxes[0].additional_registers["R4"], r4);
     }
 }
+
+#[cfg(test)]
+#[path = "celaut_deposit_e2e.rs"]
+mod e2e;
