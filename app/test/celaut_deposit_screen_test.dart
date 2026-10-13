@@ -291,6 +291,19 @@ void main() {
       expect(api.limits.length, 1);
     });
 
+    testWidgets('the buttons after the check have semantics labels', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pump(tester);
+      await check(tester);
+      for (final (key, label) in [
+        ('deposit-set-limit', DepositStrings.setLimit),
+        ('deposit-prepare', DepositStrings.prepare),
+      ]) {
+        expect(tester.getSemantics(find.byKey(Key(key))).label, label);
+      }
+      handle.dispose();
+    });
+
     testWidgets('a bad node address calls nothing', (tester) async {
       await pump(tester);
       await tester.enterText(find.byKey(const Key('deposit-node')), 'node.example');
