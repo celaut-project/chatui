@@ -8,7 +8,7 @@ import 'celaut.dart';
 import 'celaut_service.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `address_of`, `check_deposit_output`, `fetch_boxes`, `forget_preparation`, `limit`, `preparation_of`, `release`, `reserve`, `unknown_deposit`, `wait_for_box`, `wallet_error`
+// These functions are ignored because they are not marked as `pub`: `address_of`, `check_deposit_output`, `fetch_boxes`, `forget_preparation`, `keep_broadcast_tx_id`, `limit`, `preparation_of`, `release`, `reserve`, `unknown_deposit`, `wait_for_box`, `wallet_error`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// The ERG payment contract of the node, the balance of the client, and the limit.
@@ -58,7 +58,8 @@ Future<void> celautDepositCancel({required String depositId}) => RustLib
 /// Call this just before `send_erg` of the deposit. The deposit is then "sent" in the
 /// database, with the transaction id that was known before the signature, so that a
 /// stop of the app during the send does not lose it: after a restart the deposit is in
-/// [`celaut_sent_deposits`]. If the send fails without the use of the preparation,
+/// [`celaut_sent_deposits`]. [`celaut_deposit_notify`] replaces that id with the id of
+/// the broadcast. If the send fails without the use of the preparation,
 /// [`celaut_deposit_cancel`] still works.
 Future<String> celautDepositSending({required String depositId}) => RustLib
     .instance
@@ -201,10 +202,12 @@ class DepositPreparedView {
   final PlatformInt64 changeNanoErg;
   final int inputCount;
 
-  /// The id of the deposit transaction, known before the signature.
+  /// The id of the deposit transaction before the signature. The broadcast can have
+  /// another id if a block comes before the send (see [`celaut_deposit_notify`]).
   final String txId;
 
-  /// The id of the deposit box, known before the signature (empty if unknown).
+  /// The id of the deposit box before the signature (empty if unknown). The same note
+  /// applies.
   final String boxId;
   final BigInt limitNanoErg;
 

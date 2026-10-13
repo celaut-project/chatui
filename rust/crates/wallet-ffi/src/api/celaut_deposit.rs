@@ -200,9 +200,11 @@ pub struct DepositPreparedView {
     pub miner_fee_nano_erg: i64,
     pub change_nano_erg: i64,
     pub input_count: u32,
-    /// The id of the deposit transaction, known before the signature.
+    /// The id of the deposit transaction before the signature. The broadcast can have
+    /// another id if a block comes before the send (see [`celaut_deposit_notify`]).
     pub tx_id: String,
-    /// The id of the deposit box, known before the signature (empty if unknown).
+    /// The id of the deposit box before the signature (empty if unknown). The same note
+    /// applies.
     pub box_id: String,
     pub limit_nano_erg: u64,
     /// The deposits of the app to this node, this one included, in nanoERG.
@@ -416,7 +418,8 @@ pub fn celaut_deposit_cancel(deposit_id: String) -> Result<(), CelautError> {
 /// Call this just before `send_erg` of the deposit. The deposit is then "sent" in the
 /// database, with the transaction id that was known before the signature, so that a
 /// stop of the app during the send does not lose it: after a restart the deposit is in
-/// [`celaut_sent_deposits`]. If the send fails without the use of the preparation,
+/// [`celaut_sent_deposits`]. [`celaut_deposit_notify`] replaces that id with the id of
+/// the broadcast. If the send fails without the use of the preparation,
 /// [`celaut_deposit_cancel`] still works.
 #[flutter_rust_bridge::frb]
 pub fn celaut_deposit_sending(deposit_id: String) -> Result<String, CelautError> {
@@ -535,6 +538,23 @@ async fn fetch_boxes(url: &str) -> Result<serde_json::Value, String> {
         .map_err(|e| e.to_string())
 }
 
+/// Keep `tx_id` as the transaction of a sent deposit. The id from before the signature
+/// can be different: the signer sets the creation height of the outputs to the height
+/// of the chain, so a new block between the preparation and the send changes the id.
+/// The deposit token finds the box, not the id.
+fn keep_broadcast_tx_id(deposit_id: &str, tx_id: &str) -> Result<(), CelautError> {
+    db().update(|d| {
+        if let Some(r) = d.deposits.get_mut(deposit_id) {
+            if matches!(r.stage, DepositStage::Sent { .. }) {
+                r.stage = DepositStage::Sent {
+                    tx_id: tx_id.to_string(),
+                };
+            }
+        }
+    })
+    .map_err(storage_error)
+}
+
 /// After `send_erg` gave `tx_id`: wait until the explorer shows the deposit box unspent
 /// (the mempool is enough), then call `Payable` once.
 ///
@@ -573,10 +593,7 @@ pub async fn celaut_deposit_notify(
             .map_err(storage_error)?;
             forget_preparation(&deposit_id);
         }
-        DepositStage::Sent { tx_id: sent } if *sent == tx_id => {}
-        DepositStage::Sent { .. } => {
-            return Err(invalid("This deposit was sent with another transaction."));
-        }
+        DepositStage::Sent { .. } => keep_broadcast_tx_id(&deposit_id, &tx_id)?,
         DepositStage::PayableCalled { .. } => {
             return Err(invalid("The node already checked this deposit."));
         }
@@ -791,6 +808,32 @@ mod tests {
         assert!(celaut_deposit_cancel("prepared-1".into()).is_err());
     }
 
+    #[test]
+    fn the_id_of_the_broadcast_replaces_the_id_before_the_signature() {
+        let peer = "cf".repeat(32);
+        let mut sent = record(&peer, 2_000_000);
+        sent.stage = DepositStage::Sent {
+            tx_id: "ab".repeat(32),
+        };
+        db().update(|d| {
+            d.deposits.insert("sent-2".into(), sent);
+            d.deposits
+                .insert("prepared-2".into(), record(&peer, 1_000_000));
+        })
+        .unwrap();
+        keep_broadcast_tx_id("sent-2", &"cd".repeat(32)).unwrap();
+        keep_broadcast_tx_id("prepared-2", &"cd".repeat(32)).unwrap();
+        db().read(|d| {
+            assert_eq!(
+                d.deposits["sent-2"].stage,
+                DepositStage::Sent {
+                    tx_id: "cd".repeat(32)
+                }
+            );
+            assert_eq!(d.deposits["prepared-2"].stage, DepositStage::Prepared);
+        });
+    }
+
     #[tokio::test]
     async fn bad_input_is_refused_before_any_connection() {
         let node = NodeAddress {
@@ -946,7 +989,7 @@ mod tests {
             built.summary.change_erg,
             100_000_000 - 10_000_000 - citadel_core::constants::TX_FEE_NANO
         );
-        // The id of the deposit box is known before the signature.
+        // The deposit box before the signature has the token in R4.
         let (_, boxes) = ergo_tx::chain::derive_output_boxes(&built.unsigned_tx).unwrap();
         assert_eq!(boxes[0].additional_registers["R4"], r4);
     }
