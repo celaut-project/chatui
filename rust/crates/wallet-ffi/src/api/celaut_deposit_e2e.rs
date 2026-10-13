@@ -34,9 +34,9 @@
 
 use super::*;
 
-/// The most that the test sends, whatever the environment says: the default limit of a
-/// node.
-const E2E_CAP_NANO_ERG: u64 = DEFAULT_LIMIT_NANO_ERG;
+/// The most that the test sends, whatever the environment says: 0.05 ERG. It is lower
+/// than the limit of a node (1 ERG) on purpose.
+const E2E_CAP_NANO_ERG: u64 = 50_000_000;
 
 fn env(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|v| !v.trim().is_empty())
