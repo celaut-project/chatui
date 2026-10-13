@@ -294,3 +294,23 @@ fn service_ids_are_64_hex_characters() {
     assert_eq!(parse_service_id(&text[2..]), None);
     assert_eq!(parse_service_id(&"zz".repeat(32)), None);
 }
+
+#[tokio::test]
+async fn a_resumed_session_keeps_the_client_id_and_makes_no_new_client() {
+    let (peer, peer_id) = peer_of(1, None);
+    let store = celaut_client::CelautDb::in_memory();
+    let session = NodeSession::resume(
+        FixedStreams::new(vec![stream_of(1, &peer)]),
+        &peer_id,
+        "c11e47000000400080000000000000bb".into(),
+        &store,
+    )
+    .await
+    .expect("resume");
+    assert_eq!(session.client_id(), "c11e47000000400080000000000000bb");
+    // One call only: GetPeerInfo, not GenerateClient.
+    assert_eq!(session.transport().calls(), 1);
+    assert_eq!(session.transport().request(0).0, "GetPeerInfo");
+    // The advertisement went into the database of the app.
+    assert!(store.read(|d| d.seen.contains_key(&peer_id)));
+}

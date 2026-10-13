@@ -5,6 +5,9 @@
 
 import 'api.dart';
 import 'api/celaut.dart';
+import 'api/celaut_db.dart';
+import 'api/celaut_deposit.dart';
+import 'api/celaut_home.dart';
 import 'api/celaut_service.dart';
 import 'api/mempool.dart';
 import 'api/storage_rent.dart';
@@ -68,7 +71,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 463225671;
+  int get rustContentHash => -965704718;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -87,8 +90,47 @@ abstract class RustLibApi extends BaseApi {
 
   void crateApiCancelTokenMetadata();
 
+  Future<ComputeOverviewView> crateApiCelautHomeCelautComputeOverview();
+
+  Future<void> crateApiCelautDepositCelautDepositCancel({
+    required String depositId,
+  });
+
+  Future<DepositNodeView> crateApiCelautDepositCelautDepositNode({
+    required NodeAddress node,
+  });
+
+  Future<DepositDoneView> crateApiCelautDepositCelautDepositNotify({
+    required String depositId,
+    required String txId,
+    String? explorerUrl,
+  });
+
+  Future<DepositPreparedView> crateApiCelautDepositCelautDepositPrepare({
+    required BigInt handleId,
+    required NodeAddress node,
+    required String senderAddress,
+    required List<String> spendAddresses,
+    required String changeAddress,
+    required BigInt amountNanoErg,
+    String? nodeUrl,
+  });
+
+  Future<String> crateApiCelautDepositCelautDepositSending({
+    required String depositId,
+  });
+
   Future<InstanceStatusView> crateApiCelautServiceCelautInstanceStatus({
     required String instanceId,
+  });
+
+  List<InstanceListView> crateApiCelautServiceCelautInstances();
+
+  String crateApiCelautDbCelautNewDatabaseKey();
+
+  Future<CelautDatabaseView> crateApiCelautDbCelautOpenDatabase({
+    required String path,
+    required String keyHex,
   });
 
   Future<int> crateApiCelautServiceCelautOpenTunnel({
@@ -107,6 +149,13 @@ abstract class RustLibApi extends BaseApi {
     required List<NodeAddress> nodes,
     required String serviceIdHex,
     String? initialMu,
+  });
+
+  List<DepositSentView> crateApiCelautDepositCelautSentDeposits();
+
+  Future<void> crateApiCelautDepositCelautSetDepositLimit({
+    required String peerId,
+    required BigInt limitNanoErg,
   });
 
   Future<InstanceView> crateApiCelautServiceCelautStartService({
@@ -498,6 +547,227 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "cancel_token_metadata", argNames: []);
 
   @override
+  Future<ComputeOverviewView> crateApiCelautHomeCelautComputeOverview() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 3,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_compute_overview_view,
+          decodeErrorData: sse_decode_celaut_error,
+        ),
+        constMeta: kCrateApiCelautHomeCelautComputeOverviewConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCelautHomeCelautComputeOverviewConstMeta =>
+      const TaskConstMeta(debugName: "celaut_compute_overview", argNames: []);
+
+  @override
+  Future<void> crateApiCelautDepositCelautDepositCancel({
+    required String depositId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(depositId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 4,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_celaut_error,
+        ),
+        constMeta: kCrateApiCelautDepositCelautDepositCancelConstMeta,
+        argValues: [depositId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCelautDepositCelautDepositCancelConstMeta =>
+      const TaskConstMeta(
+        debugName: "celaut_deposit_cancel",
+        argNames: ["depositId"],
+      );
+
+  @override
+  Future<DepositNodeView> crateApiCelautDepositCelautDepositNode({
+    required NodeAddress node,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_node_address(node, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 5,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_deposit_node_view,
+          decodeErrorData: sse_decode_celaut_error,
+        ),
+        constMeta: kCrateApiCelautDepositCelautDepositNodeConstMeta,
+        argValues: [node],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCelautDepositCelautDepositNodeConstMeta =>
+      const TaskConstMeta(debugName: "celaut_deposit_node", argNames: ["node"]);
+
+  @override
+  Future<DepositDoneView> crateApiCelautDepositCelautDepositNotify({
+    required String depositId,
+    required String txId,
+    String? explorerUrl,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(depositId, serializer);
+          sse_encode_String(txId, serializer);
+          sse_encode_opt_String(explorerUrl, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 6,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_deposit_done_view,
+          decodeErrorData: sse_decode_celaut_error,
+        ),
+        constMeta: kCrateApiCelautDepositCelautDepositNotifyConstMeta,
+        argValues: [depositId, txId, explorerUrl],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCelautDepositCelautDepositNotifyConstMeta =>
+      const TaskConstMeta(
+        debugName: "celaut_deposit_notify",
+        argNames: ["depositId", "txId", "explorerUrl"],
+      );
+
+  @override
+  Future<DepositPreparedView> crateApiCelautDepositCelautDepositPrepare({
+    required BigInt handleId,
+    required NodeAddress node,
+    required String senderAddress,
+    required List<String> spendAddresses,
+    required String changeAddress,
+    required BigInt amountNanoErg,
+    String? nodeUrl,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_64(handleId, serializer);
+          sse_encode_box_autoadd_node_address(node, serializer);
+          sse_encode_String(senderAddress, serializer);
+          sse_encode_list_String(spendAddresses, serializer);
+          sse_encode_String(changeAddress, serializer);
+          sse_encode_u_64(amountNanoErg, serializer);
+          sse_encode_opt_String(nodeUrl, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 7,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_deposit_prepared_view,
+          decodeErrorData: sse_decode_celaut_error,
+        ),
+        constMeta: kCrateApiCelautDepositCelautDepositPrepareConstMeta,
+        argValues: [
+          handleId,
+          node,
+          senderAddress,
+          spendAddresses,
+          changeAddress,
+          amountNanoErg,
+          nodeUrl,
+        ],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCelautDepositCelautDepositPrepareConstMeta =>
+      const TaskConstMeta(
+        debugName: "celaut_deposit_prepare",
+        argNames: [
+          "handleId",
+          "node",
+          "senderAddress",
+          "spendAddresses",
+          "changeAddress",
+          "amountNanoErg",
+          "nodeUrl",
+        ],
+      );
+
+  @override
+  Future<String> crateApiCelautDepositCelautDepositSending({
+    required String depositId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(depositId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 8,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_celaut_error,
+        ),
+        constMeta: kCrateApiCelautDepositCelautDepositSendingConstMeta,
+        argValues: [depositId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCelautDepositCelautDepositSendingConstMeta =>
+      const TaskConstMeta(
+        debugName: "celaut_deposit_sending",
+        argNames: ["depositId"],
+      );
+
+  @override
   Future<InstanceStatusView> crateApiCelautServiceCelautInstanceStatus({
     required String instanceId,
   }) {
@@ -509,7 +779,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 3,
+            funcId: 9,
             port: port_,
           );
         },
@@ -531,6 +801,85 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  List<InstanceListView> crateApiCelautServiceCelautInstances() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_instance_list_view,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCelautServiceCelautInstancesConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCelautServiceCelautInstancesConstMeta =>
+      const TaskConstMeta(debugName: "celaut_instances", argNames: []);
+
+  @override
+  String crateApiCelautDbCelautNewDatabaseKey() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_celaut_error,
+        ),
+        constMeta: kCrateApiCelautDbCelautNewDatabaseKeyConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCelautDbCelautNewDatabaseKeyConstMeta =>
+      const TaskConstMeta(debugName: "celaut_new_database_key", argNames: []);
+
+  @override
+  Future<CelautDatabaseView> crateApiCelautDbCelautOpenDatabase({
+    required String path,
+    required String keyHex,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          sse_encode_String(keyHex, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 12,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_celaut_database_view,
+          decodeErrorData: sse_decode_celaut_error,
+        ),
+        constMeta: kCrateApiCelautDbCelautOpenDatabaseConstMeta,
+        argValues: [path, keyHex],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCelautDbCelautOpenDatabaseConstMeta =>
+      const TaskConstMeta(
+        debugName: "celaut_open_database",
+        argNames: ["path", "keyHex"],
+      );
+
+  @override
   Future<int> crateApiCelautServiceCelautOpenTunnel({
     required String instanceId,
     required int slot,
@@ -544,7 +893,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 13,
             port: port_,
           );
         },
@@ -583,7 +932,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 14,
             port: port_,
           );
         },
@@ -620,7 +969,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 15,
             port: port_,
           );
         },
@@ -642,6 +991,63 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  List<DepositSentView> crateApiCelautDepositCelautSentDeposits() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_deposit_sent_view,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCelautDepositCelautSentDepositsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCelautDepositCelautSentDepositsConstMeta =>
+      const TaskConstMeta(debugName: "celaut_sent_deposits", argNames: []);
+
+  @override
+  Future<void> crateApiCelautDepositCelautSetDepositLimit({
+    required String peerId,
+    required BigInt limitNanoErg,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(peerId, serializer);
+          sse_encode_u_64(limitNanoErg, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 17,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_celaut_error,
+        ),
+        constMeta: kCrateApiCelautDepositCelautSetDepositLimitConstMeta,
+        argValues: [peerId, limitNanoErg],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCelautDepositCelautSetDepositLimitConstMeta =>
+      const TaskConstMeta(
+        debugName: "celaut_set_deposit_limit",
+        argNames: ["peerId", "limitNanoErg"],
+      );
+
+  @override
   Future<InstanceView> crateApiCelautServiceCelautStartService({
     required NodeAddress node,
     required String serviceIdHex,
@@ -657,7 +1063,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 18,
             port: port_,
           );
         },
@@ -690,7 +1096,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 19,
             port: port_,
           );
         },
@@ -725,7 +1131,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 20,
             port: port_,
           );
         },
@@ -755,7 +1161,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 21,
             port: port_,
           );
         },
@@ -783,7 +1189,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 22,
             port: port_,
           );
         },
@@ -823,7 +1229,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 23,
             port: port_,
           );
         },
@@ -883,7 +1289,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 24,
             port: port_,
           );
         },
@@ -935,7 +1341,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 25,
             port: port_,
           );
         },
@@ -965,7 +1371,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 26,
             port: port_,
           );
         },
@@ -997,7 +1403,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 27,
             port: port_,
           );
         },
@@ -1031,7 +1437,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 28,
             port: port_,
           );
         },
@@ -1060,7 +1466,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 29,
             port: port_,
           );
         },
@@ -1088,7 +1494,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 30,
             port: port_,
           );
         },
@@ -1120,7 +1526,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 31,
             port: port_,
           );
         },
@@ -1151,7 +1557,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 32,
             port: port_,
           );
         },
@@ -1185,7 +1591,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 33,
             port: port_,
           );
         },
@@ -1221,7 +1627,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 34,
             port: port_,
           );
         },
@@ -1258,7 +1664,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 24,
+            funcId: 35,
             port: port_,
           );
         },
@@ -1295,7 +1701,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 25,
+            funcId: 36,
             port: port_,
           );
         },
@@ -1325,7 +1731,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 37,
             port: port_,
           );
         },
@@ -1359,7 +1765,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 38,
             port: port_,
           );
         },
@@ -1393,7 +1799,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 28,
+            funcId: 39,
             port: port_,
           );
         },
@@ -1428,7 +1834,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 29,
+            funcId: 40,
             port: port_,
           );
         },
@@ -1463,7 +1869,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 30,
+            funcId: 41,
             port: port_,
           );
         },
@@ -1497,7 +1903,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 31,
+            funcId: 42,
             port: port_,
           );
         },
@@ -1537,7 +1943,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 32,
+            funcId: 43,
             port: port_,
           );
         },
@@ -1574,7 +1980,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 33,
+            funcId: 44,
             port: port_,
           );
         },
@@ -1613,7 +2019,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 34,
+            funcId: 45,
             port: port_,
           );
         },
@@ -1650,7 +2056,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 35,
+            funcId: 46,
             port: port_,
           );
         },
@@ -1680,7 +2086,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 36,
+            funcId: 47,
             port: port_,
           );
         },
@@ -1718,7 +2124,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_String(tokensJson, serializer);
           sse_encode_u_32(height, serializer);
           sse_encode_i_32(storageFeeFactor, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 37)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 48)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -1757,7 +2163,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 38,
+            funcId: 49,
             port: port_,
           );
         },
@@ -1799,7 +2205,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 39,
+            funcId: 50,
             port: port_,
           );
         },
@@ -1855,7 +2261,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 40,
+            funcId: 51,
             port: port_,
           );
         },
@@ -1925,7 +2331,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 41,
+            funcId: 52,
             port: port_,
           );
         },
@@ -1997,7 +2403,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 42,
+            funcId: 53,
             port: port_,
           );
         },
@@ -2067,7 +2473,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 43,
+            funcId: 54,
             port: port_,
           );
         },
@@ -2141,7 +2547,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 44,
+            funcId: 55,
             port: port_,
           );
         },
@@ -2207,7 +2613,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 45,
+            funcId: 56,
             port: port_,
           );
         },
@@ -2275,7 +2681,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 46,
+            funcId: 57,
             port: port_,
           );
         },
@@ -2326,7 +2732,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 47,
+            funcId: 58,
             port: port_,
           );
         },
@@ -2354,7 +2760,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 48,
+            funcId: 59,
             port: port_,
           );
         },
@@ -2386,7 +2792,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 49,
+            funcId: 60,
             port: port_,
           );
         },
@@ -2420,7 +2826,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 50,
+            funcId: 61,
             port: port_,
           );
         },
@@ -2447,7 +2853,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_bool(allow, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 51)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 62)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -2480,7 +2886,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 52,
+            funcId: 63,
             port: port_,
           );
         },
@@ -2514,7 +2920,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 53,
+            funcId: 64,
             port: port_,
           );
         },
@@ -2541,7 +2947,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 54)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 65)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -2571,7 +2977,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 55,
+            funcId: 66,
             port: port_,
           );
         },
@@ -2606,7 +3012,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 56,
+            funcId: 67,
             port: port_,
           );
         },
@@ -2636,7 +3042,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 57,
+            funcId: 68,
             port: port_,
           );
         },
@@ -2675,7 +3081,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 58,
+            funcId: 69,
             port: port_,
           );
         },
@@ -2710,7 +3116,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 59,
+            funcId: 70,
             port: port_,
           );
         },
@@ -2740,7 +3146,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 60,
+            funcId: 71,
             port: port_,
           );
         },
@@ -2770,7 +3176,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 61,
+            funcId: 72,
             port: port_,
           );
         },
@@ -2802,7 +3208,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 62,
+            funcId: 73,
             port: port_,
           );
         },
@@ -2836,7 +3242,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 63,
+            funcId: 74,
             port: port_,
           );
         },
@@ -2870,7 +3276,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 64,
+            funcId: 75,
             port: port_,
           );
         },
@@ -2933,6 +3339,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BytesTotalView dco_decode_bytes_total_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return BytesTotalView(
+      total: dco_decode_opt_box_autoadd_i_64(arr[0]),
+      known: dco_decode_i_64(arr[1]),
+      unknownNodes: dco_decode_u_32(arr[2]),
+    );
+  }
+
+  @protected
+  CelautDatabaseView dco_decode_celaut_database_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return CelautDatabaseView(
+      path: dco_decode_String(arr[0]),
+      nodes: dco_decode_u_32(arr[1]),
+      instances: dco_decode_u_32(arr[2]),
+      deposits: dco_decode_u_32(arr[3]),
+      setAsidePath: dco_decode_opt_String(arr[4]),
+    );
+  }
+
+  @protected
   CelautError dco_decode_celaut_error(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -2948,6 +3382,112 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   CelautErrorKind dco_decode_celaut_error_kind(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return CelautErrorKind.values[raw as int];
+  }
+
+  @protected
+  ComputeOverviewView dco_decode_compute_overview_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return ComputeOverviewView(
+      nodesCounted: dco_decode_u_32(arr[0]),
+      nodesUnreachable: dco_decode_u_32(arr[1]),
+      cpuCores: dco_decode_cores_total_view(arr[2]),
+      memBytes: dco_decode_bytes_total_view(arr[3]),
+      diskBytes: dco_decode_bytes_total_view(arr[4]),
+      creditNanoErg: dco_decode_nano_erg_total_view(arr[5]),
+      nodes: dco_decode_list_node_compute_view(arr[6]),
+      instances: dco_decode_list_running_instance_view(arr[7]),
+    );
+  }
+
+  @protected
+  CoresTotalView dco_decode_cores_total_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return CoresTotalView(
+      total: dco_decode_opt_box_autoadd_f_64(arr[0]),
+      known: dco_decode_f_64(arr[1]),
+      unknownNodes: dco_decode_u_32(arr[2]),
+    );
+  }
+
+  @protected
+  DepositDoneView dco_decode_deposit_done_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return DepositDoneView(
+      depositId: dco_decode_String(arr[0]),
+      txId: dco_decode_String(arr[1]),
+      boxId: dco_decode_String(arr[2]),
+      accepted: dco_decode_bool(arr[3]),
+      nodeMessage: dco_decode_opt_String(arr[4]),
+      clientBalanceMu: dco_decode_String(arr[5]),
+    );
+  }
+
+  @protected
+  DepositNodeView dco_decode_deposit_node_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return DepositNodeView(
+      peerId: dco_decode_String(arr[0]),
+      payToAddress: dco_decode_String(arr[1]),
+      muPerNanoErg: dco_decode_String(arr[2]),
+      clientBalanceMu: dco_decode_String(arr[3]),
+      limitNanoErg: dco_decode_u_64(arr[4]),
+      depositedNanoErg: dco_decode_u_64(arr[5]),
+    );
+  }
+
+  @protected
+  DepositPreparedView dco_decode_deposit_prepared_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 15)
+      throw Exception('unexpected arr length: expect 15 but see ${arr.length}');
+    return DepositPreparedView(
+      depositId: dco_decode_String(arr[0]),
+      preparationId: dco_decode_u_64(arr[1]),
+      peerId: dco_decode_String(arr[2]),
+      payToAddress: dco_decode_String(arr[3]),
+      amountNanoErg: dco_decode_u_64(arr[4]),
+      amountMu: dco_decode_String(arr[5]),
+      muPerNanoErg: dco_decode_String(arr[6]),
+      minerFeeNanoErg: dco_decode_i_64(arr[7]),
+      changeNanoErg: dco_decode_i_64(arr[8]),
+      inputCount: dco_decode_u_32(arr[9]),
+      txId: dco_decode_String(arr[10]),
+      boxId: dco_decode_String(arr[11]),
+      limitNanoErg: dco_decode_u_64(arr[12]),
+      depositedNanoErg: dco_decode_u_64(arr[13]),
+      tokenSeconds: dco_decode_u_32(arr[14]),
+    );
+  }
+
+  @protected
+  DepositSentView dco_decode_deposit_sent_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return DepositSentView(
+      depositId: dco_decode_String(arr[0]),
+      peerId: dco_decode_String(arr[1]),
+      address: dco_decode_String(arr[2]),
+      txId: dco_decode_String(arr[3]),
+      amountNanoErg: dco_decode_u_64(arr[4]),
+      amountMu: dco_decode_String(arr[5]),
+      madeAt: dco_decode_i_64(arr[6]),
+      expired: dco_decode_bool(arr[7]),
+    );
   }
 
   @protected
@@ -2975,15 +3515,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  InstanceListView dco_decode_instance_list_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return InstanceListView(
+      instanceId: dco_decode_String(arr[0]),
+      peerId: dco_decode_String(arr[1]),
+      address: dco_decode_String(arr[2]),
+      serviceId: dco_decode_String(arr[3]),
+      slots: dco_decode_list_prim_u_16_strict(arr[4]),
+      startedAt: dco_decode_i_64(arr[5]),
+      startChargeMu: dco_decode_String(arr[6]),
+    );
+  }
+
+  @protected
   InstanceStatusView dco_decode_instance_status_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return InstanceStatusView(
       instanceBalanceMu: dco_decode_String(arr[0]),
-      streamsOpened: dco_decode_u_64(arr[1]),
-      lastTunnelError: dco_decode_opt_String(arr[2]),
+      costSoFarMu: dco_decode_String(arr[1]),
+      streamsOpened: dco_decode_u_64(arr[2]),
+      lastTunnelError: dco_decode_opt_String(arr[3]),
     );
   }
 
@@ -3020,6 +3578,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<DepositSentView> dco_decode_list_deposit_sent_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_deposit_sent_view).toList();
+  }
+
+  @protected
+  List<InstanceListView> dco_decode_list_instance_list_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_instance_list_view).toList();
+  }
+
+  @protected
   List<KeyValueView> dco_decode_list_key_value_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_key_value_view).toList();
@@ -3029,6 +3599,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<NodeAddress> dco_decode_list_node_address(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_node_address).toList();
+  }
+
+  @protected
+  List<NodeComputeView> dco_decode_list_node_compute_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_node_compute_view).toList();
   }
 
   @protected
@@ -3082,6 +3658,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<RunningInstanceView> dco_decode_list_running_instance_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_running_instance_view)
+        .toList();
+  }
+
+  @protected
+  NanoErgTotalView dco_decode_nano_erg_total_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return NanoErgTotalView(
+      total: dco_decode_opt_String(arr[0]),
+      known: dco_decode_String(arr[1]),
+      unknownNodes: dco_decode_u_32(arr[2]),
+    );
+  }
+
+  @protected
   NodeAddress dco_decode_node_address(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -3090,6 +3687,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return NodeAddress(
       host: dco_decode_String(arr[0]),
       port: dco_decode_u_16(arr[1]),
+    );
+  }
+
+  @protected
+  NodeComputeView dco_decode_node_compute_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    return NodeComputeView(
+      peerId: dco_decode_String(arr[0]),
+      address: dco_decode_String(arr[1]),
+      reachable: dco_decode_bool(arr[2]),
+      error: dco_decode_opt_String(arr[3]),
+      cpuCores: dco_decode_opt_box_autoadd_f_64(arr[4]),
+      memBytes: dco_decode_opt_box_autoadd_i_64(arr[5]),
+      diskBytes: dco_decode_opt_box_autoadd_i_64(arr[6]),
+      creditMu: dco_decode_opt_String(arr[7]),
+      muPerNanoErg: dco_decode_opt_String(arr[8]),
+      creditNanoErg: dco_decode_opt_String(arr[9]),
     );
   }
 
@@ -3233,6 +3850,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RunningInstanceView dco_decode_running_instance_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return RunningInstanceView(
+      instanceId: dco_decode_String(arr[0]),
+      peerId: dco_decode_String(arr[1]),
+      serviceId: dco_decode_String(arr[2]),
+      startedAt: dco_decode_i_64(arr[3]),
+      balanceMu: dco_decode_opt_String(arr[4]),
+      costSoFarMu: dco_decode_opt_String(arr[5]),
+      costSoFarNanoErg: dco_decode_opt_String(arr[6]),
+    );
+  }
+
+  @protected
   StopView dco_decode_stop_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -3320,6 +3954,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BytesTotalView sse_decode_bytes_total_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_total = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_known = sse_decode_i_64(deserializer);
+    var var_unknownNodes = sse_decode_u_32(deserializer);
+    return BytesTotalView(
+      total: var_total,
+      known: var_known,
+      unknownNodes: var_unknownNodes,
+    );
+  }
+
+  @protected
+  CelautDatabaseView sse_decode_celaut_database_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_path = sse_decode_String(deserializer);
+    var var_nodes = sse_decode_u_32(deserializer);
+    var var_instances = sse_decode_u_32(deserializer);
+    var var_deposits = sse_decode_u_32(deserializer);
+    var var_setAsidePath = sse_decode_opt_String(deserializer);
+    return CelautDatabaseView(
+      path: var_path,
+      nodes: var_nodes,
+      instances: var_instances,
+      deposits: var_deposits,
+      setAsidePath: var_setAsidePath,
+    );
+  }
+
+  @protected
   CelautError sse_decode_celaut_error(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_kind = sse_decode_celaut_error_kind(deserializer);
@@ -3332,6 +3998,144 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return CelautErrorKind.values[inner];
+  }
+
+  @protected
+  ComputeOverviewView sse_decode_compute_overview_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_nodesCounted = sse_decode_u_32(deserializer);
+    var var_nodesUnreachable = sse_decode_u_32(deserializer);
+    var var_cpuCores = sse_decode_cores_total_view(deserializer);
+    var var_memBytes = sse_decode_bytes_total_view(deserializer);
+    var var_diskBytes = sse_decode_bytes_total_view(deserializer);
+    var var_creditNanoErg = sse_decode_nano_erg_total_view(deserializer);
+    var var_nodes = sse_decode_list_node_compute_view(deserializer);
+    var var_instances = sse_decode_list_running_instance_view(deserializer);
+    return ComputeOverviewView(
+      nodesCounted: var_nodesCounted,
+      nodesUnreachable: var_nodesUnreachable,
+      cpuCores: var_cpuCores,
+      memBytes: var_memBytes,
+      diskBytes: var_diskBytes,
+      creditNanoErg: var_creditNanoErg,
+      nodes: var_nodes,
+      instances: var_instances,
+    );
+  }
+
+  @protected
+  CoresTotalView sse_decode_cores_total_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_total = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_known = sse_decode_f_64(deserializer);
+    var var_unknownNodes = sse_decode_u_32(deserializer);
+    return CoresTotalView(
+      total: var_total,
+      known: var_known,
+      unknownNodes: var_unknownNodes,
+    );
+  }
+
+  @protected
+  DepositDoneView sse_decode_deposit_done_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_depositId = sse_decode_String(deserializer);
+    var var_txId = sse_decode_String(deserializer);
+    var var_boxId = sse_decode_String(deserializer);
+    var var_accepted = sse_decode_bool(deserializer);
+    var var_nodeMessage = sse_decode_opt_String(deserializer);
+    var var_clientBalanceMu = sse_decode_String(deserializer);
+    return DepositDoneView(
+      depositId: var_depositId,
+      txId: var_txId,
+      boxId: var_boxId,
+      accepted: var_accepted,
+      nodeMessage: var_nodeMessage,
+      clientBalanceMu: var_clientBalanceMu,
+    );
+  }
+
+  @protected
+  DepositNodeView sse_decode_deposit_node_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_peerId = sse_decode_String(deserializer);
+    var var_payToAddress = sse_decode_String(deserializer);
+    var var_muPerNanoErg = sse_decode_String(deserializer);
+    var var_clientBalanceMu = sse_decode_String(deserializer);
+    var var_limitNanoErg = sse_decode_u_64(deserializer);
+    var var_depositedNanoErg = sse_decode_u_64(deserializer);
+    return DepositNodeView(
+      peerId: var_peerId,
+      payToAddress: var_payToAddress,
+      muPerNanoErg: var_muPerNanoErg,
+      clientBalanceMu: var_clientBalanceMu,
+      limitNanoErg: var_limitNanoErg,
+      depositedNanoErg: var_depositedNanoErg,
+    );
+  }
+
+  @protected
+  DepositPreparedView sse_decode_deposit_prepared_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_depositId = sse_decode_String(deserializer);
+    var var_preparationId = sse_decode_u_64(deserializer);
+    var var_peerId = sse_decode_String(deserializer);
+    var var_payToAddress = sse_decode_String(deserializer);
+    var var_amountNanoErg = sse_decode_u_64(deserializer);
+    var var_amountMu = sse_decode_String(deserializer);
+    var var_muPerNanoErg = sse_decode_String(deserializer);
+    var var_minerFeeNanoErg = sse_decode_i_64(deserializer);
+    var var_changeNanoErg = sse_decode_i_64(deserializer);
+    var var_inputCount = sse_decode_u_32(deserializer);
+    var var_txId = sse_decode_String(deserializer);
+    var var_boxId = sse_decode_String(deserializer);
+    var var_limitNanoErg = sse_decode_u_64(deserializer);
+    var var_depositedNanoErg = sse_decode_u_64(deserializer);
+    var var_tokenSeconds = sse_decode_u_32(deserializer);
+    return DepositPreparedView(
+      depositId: var_depositId,
+      preparationId: var_preparationId,
+      peerId: var_peerId,
+      payToAddress: var_payToAddress,
+      amountNanoErg: var_amountNanoErg,
+      amountMu: var_amountMu,
+      muPerNanoErg: var_muPerNanoErg,
+      minerFeeNanoErg: var_minerFeeNanoErg,
+      changeNanoErg: var_changeNanoErg,
+      inputCount: var_inputCount,
+      txId: var_txId,
+      boxId: var_boxId,
+      limitNanoErg: var_limitNanoErg,
+      depositedNanoErg: var_depositedNanoErg,
+      tokenSeconds: var_tokenSeconds,
+    );
+  }
+
+  @protected
+  DepositSentView sse_decode_deposit_sent_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_depositId = sse_decode_String(deserializer);
+    var var_peerId = sse_decode_String(deserializer);
+    var var_address = sse_decode_String(deserializer);
+    var var_txId = sse_decode_String(deserializer);
+    var var_amountNanoErg = sse_decode_u_64(deserializer);
+    var var_amountMu = sse_decode_String(deserializer);
+    var var_madeAt = sse_decode_i_64(deserializer);
+    var var_expired = sse_decode_bool(deserializer);
+    return DepositSentView(
+      depositId: var_depositId,
+      peerId: var_peerId,
+      address: var_address,
+      txId: var_txId,
+      amountNanoErg: var_amountNanoErg,
+      amountMu: var_amountMu,
+      madeAt: var_madeAt,
+      expired: var_expired,
+    );
   }
 
   @protected
@@ -3359,15 +4163,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  InstanceListView sse_decode_instance_list_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_instanceId = sse_decode_String(deserializer);
+    var var_peerId = sse_decode_String(deserializer);
+    var var_address = sse_decode_String(deserializer);
+    var var_serviceId = sse_decode_String(deserializer);
+    var var_slots = sse_decode_list_prim_u_16_strict(deserializer);
+    var var_startedAt = sse_decode_i_64(deserializer);
+    var var_startChargeMu = sse_decode_String(deserializer);
+    return InstanceListView(
+      instanceId: var_instanceId,
+      peerId: var_peerId,
+      address: var_address,
+      serviceId: var_serviceId,
+      slots: var_slots,
+      startedAt: var_startedAt,
+      startChargeMu: var_startChargeMu,
+    );
+  }
+
+  @protected
   InstanceStatusView sse_decode_instance_status_view(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_instanceBalanceMu = sse_decode_String(deserializer);
+    var var_costSoFarMu = sse_decode_String(deserializer);
     var var_streamsOpened = sse_decode_u_64(deserializer);
     var var_lastTunnelError = sse_decode_opt_String(deserializer);
     return InstanceStatusView(
       instanceBalanceMu: var_instanceBalanceMu,
+      costSoFarMu: var_costSoFarMu,
       streamsOpened: var_streamsOpened,
       lastTunnelError: var_lastTunnelError,
     );
@@ -3409,6 +4236,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<DepositSentView> sse_decode_list_deposit_sent_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DepositSentView>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_deposit_sent_view(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<InstanceListView> sse_decode_list_instance_list_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <InstanceListView>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_instance_list_view(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<KeyValueView> sse_decode_list_key_value_view(
     SseDeserializer deserializer,
   ) {
@@ -3430,6 +4285,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <NodeAddress>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_node_address(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<NodeComputeView> sse_decode_list_node_compute_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <NodeComputeView>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_node_compute_view(deserializer));
     }
     return ans_;
   }
@@ -3524,11 +4393,67 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<RunningInstanceView> sse_decode_list_running_instance_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <RunningInstanceView>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_running_instance_view(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  NanoErgTotalView sse_decode_nano_erg_total_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_total = sse_decode_opt_String(deserializer);
+    var var_known = sse_decode_String(deserializer);
+    var var_unknownNodes = sse_decode_u_32(deserializer);
+    return NanoErgTotalView(
+      total: var_total,
+      known: var_known,
+      unknownNodes: var_unknownNodes,
+    );
+  }
+
+  @protected
   NodeAddress sse_decode_node_address(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_host = sse_decode_String(deserializer);
     var var_port = sse_decode_u_16(deserializer);
     return NodeAddress(host: var_host, port: var_port);
+  }
+
+  @protected
+  NodeComputeView sse_decode_node_compute_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_peerId = sse_decode_String(deserializer);
+    var var_address = sse_decode_String(deserializer);
+    var var_reachable = sse_decode_bool(deserializer);
+    var var_error = sse_decode_opt_String(deserializer);
+    var var_cpuCores = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_memBytes = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_diskBytes = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_creditMu = sse_decode_opt_String(deserializer);
+    var var_muPerNanoErg = sse_decode_opt_String(deserializer);
+    var var_creditNanoErg = sse_decode_opt_String(deserializer);
+    return NodeComputeView(
+      peerId: var_peerId,
+      address: var_address,
+      reachable: var_reachable,
+      error: var_error,
+      cpuCores: var_cpuCores,
+      memBytes: var_memBytes,
+      diskBytes: var_diskBytes,
+      creditMu: var_creditMu,
+      muPerNanoErg: var_muPerNanoErg,
+      creditNanoErg: var_creditNanoErg,
+    );
   }
 
   @protected
@@ -3716,6 +4641,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RunningInstanceView sse_decode_running_instance_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_instanceId = sse_decode_String(deserializer);
+    var var_peerId = sse_decode_String(deserializer);
+    var var_serviceId = sse_decode_String(deserializer);
+    var var_startedAt = sse_decode_i_64(deserializer);
+    var var_balanceMu = sse_decode_opt_String(deserializer);
+    var var_costSoFarMu = sse_decode_opt_String(deserializer);
+    var var_costSoFarNanoErg = sse_decode_opt_String(deserializer);
+    return RunningInstanceView(
+      instanceId: var_instanceId,
+      peerId: var_peerId,
+      serviceId: var_serviceId,
+      startedAt: var_startedAt,
+      balanceMu: var_balanceMu,
+      costSoFarMu: var_costSoFarMu,
+      costSoFarNanoErg: var_costSoFarNanoErg,
+    );
+  }
+
+  @protected
   StopView sse_decode_stop_view(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_refundMu = sse_decode_String(deserializer);
@@ -3804,6 +4752,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_bytes_total_view(
+    BytesTotalView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_i_64(self.total, serializer);
+    sse_encode_i_64(self.known, serializer);
+    sse_encode_u_32(self.unknownNodes, serializer);
+  }
+
+  @protected
+  void sse_encode_celaut_database_view(
+    CelautDatabaseView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.path, serializer);
+    sse_encode_u_32(self.nodes, serializer);
+    sse_encode_u_32(self.instances, serializer);
+    sse_encode_u_32(self.deposits, serializer);
+    sse_encode_opt_String(self.setAsidePath, serializer);
+  }
+
+  @protected
   void sse_encode_celaut_error(CelautError self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_celaut_error_kind(self.kind, serializer);
@@ -3817,6 +4789,100 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_compute_overview_view(
+    ComputeOverviewView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.nodesCounted, serializer);
+    sse_encode_u_32(self.nodesUnreachable, serializer);
+    sse_encode_cores_total_view(self.cpuCores, serializer);
+    sse_encode_bytes_total_view(self.memBytes, serializer);
+    sse_encode_bytes_total_view(self.diskBytes, serializer);
+    sse_encode_nano_erg_total_view(self.creditNanoErg, serializer);
+    sse_encode_list_node_compute_view(self.nodes, serializer);
+    sse_encode_list_running_instance_view(self.instances, serializer);
+  }
+
+  @protected
+  void sse_encode_cores_total_view(
+    CoresTotalView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_f_64(self.total, serializer);
+    sse_encode_f_64(self.known, serializer);
+    sse_encode_u_32(self.unknownNodes, serializer);
+  }
+
+  @protected
+  void sse_encode_deposit_done_view(
+    DepositDoneView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.depositId, serializer);
+    sse_encode_String(self.txId, serializer);
+    sse_encode_String(self.boxId, serializer);
+    sse_encode_bool(self.accepted, serializer);
+    sse_encode_opt_String(self.nodeMessage, serializer);
+    sse_encode_String(self.clientBalanceMu, serializer);
+  }
+
+  @protected
+  void sse_encode_deposit_node_view(
+    DepositNodeView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.peerId, serializer);
+    sse_encode_String(self.payToAddress, serializer);
+    sse_encode_String(self.muPerNanoErg, serializer);
+    sse_encode_String(self.clientBalanceMu, serializer);
+    sse_encode_u_64(self.limitNanoErg, serializer);
+    sse_encode_u_64(self.depositedNanoErg, serializer);
+  }
+
+  @protected
+  void sse_encode_deposit_prepared_view(
+    DepositPreparedView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.depositId, serializer);
+    sse_encode_u_64(self.preparationId, serializer);
+    sse_encode_String(self.peerId, serializer);
+    sse_encode_String(self.payToAddress, serializer);
+    sse_encode_u_64(self.amountNanoErg, serializer);
+    sse_encode_String(self.amountMu, serializer);
+    sse_encode_String(self.muPerNanoErg, serializer);
+    sse_encode_i_64(self.minerFeeNanoErg, serializer);
+    sse_encode_i_64(self.changeNanoErg, serializer);
+    sse_encode_u_32(self.inputCount, serializer);
+    sse_encode_String(self.txId, serializer);
+    sse_encode_String(self.boxId, serializer);
+    sse_encode_u_64(self.limitNanoErg, serializer);
+    sse_encode_u_64(self.depositedNanoErg, serializer);
+    sse_encode_u_32(self.tokenSeconds, serializer);
+  }
+
+  @protected
+  void sse_encode_deposit_sent_view(
+    DepositSentView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.depositId, serializer);
+    sse_encode_String(self.peerId, serializer);
+    sse_encode_String(self.address, serializer);
+    sse_encode_String(self.txId, serializer);
+    sse_encode_u_64(self.amountNanoErg, serializer);
+    sse_encode_String(self.amountMu, serializer);
+    sse_encode_i_64(self.madeAt, serializer);
+    sse_encode_bool(self.expired, serializer);
   }
 
   @protected
@@ -3844,12 +4910,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_instance_list_view(
+    InstanceListView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.instanceId, serializer);
+    sse_encode_String(self.peerId, serializer);
+    sse_encode_String(self.address, serializer);
+    sse_encode_String(self.serviceId, serializer);
+    sse_encode_list_prim_u_16_strict(self.slots, serializer);
+    sse_encode_i_64(self.startedAt, serializer);
+    sse_encode_String(self.startChargeMu, serializer);
+  }
+
+  @protected
   void sse_encode_instance_status_view(
     InstanceStatusView self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.instanceBalanceMu, serializer);
+    sse_encode_String(self.costSoFarMu, serializer);
     sse_encode_u_64(self.streamsOpened, serializer);
     sse_encode_opt_String(self.lastTunnelError, serializer);
   }
@@ -3880,6 +4962,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_deposit_sent_view(
+    List<DepositSentView> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_deposit_sent_view(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_instance_list_view(
+    List<InstanceListView> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_instance_list_view(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_key_value_view(
     List<KeyValueView> self,
     SseSerializer serializer,
@@ -3900,6 +5006,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_node_address(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_node_compute_view(
+    List<NodeComputeView> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_node_compute_view(item, serializer);
     }
   }
 
@@ -3996,10 +5114,51 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_running_instance_view(
+    List<RunningInstanceView> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_running_instance_view(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_nano_erg_total_view(
+    NanoErgTotalView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.total, serializer);
+    sse_encode_String(self.known, serializer);
+    sse_encode_u_32(self.unknownNodes, serializer);
+  }
+
+  @protected
   void sse_encode_node_address(NodeAddress self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.host, serializer);
     sse_encode_u_16(self.port, serializer);
+  }
+
+  @protected
+  void sse_encode_node_compute_view(
+    NodeComputeView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.peerId, serializer);
+    sse_encode_String(self.address, serializer);
+    sse_encode_bool(self.reachable, serializer);
+    sse_encode_opt_String(self.error, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.cpuCores, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.memBytes, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.diskBytes, serializer);
+    sse_encode_opt_String(self.creditMu, serializer);
+    sse_encode_opt_String(self.muPerNanoErg, serializer);
+    sse_encode_opt_String(self.creditNanoErg, serializer);
   }
 
   @protected
@@ -4143,6 +5302,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_quote_view(self.quotes, serializer);
     sse_encode_list_quote_failure_view(self.failures, serializer);
+  }
+
+  @protected
+  void sse_encode_running_instance_view(
+    RunningInstanceView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.instanceId, serializer);
+    sse_encode_String(self.peerId, serializer);
+    sse_encode_String(self.serviceId, serializer);
+    sse_encode_i_64(self.startedAt, serializer);
+    sse_encode_opt_String(self.balanceMu, serializer);
+    sse_encode_opt_String(self.costSoFarMu, serializer);
+    sse_encode_opt_String(self.costSoFarNanoErg, serializer);
   }
 
   @protected

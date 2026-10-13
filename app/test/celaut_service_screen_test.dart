@@ -8,6 +8,7 @@ import 'package:argus_wallet/celaut/service_strings.dart';
 import 'package:argus_wallet/celaut/tunnel_http.dart';
 import 'package:argus_wallet/ui/celaut/service_screen.dart';
 import 'package:argus_wallet/ui/settings_screen.dart';
+import 'package:argus_wallet/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,15 +19,15 @@ final _cheap = 'aa' * 32;
 final _dear = 'bb' * 32;
 
 QuoteView _quote(String peer, int port, String cost, String? compared) => QuoteView(
-      address: NodeAddress(host: '127.0.0.1', port: port),
-      peerId: peer,
-      costMu: cost,
-      initMaintenanceMu: '11990',
-      maxMaintenanceMu: '11990',
-      maintenanceSecondsLoop: 10,
-      variance: 0,
-      comparedNanoErg: compared,
-    );
+  address: NodeAddress(host: '127.0.0.1', port: port),
+  peerId: peer,
+  costMu: cost,
+  initMaintenanceMu: '11990',
+  maxMaintenanceMu: '11990',
+  maintenanceSecondsLoop: 10,
+  variance: 0,
+  comparedNanoErg: compared,
+);
 
 class ServiceApi extends RustLibApi {
   final quoteCalls = <({List<NodeAddress> nodes, String service, String? initial})>[];
@@ -34,6 +35,10 @@ class ServiceApi extends RustLibApi {
   final stops = <String>[];
   int tunnelPort = 0;
   Object? quoteAnswer;
+  var instances = <InstanceListView>[];
+
+  @override
+  List<InstanceListView> crateApiCelautServiceCelautInstances() => instances;
 
   @override
   Future<QuotesView> crateApiCelautServiceCelautQuoteService({
@@ -66,18 +71,17 @@ class ServiceApi extends RustLibApi {
   Future<int> crateApiCelautServiceCelautOpenTunnel({
     required String instanceId,
     required int slot,
-  }) async =>
-      tunnelPort;
+  }) async => tunnelPort;
 
   @override
   Future<InstanceStatusView> crateApiCelautServiceCelautInstanceStatus({
     required String instanceId,
-  }) async =>
-      InstanceStatusView(
-        instanceBalanceMu: '976400',
-        streamsOpened: BigInt.one,
-        lastTunnelError: null,
-      );
+  }) async => InstanceStatusView(
+    instanceBalanceMu: '976400',
+    costSoFarMu: '23600',
+    streamsOpened: BigInt.one,
+    lastTunnelError: null,
+  );
 
   @override
   Future<StopView> crateApiCelautServiceCelautStopService({required String instanceId}) async {
@@ -96,6 +100,7 @@ void main() {
     api.quoteCalls.clear();
     api.startCalls.clear();
     api.stops.clear();
+    api.instances = [];
     api.quoteAnswer = QuotesView(
       quotes: [_quote(_cheap, 18460, '1000000', '5316400'), _quote(_dear, 18461, '9000000', null)],
       failures: [
@@ -108,14 +113,22 @@ void main() {
     );
   });
 
-  Future<void> pump(WidgetTester tester, {TunnelHttp? http}) async {
+  Future<void> pump(WidgetTester tester, {TunnelHttp? http, bool fullWallet = true}) async {
     tester.view.physicalSize = const Size(390, 4000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(MaterialApp(home: ServiceScreen(http: http)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ServiceScreen(http: http, hasFullWallet: () async => fullWallet),
+      ),
+    );
+    await tester.pump();
   }
 
-  Future<void> fill(WidgetTester tester, {String nodes = '127.0.0.1:18460\n127.0.0.1:18461'}) async {
+  Future<void> fill(
+    WidgetTester tester, {
+    String nodes = '127.0.0.1:18460\n127.0.0.1:18461',
+  }) async {
     await tester.enterText(find.byKey(const Key('service-nodes')), nodes);
     await tester.enterText(find.byKey(const Key('service-id')), _service.toUpperCase());
   }
@@ -127,14 +140,17 @@ void main() {
     await tester.pumpAndSettle();
 
     final call = api.quoteCalls.single;
-    expect(call.nodes.map((n) => '${n.host}:${n.port}'),
-        ['127.0.0.1:18460', '::1:18461', 'down.example:9000']);
+    expect(call.nodes.map((n) => '${n.host}:${n.port}'), [
+      '127.0.0.1:18460',
+      '::1:18461',
+      'down.example:9000',
+    ]);
     expect(call.service, _service);
     expect(call.initial, ServiceStrings.initialDefault);
     final cheap = tester.getTopLeft(find.byKey(Key('service-quote-$_cheap')));
     final dear = tester.getTopLeft(find.byKey(Key('service-quote-$_dear')));
     expect(cheap.dy, lessThan(dear.dy));
-    expect(find.text(ServiceStrings.cost('1000000')), findsOneWidget);
+    expect(find.text(ServiceStrings.cost('1,000,000 MU')), findsOneWidget);
     expect(find.text(ServiceStrings.compared('5316400')), findsOneWidget);
     expect(find.text(ServiceStrings.compared(null)), findsOneWidget);
     expect(find.text(ServiceStrings.failuresTitle.toUpperCase()), findsOneWidget);
@@ -170,9 +186,7 @@ void main() {
   testWidgets('start, call through the local port, and stop', (tester) async {
     // The local port of the tunnel: here a local HTTP server that counts connections.
     final connections = <int>{};
-    final server = (await tester.runAsync(
-      () => HttpServer.bind(InternetAddress.loopbackIPv4, 0),
-    ))!;
+    final server = (await tester.runAsync(() => HttpServer.bind(InternetAddress.loopbackIPv4, 0)))!;
     addTearDown(() => server.close(force: true));
     server.listen((request) async {
       connections.add(request.connectionInfo!.remotePort);
@@ -199,7 +213,7 @@ void main() {
     expect(start.service, _service);
     expect(start.initial, ServiceStrings.initialDefault);
     expect(find.byKey(const Key('service-instance')), findsOneWidget);
-    expect(find.text(ServiceStrings.clientBalance('3500000')), findsOneWidget);
+    expect(find.text(ServiceStrings.clientBalance('3,500,000 MU')), findsOneWidget);
     // One instance at a time: the start buttons are off.
     expect(
       tester.widget<OutlinedButton>(find.byKey(Key('service-start-$_dear'))).onPressed,
@@ -224,14 +238,70 @@ void main() {
     }
     expect(find.text('HTTP 200\nbold-pasteur'), findsOneWidget);
     expect(connections, hasLength(1), reason: 'the calls must share one connection');
-    expect(find.text(ServiceStrings.instanceBalance('976400')), findsOneWidget);
+    expect(find.text(ServiceStrings.instanceBalance('976,400 MU')), findsOneWidget);
+    expect(find.text(ServiceStrings.costSoFar('23,600 MU')), findsOneWidget);
     expect(find.text(ServiceStrings.streams(BigInt.one)), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('service-stop')));
     await tester.pumpAndSettle();
     expect(api.stops, ['inst-1']);
-    expect(find.text(ServiceStrings.stopped('976399', '4476399')), findsOneWidget);
+    expect(find.text(ServiceStrings.stopped('976,399 MU', '4,476,399 MU')), findsOneWidget);
     expect(find.byKey(const Key('service-instance')), findsNothing);
+  });
+
+  testWidgets('with no full wallet, start and stop are off with the same message', (tester) async {
+    api.instances = [
+      InstanceListView(
+        instanceId: 'old-1',
+        peerId: _cheap,
+        address: '127.0.0.1:18460',
+        serviceId: _service,
+        slots: Uint16List.fromList([3030]),
+        startedAt: 1,
+        startChargeMu: '',
+      ),
+    ];
+    await pump(tester, fullWallet: false);
+    expect(find.byKey(const Key('service-no-full-wallet')), findsOneWidget);
+    expect(find.text(appL10n.celautNoFullWallet), findsOneWidget);
+    // Quotes are read only: they still work.
+    await fill(tester);
+    await tester.tap(find.byKey(const Key('service-quote')));
+    await tester.pumpAndSettle();
+    expect(api.quoteCalls, hasLength(1));
+    expect(
+      tester.widget<OutlinedButton>(find.byKey(Key('service-start-$_cheap'))).onPressed,
+      isNull,
+    );
+    expect(
+      tester.widget<FilledButton>(find.byKey(const Key('service-app-stop-old-1'))).onPressed,
+      isNull,
+    );
+    expect(api.startCalls, isEmpty);
+    expect(api.stops, isEmpty);
+  });
+
+  testWidgets('an instance of an earlier run is listed and can be stopped', (tester) async {
+    api.instances = [
+      InstanceListView(
+        instanceId: 'old-1',
+        peerId: _cheap,
+        address: '127.0.0.1:18460',
+        serviceId: _service,
+        slots: Uint16List.fromList([3030]),
+        startedAt: 1,
+        startChargeMu: '1000000',
+      ),
+    ];
+    await pump(tester);
+    expect(find.byKey(const Key('service-no-full-wallet')), findsNothing);
+    expect(find.byKey(const Key('service-app-instance-old-1')), findsOneWidget);
+    api.instances = [];
+    await tester.tap(find.byKey(const Key('service-app-stop-old-1')));
+    await tester.pumpAndSettle();
+    expect(api.stops, ['old-1']);
+    expect(find.byKey(const Key('service-app-instance-old-1')), findsNothing);
+    expect(find.text(ServiceStrings.stopped('976,399 MU', '4,476,399 MU')), findsOneWidget);
   });
 
   testWidgets('an error of the call is shown in plain English', (tester) async {
@@ -251,7 +321,9 @@ void main() {
       channel,
       (call) async => call.method == 'listWalletIds' ? <String>[] : null,
     );
-    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null));
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null),
+    );
     tester.view.physicalSize = const Size(390, 2400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);

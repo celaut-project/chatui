@@ -248,6 +248,17 @@ class SecureStorageService {
     }
   }
 
+  /// The key of the Celaut database (one for the app, not one per wallet), or null if
+  /// the app has none yet. Platform errors pass through as [PlatformException].
+  static Future<String?> loadCelautDbKey() =>
+      _channel.invokeMethod<String>('loadCelautDbKey');
+
+  static Future<void> saveCelautDbKey(String key) =>
+      _channel.invokeMethod('saveCelautDbKey', {'key': key});
+
+  /// The file of the Celaut database, outside the cloud backup.
+  static Future<String?> celautDbPath() => _channel.invokeMethod<String>('celautDbPath');
+
   /// Migrates a legacy single-slot wallet (pre-multi-wallet) to a new wallet ID.
   /// Returns the wallet ID if migration was performed, or null if there was
   /// nothing to migrate.

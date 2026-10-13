@@ -46,6 +46,9 @@ pub enum SendError {
 
     #[error("{0}")]
     ChangeBox(String),
+
+    #[error("Bad recipient registers: {0}")]
+    BadRegisters(String),
 }
 
 #[derive(Debug)]
@@ -77,6 +80,68 @@ pub fn build_send_tx(
     send_token: Option<(&str, u64)>,
     current_height: i32,
 ) -> Result<SendBuildResult, SendError> {
+    build_send_tx_with_registers(
+        user_inputs,
+        recipient_ergo_tree,
+        change_ergo_tree,
+        send_erg,
+        send_token,
+        &HashMap::new(),
+        current_height,
+    )
+}
+
+/// The register names that an output can have, in order. Ergo needs them without a
+/// gap from R4: R5 only with R4, R6 only with R5, and so on.
+const REGISTER_NAMES: [&str; 6] = ["R4", "R5", "R6", "R7", "R8", "R9"];
+
+/// Check the registers of an output: names from R4 without a gap, and each value the
+/// hex of a serialized Sigma constant (not empty, an even number of hex digits).
+fn check_registers(registers: &HashMap<String, String>) -> Result<(), SendError> {
+    if registers.len() > REGISTER_NAMES.len() {
+        return Err(SendError::BadRegisters(format!(
+            "{} registers, at most {}",
+            registers.len(),
+            REGISTER_NAMES.len()
+        )));
+    }
+    for name in registers.keys() {
+        if !REGISTER_NAMES.contains(&name.as_str()) {
+            return Err(SendError::BadRegisters(format!(
+                "{name} is not a register from R4 to R9"
+            )));
+        }
+    }
+    for name in &REGISTER_NAMES[..registers.len()] {
+        let Some(value) = registers.get(*name) else {
+            return Err(SendError::BadRegisters(format!(
+                "{name} is missing: registers start at R4 and have no gap"
+            )));
+        };
+        let bytes = hex::decode(value)
+            .map_err(|_| SendError::BadRegisters(format!("{name} is not hexadecimal")))?;
+        if bytes.is_empty() {
+            return Err(SendError::BadRegisters(format!("{name} is empty")));
+        }
+    }
+    Ok(())
+}
+
+/// [`build_send_tx`] with registers on the recipient output.
+///
+/// `recipient_registers` maps register names ("R4" to "R9") to the hex of a serialized
+/// Sigma constant (for example [`crate::sigma::encode_sigma_coll_byte`]). Only the
+/// recipient output gets them; the change outputs get none.
+pub fn build_send_tx_with_registers(
+    user_inputs: &[Eip12InputBox],
+    recipient_ergo_tree: &str,
+    change_ergo_tree: &str,
+    send_erg: i64,
+    send_token: Option<(&str, u64)>,
+    recipient_registers: &HashMap<String, String>,
+    current_height: i32,
+) -> Result<SendBuildResult, SendError> {
+    check_registers(recipient_registers)?;
     if user_inputs.is_empty() {
         return Err(SendError::NoInputs);
     }
@@ -176,7 +241,7 @@ pub fn build_send_tx(
         ergo_tree: recipient_ergo_tree.to_string(),
         assets: recipient_assets,
         creation_height: current_height,
-        additional_registers: HashMap::new(),
+        additional_registers: recipient_registers.clone(),
     });
 
     let change_erg = if need_change {
@@ -358,15 +423,8 @@ mod tests {
         let ids: Vec<String> = (0..123).map(|i| format!("tok{i:04}")).collect();
         let assets: Vec<(&str, &str)> = ids.iter().map(|id| (id.as_str(), "7")).collect();
         let inputs = vec![make_box("5000000000", assets)];
-        let built = build_send_tx(
-            &inputs,
-            RECIPIENT_TREE,
-            USER_TREE,
-            1_000_000_000,
-            None,
-            1,
-        )
-        .unwrap();
+        let built =
+            build_send_tx(&inputs, RECIPIENT_TREE, USER_TREE, 1_000_000_000, None, 1).unwrap();
         let change: Vec<_> = built
             .unsigned_tx
             .outputs
@@ -394,6 +452,162 @@ mod tests {
         );
     }
 
+    fn r4(text: &str) -> HashMap<String, String> {
+        HashMap::from([(
+            "R4".to_string(),
+            crate::sigma::encode_sigma_coll_byte(text.as_bytes()),
+        )])
+    }
+
+    #[test]
+    fn registers_go_on_the_recipient_output_only() {
+        let token = "1b4e28ba-2fa1-41d2-883f-0016d3cca427";
+        let inputs = vec![make_box("1000000000", vec![("tok_a", "5")])];
+        let built = build_send_tx_with_registers(
+            &inputs,
+            RECIPIENT_TREE,
+            USER_TREE,
+            10_000_000,
+            None,
+            &r4(token),
+            50000,
+        )
+        .unwrap();
+        let outputs = &built.unsigned_tx.outputs;
+        assert_eq!(outputs.len(), 3); // recipient + change + fee
+        let expected = format!("0e24{}", hex::encode(token));
+        assert_eq!(outputs[0].ergo_tree, RECIPIENT_TREE);
+        assert_eq!(outputs[0].value, "10000000");
+        assert!(outputs[0].assets.is_empty());
+        assert_eq!(outputs[0].additional_registers.len(), 1);
+        assert_eq!(outputs[0].additional_registers["R4"], expected);
+        // The change keeps the tokens and gets no register.
+        assert_eq!(outputs[1].ergo_tree, USER_TREE);
+        assert!(outputs[1].additional_registers.is_empty());
+        assert_eq!(outputs[1].assets.len(), 1);
+        assert!(outputs[2].additional_registers.is_empty());
+        assert_eq!(built.summary.recipient_erg, 10_000_000);
+        assert_eq!(built.summary.miner_fee, TX_FEE);
+        assert_eq!(
+            built.summary.change_erg,
+            1_000_000_000 - 10_000_000 - TX_FEE
+        );
+        let out_total: i64 = outputs
+            .iter()
+            .map(|o| o.value.parse::<i64>().unwrap())
+            .sum();
+        assert_eq!(out_total, 1_000_000_000, "ERG is conserved");
+    }
+
+    #[test]
+    fn a_send_without_registers_writes_none() {
+        let inputs = vec![make_box("10000000000", vec![])];
+        let built =
+            build_send_tx(&inputs, RECIPIENT_TREE, USER_TREE, 2_000_000_000, None, 1).unwrap();
+        assert!(built
+            .unsigned_tx
+            .outputs
+            .iter()
+            .all(|o| o.additional_registers.is_empty()));
+    }
+
+    #[test]
+    fn dust_change_with_registers_still_folds_into_the_fee() {
+        let send = 10_000_000i64;
+        let inputs = vec![make_box(&(send + TX_FEE + 400_000).to_string(), vec![])];
+        let built = build_send_tx_with_registers(
+            &inputs,
+            RECIPIENT_TREE,
+            USER_TREE,
+            send,
+            None,
+            &r4("t"),
+            1,
+        )
+        .unwrap();
+        assert_eq!(built.unsigned_tx.outputs.len(), 2); // recipient + fee
+        assert_eq!(built.summary.miner_fee, TX_FEE + 400_000);
+        assert_eq!(
+            built.unsigned_tx.outputs[0].additional_registers["R4"],
+            "0e0174"
+        );
+    }
+
+    #[test]
+    fn registers_start_at_r4_and_have_no_gap() {
+        let inputs = vec![make_box("10000000000", vec![])];
+        let value = crate::sigma::encode_sigma_coll_byte(b"x");
+        let cases: Vec<HashMap<String, String>> = vec![
+            HashMap::from([("R5".to_string(), value.clone())]),
+            HashMap::from([
+                ("R4".to_string(), value.clone()),
+                ("R6".to_string(), value.clone()),
+            ]),
+            HashMap::from([("R3".to_string(), value.clone())]),
+            HashMap::from([("R4".to_string(), "0e0".to_string())]),
+            HashMap::from([("R4".to_string(), "zz".to_string())]),
+            HashMap::from([("R4".to_string(), String::new())]),
+        ];
+        for registers in cases {
+            let err = build_send_tx_with_registers(
+                &inputs,
+                RECIPIENT_TREE,
+                USER_TREE,
+                MIN_BOX_VALUE,
+                None,
+                &registers,
+                1,
+            )
+            .unwrap_err();
+            assert!(
+                matches!(err, SendError::BadRegisters(_)),
+                "{registers:?}: {err}"
+            );
+        }
+        let two = HashMap::from([
+            ("R4".to_string(), value.clone()),
+            ("R5".to_string(), value.clone()),
+        ]);
+        let built = build_send_tx_with_registers(
+            &inputs,
+            RECIPIENT_TREE,
+            USER_TREE,
+            MIN_BOX_VALUE,
+            None,
+            &two,
+            1,
+        )
+        .unwrap();
+        assert_eq!(built.unsigned_tx.outputs[0].additional_registers, two);
+    }
+
+    #[test]
+    fn registers_do_not_change_the_checks_of_the_amounts() {
+        let inputs = vec![make_box("5000000", vec![])];
+        let err = build_send_tx_with_registers(
+            &inputs,
+            RECIPIENT_TREE,
+            USER_TREE,
+            5_000_000,
+            None,
+            &r4("t"),
+            1,
+        )
+        .unwrap_err();
+        assert!(matches!(err, SendError::InsufficientErg { .. }));
+        let err = build_send_tx_with_registers(
+            &inputs,
+            RECIPIENT_TREE,
+            USER_TREE,
+            500_000,
+            None,
+            &r4("t"),
+            1,
+        )
+        .unwrap_err();
+        assert!(matches!(err, SendError::BelowMinBoxValue { .. }));
+    }
+
     #[test]
     fn split_change_short_of_erg_is_a_token_change_error() {
         let ids: Vec<String> = (0..123).map(|i| format!("tok{i:04}")).collect();
@@ -402,15 +616,8 @@ mod tests {
             &(1_000_000_000 + TX_FEE + 1_500_000).to_string(),
             assets,
         )];
-        let err = build_send_tx(
-            &inputs,
-            RECIPIENT_TREE,
-            USER_TREE,
-            1_000_000_000,
-            None,
-            1,
-        )
-        .unwrap_err();
+        let err =
+            build_send_tx(&inputs, RECIPIENT_TREE, USER_TREE, 1_000_000_000, None, 1).unwrap_err();
         match err {
             SendError::TokenChangeInsufficientErg { have, min } => {
                 assert_eq!(have, 1_500_000);

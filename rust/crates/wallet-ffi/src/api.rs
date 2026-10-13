@@ -7,7 +7,7 @@ use citadel_core::constants::{MIN_BOX_VALUE_NANO, TX_FEE_NANO};
 use ergo_lib::chain::transaction::reduced::ReducedTransaction;
 use ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox;
 use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
-use ergo_tx::build_send_tx;
+use ergo_tx::build_send_tx_with_registers;
 use ergopay_core::reduce_transaction_with_context;
 use once_cell::sync::Lazy;
 use rand::{rngs::SysRng, TryRng};
@@ -26,8 +26,17 @@ pub mod mempool;
 /// Celaut nodes: connect to a node and show its advertisement (milestone M1).
 pub mod celaut;
 
+/// The Celaut database of the app: one for all the wallets (`docs/celaut/ui.md`).
+pub mod celaut_db;
+
 /// Celaut services: quotes, start, a local port for the tunnel, stop (milestone M2).
 pub mod celaut_service;
+
+/// Celaut deposits: pay a node in ERG from one full wallet (milestone M3).
+pub mod celaut_deposit;
+
+/// The compute overview of the home screen: offered compute, credit, instances.
+pub mod celaut_home;
 
 fn err_str<E: Into<ArgusError>>(e: E) -> String {
     e.into().to_json_string()
@@ -1358,6 +1367,7 @@ async fn prepare(
     fee_nano: Option<i64>,
     input_box_ids: Option<Vec<String>>,
     babel_token_id: Option<String>,
+    recipient_registers: &HashMap<String, String>,
 ) -> Result<
     (
         Vec<serde_json::Value>,
@@ -1443,12 +1453,13 @@ async fn prepare(
     let change_tree = address_to_ergo_tree(change_address)
         .map_err(|e| ArgusError::InvalidAddress(e).to_json_string())?;
 
-    let built = build_send_tx(
+    let built = build_send_tx_with_registers(
         &selected.boxes,
         &recipient_tree,
         &change_tree,
         amount_nano_erg,
         token_ref,
+        recipient_registers,
         height,
     )
     .map_err(|e| ArgusError::TxBuildFailed(e.to_string()).to_json_string())?;
@@ -1529,6 +1540,7 @@ pub async fn prepare_send(
         fee_nano,
         input_box_ids,
         babel_token_id,
+        &HashMap::new(),
     )
     .await
     .map_err(|e| mempool::explain_for(handle_id, hand_picked, e))?;
@@ -1562,6 +1574,79 @@ pub async fn prepare_send(
         "babel": babel.as_ref().map(babel_json),
     }))
     .map_err(|e| ArgusError::SerializationError(e.to_string()).to_json_string())
+}
+
+/// A send that [`prepare_registered_send`] prepared: its id for `send_erg`, the
+/// transaction, and the figures for the confirmation. Not part of the Dart API.
+#[flutter_rust_bridge::frb(ignore)]
+pub(crate) struct RegisteredSend {
+    pub preparation_id: u64,
+    pub unsigned_tx: ergo_tx::Eip12UnsignedTx,
+    pub miner_fee: i64,
+    pub change_erg: i64,
+    pub input_count: usize,
+}
+
+/// Prepare a send of ERG with `registers` on the recipient output (the Celaut deposit,
+/// milestone M3). Automatic coin selection, the default fee, no babel box. Confirm with
+/// `send_erg`, as a preparation of `prepare_send`.
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn prepare_registered_send(
+    handle_id: u64,
+    sender_address: &str,
+    spend_addresses: &[String],
+    change_address: &str,
+    recipient_address: &str,
+    amount_nano_erg: i64,
+    registers: &HashMap<String, String>,
+    node_url: Option<String>,
+) -> Result<RegisteredSend, String> {
+    let (_, ergo_boxes, built, _) = prepare(
+        handle_id,
+        sender_address,
+        spend_addresses,
+        change_address,
+        recipient_address,
+        amount_nano_erg,
+        None,
+        None,
+        node_url.clone(),
+        None,
+        None,
+        None,
+        registers,
+    )
+    .await
+    .map_err(|e| mempool::explain_for(handle_id, false, e))?;
+    let unsigned_tx = built.unsigned_tx.clone();
+    let preparation_id = store_preparation(CachedPreparation {
+        handle_id,
+        ergo_boxes,
+        data_input_boxes: Vec::new(),
+        unsigned_tx: built.unsigned_tx,
+        miner_fee: built.summary.miner_fee,
+        change_erg: built.summary.change_erg,
+        recipient_erg: built.summary.recipient_erg,
+        node_url,
+    });
+    Ok(RegisteredSend {
+        preparation_id,
+        unsigned_tx,
+        miner_fee: built.summary.miner_fee,
+        change_erg: built.summary.change_erg,
+        input_count: built.summary.input_count,
+    })
+}
+
+/// Whether the preparation is still waiting: `send_erg` and `sign_preparation` take it,
+/// and a newer preparation of the same wallet replaces it.
+pub(crate) fn preparation_waits(preparation_id: u64) -> bool {
+    recover(PREPARATIONS.lock()).contains_key(&preparation_id)
+}
+
+/// Drop a preparation that the user did not confirm.
+pub(crate) fn drop_preparation(preparation_id: u64) {
+    recover(PREPARATIONS.lock()).remove(&preparation_id);
 }
 
 /// Issue a token (EIP-4): mint `amount` units named `name` into a box of

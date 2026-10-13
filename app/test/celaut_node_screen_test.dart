@@ -5,6 +5,7 @@ import 'package:argus_wallet/bridge/frb_generated.dart';
 import 'package:argus_wallet/celaut/celaut_strings.dart';
 import 'package:argus_wallet/ui/celaut/node_connect_screen.dart';
 import 'package:argus_wallet/ui/settings_screen.dart';
+import 'package:argus_wallet/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -162,6 +163,32 @@ void main() {
     expect(find.text(CelautStrings.noResources), findsOneWidget);
   });
 
+  testWidgets('a value that the node does not give is unknown, not 0 or left out', (tester) async {
+    api.answer = PeerInfoView(
+      peerId: _peerId,
+      ts: 1,
+      uris: [],
+      rates: [const KeyValueView(key: 'net_mu_per_gib', value: '')],
+      paymentContracts: [],
+      resources: [
+        NodeResourcesView(
+          architecture: 'linux/arm64',
+          cpuCores: 2,
+          benchmark: [const KeyValueView(key: 'int_ops_per_sec', value: '')],
+        ),
+      ],
+      reputationProofs: 0,
+    );
+    await pump(tester);
+    await connect(tester, 'node.example:9000');
+    final unknown = appL10n.celautUnknown;
+    expect(find.text('${CelautStrings.cpuLabel}: ${CelautStrings.cores(2)}'), findsOneWidget);
+    expect(find.text('${CelautStrings.memoryLabel}: $unknown'), findsOneWidget);
+    expect(find.text('${CelautStrings.diskLabel}: $unknown'), findsOneWidget);
+    expect(find.text('${CelautStrings.benchmarkLabel} int_ops_per_sec: $unknown'), findsOneWidget);
+    expect(find.text(unknown), findsOneWidget); // the rate
+  });
+
   testWidgets('an out-of-range time from a node does not break the screen', (tester) async {
     api.answer = PeerInfoView(
       peerId: _peerId,
@@ -180,7 +207,8 @@ void main() {
 
   group('errors in plain English', () {
     final cases = <CelautErrorKind, String>{
-      CelautErrorKind.identityMismatch: 'The identity of this node is not the one that was expected',
+      CelautErrorKind.identityMismatch:
+          'The identity of this node is not the one that was expected',
       CelautErrorKind.badCertificate: 'has no valid Celaut identity',
       CelautErrorKind.badSignature: 'The signature of the node advertisement is not valid',
       CelautErrorKind.staleTimestamp: 'older than one that the app accepted before',
@@ -191,6 +219,8 @@ void main() {
       CelautErrorKind.protocol: 'refused the request',
       CelautErrorKind.storage: 'cannot read or write',
       CelautErrorKind.invalidInput: 'address is not valid',
+      CelautErrorKind.limitReached: 'would pass the limit',
+      CelautErrorKind.wallet: 'The wallet cannot make this transaction',
     };
     for (final entry in cases.entries) {
       testWidgets('${entry.key.name} shows its text and the detail', (tester) async {
@@ -263,7 +293,9 @@ void main() {
       channel,
       (call) async => call.method == 'listWalletIds' ? <String>[] : null,
     );
-    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null));
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null),
+    );
     tester.view.physicalSize = const Size(390, 2400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
