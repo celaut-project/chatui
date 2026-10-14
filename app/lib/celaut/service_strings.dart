@@ -48,6 +48,7 @@ class ServiceStrings {
   static const openPort = 'Open a local port';
   static const pathLabel = 'Path';
   static const call = 'Call GET';
+  static const openChat = 'Open as a chat';
   static String answer(int status) => 'HTTP $status';
   static const refresh = 'Refresh the balance';
   static String clientBalance(String mu) => 'Balance of the client: $mu';

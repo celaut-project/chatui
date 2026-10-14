@@ -9214,6 +9214,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Scan a QR code'**
   String get celautNodesScan;
+
+  /// No description provided for @chatTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation'**
+  String get chatTitle;
+
+  /// No description provided for @chatInputHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Write a message'**
+  String get chatInputHint;
+
+  /// No description provided for @chatSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get chatSend;
+
+  /// No description provided for @chatEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Say something to start the conversation.'**
+  String get chatEmpty;
+
+  /// No description provided for @chatCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Cost so far: {mu}'**
+  String chatCost(String mu);
+
+  /// No description provided for @chatLeaveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave the conversation?'**
+  String get chatLeaveTitle;
+
+  /// No description provided for @chatLeaveBody.
+  ///
+  /// In en, this message translates to:
+  /// **'If you stop the instance, the conversation ends and the node refunds what is left. If you leave it running, the node keeps charging for it.'**
+  String get chatLeaveBody;
+
+  /// No description provided for @chatStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop the instance'**
+  String get chatStop;
+
+  /// No description provided for @chatLeaveRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave it running'**
+  String get chatLeaveRunning;
+
+  /// No description provided for @chatStay.
+  ///
+  /// In en, this message translates to:
+  /// **'Stay'**
+  String get chatStay;
+
+  /// No description provided for @chatErrorUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'The service did not answer. Your message may not have arrived. Try again.'**
+  String get chatErrorUnreachable;
+
+  /// No description provided for @chatErrorBadAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'The service answered in a way that this app does not understand.'**
+  String get chatErrorBadAnswer;
+
+  /// No description provided for @chatErrorHistoryFull.
+  ///
+  /// In en, this message translates to:
+  /// **'This conversation is full. Start a new instance for a new conversation.'**
+  String get chatErrorHistoryFull;
+
+  /// No description provided for @chatErrorBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'The service is busy with another message. Try again in a moment.'**
+  String get chatErrorBusy;
+
+  /// No description provided for @chatErrorOther.
+  ///
+  /// In en, this message translates to:
+  /// **'The service refused the message.'**
+  String get chatErrorOther;
+
+  /// No description provided for @chatStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'The instance stopped. Refund: {refund}'**
+  String chatStopped(String refund);
 }
 
 class _AppLocalizationsDelegate
