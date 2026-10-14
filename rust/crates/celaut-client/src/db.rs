@@ -148,6 +148,10 @@ pub struct InstanceRecord {
     /// The internal ports of the instance.
     #[serde(default)]
     pub slots: Vec<u16>,
+    /// The slots that follow the chat convention (`docs/celaut/chat.md`), a part of
+    /// `slots`. An old record has none.
+    #[serde(default)]
+    pub chat_slots: Vec<u16>,
     /// The time of the start, in Unix seconds.
     pub started_at: i64,
     /// What the start took from the balance of the client, in MU of the node, if the
@@ -585,6 +589,7 @@ mod tests {
                 token: "secret-token".into(),
                 service_id: "bb".repeat(32),
                 slots: vec![3030],
+                chat_slots: vec![3030],
                 started_at: 1,
                 start_charge_mu: Some("100".into()),
             },

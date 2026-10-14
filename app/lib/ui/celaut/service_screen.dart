@@ -556,11 +556,12 @@ class _ServiceScreenState extends State<ServiceScreen> {
                   onPressed: _calling ? null : () => _call(_ports[slot]!),
                   child: const Text(ServiceStrings.call),
                 ),
-                OutlinedButton(
-                  key: Key('service-chat-$slot'),
-                  onPressed: () => _openChat(_ports[slot]!),
-                  child: const Text(ServiceStrings.openChat),
-                ),
+                if (instance.chatSlots.contains(slot))
+                  OutlinedButton(
+                    key: Key('service-chat-$slot'),
+                    onPressed: () => _openChat(_ports[slot]!),
+                    child: const Text(ServiceStrings.openChat),
+                  ),
               ],
             ],
             if (_answer != null) ...[

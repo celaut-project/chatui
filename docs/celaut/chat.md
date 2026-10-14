@@ -28,10 +28,11 @@ A service follows the convention if its `Service.Api` has one `Slot` with these 
 | Field | Value |
 |---|---|
 | `transport.tags` | contains `tcp` |
-| `protocol_stack` | contains one `Protocol` with `tags` that contain `http`, above one with `tags` that contain `chat` |
+| `protocol_stack` | from bottom to top: a `Protocol` with `tags` that contain `http`, and above it a `Protocol` with `tags` that contain `chat` |
 
-The client reads the interface before it starts the service. It uses the `port` of this
-slot for `ServiceTunnel`. If there is no such slot, the client does not show the service
+The client reads the interface in the answer of `StartService` (`Instance.api`). It uses
+the `port` of this slot for `ServiceTunnel`. A slot counts only if the instance has that
+port in `Instance.uri_slot`. If there is no such slot, the client does not show the service
 as a chat service. If a service has more than one such slot, the client uses the first.
 
 The `prose` of the `chat` protocol can describe the service for the user. The client

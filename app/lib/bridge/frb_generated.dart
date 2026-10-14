@@ -3639,16 +3639,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   InstanceListView dco_decode_instance_list_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return InstanceListView(
       instanceId: dco_decode_String(arr[0]),
       peerId: dco_decode_String(arr[1]),
       address: dco_decode_String(arr[2]),
       serviceId: dco_decode_String(arr[3]),
       slots: dco_decode_list_prim_u_16_strict(arr[4]),
-      startedAt: dco_decode_i_64(arr[5]),
-      startChargeMu: dco_decode_String(arr[6]),
+      chatSlots: dco_decode_list_prim_u_16_strict(arr[5]),
+      startedAt: dco_decode_i_64(arr[6]),
+      startChargeMu: dco_decode_String(arr[7]),
     );
   }
 
@@ -3670,13 +3671,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   InstanceView dco_decode_instance_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return InstanceView(
       instanceId: dco_decode_String(arr[0]),
       peerId: dco_decode_String(arr[1]),
       slots: dco_decode_list_prim_u_16_strict(arr[2]),
-      clientBalanceMu: dco_decode_String(arr[3]),
+      chatSlots: dco_decode_list_prim_u_16_strict(arr[3]),
+      clientBalanceMu: dco_decode_String(arr[4]),
     );
   }
 
@@ -4337,6 +4339,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_address = sse_decode_String(deserializer);
     var var_serviceId = sse_decode_String(deserializer);
     var var_slots = sse_decode_list_prim_u_16_strict(deserializer);
+    var var_chatSlots = sse_decode_list_prim_u_16_strict(deserializer);
     var var_startedAt = sse_decode_i_64(deserializer);
     var var_startChargeMu = sse_decode_String(deserializer);
     return InstanceListView(
@@ -4345,6 +4348,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       address: var_address,
       serviceId: var_serviceId,
       slots: var_slots,
+      chatSlots: var_chatSlots,
       startedAt: var_startedAt,
       startChargeMu: var_startChargeMu,
     );
@@ -4373,11 +4377,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_instanceId = sse_decode_String(deserializer);
     var var_peerId = sse_decode_String(deserializer);
     var var_slots = sse_decode_list_prim_u_16_strict(deserializer);
+    var var_chatSlots = sse_decode_list_prim_u_16_strict(deserializer);
     var var_clientBalanceMu = sse_decode_String(deserializer);
     return InstanceView(
       instanceId: var_instanceId,
       peerId: var_peerId,
       slots: var_slots,
+      chatSlots: var_chatSlots,
       clientBalanceMu: var_clientBalanceMu,
     );
   }
@@ -5143,6 +5149,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.address, serializer);
     sse_encode_String(self.serviceId, serializer);
     sse_encode_list_prim_u_16_strict(self.slots, serializer);
+    sse_encode_list_prim_u_16_strict(self.chatSlots, serializer);
     sse_encode_i_64(self.startedAt, serializer);
     sse_encode_String(self.startChargeMu, serializer);
   }
@@ -5165,6 +5172,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.instanceId, serializer);
     sse_encode_String(self.peerId, serializer);
     sse_encode_list_prim_u_16_strict(self.slots, serializer);
+    sse_encode_list_prim_u_16_strict(self.chatSlots, serializer);
     sse_encode_String(self.clientBalanceMu, serializer);
   }
 

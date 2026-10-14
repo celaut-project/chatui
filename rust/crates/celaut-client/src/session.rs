@@ -36,6 +36,46 @@ impl StartedInstance {
             .filter_map(|s| u16::try_from(s.internal_port).ok())
             .collect()
     }
+
+    /// The slots that follow the chat convention (`docs/celaut/chat.md`, section 2), in
+    /// the order of `Service.Api`. The client uses the first one.
+    pub fn chat_slots(&self) -> Vec<u16> {
+        chat_slots(&self.instance)
+    }
+}
+
+/// The tag of the HTTP protocol in a protocol stack.
+const HTTP_TAG: &str = "http";
+/// The tag of the chat convention in a protocol stack. It has no version.
+const CHAT_TAG: &str = "chat";
+
+/// The slots of `instance` that follow the chat convention: a port of `Service.Api`
+/// with the transport `tcp`, and a protocol stack that has `http` and, above it, `chat`
+/// (the stack is written bottom to top). A slot counts only if the instance has that
+/// port, because `ServiceTunnel` accepts only the ports of the instance.
+pub fn chat_slots(instance: &Instance) -> Vec<u16> {
+    let Some(api) = instance.api.as_ref() else {
+        return Vec::new();
+    };
+    let has = |tags: &[String], tag: &str| tags.iter().any(|t| t == tag);
+    let mut found = Vec::new();
+    for slot in &api.slot {
+        let tcp = slot.transport.as_ref().is_some_and(|t| has(&t.tags, "tcp"));
+        let http = slot.protocol_stack.iter().position(|p| has(&p.tags, HTTP_TAG));
+        let chat = slot.protocol_stack.iter().rposition(|p| has(&p.tags, CHAT_TAG));
+        let follows = matches!((http, chat), (Some(h), Some(c)) if h < c);
+        let Ok(port) = u16::try_from(slot.port) else {
+            continue;
+        };
+        let reachable = instance
+            .uri_slot
+            .iter()
+            .any(|u| u16::try_from(u.internal_port) == Ok(port));
+        if tcp && follows && reachable && !found.contains(&port) {
+            found.push(port);
+        }
+    }
+    found
 }
 
 /// A client on one node.
@@ -186,4 +226,126 @@ pub fn parse_service_id(text: &str) -> Option<[u8; 32]> {
     }
     let bytes = hex::decode(text.to_ascii_lowercase()).ok()?;
     bytes.try_into().ok()
+}
+
+#[cfg(test)]
+mod chat_slot_tests {
+    use super::*;
+    use celaut_proto::celaut::instance::UriSlot;
+    use celaut_proto::celaut::service::api::{Protocol, Slot};
+    use celaut_proto::celaut::service::Api;
+
+    fn protocol(tags: &[&str]) -> Protocol {
+        Protocol {
+            tags: tags.iter().map(|t| t.to_string()).collect(),
+            ..Default::default()
+        }
+    }
+
+    fn slot(port: i32, transport: &str, stack: &[&[&str]]) -> Slot {
+        Slot {
+            port,
+            transport: Some(protocol(&[transport])),
+            protocol_stack: stack.iter().map(|tags| protocol(tags)).collect(),
+            ..Default::default()
+        }
+    }
+
+    /// An instance with these `Service.Api` slots, and every port in `uri_slot`.
+    fn instance(slots: Vec<Slot>) -> Instance {
+        let uri_slot = slots
+            .iter()
+            .map(|s| UriSlot {
+                internal_port: s.port,
+                uri: Vec::new(),
+            })
+            .collect();
+        Instance {
+            api: Some(Api {
+                slot: slots,
+                ..Default::default()
+            }),
+            uri_slot,
+        }
+    }
+
+    #[test]
+    fn http_then_chat_is_a_chat_slot() {
+        let i = instance(vec![slot(8080, "tcp", &[&["http"], &["chat"]])]);
+        assert_eq!(chat_slots(&i), vec![8080]);
+    }
+
+    #[test]
+    fn the_slots_keep_the_order_of_the_api_and_other_slots_are_left_out() {
+        let i = instance(vec![
+            slot(22, "tcp", &[&["ssh"]]),
+            slot(9000, "tcp", &[&["http", "json"], &["chat", "text"]]),
+            slot(8080, "tcp", &[&["tls"], &["http"], &["chat"]]),
+            slot(8081, "tcp", &[&["http"]]),
+        ]);
+        assert_eq!(chat_slots(&i), vec![9000, 8080]);
+    }
+
+    #[test]
+    fn chat_below_http_or_without_http_is_not_a_chat_slot() {
+        let i = instance(vec![
+            slot(1, "tcp", &[&["chat"], &["http"]]),
+            slot(2, "tcp", &[&["chat"]]),
+            slot(3, "tcp", &[&["grpc"], &["chat"]]),
+        ]);
+        assert!(chat_slots(&i).is_empty());
+    }
+
+    #[test]
+    fn a_udp_slot_is_not_a_chat_slot() {
+        let i = instance(vec![slot(8080, "udp", &[&["http"], &["chat"]])]);
+        assert!(chat_slots(&i).is_empty());
+        let mut no_transport = slot(8080, "tcp", &[&["http"], &["chat"]]);
+        no_transport.transport = None;
+        assert!(chat_slots(&instance(vec![no_transport])).is_empty());
+    }
+
+    #[test]
+    fn a_port_that_the_instance_does_not_have_is_left_out() {
+        let mut i = instance(vec![slot(8080, "tcp", &[&["http"], &["chat"]])]);
+        i.uri_slot.clear();
+        assert!(chat_slots(&i).is_empty());
+    }
+
+    #[test]
+    fn a_port_that_is_not_a_u16_is_left_out() {
+        let i = instance(vec![
+            slot(0x1_0000, "tcp", &[&["http"], &["chat"]]),
+            slot(-1, "tcp", &[&["http"], &["chat"]]),
+        ]);
+        assert!(chat_slots(&i).is_empty());
+    }
+
+    #[test]
+    fn a_repeated_port_counts_once() {
+        let i = instance(vec![
+            slot(8080, "tcp", &[&["http"], &["chat"]]),
+            slot(8080, "tcp", &[&["http"], &["chat"]]),
+        ]);
+        assert_eq!(chat_slots(&i), vec![8080]);
+    }
+
+    #[test]
+    fn an_instance_with_no_api_has_no_chat_slot() {
+        let i = Instance {
+            api: None,
+            uri_slot: Vec::new(),
+        };
+        assert!(chat_slots(&i).is_empty());
+    }
+
+    #[test]
+    fn started_instance_gives_its_chat_slots() {
+        let started = StartedInstance {
+            token: "t".into(),
+            instance: instance(vec![slot(8080, "tcp", &[&["http"], &["chat"]])]),
+        };
+        assert_eq!(started.chat_slots(), vec![8080]);
+        assert_eq!(started.slots(), vec![8080]);
+    }
 }
