@@ -4365,7 +4365,7 @@
   "celautClientUnknownRetry": "Retry later",
   "celautClientUnknownDone": "The app now uses a new client on this node.",
   "celautNodesTitle": "Nodes",
-  "celautNodesIntro": "The node list of the app. Only these nodes are in the sums of the home screen. A removed node keeps its deposits and its client in the app, so adding it again restores them.",
+  "celautNodesIntro": "The node list of the app. Add a node by its address or with a QR code. Only these nodes are in the sums of the home screen. A removed node keeps its deposits and its client in the app, so adding it again restores them.",
   "celautNodesAdd": "Add",
   "celautNodesEmpty": "The node list is empty.",
   "celautNodesRemove": "Remove",
@@ -4389,5 +4389,6 @@
   },
   "celautUnlockFailed": "The wallet did not open.",
   "celautDepositAuthNeeded": "The deposit needs the PIN or fingerprint of the paying wallet. Nothing was sent.",
-  "celautNodesRowSubtitle": "Add and remove the nodes in the sums of the home screen"
+  "celautNodesRowSubtitle": "Add and remove the nodes in the sums of the home screen",
+  "celautNodesScan": "Scan a QR code"
 }

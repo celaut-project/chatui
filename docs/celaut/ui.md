@@ -4,12 +4,9 @@ This note tells developers how the app must look and how it must treat wallets a
 instances. It follows [decisions.md](decisions.md). Josemi decided these points on
 2026-10-13. Features that are not built yet (M4 and M5) must follow this note.
 
-This note says what the app must do. The code of M3 (PR #13) was written before the
-answers of section 3 to 5 and differs in these points: the per-node limit is 0.05 ERG
-(it must be 1 ERG), the compute home is behind a developer setting (it must be the
-default), the home figures do not yet split full and read-only ERG, and there is no
-node list. PR #15 brings the code to this note. Where the plan describes the code, it
-describes the code of `master`; this note wins when they differ.
+This note says what the app must do. PR #15 brought the code of M3 to this note. Where
+the plan describes the code, it describes the code of `master`; this note wins when
+they differ.
 
 ## 1. Wallets
 
@@ -88,7 +85,9 @@ Rules for the numbers:
 - A sum with a missing part reads "at least X (N nodes unknown)". The data keeps the
   known part and the number of nodes without the value.
 - A node that advertises several architecture entries counts with its **largest**
-  entry, not the sum of them.
+  entry, not the sum of them. The largest entry has the most memory; with equal
+  memory, the most cores; then the most disk. A known value is larger than an unknown
+  value. The values of different entries are not mixed.
 - Do not add the resources of one node twice when the node is reachable through more
   than one URI. The key is the peer_id.
 - Show a value as "unknown" when it is missing. Do not show 0.

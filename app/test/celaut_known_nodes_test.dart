@@ -69,7 +69,12 @@ class _Api extends RustLibApi {
 void main() {
   setUpAll(() => RustLib.initMock(api: _Api()));
 
-  Future<_Db> pump(WidgetTester tester, {List<String>? made}) async {
+  Future<_Db> pump(
+    WidgetTester tester, {
+    List<String>? made,
+    List<String?>? scans,
+    bool camera = false,
+  }) async {
     tester.view.physicalSize = const Size(390, 2400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -82,6 +87,9 @@ void main() {
             made?.add('${node.host}:${node.port}');
             return NewClientView(peerId: _b, earlierClients: 1);
           },
+          // The QR codes that the scanner reads, in order; null is "back". With
+          // `camera`, the app's scanner opens (the test has no camera).
+          scan: camera ? null : (_) async => scans!.removeAt(0),
         ),
       ),
     );
@@ -122,6 +130,116 @@ void main() {
     await tester.tap(find.byKey(const Key('nodes-add')));
     await tester.pumpAndSettle();
     expect(db.adds, isEmpty);
+  });
+
+  testWidgets('add a node by a QR code: the same check as a typed address', (tester) async {
+    final db = await pump(tester, scans: ['celaut://node?addr=b.example:2', '[::1]:9']);
+    await tester.tap(find.byKey(const Key('nodes-scan')));
+    await tester.pumpAndSettle();
+    expect(db.adds, ['b.example:2']);
+    expect(find.byKey(Key('nodes-row-$_b')), findsOneWidget);
+    expect(find.text(appL10n.celautNodesAdded), findsOneWidget);
+    expect(find.byKey(const Key('nodes-error')), findsNothing);
+
+    // A bare address goes to the node check too; this one does not answer.
+    db.errors.add(const CelautError(kind: CelautErrorKind.unreachable, message: 'refused'));
+    await tester.tap(find.byKey(const Key('nodes-scan')));
+    await tester.pumpAndSettle();
+    expect(db.adds, ['b.example:2', '::1:9']);
+  });
+
+  testWidgets('a QR code that is not a node address shows the error and stores nothing', (
+    tester,
+  ) async {
+    final db = await pump(
+      tester,
+      scans: ['ergopay://example.org/pay', 'celaut://node?addr=b.example:0'],
+    );
+    await tester.enterText(find.byKey(const Key('nodes-address')), 'typed');
+    await tester.tap(find.byKey(const Key('nodes-scan')));
+    await tester.pumpAndSettle();
+    expect(db.adds, isEmpty);
+    expect(find.text(appL10n.celautAddressInvalid), findsOneWidget);
+    // The typed text stays; the scanned text does not go into the field.
+    expect(find.text('typed'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('nodes-scan')));
+    await tester.pumpAndSettle();
+    expect(db.adds, isEmpty);
+    expect(find.text(appL10n.celautPortInvalid), findsOneWidget);
+    expect(find.byKey(Key('nodes-row-$_b')), findsNothing);
+    expect(db.records.keys, [_a]);
+  });
+
+  testWidgets('a scanned node that fails the check shows the error of a typed address', (
+    tester,
+  ) async {
+    const refused = CelautError(kind: CelautErrorKind.unreachable, message: 'refused');
+    final db = await pump(tester, scans: ['celaut://node?addr=b.example:2']);
+    db.errors.add(refused);
+    await tester.enterText(find.byKey(const Key('nodes-address')), 'b.example:2');
+    await tester.tap(find.byKey(const Key('nodes-add')));
+    await tester.pumpAndSettle();
+    final typed = tester.widget<Text>(find.byKey(const Key('nodes-error'))).data;
+
+    await tester.enterText(find.byKey(const Key('nodes-address')), '');
+    db.errors.add(refused);
+    await tester.tap(find.byKey(const Key('nodes-scan')));
+    await tester.pumpAndSettle();
+    expect(db.adds, ['b.example:2', 'b.example:2']);
+    expect(tester.widget<Text>(find.byKey(const Key('nodes-error'))).data, typed);
+    expect(find.byKey(Key('nodes-row-$_b')), findsNothing);
+    expect(db.records.keys, [_a]);
+  });
+
+  testWidgets('back from the scanner changes nothing; the address field still works', (
+    tester,
+  ) async {
+    final db = await pump(tester, scans: [null]);
+    await tester.tap(find.byKey(const Key('nodes-scan')));
+    await tester.pumpAndSettle();
+    expect(db.adds, isEmpty);
+    expect(find.byKey(const Key('nodes-error')), findsNothing);
+
+    await tester.enterText(find.byKey(const Key('nodes-address')), 'b.example:2');
+    await tester.tap(find.byKey(const Key('nodes-add')));
+    await tester.pumpAndSettle();
+    expect(db.adds, ['b.example:2']);
+    expect(find.byKey(Key('nodes-row-$_b')), findsOneWidget);
+  });
+
+  testWidgets('no camera (or no permission): a message, then the address field works', (
+    tester,
+  ) async {
+    // The camera plugin as on a phone where the user refused the camera permission.
+    const channel = MethodChannel('plugins.flutter.io/camera');
+    final calls = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
+      calls.add(call.method);
+      if (call.method == 'availableCameras') {
+        return [
+          {'name': '0', 'lensFacing': 'back', 'sensorOrientation': 90},
+        ];
+      }
+      throw PlatformException(code: 'CameraAccessDenied', message: 'denied');
+    });
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null),
+    );
+    final db = await pump(tester, camera: true);
+    // Nothing asks for the camera before the scanner opens.
+    expect(calls, isEmpty);
+    await tester.tap(find.byKey(const Key('nodes-scan')));
+    await tester.pumpAndSettle();
+    expect(find.text(appL10n.scanCameraUnavailable), findsOneWidget);
+    await tester.tap(find.text(appL10n.scanBack));
+    await tester.pumpAndSettle();
+    expect(db.adds, isEmpty);
+
+    await tester.enterText(find.byKey(const Key('nodes-address')), 'b.example:2');
+    await tester.tap(find.byKey(const Key('nodes-add')));
+    await tester.pumpAndSettle();
+    expect(db.adds, ['b.example:2']);
   });
 
   testWidgets('a node that forgot the client: a new client, then the add', (tester) async {

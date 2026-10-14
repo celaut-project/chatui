@@ -53,3 +53,39 @@ enum HostPortError { empty, invalid, port }
   }
   return (value: HostPort(host, port), error: null);
 }
+
+/// Parse the text of a QR code that gives a node address (`docs/celaut/wire.md`,
+/// section 6): `celaut://node?addr=<host>:<port>`, or a bare `host:port` or
+/// `[ipv6]:port` with no scheme. Anything else is [HostPortError.invalid] or the error
+/// of [parseHostPort] for the address part.
+({HostPort? value, HostPortError? error}) parseNodeQr(String input) {
+  const invalid = (value: null, error: HostPortError.invalid);
+  final text = input.trim();
+  if (text.isEmpty) return (value: null, error: HostPortError.empty);
+  if (!text.toLowerCase().startsWith('celaut:')) {
+    // The bare form has no scheme: an ErgoPay or web link is not a node address.
+    if (text.contains('://')) return invalid;
+    return parseHostPort(text);
+  }
+
+  const prefix = 'celaut://node';
+  if (!text.toLowerCase().startsWith(prefix) || text.contains('#')) return invalid;
+  var rest = text.substring(prefix.length);
+  if (rest.startsWith('/')) rest = rest.substring(1);
+  if (!rest.startsWith('?')) return invalid;
+
+  final addrs = <String>[];
+  for (final pair in rest.substring(1).split('&')) {
+    final eq = pair.indexOf('=');
+    final key = eq < 0 ? pair : pair.substring(0, eq);
+    if (key != 'addr') continue;
+    try {
+      addrs.add(Uri.decodeQueryComponent(eq < 0 ? '' : pair.substring(eq + 1)));
+    } on ArgumentError {
+      return invalid;
+    }
+  }
+  if (addrs.length != 1 || addrs.single.contains('://')) return invalid;
+  final parsed = parseHostPort(addrs.single);
+  return parsed.error == HostPortError.empty ? invalid : parsed;
+}

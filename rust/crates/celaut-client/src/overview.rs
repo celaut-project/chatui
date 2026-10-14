@@ -39,7 +39,7 @@ fn entry_offer(entry: &ArchitectureResources) -> Offer {
     }
 }
 
-/// The order of two entries: more cores first, then more memory, then more disk. A
+/// The order of two entries: more memory first, then more cores, then more disk. A
 /// known value is larger than an unknown value.
 fn larger(a: &Offer, b: &Offer) -> std::cmp::Ordering {
     fn known<T: PartialOrd>(a: Option<T>, b: Option<T>) -> std::cmp::Ordering {
@@ -51,8 +51,8 @@ fn larger(a: &Offer, b: &Offer) -> std::cmp::Ordering {
             (None, None) => Equal,
         }
     }
-    known(a.cpu_cores, b.cpu_cores)
-        .then(known(a.mem_bytes, b.mem_bytes))
+    known(a.mem_bytes, b.mem_bytes)
+        .then(known(a.cpu_cores, b.cpu_cores))
         .then(known(a.disk_bytes, b.disk_bytes))
 }
 
@@ -253,33 +253,62 @@ mod tests {
             ],
             ..Default::default()
         };
-        // The entry with more cores counts, with its own memory and disk. The values
-        // of the two entries are not added and not mixed.
+        // The entry with more memory counts, with its own cores and disk, also when
+        // the other entry has more cores. The values of the two entries are not added
+        // and not mixed.
         let o = offer_of(&peer);
-        assert_eq!(o.cpu_cores, Some(4.0));
-        assert_eq!(o.mem_bytes, Some(1 << 20));
-        assert_eq!(o.disk_bytes, None);
+        assert_eq!(o.mem_bytes, Some(1 << 30));
+        assert_eq!(o.cpu_cores, Some(2.0));
+        assert_eq!(o.disk_bytes, Some(9));
         assert_eq!(offer_of(&Peer::default()), Offer::default());
 
-        // Equal cores: more memory counts.
+        // Equal memory: more cores counts.
         let tie = Peer {
             resources: vec![
-                entry(Some(200_000), Some(1), Some(5)),
-                entry(Some(200_000), Some(2), Some(1)),
+                entry(Some(200_000), Some(2), Some(5)),
+                entry(Some(400_000), Some(2), Some(1)),
             ],
             ..Default::default()
         };
-        assert_eq!(offer_of(&tie), offer(Some(2.0), Some(2), Some(1)));
+        assert_eq!(offer_of(&tie), offer(Some(4.0), Some(2), Some(1)));
 
-        // A known value is larger than an unknown one.
+        // Equal memory and cores: more disk counts.
+        let disk = Peer {
+            resources: vec![
+                entry(Some(100_000), Some(2), Some(1)),
+                entry(Some(100_000), Some(2), Some(3)),
+            ],
+            ..Default::default()
+        };
+        assert_eq!(offer_of(&disk), offer(Some(1.0), Some(2), Some(3)));
+
+        // All equal: the first entry counts.
+        let same = Peer {
+            resources: vec![
+                entry(Some(100_000), Some(2), None),
+                entry(Some(100_000), Some(2), None),
+            ],
+            ..Default::default()
+        };
+        assert_eq!(offer_of(&same), offer(Some(1.0), Some(2), None));
+
+        // A known value is larger than an unknown one: a known memory wins over more
+        // cores with an unknown memory.
         let partial = Peer {
             resources: vec![
-                entry(None, Some(8), Some(8)),
-                entry(Some(100_000), None, None),
+                entry(Some(800_000), None, Some(8)),
+                entry(None, Some(8), None),
             ],
             ..Default::default()
         };
-        assert_eq!(offer_of(&partial), offer(Some(1.0), None, None));
+        assert_eq!(offer_of(&partial), offer(None, Some(8), None));
+
+        // Memory unknown in both: known cores win.
+        let no_mem = Peer {
+            resources: vec![entry(None, None, Some(8)), entry(Some(100_000), None, None)],
+            ..Default::default()
+        };
+        assert_eq!(offer_of(&no_mem), offer(Some(1.0), None, None));
 
         // Two nodes with two entries each: the sum is over the largest entries.
         let a = offer_of(&peer);
@@ -288,8 +317,9 @@ mod tests {
         assert_eq!(total.cpu_cores.shown(total.nodes), Shown::Exact(6.0));
         assert_eq!(
             total.mem_bytes.shown(total.nodes),
-            Shown::Exact((1 << 20) + 2)
+            Shown::Exact((1 << 30) + 2)
         );
+        assert_eq!(total.disk_bytes.shown(total.nodes), Shown::Exact(10));
     }
 
     #[test]

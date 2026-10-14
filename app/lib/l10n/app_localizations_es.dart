@@ -5856,7 +5856,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautNodesIntro =>
-      'La lista de nodos de la app. Solo estos nodos entran en las sumas de la pantalla de inicio. Un nodo quitado conserva sus depósitos y su cliente en la app, así que añadirlo de nuevo los recupera.';
+      'La lista de nodos de la app. Añade un nodo por su dirección o con un código QR. Solo estos nodos entran en las sumas de la pantalla de inicio. Un nodo quitado conserva sus depósitos y su cliente en la app, así que añadirlo de nuevo los recupera.';
 
   @override
   String get celautNodesAdd => 'Añadir';
@@ -5894,4 +5894,7 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get celautNodesRowSubtitle =>
       'Añade y quita los nodos de las sumas de la pantalla de inicio';
+
+  @override
+  String get celautNodesScan => 'Escanear un código QR';
 }

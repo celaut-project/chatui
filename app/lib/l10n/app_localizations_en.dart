@@ -5777,7 +5777,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get celautNodesIntro =>
-      'The node list of the app. Only these nodes are in the sums of the home screen. A removed node keeps its deposits and its client in the app, so adding it again restores them.';
+      'The node list of the app. Add a node by its address or with a QR code. Only these nodes are in the sums of the home screen. A removed node keeps its deposits and its client in the app, so adding it again restores them.';
 
   @override
   String get celautNodesAdd => 'Add';
@@ -5815,4 +5815,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get celautNodesRowSubtitle =>
       'Add and remove the nodes in the sums of the home screen';
+
+  @override
+  String get celautNodesScan => 'Scan a QR code';
 }
