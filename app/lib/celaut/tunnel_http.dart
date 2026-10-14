@@ -37,12 +37,37 @@ class TunnelHttp {
     int port,
     String path, {
     Duration timeout = const Duration(seconds: 30),
-  }) async {
+  }) =>
+      _call('GET', port, path, null, timeout);
+
+  /// `POST path` on `127.0.0.1:port` with [json] as the body (`application/json`).
+  /// It reads the answer as [get] does.
+  Future<TunnelAnswer> postJson(
+    int port,
+    String path,
+    Object json, {
+    Duration timeout = const Duration(seconds: 30),
+  }) =>
+      _call('POST', port, path, json, timeout);
+
+  Future<TunnelAnswer> _call(
+    String method,
+    int port,
+    String path,
+    Object? json,
+    Duration timeout,
+  ) async {
     final target = path.startsWith('/') ? path : '/$path';
     final uri = Uri.parse('http://127.0.0.1:$port$target');
     Future<TunnelAnswer> call() async {
-      final request = await _client.getUrl(uri);
+      final request = await _client.openUrl(method, uri);
       request.persistentConnection = true;
+      if (json != null) {
+        final bytes = utf8.encode(jsonEncode(json));
+        request.headers.contentType = ContentType.json;
+        request.contentLength = bytes.length;
+        request.add(bytes);
+      }
       final response = await request.close();
       final kept = BytesBuilder(copy: false);
       await for (final chunk in response) {
