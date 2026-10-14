@@ -79,6 +79,9 @@ class InstanceListView {
   final String serviceId;
   final Uint16List slots;
 
+  /// The ports that follow the chat convention, a part of `slots`.
+  final Uint16List chatSlots;
+
   /// The time of the start, in Unix seconds.
   final PlatformInt64 startedAt;
 
@@ -91,6 +94,7 @@ class InstanceListView {
     required this.address,
     required this.serviceId,
     required this.slots,
+    required this.chatSlots,
     required this.startedAt,
     required this.startChargeMu,
   });
@@ -102,6 +106,7 @@ class InstanceListView {
       address.hashCode ^
       serviceId.hashCode ^
       slots.hashCode ^
+      chatSlots.hashCode ^
       startedAt.hashCode ^
       startChargeMu.hashCode;
 
@@ -115,6 +120,7 @@ class InstanceListView {
           address == other.address &&
           serviceId == other.serviceId &&
           slots == other.slots &&
+          chatSlots == other.chatSlots &&
           startedAt == other.startedAt &&
           startChargeMu == other.startChargeMu;
 }
@@ -168,6 +174,10 @@ class InstanceView {
   /// The internal ports of the instance, for [`celaut_open_tunnel`].
   final Uint16List slots;
 
+  /// The ports that follow the chat convention (`docs/celaut/chat.md`), a part of
+  /// `slots`. The chat screen uses the first one.
+  final Uint16List chatSlots;
+
   /// The balance of this client on the node after the start, in MU (empty if
   /// unknown).
   final String clientBalanceMu;
@@ -176,6 +186,7 @@ class InstanceView {
     required this.instanceId,
     required this.peerId,
     required this.slots,
+    required this.chatSlots,
     required this.clientBalanceMu,
   });
 
@@ -184,6 +195,7 @@ class InstanceView {
       instanceId.hashCode ^
       peerId.hashCode ^
       slots.hashCode ^
+      chatSlots.hashCode ^
       clientBalanceMu.hashCode;
 
   @override
@@ -194,6 +206,7 @@ class InstanceView {
           instanceId == other.instanceId &&
           peerId == other.peerId &&
           slots == other.slots &&
+          chatSlots == other.chatSlots &&
           clientBalanceMu == other.clientBalanceMu;
 }
 

@@ -35,6 +35,7 @@ class ServiceApi extends RustLibApi {
   final startCalls = <({NodeAddress node, String service, String? initial})>[];
   final stops = <String>[];
   int tunnelPort = 0;
+  var chatSlots = <int>[3030];
   Object? quoteAnswer;
   var instances = <InstanceListView>[];
 
@@ -64,6 +65,7 @@ class ServiceApi extends RustLibApi {
       instanceId: 'inst-1',
       peerId: _cheap,
       slots: Uint16List.fromList([3030]),
+      chatSlots: Uint16List.fromList(chatSlots),
       clientBalanceMu: '3500000',
     );
   }
@@ -232,6 +234,7 @@ void main() {
     await tester.tap(find.byKey(const Key('service-open-3030')));
     await tester.pumpAndSettle();
     expect(find.text(ServiceStrings.localPort(server.port)), findsOneWidget);
+    expect(find.byKey(const Key('service-chat-3030')), findsOneWidget);
 
     for (var i = 0; i < 2; i++) {
       await tester.runAsync(() async {
@@ -258,6 +261,21 @@ void main() {
     expect(find.byKey(const Key('service-instance')), findsNothing);
   });
 
+  testWidgets('the chat button is only on a slot that follows the chat convention', (tester) async {
+    api.tunnelPort = 1;
+    api.chatSlots = [];
+    await pump(tester);
+    await fill(tester);
+    await tester.tap(find.byKey(const Key('service-quote')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(Key('service-start-$_cheap')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('service-open-3030')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('service-call-3030')), findsOneWidget);
+    expect(find.byKey(const Key('service-chat-3030')), findsNothing);
+  });
+
   testWidgets('with no full wallet, start and stop are off with the same message', (tester) async {
     api.instances = [
       InstanceListView(
@@ -266,6 +284,7 @@ void main() {
         address: '127.0.0.1:18460',
         serviceId: _service,
         slots: Uint16List.fromList([3030]),
+        chatSlots: Uint16List(0),
         startedAt: 1,
         startChargeMu: '',
       ),
@@ -300,6 +319,7 @@ void main() {
         address: '127.0.0.1:18460',
         serviceId: _service,
         slots: Uint16List.fromList([3030]),
+        chatSlots: Uint16List(0),
         startedAt: 1,
         startChargeMu: '1000000',
       ),
@@ -329,6 +349,7 @@ void main() {
         address: '127.0.0.1:18460',
         serviceId: _service,
         slots: Uint16List.fromList([3030]),
+        chatSlots: Uint16List(0),
         startedAt: 1,
         startChargeMu: '1000000',
       ),
@@ -350,6 +371,7 @@ void main() {
         address: '127.0.0.1:18460',
         serviceId: _service,
         slots: Uint16List.fromList([3030]),
+        chatSlots: Uint16List(0),
         startedAt: 1,
         startChargeMu: '1000000',
       ),
