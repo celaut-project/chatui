@@ -5818,4 +5818,61 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get celautNodesScan => 'Scan a QR code';
+
+  @override
+  String get chatTitle => 'Conversation';
+
+  @override
+  String get chatInputHint => 'Write a message';
+
+  @override
+  String get chatSend => 'Send';
+
+  @override
+  String get chatEmpty => 'Say something to start the conversation.';
+
+  @override
+  String chatCost(String mu) {
+    return 'Cost so far: $mu';
+  }
+
+  @override
+  String get chatLeaveTitle => 'Leave the conversation?';
+
+  @override
+  String get chatLeaveBody =>
+      'If you stop the instance, the conversation ends and the node refunds what is left. If you leave it running, the node keeps charging for it.';
+
+  @override
+  String get chatStop => 'Stop the instance';
+
+  @override
+  String get chatLeaveRunning => 'Leave it running';
+
+  @override
+  String get chatStay => 'Stay';
+
+  @override
+  String get chatErrorUnreachable =>
+      'The service did not answer. Your message may not have arrived. Try again.';
+
+  @override
+  String get chatErrorBadAnswer =>
+      'The service answered in a way that this app does not understand.';
+
+  @override
+  String get chatErrorHistoryFull =>
+      'This conversation is full. Start a new instance for a new conversation.';
+
+  @override
+  String get chatErrorBusy =>
+      'The service is busy with another message. Try again in a moment.';
+
+  @override
+  String get chatErrorOther => 'The service refused the message.';
+
+  @override
+  String chatStopped(String refund) {
+    return 'The instance stopped. Refund: $refund';
+  }
 }

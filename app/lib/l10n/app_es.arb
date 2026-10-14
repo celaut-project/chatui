@@ -1516,5 +1516,35 @@
   "celautUnlockFailed": "La billetera no se abrió.",
   "celautDepositAuthNeeded": "El depósito necesita el PIN o la huella de la billetera que paga. No se envió nada.",
   "celautNodesRowSubtitle": "Añade y quita los nodos de las sumas de la pantalla de inicio",
-  "celautNodesScan": "Escanear un código QR"
+  "celautNodesScan": "Escanear un código QR",
+  "chatTitle": "Conversación",
+  "chatInputHint": "Escribe un mensaje",
+  "chatSend": "Enviar",
+  "chatEmpty": "Escribe algo para empezar la conversación.",
+  "chatCost": "Coste hasta ahora: {mu}",
+  "@chatCost": {
+    "placeholders": {
+      "mu": {
+        "type": "String"
+      }
+    }
+  },
+  "chatLeaveTitle": "¿Salir de la conversación?",
+  "chatLeaveBody": "Si detienes la instancia, la conversación termina y el nodo devuelve lo que queda. Si la dejas corriendo, el nodo sigue cobrando por ella.",
+  "chatStop": "Detener la instancia",
+  "chatLeaveRunning": "Dejarla corriendo",
+  "chatStay": "Quedarme",
+  "chatErrorUnreachable": "El servicio no respondió. Puede que tu mensaje no haya llegado. Inténtalo de nuevo.",
+  "chatErrorBadAnswer": "El servicio respondió de una forma que esta app no entiende.",
+  "chatErrorHistoryFull": "Esta conversación está llena. Inicia una instancia nueva para una conversación nueva.",
+  "chatErrorBusy": "El servicio está ocupado con otro mensaje. Inténtalo de nuevo en un momento.",
+  "chatErrorOther": "El servicio rechazó el mensaje.",
+  "chatStopped": "La instancia se detuvo. Reembolso: {refund}",
+  "@chatStopped": {
+    "placeholders": {
+      "refund": {
+        "type": "String"
+      }
+    }
+  }
 }

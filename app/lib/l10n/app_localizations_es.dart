@@ -5897,4 +5897,61 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautNodesScan => 'Escanear un código QR';
+
+  @override
+  String get chatTitle => 'Conversación';
+
+  @override
+  String get chatInputHint => 'Escribe un mensaje';
+
+  @override
+  String get chatSend => 'Enviar';
+
+  @override
+  String get chatEmpty => 'Escribe algo para empezar la conversación.';
+
+  @override
+  String chatCost(String mu) {
+    return 'Coste hasta ahora: $mu';
+  }
+
+  @override
+  String get chatLeaveTitle => '¿Salir de la conversación?';
+
+  @override
+  String get chatLeaveBody =>
+      'Si detienes la instancia, la conversación termina y el nodo devuelve lo que queda. Si la dejas corriendo, el nodo sigue cobrando por ella.';
+
+  @override
+  String get chatStop => 'Detener la instancia';
+
+  @override
+  String get chatLeaveRunning => 'Dejarla corriendo';
+
+  @override
+  String get chatStay => 'Quedarme';
+
+  @override
+  String get chatErrorUnreachable =>
+      'El servicio no respondió. Puede que tu mensaje no haya llegado. Inténtalo de nuevo.';
+
+  @override
+  String get chatErrorBadAnswer =>
+      'El servicio respondió de una forma que esta app no entiende.';
+
+  @override
+  String get chatErrorHistoryFull =>
+      'Esta conversación está llena. Inicia una instancia nueva para una conversación nueva.';
+
+  @override
+  String get chatErrorBusy =>
+      'El servicio está ocupado con otro mensaje. Inténtalo de nuevo en un momento.';
+
+  @override
+  String get chatErrorOther => 'El servicio rechazó el mensaje.';
+
+  @override
+  String chatStopped(String refund) {
+    return 'La instancia se detuvo. Reembolso: $refund';
+  }
 }

@@ -13,6 +13,7 @@ import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
 import '../settings/settings_shared.dart';
 import '../widgets/soft_card.dart';
+import 'chat_screen.dart';
 import 'client_unknown_dialog.dart';
 
 /// Debug screen of milestone M2: quote a service on several nodes, start it on one,
@@ -245,6 +246,36 @@ class _ServiceScreenState extends State<ServiceScreen> {
       if (mounted) setState(() => _calling = false);
     }
     await _refresh();
+  }
+
+  /// The conversation with the instance on [port] (`docs/celaut/chat.md`). It shares
+  /// the kept-alive connection of this screen. The user can stop the instance there.
+  Future<void> _openChat(int port) async {
+    final instance = _instance;
+    if (instance == null) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(
+          instanceId: instance.instanceId,
+          port: port,
+          http: _http,
+          wallets: widget.wallets,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    final running = celautInstances();
+    final stopped = running.every((i) => i.instanceId != instance.instanceId);
+    setState(() {
+      _appInstances = running;
+      if (stopped) {
+        _instance = null;
+        _ports.clear();
+        _status = null;
+        _answer = null;
+      }
+    });
+    if (!stopped) await _refresh();
   }
 
   Future<void> _refresh() async {
@@ -524,6 +555,11 @@ class _ServiceScreenState extends State<ServiceScreen> {
                   key: Key('service-call-$slot'),
                   onPressed: _calling ? null : () => _call(_ports[slot]!),
                   child: const Text(ServiceStrings.call),
+                ),
+                OutlinedButton(
+                  key: Key('service-chat-$slot'),
+                  onPressed: () => _openChat(_ports[slot]!),
+                  child: const Text(ServiceStrings.openChat),
                 ),
               ],
             ],

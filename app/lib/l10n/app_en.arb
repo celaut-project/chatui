@@ -4390,5 +4390,35 @@
   "celautUnlockFailed": "The wallet did not open.",
   "celautDepositAuthNeeded": "The deposit needs the PIN or fingerprint of the paying wallet. Nothing was sent.",
   "celautNodesRowSubtitle": "Add and remove the nodes in the sums of the home screen",
-  "celautNodesScan": "Scan a QR code"
+  "celautNodesScan": "Scan a QR code",
+  "chatTitle": "Conversation",
+  "chatInputHint": "Write a message",
+  "chatSend": "Send",
+  "chatEmpty": "Say something to start the conversation.",
+  "chatCost": "Cost so far: {mu}",
+  "@chatCost": {
+    "placeholders": {
+      "mu": {
+        "type": "String"
+      }
+    }
+  },
+  "chatLeaveTitle": "Leave the conversation?",
+  "chatLeaveBody": "If you stop the instance, the conversation ends and the node refunds what is left. If you leave it running, the node keeps charging for it.",
+  "chatStop": "Stop the instance",
+  "chatLeaveRunning": "Leave it running",
+  "chatStay": "Stay",
+  "chatErrorUnreachable": "The service did not answer. Your message may not have arrived. Try again.",
+  "chatErrorBadAnswer": "The service answered in a way that this app does not understand.",
+  "chatErrorHistoryFull": "This conversation is full. Start a new instance for a new conversation.",
+  "chatErrorBusy": "The service is busy with another message. Try again in a moment.",
+  "chatErrorOther": "The service refused the message.",
+  "chatStopped": "The instance stopped. Refund: {refund}",
+  "@chatStopped": {
+    "placeholders": {
+      "refund": {
+        "type": "String"
+      }
+    }
+  }
 }
