@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../bridge/api/celaut.dart';
 import '../../bridge/api/celaut_service.dart';
 import '../../celaut/celaut_format.dart';
 import '../../celaut/chat_client.dart';
+import '../../celaut/conversation_keep_alive.dart';
 import '../../celaut/payers.dart';
 import '../../celaut/tunnel_http.dart';
 import '../../l10n/l10n.dart';
@@ -24,6 +27,7 @@ class ChatScreen extends StatefulWidget {
     this.wallets = const AppFullWallets(),
     this.loadStatus,
     this.stopInstance,
+    this.keepAlive,
   });
 
   /// The local id of the instance (`InstanceView.instanceId`).
@@ -47,6 +51,10 @@ class ChatScreen extends StatefulWidget {
   /// Stop the instance. Tests give their own.
   final Future<StopView> Function(String instanceId)? stopInstance;
 
+  /// Keeps the app alive in the background while the screen is open. Tests give their
+  /// own.
+  final ConversationKeepAlive? keepAlive;
+
   @override
   State<ChatScreen> createState() => _ChatScreenState();
 }
@@ -56,6 +64,8 @@ class _ChatScreenState extends State<ChatScreen> {
   final _scroll = ScrollController();
   late final TunnelHttp _http = widget.http ?? TunnelHttp();
   late final ChatClient _chat = widget.chat ?? ChatClient(port: widget.port, http: _http);
+  late final ConversationKeepAlive _keepAlive =
+      widget.keepAlive ?? ChannelConversationKeepAlive();
 
   bool _sending = false;
   bool _stopping = false;
@@ -66,6 +76,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    unawaited(_keepAlive.start());
     _open();
   }
 
@@ -157,6 +168,8 @@ class _ChatScreenState extends State<ChatScreen> {
     );
     switch (choice) {
       case _LeaveChoice.leaveRunning:
+        // The instance goes on at the node. Only the phone side is released.
+        unawaited(_keepAlive.stop());
         return true;
       case _LeaveChoice.stop:
         return _stop();
@@ -180,6 +193,7 @@ class _ChatScreenState extends State<ChatScreen> {
       final stopped = await stop(widget.instanceId);
       // The local port is closed: drop the kept-alive connection too.
       _http.close();
+      unawaited(_keepAlive.stop());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(context.l10n.chatStopped(muOrUnknown(stopped.refundMu)))),
@@ -196,6 +210,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    unawaited(_keepAlive.stop());
     _input.dispose();
     _scroll.dispose();
     if (widget.http == null) _http.close();
