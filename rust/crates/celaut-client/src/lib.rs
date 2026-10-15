@@ -54,7 +54,7 @@ pub use db::{CelautData, CelautDb, DbError};
 pub use deposit::{DepositBox, DepositError, ErgPayment};
 pub use local_port::LocalPort;
 pub use peer::PeerError;
-pub use quotes::{quotes, QuoteFailure, Quotes};
+pub use quotes::{quotes, quotes_for, QuoteFailure, QuoteSkip, Quotes};
 pub use session::{NodeSession, StartedInstance};
 pub use store::{FilePeerStore, MemoryPeerStore, PeerStore, Seen, StoreError};
 

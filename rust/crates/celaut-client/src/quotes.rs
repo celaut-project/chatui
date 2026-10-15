@@ -3,7 +3,9 @@
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use celaut_balancer::{cost_mu, rank, Candidate, QuoteCache, QuoteKey, Ranked, Standing};
+use celaut_balancer::{
+    cost_mu, rank, Candidate, Misfit, QuoteCache, QuoteKey, Ranked, ServiceAsk, Standing,
+};
 use celaut_proto::celaut::Configuration;
 use celaut_proto::Message;
 use celaut_wire::{Transport, WireError};
@@ -22,6 +24,15 @@ pub struct QuoteFailure {
     pub error: ClientError,
 }
 
+/// A node that the filter on the advertised resources skipped, with no call to it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct QuoteSkip {
+    /// The identity of the node.
+    pub peer_id: String,
+    /// Why the service can never run on the node, by its own announcement. Never empty.
+    pub misfits: Vec<Misfit>,
+}
+
 /// The answer of [`quotes`].
 #[derive(Debug, Default)]
 pub struct Quotes {
@@ -30,19 +41,55 @@ pub struct Quotes {
     /// The nodes that refused, failed or did not answer in time. They are not
     /// candidates.
     pub failures: Vec<QuoteFailure>,
+    /// The nodes that were not asked, because their announced resources are below what
+    /// the service asks. Always empty without a [`ServiceAsk`] ([`quotes_for`]).
+    pub skipped: Vec<QuoteSkip>,
 }
 
 /// Ask each node for the price of the service, all at the same time, and rank the
 /// answers. A quote of the last 10 seconds comes from `cache`, so that a repeated
 /// question makes no call (the node limits the calls of a client).
+///
+/// No node is skipped: the client has the hash of the service, not its resources. Use
+/// [`quotes_for`] with the resources of the service to skip the nodes that can never
+/// run it.
 pub async fn quotes<T: Transport>(
     sessions: &[&NodeSession<T>],
     service_id: [u8; 32],
     configuration: &Configuration,
     cache: &Mutex<QuoteCache>,
 ) -> Quotes {
+    quotes_for(sessions, service_id, configuration, cache, None).await
+}
+
+/// [`quotes`], with the filter on the advertised resources (`docs/celaut/balancer.md`,
+/// Filter). With an `ask`, a node whose last announcement says that it can never run the
+/// service gets no call, and goes to [`Quotes::skipped`]. A node that announced nothing
+/// is asked, and so is any node when the ask has no known architecture.
+pub async fn quotes_for<T: Transport>(
+    sessions: &[&NodeSession<T>],
+    service_id: [u8; 32],
+    configuration: &Configuration,
+    cache: &Mutex<QuoteCache>,
+    ask: Option<&ServiceAsk>,
+) -> Quotes {
+    let mut skipped = Vec::new();
+    let mut to_ask = Vec::new();
+    for session in sessions {
+        let misfits = ask
+            .map(|a| a.misfits(&session.info().peer.resources))
+            .unwrap_or_default();
+        if misfits.is_empty() {
+            to_ask.push(*session);
+        } else {
+            skipped.push(QuoteSkip {
+                peer_id: session.peer_id().to_string(),
+                misfits,
+            });
+        }
+    }
     let encoded = configuration.encode_to_vec();
-    let asks = sessions.iter().map(|session| {
+    let asks = to_ask.iter().map(|session| {
         let key = QuoteKey {
             peer_id: session.peer_id().to_string(),
             service_id,
@@ -96,5 +143,6 @@ pub async fn quotes<T: Transport>(
     Quotes {
         ranked: rank(candidates),
         failures,
+        skipped,
     }
 }
