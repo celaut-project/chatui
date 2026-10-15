@@ -64,7 +64,8 @@ void main() {
       'holdingsTokenCount', 'sendTokenFallback', 'sendPlusTokens',
       'sendBoxTokens', 'utxoTokensN', 'utxoValueTokens', 'utxoFilterTokens',
       'separateSourceItem', 'homePartsWhere', 'homeInclPartsWhere',
-      'celautHomeUsd',
+      'celautHomeUsd', 'celautAgoSeconds', 'celautAgoMinutes', 'celautAgoHours',
+      'celautAgoDays',
     };
     final copied = [
       for (final k in _messageKeys(en))
