@@ -28,6 +28,7 @@ class MainActivity : FlutterFragmentActivity() {
         DeepLinkHandler.registerWith(flutterEngine, intent)
         UpdateHandler.registerWith(flutterEngine, this)
         ConversationHandler.registerWith(flutterEngine, this)
+        PackageHandler.registerWith(flutterEngine, this)
     }
 
     override fun onRequestPermissionsResult(
@@ -37,6 +38,13 @@ class MainActivity : FlutterFragmentActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         ConversationHandler.onRequestPermissionsResult(requestCode, grantResults)
+    }
+
+    @Deprecated("The picker of PackageHandler uses startActivityForResult")
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        PackageHandler.onActivityResult(this, requestCode, resultCode, data)
     }
 
     override fun onNewIntent(intent: Intent) {

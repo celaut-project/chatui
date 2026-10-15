@@ -1,10 +1,14 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:argus_wallet/bridge/api/celaut.dart';
 import 'package:argus_wallet/bridge/api/celaut_catalog.dart';
+import 'package:argus_wallet/bridge/api/celaut_package.dart';
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
 import 'package:argus_wallet/celaut/launcher.dart';
+import 'package:argus_wallet/celaut/package_channel.dart';
 import 'package:argus_wallet/celaut/payers.dart';
+import 'package:argus_wallet/celaut/service_transfer.dart';
 import 'package:argus_wallet/l10n/l10n.dart';
 import 'package:argus_wallet/ui/celaut/launch_failure_sheet.dart';
 import 'package:argus_wallet/ui/celaut/run_service_section.dart';
@@ -68,6 +72,21 @@ class _Wallets implements FullWallets {
   }
 }
 
+class _Packages implements PackageChannel {
+  bool metered = false;
+  PickedPackage? picked;
+  int picks = 0;
+
+  @override
+  Future<bool> isMetered() async => metered;
+
+  @override
+  Future<PickedPackage?> pick() async {
+    picks++;
+    return picked;
+  }
+}
+
 void main() {
   late List<String> launched;
   late List<(String, int)> tunnels;
@@ -83,6 +102,8 @@ void main() {
     FullWallets? wallets,
     QuoteView? preview,
     List<SkillServiceView>? services,
+    ServiceTransfer? transfer,
+    PackageChannel? packages,
   }) async {
     tester.view.physicalSize = const Size(390, 2400);
     tester.view.devicePixelRatio = 1;
@@ -113,6 +134,8 @@ void main() {
               },
               chatBuilder: (id, port) => Scaffold(body: Text('chat $id $port')),
               openDeposit: () => deposits++,
+              transfer: transfer,
+              packages: packages,
             ),
           ),
         ),
@@ -315,6 +338,206 @@ void main() {
     await tester.tap(find.byKey(const Key('launch-failure-close')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('client-unknown-dialog')), findsOneWidget);
+  });
+
+  group('a service that a node does not have', () {
+    late List<String> transfers;
+    late _Packages packages;
+    late TransferView progress;
+    Object? sendError;
+    Completer<void>? hold;
+
+    ServiceTransfer transfer() => ServiceTransfer(
+      fetch: (source, id, dir) async {
+        transfers.add('fetch ${source.host}');
+        return PackageView(
+          path: '/data/packages/$id.bee',
+          bytes: BigInt.from(10),
+          serviceId: id,
+          hasService: true,
+          nodoExport: false,
+        );
+      },
+      inspect: (path) async => PackageView(
+        path: path,
+        bytes: BigInt.from(10),
+        serviceId: _best,
+        hasService: true,
+        nodoExport: true,
+      ),
+      send: (node, id, initialMu, path) async {
+        transfers.add('send ${node.host} $path');
+        await hold?.future;
+        if (sendError != null) throw sendError!;
+        return _quote();
+      },
+      progress: () => progress,
+      cancel: () => transfers.add('cancel'),
+      privateDir: () async => '/data',
+    );
+
+    LaunchFailure missingOn({bool holder = true}) => LaunchFailure(
+      LaunchFailureKind.noQuotes,
+      quoteFailures: [
+        QuoteFailureView(
+          address: const NodeAddress(host: 'q.example', port: 9),
+          kind: CelautErrorKind.serviceMissing,
+          message: 'This node does not have the service',
+        ),
+        if (holder)
+          QuoteFailureView(
+            address: const NodeAddress(host: 'h.example', port: 7),
+            kind: CelautErrorKind.noRoom,
+            message: 'This node cannot run the service right now',
+          ),
+      ],
+    );
+
+    setUp(() {
+      transfers = [];
+      packages = _Packages();
+      progress = TransferView(stage: TransferStage.idle, bytes: BigInt.zero);
+      sendError = null;
+      hold = null;
+    });
+
+    testWidgets('it is sent from a node that has it, then the launch runs again', (tester) async {
+      launchError = missingOn();
+      packages.metered = true;
+      await open(tester, transfer: transfer(), packages: packages);
+      await run(tester);
+      expect(find.byKey(const Key('launch-missing')), findsOneWidget);
+      expect(find.text(appL10n.celautSendFromNode('h.example:7', 'q.example:9')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('launch-send-service')));
+      await tester.pumpAndSettle();
+      // On mobile data the confirmation warns.
+      expect(find.byKey(const Key('send-confirm')), findsOneWidget);
+      expect(find.byKey(const Key('send-metered')), findsOneWidget);
+      launchError = null;
+      await tester.tap(find.byKey(const Key('send-confirm-ok')));
+      await tester.pumpAndSettle();
+      expect(transfers, ['fetch h.example', 'send q.example /data/packages/$_best.bee']);
+      expect(find.text(appL10n.celautSendDone), findsOneWidget);
+      expect(launched, hasLength(2), reason: 'the launch runs again');
+      expect(packages.picks, 0);
+    });
+
+    testWidgets('no node has it: a .celaut.bee file is picked and sent', (tester) async {
+      launchError = missingOn(holder: false);
+      packages.picked = const PickedPackage(path: '/cache/picked.bee', bytes: 10, name: 'echo.celaut.bee');
+      await open(tester, transfer: transfer(), packages: packages);
+      await run(tester);
+      expect(find.text(appL10n.celautSendNoHolder), findsOneWidget);
+      expect(find.text(appL10n.celautSendFromFile('q.example:9')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('launch-send-service')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('send-metered')), findsNothing);
+      launchError = null;
+      await tester.tap(find.byKey(const Key('send-confirm-ok')));
+      await tester.pumpAndSettle();
+      expect(packages.picks, 1);
+      expect(transfers, ['send q.example /cache/picked.bee']);
+      expect(launched, hasLength(2));
+    });
+
+    testWidgets('a cancelled confirmation or pick sends nothing', (tester) async {
+      launchError = missingOn(holder: false);
+      await open(tester, transfer: transfer(), packages: packages);
+      await run(tester);
+      await tester.tap(find.byKey(const Key('launch-send-service')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('send-confirm-cancel')));
+      await tester.pumpAndSettle();
+      expect(packages.picks, 0);
+
+      await run(tester);
+      await tester.tap(find.byKey(const Key('launch-send-service')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('send-confirm-ok')));
+      await tester.pumpAndSettle();
+      expect(packages.picks, 1, reason: 'the user closed the picker');
+      expect(transfers, isEmpty);
+      expect(launched, hasLength(2), reason: 'two launches, no third one');
+    });
+
+    testWidgets('a failed transfer says why, and the launch does not run again', (tester) async {
+      launchError = missingOn();
+      sendError = const CelautError(kind: CelautErrorKind.transferFailed, message: 'the file is cut');
+      await open(tester, transfer: transfer(), packages: packages);
+      await run(tester);
+      await tester.tap(find.byKey(const Key('launch-send-service')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('send-confirm-ok')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('send-failed')), findsOneWidget);
+      expect(find.text(appL10n.celautErrorTransferFailed), findsOneWidget);
+      expect(find.text('the file is cut'), findsOneWidget);
+      expect(launched, hasLength(1));
+    });
+
+    testWidgets('the node can store it and refuse the quote: its reason is shown', (tester) async {
+      launchError = missingOn();
+      sendError = const CelautError(kind: CelautErrorKind.unsupportedArchitecture, message: 'riscv64');
+      await open(tester, transfer: transfer(), packages: packages);
+      await run(tester);
+      await tester.tap(find.byKey(const Key('launch-send-service')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('send-confirm-ok')));
+      await tester.pumpAndSettle();
+      expect(find.text(appL10n.celautErrorUnsupportedArchitecture), findsOneWidget);
+    });
+
+    testWidgets('a file of another service is refused with its reason', (tester) async {
+      launchError = missingOn(holder: false);
+      packages.picked = const PickedPackage(path: '/cache/other.bee', bytes: 10, name: 'other');
+      final other = ServiceTransfer(
+        inspect: (path) async => PackageView(
+          path: path,
+          bytes: BigInt.from(10),
+          serviceId: _other,
+          hasService: true,
+          nodoExport: true,
+        ),
+        send: (node, id, initialMu, path) async => throw StateError('must not send'),
+        progress: () => progress,
+        cancel: () {},
+      );
+      await open(tester, transfer: other, packages: packages);
+      await run(tester);
+      await tester.tap(find.byKey(const Key('launch-send-service')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('send-confirm-ok')));
+      await tester.pumpAndSettle();
+      expect(find.text(appL10n.celautSendOtherService), findsOneWidget);
+    });
+
+    testWidgets('the progress shows the bytes and the percent, and Cancel stops the transfer', (tester) async {
+      launchError = missingOn();
+      hold = Completer<void>();
+      progress = TransferView(
+        stage: TransferStage.sending,
+        bytes: BigInt.from(512 * 1024),
+        total: BigInt.from(1024 * 1024),
+      );
+      await open(tester, transfer: transfer(), packages: packages);
+      await run(tester);
+      await tester.tap(find.byKey(const Key('launch-send-service')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('send-confirm-ok')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byKey(const Key('send-progress')), findsOneWidget);
+      expect(find.text(appL10n.celautSendSending), findsOneWidget);
+      expect(find.textContaining('50%'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('send-cancel')));
+      await tester.pump();
+      expect(transfers.last, 'cancel');
+      sendError = const CelautError(kind: CelautErrorKind.transferFailed, message: 'the transfer was cancelled');
+      hold!.complete();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('send-progress')), findsNothing);
+      expect(find.byKey(const Key('send-failed')), findsOneWidget);
+    });
   });
 
   testWidgets('the failure sheet says that there is no node when the list is empty', (tester) async {

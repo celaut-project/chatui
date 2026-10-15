@@ -9592,6 +9592,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The transfer of the service stopped (the file could not be read, it is cut, or it was cancelled). The node did not keep the cut service. Try again.'**
   String get celautErrorTransferFailed;
+
+  /// No description provided for @celautSendMissingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The service is not on these nodes'**
+  String get celautSendMissingTitle;
+
+  /// No description provided for @celautSendFromNode.
+  ///
+  /// In en, this message translates to:
+  /// **'Send it from {from} to {to}'**
+  String celautSendFromNode(String from, String to);
+
+  /// No description provided for @celautSendFromFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a .celaut.bee file and send it to {to}'**
+  String celautSendFromFile(String to);
+
+  /// No description provided for @celautSendNoHolder.
+  ///
+  /// In en, this message translates to:
+  /// **'No node of your list has this service. You can give it to a node from a .celaut.bee file.'**
+  String get celautSendNoHolder;
+
+  /// No description provided for @celautSendConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send the service?'**
+  String get celautSendConfirmTitle;
+
+  /// No description provided for @celautSendConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The whole service goes through this phone to the node, and a service can be large. The node keeps it, so later launches on that node do not send it again.'**
+  String get celautSendConfirmBody;
+
+  /// No description provided for @celautSendMetered.
+  ///
+  /// In en, this message translates to:
+  /// **'You are on mobile data: this can use a lot of it.'**
+  String get celautSendMetered;
+
+  /// No description provided for @celautSendConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get celautSendConfirm;
+
+  /// No description provided for @celautSendCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get celautSendCancel;
+
+  /// No description provided for @celautSendFetching.
+  ///
+  /// In en, this message translates to:
+  /// **'Getting the service from the node…'**
+  String get celautSendFetching;
+
+  /// No description provided for @celautSendSending.
+  ///
+  /// In en, this message translates to:
+  /// **'Giving the service to the node…'**
+  String get celautSendSending;
+
+  /// No description provided for @celautSendStarting.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting the transfer…'**
+  String get celautSendStarting;
+
+  /// No description provided for @celautSendProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total} ({percent}%)'**
+  String celautSendProgress(String done, String total, String percent);
+
+  /// No description provided for @celautSendSoFar.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} so far'**
+  String celautSendSoFar(String done);
+
+  /// No description provided for @celautSendDone.
+  ///
+  /// In en, this message translates to:
+  /// **'The node has the service now. Starting it…'**
+  String get celautSendDone;
+
+  /// No description provided for @celautSendFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The service was not sent'**
+  String get celautSendFailedTitle;
+
+  /// No description provided for @celautSendOtherService.
+  ///
+  /// In en, this message translates to:
+  /// **'This file holds another service.'**
+  String get celautSendOtherService;
+
+  /// No description provided for @celautSendNoServicePart.
+  ///
+  /// In en, this message translates to:
+  /// **'This file has no service in it.'**
+  String get celautSendNoServicePart;
+
+  /// No description provided for @celautSendNoDirectory.
+  ///
+  /// In en, this message translates to:
+  /// **'The app has no place to keep the service.'**
+  String get celautSendNoDirectory;
 }
 
 class _AppLocalizationsDelegate
