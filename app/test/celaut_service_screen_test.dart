@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:argus_wallet/bridge/api/celaut.dart';
+import 'package:argus_wallet/bridge/api/celaut_catalog.dart';
 import 'package:argus_wallet/bridge/api/celaut_home.dart';
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
 import 'package:argus_wallet/bridge/frb_generated.dart';
@@ -133,6 +134,8 @@ void main() {
     bool fullWallet = true,
     bool open = true,
     bool consent = true,
+    Future<List<SkillView>> Function()? loadSkills,
+    Future<List<SkillServiceView>> Function(String)? loadSkillServices,
   }) async {
     tester.view.physicalSize = const Size(390, 4000);
     tester.view.devicePixelRatio = 1;
@@ -140,7 +143,12 @@ void main() {
     final wallets = _Wallets(full: fullWallet, open: open, consent: consent);
     await tester.pumpWidget(
       MaterialApp(
-        home: ServiceScreen(http: http, wallets: wallets),
+        home: ServiceScreen(
+          http: http,
+          wallets: wallets,
+          loadSkills: loadSkills,
+          loadSkillServices: loadSkillServices,
+        ),
       ),
     );
     await tester.pump();
@@ -344,6 +352,54 @@ void main() {
   testWidgets('launch is off with no full wallet and while an instance runs', (tester) async {
     await pump(tester, fullWallet: false);
     expect(tester.widget<FilledButton>(find.byKey(const Key('service-launch'))).onPressed, isNull);
+  });
+
+  testWidgets('a picked skill fills the service id, and launch uses it', (tester) async {
+    final picked = 'ab' * 32;
+    await pump(
+      tester,
+      loadSkills: () async => [
+        const SkillView(boxId: 'skill-1', name: 'A skill', prose: 'Does a thing.', tags: []),
+      ],
+      loadSkillServices: (id) async => [
+        SkillServiceView(serviceId: picked, score: 0.9, direct: true),
+        SkillServiceView(serviceId: 'cd' * 32, score: 0.4, direct: false),
+      ],
+    );
+    // A wrong id in the field gets an error at first.
+    await tester.enterText(find.byKey(const Key('service-id')), 'not an id');
+    await tester.enterText(find.byKey(const Key('service-nodes')), '127.0.0.1:18460');
+    await tester.tap(find.byKey(const Key('service-launch')));
+    await tester.pumpAndSettle();
+    expect(find.text(ServiceStrings.serviceInvalid), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('service-pick-skill')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('picker-skill-skill-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('picker-use')));
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<TextField>(find.byKey(const Key('service-id'))).controller!.text, picked);
+    expect(find.text(ServiceStrings.serviceInvalid), findsNothing);
+    await tester.tap(find.byKey(const Key('service-launch')));
+    await tester.pumpAndSettle();
+    expect(api.startCalls.single.service, picked);
+  });
+
+  testWidgets('going back from the picker leaves the service id as it was', (tester) async {
+    await pump(
+      tester,
+      loadSkills: () async => const [],
+      loadSkillServices: (_) async => const [],
+    );
+    await tester.enterText(find.byKey(const Key('service-id')), 'ab' * 32);
+    await tester.tap(find.byKey(const Key('service-pick-skill')));
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('service-id')), findsOneWidget);
+    expect(tester.widget<TextField>(find.byKey(const Key('service-id'))).controller!.text, 'ab' * 32);
   });
 
   testWidgets('the chat button is only on a slot that follows the chat convention', (tester) async {

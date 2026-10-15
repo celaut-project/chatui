@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../bridge/api/celaut.dart';
+import '../../bridge/api/celaut_catalog.dart';
 import '../../bridge/api/celaut_home.dart';
 import '../../bridge/api/celaut_service.dart';
 import '../../celaut/celaut_format.dart';
@@ -17,6 +18,7 @@ import '../settings/settings_shared.dart';
 import '../widgets/soft_card.dart';
 import 'chat_screen.dart';
 import 'client_unknown_dialog.dart';
+import 'skill_picker.dart';
 
 /// Debug screen of milestone M2: quote a service on several nodes, start it on one,
 /// call it through a local port, and stop it, on the balance of the client of the app
@@ -29,6 +31,8 @@ class ServiceScreen extends StatefulWidget {
     this.http,
     this.wallets = const AppFullWallets(),
     this.newClient,
+    this.loadSkills,
+    this.loadSkillServices,
   });
 
   /// The HTTP client of the local ports. Tests give their own.
@@ -39,6 +43,12 @@ class ServiceScreen extends StatefulWidget {
 
   /// Make a new client on a node that forgot the client id. Tests give their own.
   final Future<NewClientView> Function(NodeAddress node)? newClient;
+
+  /// Read the skills of the catalog. Tests give their own.
+  final Future<List<SkillView>> Function()? loadSkills;
+
+  /// Read the ranked services of a skill. Tests give their own.
+  final Future<List<SkillServiceView>> Function(String skillBoxId)? loadSkillServices;
 
   @override
   State<ServiceScreen> createState() => _ServiceScreenState();
@@ -182,6 +192,24 @@ class _ServiceScreenState extends State<ServiceScreen> {
   /// Start the service on the node that the balancer chooses, with no choice by the
   /// user (`docs/celaut/balancer.md`). A node that fails is skipped. The user decides
   /// what to do with a node that forgot the client id.
+  /// Pick a skill of the catalog and one of its services (the best is chosen at first).
+  /// The id of the service goes into the field. Then the user launches it.
+  Future<void> _pickSkill() async {
+    final serviceId = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => SkillPickerScreen(
+          loadSkills: widget.loadSkills,
+          loadServices: widget.loadSkillServices,
+        ),
+      ),
+    );
+    if (serviceId == null || !mounted) return;
+    setState(() {
+      _serviceCtrl.text = serviceId;
+      _serviceError = null;
+    });
+  }
+
   Future<void> _launch() async {
     final form = _readForm();
     if (form == null) return;
@@ -444,7 +472,16 @@ class _ServiceScreenState extends State<ServiceScreen> {
                   errorText: _serviceError,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  key: const Key('service-pick-skill'),
+                  onPressed: _pickSkill,
+                  child: const Text(ServiceStrings.pickSkill),
+                ),
+              ),
+              const SizedBox(height: 4),
               TextField(
                 key: const Key('service-initial'),
                 controller: _initialCtrl,

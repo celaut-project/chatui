@@ -8,6 +8,7 @@
 
 import 'api.dart';
 import 'api/celaut.dart';
+import 'api/celaut_catalog.dart';
 import 'api/celaut_db.dart';
 import 'api/celaut_deposit.dart';
 import 'api/celaut_home.dart';
@@ -154,6 +155,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RunningInstanceView> dco_decode_list_running_instance_view(dynamic raw);
 
   @protected
+  List<SkillServiceView> dco_decode_list_skill_service_view(dynamic raw);
+
+  @protected
+  List<SkillView> dco_decode_list_skill_view(dynamic raw);
+
+  @protected
   NanoErgTotalView dco_decode_nano_erg_total_view(dynamic raw);
 
   @protected
@@ -206,6 +213,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RunningInstanceView dco_decode_running_instance_view(dynamic raw);
+
+  @protected
+  SkillServiceView dco_decode_skill_service_view(dynamic raw);
+
+  @protected
+  SkillView dco_decode_skill_view(dynamic raw);
 
   @protected
   StopView dco_decode_stop_view(dynamic raw);
@@ -378,6 +391,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<SkillServiceView> sse_decode_list_skill_service_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<SkillView> sse_decode_list_skill_view(SseDeserializer deserializer);
+
+  @protected
   NanoErgTotalView sse_decode_nano_erg_total_view(SseDeserializer deserializer);
 
   @protected
@@ -436,6 +457,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RunningInstanceView sse_decode_running_instance_view(
     SseDeserializer deserializer,
   );
+
+  @protected
+  SkillServiceView sse_decode_skill_service_view(SseDeserializer deserializer);
+
+  @protected
+  SkillView sse_decode_skill_view(SseDeserializer deserializer);
 
   @protected
   StopView sse_decode_stop_view(SseDeserializer deserializer);
@@ -663,6 +690,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_skill_service_view(
+    List<SkillServiceView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_skill_view(
+    List<SkillView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_nano_erg_total_view(
     NanoErgTotalView self,
     SseSerializer serializer,
@@ -736,6 +775,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     RunningInstanceView self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_skill_service_view(
+    SkillServiceView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_skill_view(SkillView self, SseSerializer serializer);
 
   @protected
   void sse_encode_stop_view(StopView self, SseSerializer serializer);
