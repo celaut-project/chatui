@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:argus_wallet/bridge/api/celaut.dart';
 import 'package:argus_wallet/bridge/api/celaut_health.dart';
 import 'package:argus_wallet/bridge/api/celaut_home.dart';
-import 'package:argus_wallet/bridge/api/celaut_service.dart';
 import 'package:argus_wallet/celaut/celaut_strings.dart';
 import 'package:argus_wallet/celaut/node_health_format.dart';
 import 'package:argus_wallet/celaut/node_health_monitor.dart';
