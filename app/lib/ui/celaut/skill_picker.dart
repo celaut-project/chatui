@@ -259,7 +259,8 @@ class _SkillPickerScreenState extends State<SkillPickerScreen> {
                       ],
                     ),
                     const SizedBox(height: 2),
-                    SelectableText(
+                    // Not selectable: a selectable text takes the tap that chooses the card.
+                    Text(
                       service.serviceId,
                       style: TextStyle(fontSize: 11.5, color: muted, fontFamily: 'monospace'),
                     ),
