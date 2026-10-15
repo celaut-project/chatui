@@ -4540,5 +4540,17 @@
       }
     }
   },
-  "celautNodesCheckNow": "Check now"
+  "celautNodesCheckNow": "Check now",
+  "celautRunPreview": "Best node now: {node} · start cost {cost}",
+  "@celautRunPreview": {
+    "placeholders": {
+      "node": {
+        "type": "String"
+      },
+      "cost": {
+        "type": "String"
+      }
+    }
+  },
+  "celautRunPreviewLoading": "Looking for the best node…"
 }

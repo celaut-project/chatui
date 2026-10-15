@@ -6038,4 +6038,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get celautNodesCheckNow => 'Check now';
+
+  @override
+  String celautRunPreview(String node, String cost) {
+    return 'Best node now: $node · start cost $cost';
+  }
+
+  @override
+  String get celautRunPreviewLoading => 'Looking for the best node…';
 }
