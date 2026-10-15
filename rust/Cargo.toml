@@ -9,6 +9,8 @@ members = [
     "crates/celaut-client",
     "crates/celaut-balancer",
     "crates/celaut-catalog",
+    "crates/celaut-net",
+    "crates/celaut-tor",
     "tools/gen-protos",
     "crates/vendor/citadel-core",
     "crates/vendor/ergo-tx",
@@ -70,7 +72,7 @@ rand = "0.10"
 flutter_rust_bridge = "=2.13.0"
 
 # ─── HTTP ────────────────────────────────────────────────────────────────
-reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "json"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "json", "socks"] }
 # reqwest 0.13 dropped its bundled-roots rustls feature, so wallet-net::http
 # builds the TLS config 0.12's "rustls-tls" gave: ring and webpki-roots.
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
@@ -83,6 +85,8 @@ celaut-proto = { path = "crates/celaut-proto" }
 celaut-balancer = { path = "crates/celaut-balancer" }
 celaut-catalog = { path = "crates/celaut-catalog" }
 celaut-wire = { path = "crates/celaut-wire" }
+celaut-net = { path = "crates/celaut-net" }
+celaut-tor = { path = "crates/celaut-tor" }
 
 # ─── Vendored Citadel crates ─────────────────────────────────────────────
 citadel-core = { path = "crates/vendor/citadel-core" }

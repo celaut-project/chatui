@@ -76,7 +76,6 @@ pub async fn load_from(id: &str, provider: &str, node: bool) -> Result<Value, St
     }
     let client = crate::http::client_builder()
         .redirect(reqwest::redirect::Policy::none())
-        .no_proxy()
         .connect_timeout(Duration::from_secs(5))
         .timeout(Duration::from_secs(15))
         .build()

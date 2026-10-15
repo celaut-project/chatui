@@ -5,6 +5,7 @@ import '../celaut/celaut_strings.dart';
 import '../celaut/compute_home_flag.dart';
 import '../celaut/deposit_strings.dart';
 import '../celaut/payers.dart';
+import '../celaut/network_strings.dart';
 import '../celaut/service_strings.dart';
 import '../format.dart';
 import '../l10n/l10n.dart';
@@ -16,6 +17,7 @@ import '../services/watch_account_service.dart';
 import '../services/watch_only_service.dart';
 import '../theme/argus_theme.dart';
 import '../theme/theme_controller.dart';
+import 'celaut/network_screen.dart';
 import 'celaut/node_connect_screen.dart';
 import 'celaut/default_payer_dialog.dart';
 import 'celaut/deposit_screen.dart';
@@ -143,6 +145,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         title: CelautStrings.nodeRowTitle,
                         subtitle: CelautStrings.nodeRowSubtitle,
                         onTap: () => _open(const NodeConnectScreen()),
+                      ),
+                      SettingsRow(
+                        key: const Key('settings-tor'),
+                        icon: Icons.shield_outlined,
+                        title: NetworkStrings.rowTitle,
+                        subtitle: NetworkStrings.rowSubtitle,
+                        onTap: () => _open(const NetworkScreen()),
                       ),
                       SettingsRow(
                         icon: Icons.play_circle_outline,

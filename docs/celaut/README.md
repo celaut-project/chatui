@@ -18,3 +18,4 @@ Sources read for these notes:
 | [catalog.md](catalog.md) | Node directory and service catalog on Ergo (reputation proofs, Skill DB) |
 | [ui.md](ui.md) | Wallets (full and read-only), one database for instances, home screen focused on compute |
 | [chat.md](chat.md) | Chat convention for M4: HTTP with JSON, history in the service, numbered messages |
+| [network.md](network.md) | The network route and optional Tor (M5): direct, Arti inside the app, or a SOCKS5 proxy, and the rule that Tor on never goes direct |

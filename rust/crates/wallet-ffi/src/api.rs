@@ -41,6 +41,9 @@ pub mod celaut_home;
 /// The skill catalog: the skills and the ranked services of a skill (milestone M4).
 pub mod celaut_catalog;
 
+/// Optional Tor for the outbound connections (M5).
+pub mod celaut_network;
+
 fn err_str<E: Into<ArgusError>>(e: E) -> String {
     e.into().to_json_string()
 }
@@ -203,7 +206,7 @@ static NODE_CLIENTS: Mutex<Option<HashMap<String, (std::time::Instant, ErgoNodeC
     Mutex::new(None);
 const NODE_CLIENT_TTL: std::time::Duration = std::time::Duration::from_secs(60);
 
-fn clear_node_clients() {
+pub(crate) fn clear_node_clients() {
     if let Some(map) = recover(NODE_CLIENTS.lock()).as_mut() {
         map.clear();
     }

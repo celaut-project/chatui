@@ -72,6 +72,15 @@ probing) and against the four default mainnet nodes, with identical results.
 state contexts built from recorded `/blocks/lastHeaders/10` responses in
 `wallet-net/tests/fixtures/`.
 
+## Tor (M5)
+
+| Crate | Version | Rationale |
+|-------|---------|-----------|
+| `arti-client` | 0.47, no default features, with `tokio`, `rustls`, `compression`, `static-sqlite` | The Tor client of the Arti project, inside the app (`crates/celaut-tor`). MIT OR Apache-2.0, so it can be linked into a GPL-3.0-only app. `rustls` and not `native-tls`, because OpenSSL is not on Android. `static-sqlite` bundles SQLite for its state. No `aws-lc` or `openssl` comes with this feature set (checked with `cargo tree`) |
+| `tor-rtcompat` | 0.47, no default features | The type of the runtime of `TorClient`. It takes its features from `arti-client` |
+
+The route code has no other dependency: the SOCKS5 client and server are in `crates/celaut-net`.
+
 ## Vendored Citadel crates (path deps)
 
 All vendored from `github.com/arkadianet/citadel` commit `f533f15`.
