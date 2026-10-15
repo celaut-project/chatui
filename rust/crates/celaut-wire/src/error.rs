@@ -46,4 +46,8 @@ pub enum WireError {
     /// The answer has the wrong shape (a missing or undecodable message).
     #[error("unexpected answer: {0}")]
     Protocol(String),
+    /// The input of a relay failed (a file or another call). The node got markers that
+    /// make it refuse the request.
+    #[error("the service could not be read: {0}")]
+    Relay(String),
 }

@@ -125,6 +125,9 @@ pub enum CelautErrorKind {
     InsufficientCredit,
     /// The node tried to start the service and could not, and says no other reason.
     LaunchFailed,
+    /// The transfer of a service stopped: the file could not be read, it is cut, or the
+    /// user cancelled it. The node refused the cut service.
+    TransferFailed,
 }
 
 /// The error of [`celaut_peer_info`].
@@ -174,6 +177,7 @@ pub(crate) fn error_of(e: ClientError) -> CelautError {
         ClientError::Wire(WireError::Connect(_)) => K::Unreachable,
         ClientError::Wire(WireError::Timeout) => K::Timeout,
         ClientError::Wire(WireError::Call(_) | WireError::Protocol(_)) => K::Protocol,
+        ClientError::Wire(WireError::Relay(_)) => K::TransferFailed,
         ClientError::Peer(PeerError::KeyMismatch { .. }) => K::IdentityMismatch,
         ClientError::Peer(PeerError::StaleTs { .. }) => K::StaleTimestamp,
         ClientError::Peer(PeerError::UnsupportedScheme) => K::UnsupportedScheme,

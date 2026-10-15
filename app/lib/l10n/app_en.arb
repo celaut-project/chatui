@@ -4552,5 +4552,6 @@
       }
     }
   },
-  "celautRunPreviewLoading": "Looking for the best node…"
+  "celautRunPreviewLoading": "Looking for the best node…",
+  "celautErrorTransferFailed": "The transfer of the service stopped (the file could not be read, it is cut, or it was cancelled). The node did not keep the cut service. Try again."
 }

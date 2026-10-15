@@ -99,6 +99,29 @@ pub async fn tls_connect(
     }
 }
 
+/// The Buffers of a raw response as a stream, one at a time.
+fn futures_unfold(response: bee_rpc::grpc::RawResponse) -> crate::transport::Buffers {
+    let stream = tokio_stream::wrappers::ReceiverStream::new({
+        let (tx, rx) = tokio::sync::mpsc::channel(1);
+        tokio::spawn(async move {
+            let mut response = response;
+            loop {
+                let item = match response.next().await {
+                    Ok(Some(buffer)) => Ok(buffer),
+                    Ok(None) => return,
+                    Err(e) => Err(wire_error(e)),
+                };
+                let stop = item.is_err();
+                if tx.send(item).await.is_err() || stop {
+                    return;
+                }
+            }
+        });
+        rx
+    });
+    Box::pin(stream)
+}
+
 /// The text of an error and its sources.
 fn describe(error: &dyn std::error::Error) -> String {
     let mut text = error.to_string();
@@ -193,10 +216,7 @@ impl Connection {
         let path = format!("/celaut.Gateway/{method}");
         bee_rpc::grpc::call(self.channel.clone(), &path, parts, options)
             .await
-            .map_err(|e| match e {
-                bee_rpc::Error::Transport(t) if t == "deadline exceeded" => WireError::Timeout,
-                other => WireError::Call(other.to_string()),
-            })
+            .map_err(wire_error)
     }
 
     /// The tonic channel, for the calls that are not one request and one answer
@@ -206,7 +226,70 @@ impl Connection {
     }
 }
 
+/// The error of a bee-rpc call, as a wire error.
+fn wire_error(e: bee_rpc::Error) -> WireError {
+    match e {
+        bee_rpc::Error::Transport(t) if t == "deadline exceeded" => WireError::Timeout,
+        other => WireError::Call(other.to_string()),
+    }
+}
+
+/// An error of the input of a relay, carried through bee-rpc and back.
+const INPUT_ERROR: &str = "the input of the relay failed: ";
+
 impl Transport for Connection {
+    async fn call_buffers(
+        &self,
+        method: &str,
+        input: crate::transport::Buffers,
+        accepted: &[i32],
+        timeout: Duration,
+    ) -> Result<Vec<Part>, WireError> {
+        use tokio_stream::StreamExt;
+        let options = bee_rpc::grpc::CallOptions {
+            parse: ParseOptions::accepting(accepted.iter().copied()),
+            block_skip: false,
+            timeout: Some(timeout),
+        };
+        let path = format!("/celaut.Gateway/{method}");
+        // A wire error of the input goes through bee-rpc as an I/O error, and comes back.
+        let input = input.map(|item| {
+            item.map_err(|e| {
+                let text = match e {
+                    WireError::Relay(text) => text,
+                    other => other.to_string(),
+                };
+                bee_rpc::Error::Io(std::io::Error::other(format!("{INPUT_ERROR}{text}")))
+            })
+        });
+        bee_rpc::grpc::call_buffers(self.channel.clone(), &path, Box::pin(input), options)
+            .await
+            .map_err(|e| match e {
+                bee_rpc::Error::Io(io) if io.to_string().starts_with(INPUT_ERROR) => {
+                    WireError::Relay(io.to_string()[INPUT_ERROR.len()..].to_string())
+                }
+                other => wire_error(other),
+            })
+    }
+
+    async fn call_raw(
+        &self,
+        method: &str,
+        parts: Vec<Part>,
+        timeout: Duration,
+    ) -> Result<crate::transport::Buffers, WireError> {
+        let options = bee_rpc::grpc::CallOptions {
+            timeout: Some(timeout),
+            ..Default::default()
+        };
+        let path = format!("/celaut.Gateway/{method}");
+        let response = bee_rpc::grpc::call_raw(self.channel.clone(), &path, parts, options)
+            .await
+            .map_err(wire_error)?;
+        let stream = futures_unfold(response);
+        Ok(stream)
+    }
+
     async fn call(
         &self,
         method: &str,

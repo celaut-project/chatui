@@ -47,6 +47,9 @@ pub mod celaut_network;
 /// Whether the nodes are available: the checks and their record (M4).
 pub mod celaut_health;
 
+/// Give a service to a node that does not have it (a package).
+pub mod celaut_package;
+
 fn err_str<E: Into<ArgusError>>(e: E) -> String {
     e.into().to_json_string()
 }

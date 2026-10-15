@@ -86,7 +86,7 @@ pub(crate) fn check(address: &NodeAddress) -> Result<(), CelautError> {
 /// The configuration of a start: the defaults of the node, and the balance of the
 /// instance at the start if `initial_mu` is given. The default of a node is one hour of
 /// the resources of the service, which can be more than the free credit of a client.
-fn configuration(initial_mu: Option<String>) -> Result<Configuration, CelautError> {
+pub(crate) fn configuration(initial_mu: Option<String>) -> Result<Configuration, CelautError> {
     let Some(text) = initial_mu
         .map(|t| t.trim().to_string())
         .filter(|t| !t.is_empty())
@@ -105,7 +105,7 @@ fn configuration(initial_mu: Option<String>) -> Result<Configuration, CelautErro
     }
 }
 
-fn service_id(text: &str) -> Result<[u8; 32], CelautError> {
+pub(crate) fn service_id(text: &str) -> Result<[u8; 32], CelautError> {
     parse_service_id(text)
         .ok_or_else(|| invalid("The service id must be 64 hexadecimal characters."))
 }
@@ -282,11 +282,11 @@ pub struct QuotesView {
 }
 
 /// The amount as text, or empty if the node did not give it.
-fn n(amount: &Option<Amount>) -> String {
+pub(crate) fn n(amount: &Option<Amount>) -> String {
     amount.as_ref().map(|a| a.n.clone()).unwrap_or_default()
 }
 
-fn quote_view(address: NodeAddress, peer_id: String, q: &EstimatedCost) -> QuoteView {
+pub(crate) fn quote_view(address: NodeAddress, peer_id: String, q: &EstimatedCost) -> QuoteView {
     QuoteView {
         address,
         peer_id,

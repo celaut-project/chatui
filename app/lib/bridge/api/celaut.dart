@@ -120,6 +120,10 @@ enum CelautErrorKind {
 
   /// The node tried to start the service and could not, and says no other reason.
   launchFailed,
+
+  /// The transfer of a service stopped: the file could not be read, it is cut, or the
+  /// user cancelled it. The node refused the cut service.
+  transferFailed,
 }
 
 /// One key and its value, as text.

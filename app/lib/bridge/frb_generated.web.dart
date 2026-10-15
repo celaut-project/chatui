@@ -14,6 +14,7 @@ import 'api/celaut_deposit.dart';
 import 'api/celaut_health.dart';
 import 'api/celaut_home.dart';
 import 'api/celaut_network.dart';
+import 'api/celaut_package.dart';
 import 'api/celaut_service.dart';
 import 'api/mempool.dart';
 import 'api/storage_rent.dart';
@@ -223,6 +224,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String>? dco_decode_opt_list_String(dynamic raw);
 
   @protected
+  PackageView dco_decode_package_view(dynamic raw);
+
+  @protected
   PaymentContractView dco_decode_payment_contract_view(dynamic raw);
 
   @protected
@@ -248,6 +252,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   StopView dco_decode_stop_view(dynamic raw);
+
+  @protected
+  TransferStage dco_decode_transfer_stage(dynamic raw);
+
+  @protected
+  TransferView dco_decode_transfer_view(dynamic raw);
 
   @protected
   int dco_decode_u_16(dynamic raw);
@@ -495,6 +505,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String>? sse_decode_opt_list_String(SseDeserializer deserializer);
 
   @protected
+  PackageView sse_decode_package_view(SseDeserializer deserializer);
+
+  @protected
   PaymentContractView sse_decode_payment_contract_view(
     SseDeserializer deserializer,
   );
@@ -524,6 +537,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   StopView sse_decode_stop_view(SseDeserializer deserializer);
+
+  @protected
+  TransferStage sse_decode_transfer_stage(SseDeserializer deserializer);
+
+  @protected
+  TransferView sse_decode_transfer_view(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_16(SseDeserializer deserializer);
@@ -850,6 +869,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_list_String(List<String>? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_package_view(PackageView self, SseSerializer serializer);
+
+  @protected
   void sse_encode_payment_contract_view(
     PaymentContractView self,
     SseSerializer serializer,
@@ -887,6 +909,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_stop_view(StopView self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_transfer_stage(TransferStage self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_transfer_view(TransferView self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_16(int self, SseSerializer serializer);

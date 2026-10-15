@@ -12,7 +12,7 @@ celaut-net = { workspace = true }
 rustls = { workspace = true }
 # The crypto provider is given to rustls in code (ring), so no provider feature here.
 tokio-rustls = { version = "0.26", default-features = false }
-tokio = { workspace = true, features = ["net", "time", "io-util", "rt"] }
+tokio = { workspace = true, features = ["net", "time", "io-util", "rt", "sync"] }
 tokio-stream = { version = "0.1", default-features = false }
 tonic = { version = "0.14", default-features = false, features = ["transport"] }
 tonic-prost = { version = "0.14", default-features = false }
@@ -24,4 +24,5 @@ thiserror = { workspace = true }
 prost = "0.14"
 
 [dev-dependencies]
+tokio-stream = { version = "0.1", default-features = false }
 tokio = { workspace = true, features = ["net", "time", "io-util"] }

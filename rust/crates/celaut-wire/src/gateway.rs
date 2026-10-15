@@ -144,6 +144,64 @@ fn find<M: Message + Default>(answer: &[Part], index: i32, what: &str) -> Result
     }
 }
 
+/// The time limit of a call that moves a whole service (`GetService`, and a quote that
+/// carries the service). A service can be large, and a phone can be slow.
+pub const SERVICE_TRANSFER_TIMEOUT: Duration = Duration::from_secs(3600);
+
+/// `GetService`: the service with the id `service_id`, as the Buffers of the answer:
+/// the hashes (index 4), the Metadata (5) and the Service (6) with its blocks. These are
+/// the indices of `StartService`, so the Buffers can go to another node as they are.
+/// A node that does not have the service answers nothing.
+pub async fn get_service_raw<T: Transport>(
+    transport: &T,
+    client_id: &str,
+    service_id: [u8; 32],
+) -> Result<crate::transport::Buffers, WireError> {
+    let hash = Hash {
+        r#type: SHA3_256_TYPE.to_vec(),
+        value: service_id.to_vec(),
+    };
+    let client = Client {
+        client_id: client_id.to_string(),
+        ..Default::default()
+    };
+    let parts = vec![
+        Part::new(1, hash.encode_to_vec()),
+        Part::new(2, client.encode_to_vec()),
+    ];
+    transport
+        .call_raw("GetService", parts, SERVICE_TRANSFER_TIMEOUT)
+        .await
+}
+
+/// `GetServiceEstimatedCost` with the service: the request parts, then `service` (the
+/// Buffers of a service with the `StartService` indices 4, 5 and 6). The node stores the
+/// service, so later calls need only its hash. If `service` fails, the node refuses the
+/// request and the error is [`WireError::Relay`].
+pub async fn get_service_estimated_cost_with_service<T: Transport>(
+    transport: &T,
+    request: &ServiceRequest,
+    service: crate::transport::Buffers,
+) -> Result<EstimatedCost, WireError> {
+    use tokio_stream::StreamExt;
+    let head: Vec<Result<bee_rpc::buffer::Buffer, WireError>> = request
+        .parts()
+        .iter()
+        .flat_map(|p| bee_rpc::frame::serialize_part(p).collect::<Vec<_>>())
+        .map(Ok)
+        .collect();
+    let input = tokio_stream::iter(head).chain(service);
+    let answer = transport
+        .call_buffers(
+            "GetServiceEstimatedCost",
+            Box::pin(input),
+            &[1],
+            SERVICE_TRANSFER_TIMEOUT,
+        )
+        .await?;
+    find(&answer, 1, "EstimatedCost")
+}
+
 /// `GetServiceEstimatedCost`: the price of the service on this node.
 pub async fn get_service_estimated_cost<T: Transport>(
     transport: &T,
