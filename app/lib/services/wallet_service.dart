@@ -19,6 +19,7 @@ import 'token_descriptor_store.dart';
 import 'token_evidence.dart';
 export 'token_evidence.dart';
 import 'verified_tokens.dart' show knownToken;
+import '../celaut/network_route.dart';
 import 'spend_policy.dart';
 import 'wallet_sync_controller.dart';
 import 'secure_storage.dart';
@@ -1305,6 +1306,8 @@ class WalletService with WidgetsBindingObserver {
     // The unconfirmed-spending setting, which every spend's input gathering
     // in Rust follows, must be applied before any transaction is built.
     await spendPolicy.apply();
+    // The network route (Tor on or off) must be in force before any connection.
+    await networkRoute.apply();
     // The Celaut data of the app (one database, not one per wallet).
     await openCelautDatabase();
     _initialized = true;

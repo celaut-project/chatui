@@ -9,6 +9,7 @@ import 'api/celaut_catalog.dart';
 import 'api/celaut_db.dart';
 import 'api/celaut_deposit.dart';
 import 'api/celaut_home.dart';
+import 'api/celaut_network.dart';
 import 'api/celaut_service.dart';
 import 'api/mempool.dart';
 import 'api/storage_rent.dart';
@@ -160,6 +161,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NanoErgTotalView dco_decode_nano_erg_total_view(dynamic raw);
+
+  @protected
+  NetworkChoice dco_decode_network_choice(dynamic raw);
+
+  @protected
+  NetworkState dco_decode_network_state(dynamic raw);
+
+  @protected
+  NetworkStatusView dco_decode_network_status_view(dynamic raw);
 
   @protected
   NewClientView dco_decode_new_client_view(dynamic raw);
@@ -398,6 +408,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NanoErgTotalView sse_decode_nano_erg_total_view(SseDeserializer deserializer);
+
+  @protected
+  NetworkChoice sse_decode_network_choice(SseDeserializer deserializer);
+
+  @protected
+  NetworkState sse_decode_network_state(SseDeserializer deserializer);
+
+  @protected
+  NetworkStatusView sse_decode_network_status_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
   NewClientView sse_decode_new_client_view(SseDeserializer deserializer);
@@ -702,6 +723,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_nano_erg_total_view(
     NanoErgTotalView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_network_choice(NetworkChoice self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_network_state(NetworkState self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_network_status_view(
+    NetworkStatusView self,
     SseSerializer serializer,
   );
 

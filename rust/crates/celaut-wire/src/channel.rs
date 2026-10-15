@@ -7,7 +7,7 @@ use std::time::Duration;
 use bee_rpc::frame::{ParseOptions, Part};
 use hyper_util::rt::TokioIo;
 use rustls::pki_types::ServerName;
-use tokio::net::TcpStream;
+use celaut_net::BoxStream;
 use tokio_rustls::client::TlsStream;
 use tokio_rustls::TlsConnector;
 use tonic::codegen::http::Uri;
@@ -58,13 +58,15 @@ pub fn new_verifier(expected: Option<String>) -> Arc<IdentityVerifier> {
     IdentityVerifier::new(expected, provider.signature_verification_algorithms)
 }
 
+/// The TCP connection goes by the route of the app (`celaut_net`): direct, through a
+/// SOCKS5 proxy (Tor), or not at all. The TLS handshake and the identity check are the
+/// same on each route, so the node proves its identity through a proxy too.
 async fn tls_handshake(
     connector: &TlsConnector,
     host: &str,
     port: u16,
-) -> Result<TlsStream<TcpStream>, std::io::Error> {
-    let tcp = TcpStream::connect((host, port)).await?;
-    tcp.set_nodelay(true)?;
+) -> Result<TlsStream<BoxStream>, std::io::Error> {
+    let tcp = celaut_net::connect(host, port).await?;
     // The name is the same for every node and is not checked (see the verifier).
     let name = ServerName::try_from(TLS_SERVER_NAME)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
@@ -77,7 +79,7 @@ pub async fn tls_connect(
     host: &str,
     port: u16,
     options: &ConnectOptions,
-) -> Result<(TlsStream<TcpStream>, String), WireError> {
+) -> Result<(TlsStream<BoxStream>, String), WireError> {
     let verifier = new_verifier(options.expected_peer_id.clone());
     let connector = TlsConnector::from(Arc::new(tls_config(verifier.clone())?));
     let result = tokio::time::timeout(

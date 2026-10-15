@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 bee-rpc = { workspace = true }
 celaut-proto = { workspace = true }
+celaut-net = { workspace = true }
 rustls = { workspace = true }
 # The crypto provider is given to rustls in code (ring), so no provider feature here.
 tokio-rustls = { version = "0.26", default-features = false }

@@ -1,0 +1,24 @@
+[package]
+name = "celaut-tor"
+description = "Optional Tor for the outbound connections of the app: an embedded Arti client behind a loopback SOCKS5 proxy, or an external SOCKS5 proxy"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+celaut-net = { workspace = true }
+# No default features: native-tls is not used on Android. rustls and the bundled SQLite
+# (static-sqlite) make the library self-contained.
+arti-client = { version = "0.47", default-features = false, features = ["tokio", "rustls", "compression", "static-sqlite"] }
+futures = { workspace = true }
+# The type of the runtime of the client. Its features are the ones that arti-client asks.
+tor-rtcompat = { version = "0.47", default-features = false }
+hex = { workspace = true }
+ring = "0.17"
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["net", "time", "io-util", "rt", "sync"] }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["net", "time", "io-util", "rt", "macros"] }
+wallet-net = { path = "../wallet-net" }
