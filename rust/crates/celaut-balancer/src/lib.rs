@@ -12,9 +12,13 @@
 //! - [`QuoteCache`]: the cache of `nodo:src/utils/tools/query_cache.py` (10 s, 4096
 //!   entries).
 //!
-//! Not in this crate yet: the filter on the advertised resources (it needs the
-//! resources of the service, which the client does not have before the catalog), and
-//! the event log of local reputation. Until then the reputation terms are 0.
+//! - [`filter`]: the filter on the advertised resources (`nodo:src/utils/cost_functions/
+//!   architecture_resources.py`). It skips a node that can never run the service. It
+//!   needs the resources of the service ([`ServiceAsk`]), which the client does not
+//!   have from a hash alone.
+//!
+//! Not in this crate yet: the event log of local reputation. Until then the reputation
+//! terms are 0.
 //!
 //! Input from a peer must never make this crate panic.
 #![forbid(unsafe_code)]
@@ -22,6 +26,10 @@
     not(test),
     deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)
 )]
+
+pub mod filter;
+
+pub use filter::{arch_from_tags, ask_of, request_misfit, Misfit, ServiceAsk};
 
 use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant};

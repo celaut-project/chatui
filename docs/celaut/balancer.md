@@ -16,6 +16,27 @@ Source: `nodo:src/balancers/execution_balancer/execution_balancer.py`,
 
 ## Filter (`nodo:src/utils/cost_functions/architecture_resources.py`)
 
+**Status.** The filter is ported and tested (`celaut-balancer`, `filter.rs`; the call is
+`celaut_client::quotes_for` with a `ServiceAsk`). It is **not used in the real flow yet**:
+the app has the hash of a service, not its resources (`resources.at_most`,
+`resources.at_init`, the architecture). Without a `ServiceAsk`, `quotes` skips no node.
+The filter needs the spec of the service: from a catalog entry or from a package that the
+user uploads. Until a caller has it, a node is never skipped by the filter, and the first
+check of a node is its own answer to `GetServiceEstimatedCost`.
+
+What the port does, in the order of nodo (`request_misfit`):
+
+- The node announced nothing, or the architecture of the service is unknown: ask the node.
+- No entry for the architecture: skip (`NotRun`). The first entry whose tags name the
+  architecture is the one that counts.
+- `mem_limit` or `disk_space`: skip only if both sides have the value and the ask is more
+  than the ceiling. An equal value fits.
+- Cores: skip if the ask has a quota, the ceiling has a quota, and the ask is more than the
+  ceiling. A period that is absent or 0 is 100000. A ceiling with quota 0 is 0 cores.
+- Benchmarks, sorted by key: see below.
+- A reason is a typed `Misfit`. A node with no reason is asked.
+
+
 - `ask` = copy of `resources.at_most` without benchmarks, plus `at_init.benchmark`.
 - Announcement = `Peer.resources` (repeated `ArchitectureResources`) from GetPeerInfo.
 - Empty announcement or unknown service architecture: do not skip.

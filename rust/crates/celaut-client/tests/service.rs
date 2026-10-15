@@ -7,15 +7,17 @@ use std::sync::Mutex;
 
 use bee_rpc::buffer::Buffer;
 use bee_rpc::frame::Part;
-use celaut_balancer::QuoteCache;
+use celaut_balancer::{Misfit, QuoteCache, ServiceAsk};
 use celaut_client::session::parse_service_id;
-use celaut_client::{quotes, ClientError, MemoryPeerStore, NodeSession};
+use celaut_client::{quotes, quotes_for, ClientError, MemoryPeerStore, NodeSession};
 use celaut_proto::celaut::contract::Ledger;
 use celaut_proto::celaut::instance::UriSlot;
 use celaut_proto::celaut::metadata::hash_tag::Hash;
+use celaut_proto::celaut::service::container::Architecture;
 use celaut_proto::celaut::{
-    Amount, BytesKeyValue, Client, Configuration, Contract, ContractRate, EstimatedCost, Instance,
-    Metrics, Peer, RecursionGuard, Refund, ServiceInstance, TokenMessage,
+    Amount, ArchitectureResources, BytesKeyValue, Client, Configuration, Contract, ContractRate,
+    EstimatedCost, Instance, Metrics, Peer, RecursionGuard, Refund, ServiceInstance,
+    Sysresources, TokenMessage,
 };
 use celaut_wire::gateway::SHA3_256_TYPE;
 use celaut_wire::WireError;
@@ -39,7 +41,19 @@ fn signal() -> Buffer {
 /// The Peer of the vectors, signed by the key of `seed`, with only an ERG contract at
 /// `mu_per_nano_erg` if given, else with no contract. Gives the Peer and its peer_id.
 fn peer_of(seed: u8, mu_per_nano_erg: Option<&str>) -> (Peer, String) {
+    peer_with(seed, mu_per_nano_erg, None)
+}
+
+/// [`peer_of`], with `resources` as `Peer.resources` if given.
+fn peer_with(
+    seed: u8,
+    mu_per_nano_erg: Option<&str>,
+    resources: Option<Vec<ArchitectureResources>>,
+) -> (Peer, String) {
     let mut peer = common::vectors().peers[0].peer();
+    if let Some(resources) = resources {
+        peer.resources = resources;
+    }
     peer.payment_contracts.clear();
     if let Some(rate) = mu_per_nano_erg {
         peer.payment_contracts = vec![ContractRate {
@@ -71,7 +85,17 @@ async fn session_of(
     rate: Option<&str>,
     more: Vec<Vec<Buffer>>,
 ) -> NodeSession<FixedStreams> {
-    let (peer, peer_id) = peer_of(seed, rate);
+    session_with(seed, rate, None, more).await
+}
+
+/// [`session_of`], with `resources` as `Peer.resources` if given.
+async fn session_with(
+    seed: u8,
+    rate: Option<&str>,
+    resources: Option<Vec<ArchitectureResources>>,
+    more: Vec<Vec<Buffer>>,
+) -> NodeSession<FixedStreams> {
+    let (peer, peer_id) = peer_with(seed, rate, resources);
     let mut answers = vec![
         stream_of(
             1,
@@ -276,6 +300,7 @@ async fn quotes_rank_the_nodes_and_use_the_cache() {
     assert_eq!(first.ranked[0].cost_nano_erg, Some(90.0));
     assert_eq!(first.failures.len(), 1);
     assert_eq!(first.failures[0].peer_id, b.peer_id());
+    assert!(first.skipped.is_empty());
     assert_eq!(a.transport().calls(), 3);
 
     // Within 10 s the same question makes no call.
@@ -283,6 +308,115 @@ async fn quotes_rank_the_nodes_and_use_the_cache() {
     assert_eq!(again.ranked.len(), 2);
     assert_eq!(a.transport().calls(), 3);
     assert_eq!(c.transport().calls(), 3);
+}
+
+const GIB: u64 = 1 << 30;
+
+/// One announced entry for `tag` with a memory ceiling.
+fn announced(tag: &str, mem_limit: u64) -> ArchitectureResources {
+    ArchitectureResources {
+        architecture: Some(Architecture {
+            tags: vec![tag.into()],
+            ..Default::default()
+        }),
+        resources: Some(Sysresources {
+            mem_limit: Some(mem_limit),
+            ..Default::default()
+        }),
+    }
+}
+
+#[tokio::test]
+async fn quotes_for_skips_the_nodes_that_can_never_run_the_service_and_does_not_call_them() {
+    let answer = || vec![after_signal(&quote("100"))];
+    // Big enough, too small, another architecture only, and a node that announced nothing.
+    let big = session_with(1, Some("1"), Some(vec![announced("amd64", 4 * GIB)]), answer()).await;
+    let small =
+        session_with(2, Some("1"), Some(vec![announced("x86_64", GIB)]), answer()).await;
+    let arm = session_with(3, Some("1"), Some(vec![announced("arm64", 8 * GIB)]), answer()).await;
+    let silent = session_with(4, Some("1"), Some(vec![]), answer()).await;
+    let ask = ServiceAsk {
+        architecture: Some("linux/amd64"),
+        resources: Sysresources {
+            mem_limit: Some(2 * GIB),
+            ..Default::default()
+        },
+    };
+    let cache = Mutex::new(QuoteCache::new());
+    let config = Configuration::default();
+
+    let answer = quotes_for(
+        &[&big, &small, &arm, &silent],
+        SERVICE,
+        &config,
+        &cache,
+        Some(&ask),
+    )
+    .await;
+
+    let mut asked: Vec<&str> = answer
+        .ranked
+        .iter()
+        .map(|r| r.candidate.peer_id.as_str())
+        .collect();
+    asked.sort();
+    let mut expected = vec![big.peer_id(), silent.peer_id()];
+    expected.sort();
+    assert_eq!(asked, expected);
+    assert!(answer.failures.is_empty());
+    let skipped: Vec<&str> = answer.skipped.iter().map(|s| s.peer_id.as_str()).collect();
+    assert_eq!(skipped, vec![small.peer_id(), arm.peer_id()]);
+    assert!(matches!(
+        answer.skipped[0].misfits.as_slice(),
+        [Misfit::MemLimit { .. }]
+    ));
+    assert!(matches!(
+        answer.skipped[1].misfits.as_slice(),
+        [Misfit::NotRun { .. }]
+    ));
+    // The opening is 2 calls. A node that was asked has one more; a skipped one has none.
+    assert_eq!(big.transport().calls(), 3);
+    assert_eq!(silent.transport().calls(), 3);
+    assert_eq!(small.transport().calls(), 2);
+    assert_eq!(arm.transport().calls(), 2);
+}
+
+#[tokio::test]
+async fn quotes_for_with_no_ask_or_no_known_architecture_skips_no_node() {
+    let answer = || vec![after_signal(&quote("100"))];
+    let small =
+        session_with(2, Some("1"), Some(vec![announced("amd64", 1)]), answer()).await;
+    let config = Configuration::default();
+    let no_ask = quotes_for(
+        &[&small],
+        SERVICE,
+        &config,
+        &Mutex::new(QuoteCache::new()),
+        None,
+    )
+    .await;
+    assert_eq!(no_ask.ranked.len(), 1);
+    assert!(no_ask.skipped.is_empty());
+
+    let small =
+        session_with(2, Some("1"), Some(vec![announced("amd64", 1)]), answer()).await;
+    let unknown = ServiceAsk {
+        architecture: None,
+        resources: Sysresources {
+            mem_limit: Some(u64::MAX),
+            ..Default::default()
+        },
+    };
+    let no_arch = quotes_for(
+        &[&small],
+        SERVICE,
+        &config,
+        &Mutex::new(QuoteCache::new()),
+        Some(&unknown),
+    )
+    .await;
+    assert_eq!(no_arch.ranked.len(), 1);
+    assert!(no_arch.skipped.is_empty());
 }
 
 #[test]
