@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../bridge/api/celaut.dart';
+import '../../bridge/api/celaut_home.dart';
 import '../../bridge/api/celaut_service.dart';
 import '../../celaut/celaut_format.dart';
 import '../../celaut/celaut_strings.dart';
 import '../../celaut/host_port.dart';
+import '../../celaut/launcher.dart';
 import '../../celaut/payers.dart';
 import '../../celaut/service_strings.dart';
 import '../../celaut/tunnel_http.dart';
@@ -56,6 +58,9 @@ class _ServiceScreenState extends State<ServiceScreen> {
   String? _startingPeer;
   bool _stopping = false;
   bool _calling = false;
+  bool _launching = false;
+  LaunchOutcome? _launched;
+  LaunchFailure? _launchFailure;
 
   QuotesView? _quotes;
   String _serviceId = '';
@@ -139,7 +144,9 @@ class _ServiceScreenState extends State<ServiceScreen> {
     super.dispose();
   }
 
-  Future<void> _quote() async {
+  /// Read and check the form. Without typed nodes, the nodes of the Nodes list are
+  /// asked. Null if something is wrong: the errors are on the fields.
+  ({List<NodeAddress> nodes, String service, String? initial})? _readForm() {
     final nodes = <NodeAddress>[];
     String? nodesError;
     for (final line in _nodesCtrl.text.split('\n')) {
@@ -150,6 +157,9 @@ class _ServiceScreenState extends State<ServiceScreen> {
         break;
       }
       nodes.add(NodeAddress(host: parsed.value!.host, port: parsed.value!.port));
+    }
+    if (nodesError == null && nodes.isEmpty) {
+      nodes.addAll(knownNodeAddresses(celautKnownNodes()));
     }
     if (nodesError == null && nodes.isEmpty) nodesError = ServiceStrings.nodesEmpty;
     final service = _serviceCtrl.text.trim().toLowerCase();
@@ -165,7 +175,63 @@ class _ServiceScreenState extends State<ServiceScreen> {
       _serviceError = serviceError;
       _initialError = initialError;
     });
-    if (nodesError != null || serviceError != null || initialError != null) return;
+    if (nodesError != null || serviceError != null || initialError != null) return null;
+    return (nodes: nodes, service: service, initial: initial.isEmpty ? null : initial);
+  }
+
+  /// Start the service on the node that the balancer chooses, with no choice by the
+  /// user (`docs/celaut/balancer.md`). A node that fails is skipped. The user decides
+  /// what to do with a node that forgot the client id.
+  Future<void> _launch() async {
+    final form = _readForm();
+    if (form == null) return;
+    if (!await _walletOpen() || !mounted) return;
+    setState(() {
+      _launching = true;
+      _error = null;
+      _stopped = null;
+      _launched = null;
+      _launchFailure = null;
+      _quotes = null;
+    });
+    try {
+      final outcome = await launchService(
+        serviceIdHex: form.service,
+        initialMu: form.initial,
+        nodes: form.nodes,
+      );
+      if (!mounted) return;
+      _applyStarted(outcome.instance);
+      setState(() => _launched = outcome);
+    } on LaunchFailure catch (failure) {
+      if (mounted) setState(() => _launchFailure = failure);
+      final forgot = failure.clientUnknown;
+      if (mounted && forgot.isNotEmpty) {
+        await _clientUnknown(forgot.first.quote.address, forgot.first.error);
+      }
+    } on CelautError catch (e) {
+      if (mounted) setState(() => _error = e);
+    } finally {
+      if (mounted) setState(() => _launching = false);
+    }
+  }
+
+  void _applyStarted(InstanceView instance) {
+    setState(() {
+      _instance = instance;
+      _ports.clear();
+      _status = null;
+      _answer = null;
+      _appInstances = celautInstances();
+    });
+  }
+
+  Future<void> _quote() async {
+    final form = _readForm();
+    if (form == null) return;
+    final nodes = form.nodes;
+    final service = form.service;
+    final initial = form.initial ?? '';
 
     setState(() {
       _quoting = true;
@@ -176,7 +242,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
       final quotes = await celautQuoteService(
         nodes: nodes,
         serviceIdHex: service,
-        initialMu: initial.isEmpty ? null : initial,
+        initialMu: form.initial,
       );
       if (!mounted) return;
       setState(() {
@@ -304,6 +370,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
       if (!mounted) return;
       setState(() {
         _stopped = stopped;
+        _launched = null;
         _instance = null;
         _ports.clear();
         _status = null;
@@ -391,6 +458,14 @@ class _ServiceScreenState extends State<ServiceScreen> {
               ),
               const SizedBox(height: 16),
               FilledButton(
+                key: const Key('service-launch'),
+                onPressed: _launching || _quoting || _instance != null || _gate == FullWalletGate.none
+                    ? null
+                    : _launch,
+                child: Text(_launching ? ServiceStrings.launching : ServiceStrings.launch),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton(
                 key: const Key('service-quote'),
                 onPressed: _quoting ? null : _quote,
                 child: Text(_quoting ? ServiceStrings.quoting : ServiceStrings.quote),
@@ -410,11 +485,75 @@ class _ServiceScreenState extends State<ServiceScreen> {
               key: const Key('service-stopped'),
             ),
           ),
+        if (_launchFailure != null) ..._launchFailureCard(context, _launchFailure!),
+        if (_launched != null && instance != null) ..._launchedCard(context, _launched!),
         if (instance != null) ..._instanceCard(context, instance),
         if (_otherInstances.isNotEmpty) ..._appInstancesCards(context),
         if (quotes != null) ..._quotesCards(context, quotes),
       ],
     );
+  }
+
+  Widget _skippedLines(BuildContext context, List<LaunchSkip> skipped) {
+    final muted = ArgusColors.of(context).muted;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 8),
+        Text(ServiceStrings.skippedTitle, style: TextStyle(fontSize: 12.5, color: muted)),
+        for (final s in skipped)
+          Text(
+            ServiceStrings.skippedLine(
+              '${HostPort(s.quote.address.host, s.quote.address.port)}',
+              CelautStrings.errorText(s.error.kind),
+            ),
+            style: TextStyle(fontSize: 12.5, color: muted),
+          ),
+      ],
+    );
+  }
+
+  List<Widget> _launchedCard(BuildContext context, LaunchOutcome outcome) {
+    final quote = outcome.quote;
+    return [
+      SoftCard(
+        child: Column(
+          key: const Key('service-launched'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              ServiceStrings.launched(
+                '${HostPort(quote.address.host, quote.address.port)}',
+                muOrUnknown(quote.costMu),
+              ),
+            ),
+            if (outcome.skipped.isNotEmpty) _skippedLines(context, outcome.skipped),
+          ],
+        ),
+      ),
+      const SizedBox(height: 16),
+    ];
+  }
+
+  List<Widget> _launchFailureCard(BuildContext context, LaunchFailure failure) {
+    final message = switch (failure.kind) {
+      LaunchFailureKind.noNodes => ServiceStrings.nodesEmpty,
+      LaunchFailureKind.noQuotes => ServiceStrings.launchNoQuotes,
+      LaunchFailureKind.allFailed => ServiceStrings.launchAllFailed,
+    };
+    return [
+      SoftCard(
+        child: Column(
+          key: const Key('service-launch-failed'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(message, style: TextStyle(color: rustFor(context))),
+            if (failure.skipped.isNotEmpty) _skippedLines(context, failure.skipped),
+          ],
+        ),
+      ),
+      const SizedBox(height: 16),
+    ];
   }
 
   List<Widget> _quotesCards(BuildContext context, QuotesView quotes) {

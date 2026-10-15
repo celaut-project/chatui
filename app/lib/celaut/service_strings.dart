@@ -9,22 +9,27 @@ class ServiceStrings {
   // Screen
   static const screenTitle = 'Celaut service';
   static const intro =
-      'Ask nodes for the price of a service, start it on one of them, '
-      'and call it through a port on this device. The app uses its own client on each '
+      'Launch a service on the best node: the balancer asks the nodes for a quote and the '
+      'app starts it on the best one that works. You can also ask for the quotes and choose '
+      'a node yourself. Then call the service through a port on this device. The app uses '
+      'its own client on each '
       'node: a new client gets free credit from the node, and a deposit adds to it. '
       'Starting and stopping need a full wallet. The node must already have the service.';
   static const nodesLabel = 'Node addresses';
-  static const nodesHint = 'One host:port on each line';
+  static const nodesHint = 'One host:port on each line. Empty: the nodes of the Nodes list';
   static const serviceLabel = 'Service id';
   static const serviceHint = '64 hexadecimal characters';
   static const initialLabel = 'Start balance in MU (optional)';
   static const initialHint = 'Empty: the default of the node, one hour of resources';
   static const initialDefault = '1000000';
   static const quote = 'Get quotes';
+  static const launch = 'Launch on the best node';
+  static const launching = 'Launching…';
   static const quoting = 'Asking the nodes…';
 
   // Input errors
-  static const nodesEmpty = 'Enter at least one node address as host:port.';
+  static const nodesEmpty =
+      'Enter at least one node address as host:port, or add a node in the Nodes list.';
   static String nodeInvalid(String line) => 'This address is not valid: $line';
   static const serviceInvalid = 'The service id must be 64 hexadecimal characters.';
   static const initialInvalid = 'The start balance must be a whole number, more than 0.';
@@ -40,6 +45,14 @@ class ServiceStrings {
       : 'For the comparison: $nanoErg nanoERG';
   static const start = 'Start here';
   static const starting = 'Starting…';
+
+  // Launch (the balancer picks the node)
+  static String launched(String address, String cost) =>
+      'Started on $address. The balancer chose this node. Start: $cost';
+  static const skippedTitle = 'Better nodes that did not start it';
+  static String skippedLine(String address, String reason) => '$address: $reason';
+  static const launchNoQuotes = 'No node gave a quote, so nothing started.';
+  static const launchAllFailed = 'Nodes gave quotes, but none of them started the service.';
 
   // Instance
   static const instanceTitle = 'Running instance';
