@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:argus_wallet/bridge/api/celaut.dart';
+import 'package:argus_wallet/bridge/api/celaut_home.dart';
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
 import 'package:argus_wallet/bridge/frb_generated.dart';
 import 'package:argus_wallet/celaut/payers.dart';
