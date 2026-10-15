@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="conversation_channel_name">Conversación abierta</string>
+    <string name="conversation_notification_title">Conversación abierta</string>
+    <string name="conversation_notification_text">Celaut mantiene la conexión con el servicio. Abre la app para salir o detenerlo.</string>
+</resources>

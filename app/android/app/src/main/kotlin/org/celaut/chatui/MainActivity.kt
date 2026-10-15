@@ -27,6 +27,16 @@ class MainActivity : FlutterFragmentActivity() {
         SecureStorageHandler.registerWith(flutterEngine, this)
         DeepLinkHandler.registerWith(flutterEngine, intent)
         UpdateHandler.registerWith(flutterEngine, this)
+        ConversationHandler.registerWith(flutterEngine, this)
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        ConversationHandler.onRequestPermissionsResult(requestCode, grantResults)
     }
 
     override fun onNewIntent(intent: Intent) {

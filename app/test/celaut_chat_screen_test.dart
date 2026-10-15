@@ -1,5 +1,6 @@
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
 import 'package:argus_wallet/celaut/chat_client.dart';
+import 'package:argus_wallet/celaut/conversation_keep_alive.dart';
 import 'package:argus_wallet/celaut/payers.dart';
 import 'package:argus_wallet/celaut/tunnel_http.dart';
 import 'package:argus_wallet/ui/celaut/chat_screen.dart';
@@ -36,6 +37,17 @@ class _FakeChat extends ChatClient {
   }
 }
 
+/// A keep-alive that writes down what the screen asks of it.
+class _FakeKeepAlive implements ConversationKeepAlive {
+  final events = <String>[];
+
+  @override
+  Future<void> start() async => events.add('start');
+
+  @override
+  Future<void> stop() async => events.add('stop');
+}
+
 class _Wallets implements FullWallets {
   _Wallets({required this.full});
 
@@ -56,10 +68,12 @@ void main() {
   late _FakeChat chat;
   late List<String> stops;
   late bool closed;
+  late _FakeKeepAlive keepAlive;
 
   Future<void> open(WidgetTester tester, {bool fullWallet = true}) async {
     stops = [];
     closed = false;
+    keepAlive = _FakeKeepAlive();
     await tester.pumpWidget(
       MaterialApp(
         home: Builder(
@@ -75,6 +89,7 @@ void main() {
                       chat: chat,
                       http: TunnelHttp(),
                       wallets: _Wallets(full: fullWallet),
+                      keepAlive: keepAlive,
                       loadStatus: (_) async => InstanceStatusView(
                         instanceBalanceMu: '900',
                         costSoFarMu: '100',
@@ -182,5 +197,49 @@ void main() {
     expect(stops, isEmpty);
     expect(closed, isFalse);
     expect(find.byKey(const Key('chat-error')), findsOneWidget);
+  });
+  testWidgets('the keep-alive starts when the screen opens and runs while it is open', (tester) async {
+    await open(tester);
+    expect(keepAlive.events, ['start']);
+  });
+
+  testWidgets('"Stay" does not stop the keep-alive', (tester) async {
+    await open(tester);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('chat-stay')));
+    await tester.pumpAndSettle();
+    expect(keepAlive.events, ['start']);
+  });
+
+  testWidgets('"Leave it running" stops the keep-alive but not the instance', (tester) async {
+    await open(tester);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('chat-leave-running')));
+    await tester.pumpAndSettle();
+    expect(keepAlive.events.first, 'start');
+    expect(keepAlive.events.last, 'stop');
+    expect(stops, isEmpty);
+  });
+
+  testWidgets('stopping the instance stops the keep-alive', (tester) async {
+    await open(tester);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('chat-stop')));
+    await tester.pumpAndSettle();
+    expect(stops, ['i1']);
+    expect(keepAlive.events.first, 'start');
+    expect(keepAlive.events.last, 'stop');
+  });
+
+  testWidgets('a stop that needs a wallet and fails keeps the keep-alive', (tester) async {
+    await open(tester, fullWallet: false);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('chat-stop')));
+    await tester.pumpAndSettle();
+    expect(keepAlive.events, ['start']);
   });
 }
