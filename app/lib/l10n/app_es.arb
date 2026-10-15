@@ -1666,5 +1666,17 @@
       }
     }
   },
-  "celautNodesCheckNow": "Comprobar ahora"
+  "celautNodesCheckNow": "Comprobar ahora",
+  "celautRunPreview": "Mejor nodo ahora: {node} · coste de inicio {cost}",
+  "@celautRunPreview": {
+    "placeholders": {
+      "node": {
+        "type": "String"
+      },
+      "cost": {
+        "type": "String"
+      }
+    }
+  },
+  "celautRunPreviewLoading": "Buscando el mejor nodo…"
 }

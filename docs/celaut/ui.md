@@ -94,6 +94,25 @@ Rules for the numbers:
 - ERG and MU are different units. Show both where money is shown, with the rate of the
   node that the value uses (see M3 in the plan).
 
+### Run a service from the home screen
+
+The home screen has a section "Run a service" between the compute figures and the money
+(`app/lib/ui/celaut/run_service_section.dart`). It lists the skills of the catalog with a
+search field. A skill opens a sheet with its services, best first, and the node that the
+balancer would use with its start cost. Run needs an open full wallet.
+
+- Run asks every node of the Nodes list for a quote and starts the service on the first
+  node that works (`launchService`). Nodes whose last checks failed twice in a row are not
+  asked, unless that would leave no node. A node where the credit of the app is less than
+  the price is not asked to start.
+- If the service has a chat slot, the conversation opens. If not, a message shows and the
+  instance appears in the list of the home screen.
+- If no node starts it, a sheet says why for each node: the reason and what to do (the text
+  of the error kind), the numbers for a credit problem with a button to the deposit screen,
+  "left out" for the nodes that were not asked, and the original text of the node under
+  "Details". A node that forgot the client id gives the usual choice; the app never makes a
+  new client by itself.
+
 ## 3. What this changes in the milestones
 
 | Milestone | Change |

@@ -17,6 +17,7 @@ import '../../theme/argus_theme.dart';
 import '../home/home_scene.dart';
 import '../home/home_style.dart';
 import 'client_unknown_dialog.dart';
+import 'run_service_section.dart';
 
 /// The home screen of the app (`docs/celaut/ui.md`, section 2), in the look of the
 /// Celaut landing page: the palette, Playfair Display for the figure and the headings,
@@ -276,6 +277,14 @@ class ComputeHomeScreenState extends State<ComputeHomeScreen> with WidgetsBindin
             if (_note != null)
               _Pad(child: Text(_note!, key: const Key('compute-home-note'), style: t.secondary)),
             ..._compute(context, data),
+            const SizedBox(height: 28),
+            const HomeRule(),
+            const SizedBox(height: 24),
+            RunServiceSection(
+              wallets: widget.wallets,
+              newClient: widget.newClient,
+              onChanged: refresh,
+            ),
             const SizedBox(height: 28),
             const HomeRule(),
             const SizedBox(height: 24),
