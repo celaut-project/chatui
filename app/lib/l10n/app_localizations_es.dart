@@ -6121,4 +6121,12 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautNodesCheckNow => 'Comprobar ahora';
+
+  @override
+  String celautRunPreview(String node, String cost) {
+    return 'Mejor nodo ahora: $node · coste de inicio $cost';
+  }
+
+  @override
+  String get celautRunPreviewLoading => 'Buscando el mejor nodo…';
 }

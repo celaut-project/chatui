@@ -9574,6 +9574,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Check now'**
   String get celautNodesCheckNow;
+
+  /// No description provided for @celautRunPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Best node now: {node} · start cost {cost}'**
+  String celautRunPreview(String node, String cost);
+
+  /// No description provided for @celautRunPreviewLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Looking for the best node…'**
+  String get celautRunPreviewLoading;
 }
 
 class _AppLocalizationsDelegate

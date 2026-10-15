@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:argus_wallet/bridge/api/celaut.dart';
 import 'package:argus_wallet/bridge/api/celaut_catalog.dart';
+import 'package:argus_wallet/bridge/api/celaut_health.dart';
 import 'package:argus_wallet/bridge/api/celaut_home.dart';
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
 import 'package:argus_wallet/bridge/frb_generated.dart';
@@ -49,6 +50,9 @@ class ServiceApi extends RustLibApi {
 
   @override
   List<KnownNodeView> crateApiCelautHomeCelautKnownNodes() => knownNodes;
+
+  @override
+  List<NodeHealthView> crateApiCelautHealthCelautNodesHealth() => const [];
 
   @override
   Future<QuotesView> crateApiCelautServiceCelautQuoteService({
