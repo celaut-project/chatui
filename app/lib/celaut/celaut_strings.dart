@@ -72,6 +72,7 @@ class CelautStrings {
         CelautErrorKind.recursionLimit => appL10n.celautErrorRecursionLimit,
         CelautErrorKind.insufficientCredit => appL10n.celautErrorInsufficientCredit,
         CelautErrorKind.launchFailed => appL10n.celautErrorLaunchFailed,
+        CelautErrorKind.transferFailed => appL10n.celautErrorTransferFailed,
       };
 
   static String detailLabel(String detail) => appL10n.celautDetailLabel(detail);

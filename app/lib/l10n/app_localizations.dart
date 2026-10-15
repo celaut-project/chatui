@@ -9586,6 +9586,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Looking for the best node…'**
   String get celautRunPreviewLoading;
+
+  /// No description provided for @celautErrorTransferFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The transfer of the service stopped (the file could not be read, it is cut, or it was cancelled). The node did not keep the cut service. Try again.'**
+  String get celautErrorTransferFailed;
 }
 
 class _AppLocalizationsDelegate

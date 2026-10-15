@@ -6129,4 +6129,8 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautRunPreviewLoading => 'Buscando el mejor nodo…';
+
+  @override
+  String get celautErrorTransferFailed =>
+      'La transferencia del servicio se detuvo (no se pudo leer el fichero, está cortado o se canceló). El nodo no guardó el servicio cortado. Inténtalo de nuevo.';
 }

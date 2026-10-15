@@ -8,7 +8,8 @@ The script loads the example config of nodo in a temporary directory (as the tes
 nodo do), makes the identity and the TLS certificate, and serves `Gateway()` with
 `server_credentials()` on 127.0.0.1 and a free port, as `src/serve.py` does. It does not
 open a firewall port, does not start the manager thread, and starts no service, so
-it needs no root and no KVM.
+it needs no root and no KVM. It makes the storage of services and blocks as `nodo.py`
+does, so that a request can carry a service and `GetService` can give it back.
 
 It prints one line, `READY <port> <peer_id>`, and serves until it is stopped. With
 `--free-clients` it also prints `POW_REQUIRED difficulty=<n>` when it asks for a proof of
@@ -34,10 +35,33 @@ from src.database import migrate  # noqa: E402
 from src.identity.node_identity import get_node_public_key_hex  # noqa: E402
 
 
+def prepare_storage():
+    """The storage of services and blocks, as `nodo.py` makes it at the start: the
+    directories, and the bee_rpc environment that the Gateway uses to read and write
+    a service with blocks (`GetService`, a request that carries a service)."""
+    import os
+
+    from bee_rpc.client import MAX_BLOCK_NESTING
+    from bee_rpc.utils import modify_env
+    import src.manager.resources as iobd
+    from src.utils.config import ConfigManager
+
+    env = ConfigManager()
+    for key in ("CACHE", "REGISTRY", "METADATA_REGISTRY", "BLOCKDIR"):
+        os.makedirs(env.get(key), exist_ok=True)
+    modify_env(
+        cache_dir=env.get("CACHE"),
+        mem_manager=iobd.mem_manager,
+        block_dir=env.get("BLOCKDIR"),
+        block_depth=MAX_BLOCK_NESTING,
+    )
+
+
 def main():
     # The schema that the setup scripts of nodo make (`nodo migrate`). Before the
     # first call that opens the database.
     migrate.migrate()
+    prepare_storage()
     if "--free-clients" in sys.argv:
         import src.gateway.gateway as gateway_module
         import src.manager.manager as manager

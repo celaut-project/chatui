@@ -6046,4 +6046,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get celautRunPreviewLoading => 'Looking for the best node…';
+
+  @override
+  String get celautErrorTransferFailed =>
+      'The transfer of the service stopped (the file could not be read, it is cut, or it was cancelled). The node did not keep the cut service. Try again.';
 }

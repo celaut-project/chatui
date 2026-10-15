@@ -95,6 +95,7 @@ fn kind_name(kind: CelautErrorKind) -> &'static str {
         K::RecursionLimit => "RecursionLimit",
         K::InsufficientCredit => "InsufficientCredit",
         K::LaunchFailed => "LaunchFailed",
+        K::TransferFailed => "TransferFailed",
     }
 }
 
@@ -124,6 +125,7 @@ fn kind_from_name(name: &str) -> Option<CelautErrorKind> {
         K::RecursionLimit,
         K::InsufficientCredit,
         K::LaunchFailed,
+        K::TransferFailed,
     ]
     .into_iter()
     .find(|k| kind_name(*k) == name)
@@ -249,7 +251,7 @@ mod tests {
             "BadSignature", "StaleTimestamp", "UnsupportedScheme", "ProofOfWork", "Protocol",
             "Storage", "LimitReached", "Wallet", "ClientUnknown", "NodeClosed", "NoRoom",
             "ServiceMissing", "PolicyRefused", "UnsupportedArchitecture", "RateLimited",
-            "RecursionLimit", "InsufficientCredit", "LaunchFailed",
+            "RecursionLimit", "InsufficientCredit", "LaunchFailed", "TransferFailed",
         ] {
             let kind = kind_from_name(name).unwrap_or_else(|| panic!("{name}"));
             assert_eq!(kind_name(kind), name);

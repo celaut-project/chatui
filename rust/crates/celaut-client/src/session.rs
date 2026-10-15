@@ -8,7 +8,8 @@
 use celaut_balancer::{amount, erg_rate};
 use celaut_proto::celaut::{Configuration, EstimatedCost, Instance, Payment};
 use celaut_wire::gateway::{
-    generate_deposit_token, get_metrics, get_service_estimated_cost, payable, start_service,
+    generate_deposit_token, get_metrics, get_service_estimated_cost,
+    get_service_estimated_cost_with_service, get_service_raw, payable, start_service,
     stop_service, ServiceRequest,
 };
 use celaut_wire::Transport;
@@ -162,6 +163,25 @@ impl<T: Transport> NodeSession<T> {
     ) -> Result<EstimatedCost, ClientError> {
         let request = self.request(service_id, configuration);
         Ok(get_service_estimated_cost(&self.transport, &request).await?)
+    }
+
+    /// `GetService`: the Buffers of the service, as the node sends them, for another
+    /// node (`crate::package`). A node that does not have the service gives nothing.
+    pub async fn get_service(&self, service_id: [u8; 32]) -> Result<celaut_wire::Buffers, ClientError> {
+        Ok(get_service_raw(&self.transport, &self.client_id, service_id).await?)
+    }
+
+    /// `GetServiceEstimatedCost` with the service: the node stores `service`, and gives
+    /// the price. After it, the node has the service, and the other calls need only its
+    /// hash.
+    pub async fn quote_with_service(
+        &self,
+        service_id: [u8; 32],
+        configuration: Configuration,
+        service: celaut_wire::Buffers,
+    ) -> Result<EstimatedCost, ClientError> {
+        let request = self.request(service_id, configuration);
+        Ok(get_service_estimated_cost_with_service(&self.transport, &request, service).await?)
     }
 
     /// `StartService`. The node charges the cost to the balance of this client.

@@ -41,6 +41,7 @@ pub mod deposit;
 pub mod health;
 pub mod local_port;
 pub mod overview;
+pub mod package;
 pub mod peer;
 pub mod pow;
 pub mod quotes;
