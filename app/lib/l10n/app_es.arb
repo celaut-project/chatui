@@ -1546,5 +1546,125 @@
         "type": "String"
       }
     }
-  }
+  },
+  "celautErrorNodeClosed": "El nodo está cerrado ahora: su operador solo acepta trabajo nuevo en ciertas horas. Inténtalo más tarde o elige otro nodo.",
+  "celautErrorNoRoom": "El nodo no tiene recursos libres suficientes para este servicio ahora. Inténtalo más tarde o elige otro nodo.",
+  "celautErrorServiceMissing": "El nodo no tiene este servicio. Elige un nodo que lo tenga.",
+  "celautErrorPolicyRefused": "La política del nodo no permite aquello a lo que se conecta este servicio. Elige otro nodo.",
+  "celautErrorUnsupportedArchitecture": "El nodo no ejecuta este tipo de servicio (necesita otra arquitectura de procesador). Elige otro nodo.",
+  "celautErrorRateLimited": "El nodo limita las llamadas de esta app durante un rato. Espera un momento y vuelve a intentarlo.",
+  "celautErrorRecursionLimit": "El nodo rechazó la petición porque dio vueltas o llegó demasiado hondo. Inténtalo de nuevo.",
+  "celautErrorInsufficientCredit": "Tu crédito en el nodo es menor que el precio del servicio. Añade un depósito en este nodo o elige otro.",
+  "celautErrorLaunchFailed": "El nodo intentó iniciar el servicio y no pudo.",
+  "celautRunTitle": "Ejecutar un servicio",
+  "celautRunSearchHint": "Buscar habilidades",
+  "celautRunLoading": "Cargando habilidades…",
+  "celautRunEmpty": "Ninguna habilidad coincide.",
+  "celautRunCatalogError": "El catálogo de habilidades no está disponible ahora.",
+  "celautRunRetry": "Reintentar",
+  "celautRunServicesTitle": "Servicios con esta habilidad",
+  "celautRunNoServices": "Ningún servicio tiene esta habilidad todavía.",
+  "celautRunBest": "Mejor",
+  "celautRunScore": "Puntuación {score}",
+  "@celautRunScore": {
+    "placeholders": {
+      "score": {
+        "type": "String"
+      }
+    }
+  },
+  "celautRunButton": "Ejecutar",
+  "celautRunStarting": "Iniciando…",
+  "celautRunStarted": "Iniciado en {node}. Coste de inicio: {cost}.",
+  "@celautRunStarted": {
+    "placeholders": {
+      "node": {
+        "type": "String"
+      },
+      "cost": {
+        "type": "String"
+      }
+    }
+  },
+  "celautRunOpenChat": "Abrir chat",
+  "celautRunFailedTitle": "El servicio no se inició",
+  "celautRunFailedNoNodes": "No hay ningún nodo al que preguntar. Añade un nodo en la lista de Nodos.",
+  "celautRunFailedNoQuotes": "Ningún nodo dio un precio. Este es el motivo:",
+  "celautRunFailedAll": "Hubo nodos que dieron precio, pero ninguno inició el servicio. Este es el motivo:",
+  "celautRunNeedsCredit": "Tu crédito en este nodo es {credit}, y el servicio cuesta {cost}. Añade un depósito en este nodo o elige otro.",
+  "@celautRunNeedsCredit": {
+    "placeholders": {
+      "credit": {
+        "type": "String"
+      },
+      "cost": {
+        "type": "String"
+      }
+    }
+  },
+  "celautRunLeftOut": "Descartado: no respondió a las últimas comprobaciones.",
+  "celautRunDetails": "Detalles",
+  "celautRunClose": "Cerrar",
+  "celautRunDeposit": "Añadir un depósito",
+  "celautNodeAvailable": "Disponible · {ms} ms",
+  "@celautNodeAvailable": {
+    "placeholders": {
+      "ms": {
+        "type": "String"
+      }
+    }
+  },
+  "celautNodeSlow": "Lento · {ms} ms",
+  "@celautNodeSlow": {
+    "placeholders": {
+      "ms": {
+        "type": "String"
+      }
+    }
+  },
+  "celautNodeUnreachable": "No responde",
+  "celautNodeUnknownState": "Sin comprobar todavía",
+  "celautNodeLastSeen": "Última respuesta hace {ago}",
+  "@celautNodeLastSeen": {
+    "placeholders": {
+      "ago": {
+        "type": "String"
+      }
+    }
+  },
+  "celautNodeNeverSeen": "Nunca ha respondido",
+  "celautNodeChecking": "Comprobando…",
+  "celautAgoSeconds": "{n} s",
+  "@celautAgoSeconds": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "celautAgoMinutes": "{n} min",
+  "@celautAgoMinutes": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "celautAgoHours": "{n} h",
+  "@celautAgoHours": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "celautAgoDays": "{n} d",
+  "@celautAgoDays": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "celautNodesCheckNow": "Comprobar ahora"
 }

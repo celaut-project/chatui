@@ -9310,6 +9310,270 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The instance stopped. Refund: {refund}'**
   String chatStopped(String refund);
+
+  /// No description provided for @celautErrorNodeClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'The node is closed now: its operator accepts new work only at certain hours. Try later or choose another node.'**
+  String get celautErrorNodeClosed;
+
+  /// No description provided for @celautErrorNoRoom.
+  ///
+  /// In en, this message translates to:
+  /// **'The node has not enough free resources for this service now. Try later or choose another node.'**
+  String get celautErrorNoRoom;
+
+  /// No description provided for @celautErrorServiceMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The node does not have this service. Choose a node that has it.'**
+  String get celautErrorServiceMissing;
+
+  /// No description provided for @celautErrorPolicyRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'The policy of the node does not allow what this service connects to. Choose another node.'**
+  String get celautErrorPolicyRefused;
+
+  /// No description provided for @celautErrorUnsupportedArchitecture.
+  ///
+  /// In en, this message translates to:
+  /// **'The node does not run this kind of service (it needs another processor architecture). Choose another node.'**
+  String get celautErrorUnsupportedArchitecture;
+
+  /// No description provided for @celautErrorRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'The node limits the calls of this app for a short time. Wait a moment and try again.'**
+  String get celautErrorRateLimited;
+
+  /// No description provided for @celautErrorRecursionLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'The node refused the request because it went round or too deep. Try again.'**
+  String get celautErrorRecursionLimit;
+
+  /// No description provided for @celautErrorInsufficientCredit.
+  ///
+  /// In en, this message translates to:
+  /// **'Your credit on the node is less than the price of the service. Add a deposit on this node or choose another one.'**
+  String get celautErrorInsufficientCredit;
+
+  /// No description provided for @celautErrorLaunchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The node tried to start the service and could not.'**
+  String get celautErrorLaunchFailed;
+
+  /// No description provided for @celautRunTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Run a service'**
+  String get celautRunTitle;
+
+  /// No description provided for @celautRunSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search skills'**
+  String get celautRunSearchHint;
+
+  /// No description provided for @celautRunLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading skills…'**
+  String get celautRunLoading;
+
+  /// No description provided for @celautRunEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No skill matches.'**
+  String get celautRunEmpty;
+
+  /// No description provided for @celautRunCatalogError.
+  ///
+  /// In en, this message translates to:
+  /// **'The skill catalog is not available now.'**
+  String get celautRunCatalogError;
+
+  /// No description provided for @celautRunRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get celautRunRetry;
+
+  /// No description provided for @celautRunServicesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Services with this skill'**
+  String get celautRunServicesTitle;
+
+  /// No description provided for @celautRunNoServices.
+  ///
+  /// In en, this message translates to:
+  /// **'No service has this skill yet.'**
+  String get celautRunNoServices;
+
+  /// No description provided for @celautRunBest.
+  ///
+  /// In en, this message translates to:
+  /// **'Best'**
+  String get celautRunBest;
+
+  /// No description provided for @celautRunScore.
+  ///
+  /// In en, this message translates to:
+  /// **'Score {score}'**
+  String celautRunScore(String score);
+
+  /// No description provided for @celautRunButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Run'**
+  String get celautRunButton;
+
+  /// No description provided for @celautRunStarting.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting…'**
+  String get celautRunStarting;
+
+  /// No description provided for @celautRunStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Started on {node}. Start cost: {cost}.'**
+  String celautRunStarted(String node, String cost);
+
+  /// No description provided for @celautRunOpenChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Open chat'**
+  String get celautRunOpenChat;
+
+  /// No description provided for @celautRunFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The service did not start'**
+  String get celautRunFailedTitle;
+
+  /// No description provided for @celautRunFailedNoNodes.
+  ///
+  /// In en, this message translates to:
+  /// **'There is no node to ask. Add a node in the Nodes list.'**
+  String get celautRunFailedNoNodes;
+
+  /// No description provided for @celautRunFailedNoQuotes.
+  ///
+  /// In en, this message translates to:
+  /// **'No node gave a price. Here is why:'**
+  String get celautRunFailedNoQuotes;
+
+  /// No description provided for @celautRunFailedAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Some nodes gave a price, but none of them started the service. Here is why:'**
+  String get celautRunFailedAll;
+
+  /// No description provided for @celautRunNeedsCredit.
+  ///
+  /// In en, this message translates to:
+  /// **'Your credit on this node is {credit}, and the service costs {cost}. Add a deposit on this node or choose another one.'**
+  String celautRunNeedsCredit(String credit, String cost);
+
+  /// No description provided for @celautRunLeftOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Left out: it did not answer the last checks.'**
+  String get celautRunLeftOut;
+
+  /// No description provided for @celautRunDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get celautRunDetails;
+
+  /// No description provided for @celautRunClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get celautRunClose;
+
+  /// No description provided for @celautRunDeposit.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a deposit'**
+  String get celautRunDeposit;
+
+  /// No description provided for @celautNodeAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Available · {ms} ms'**
+  String celautNodeAvailable(String ms);
+
+  /// No description provided for @celautNodeSlow.
+  ///
+  /// In en, this message translates to:
+  /// **'Slow · {ms} ms'**
+  String celautNodeSlow(String ms);
+
+  /// No description provided for @celautNodeUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Not answering'**
+  String get celautNodeUnreachable;
+
+  /// No description provided for @celautNodeUnknownState.
+  ///
+  /// In en, this message translates to:
+  /// **'Not checked yet'**
+  String get celautNodeUnknownState;
+
+  /// No description provided for @celautNodeLastSeen.
+  ///
+  /// In en, this message translates to:
+  /// **'Last answer {ago} ago'**
+  String celautNodeLastSeen(String ago);
+
+  /// No description provided for @celautNodeNeverSeen.
+  ///
+  /// In en, this message translates to:
+  /// **'It has never answered'**
+  String get celautNodeNeverSeen;
+
+  /// No description provided for @celautNodeChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking…'**
+  String get celautNodeChecking;
+
+  /// No description provided for @celautAgoSeconds.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} s'**
+  String celautAgoSeconds(String n);
+
+  /// No description provided for @celautAgoMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} min'**
+  String celautAgoMinutes(String n);
+
+  /// No description provided for @celautAgoHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} h'**
+  String celautAgoHours(String n);
+
+  /// No description provided for @celautAgoDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} d'**
+  String celautAgoDays(String n);
+
+  /// No description provided for @celautNodesCheckNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Check now'**
+  String get celautNodesCheckNow;
 }
 
 class _AppLocalizationsDelegate

@@ -15,6 +15,7 @@ QuoteView _quote(String peer, int port) => QuoteView(
   maintenanceSecondsLoop: 10,
   variance: 0,
   comparedNanoErg: '1',
+  clientBalanceMu: '',
 );
 
 InstanceView _instance(String id) => InstanceView(

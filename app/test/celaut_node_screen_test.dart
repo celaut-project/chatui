@@ -222,6 +222,15 @@ void main() {
       CelautErrorKind.limitReached: 'would pass the limit',
       CelautErrorKind.wallet: 'The wallet cannot make this transaction',
       CelautErrorKind.clientUnknown: 'does not know the client of this app',
+      CelautErrorKind.nodeClosed: 'The node is closed now',
+      CelautErrorKind.noRoom: 'not enough free resources',
+      CelautErrorKind.serviceMissing: 'does not have this service',
+      CelautErrorKind.policyRefused: 'policy of the node',
+      CelautErrorKind.unsupportedArchitecture: 'processor architecture',
+      CelautErrorKind.rateLimited: 'limits the calls',
+      CelautErrorKind.recursionLimit: 'went round or too deep',
+      CelautErrorKind.insufficientCredit: 'Your credit on the node',
+      CelautErrorKind.launchFailed: 'tried to start the service',
     };
     for (final entry in cases.entries) {
       testWidgets('${entry.key.name} shows its text and the detail', (tester) async {
