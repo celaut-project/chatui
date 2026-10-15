@@ -180,7 +180,13 @@ class _SkillPickerScreenState extends State<SkillPickerScreen> {
     final muted = ArgusColors.of(context).muted;
     final services = _services;
     return [
-      SectionLabel(ServiceStrings.servicesTitle(skill.name)),
+      Text(
+        skill.name,
+        key: const Key('picker-skill-name'),
+        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+      ),
+      const SizedBox(height: 10),
+      const SectionLabel(ServiceStrings.servicesTitle),
       const SizedBox(height: 10),
       if (_loadingServices)
         const SoftCard(child: Text(ServiceStrings.servicesLoading, key: Key('picker-loading')))

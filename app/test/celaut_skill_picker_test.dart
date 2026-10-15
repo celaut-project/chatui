@@ -35,6 +35,10 @@ void main() {
     Future<List<SkillView>> Function()? skills,
     Future<List<SkillServiceView>> Function(String id)? services,
   }) async {
+    // A phone: the default test view is 800 x 600, and the list is longer than 600.
+    tester.view.physicalSize = const Size(390, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     asked = [];
     result = null;
     returned = false;
@@ -83,7 +87,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(asked, ['skill-sat']);
-    expect(find.text(ServiceStrings.servicesTitle('Boolean SAT Solver').toUpperCase()), findsOneWidget);
+    expect(find.byKey(const Key('picker-skill-name')), findsOneWidget);
+    expect(find.text(ServiceStrings.servicesTitle.toUpperCase()), findsOneWidget);
     final first = tester.getTopLeft(find.byKey(Key('picker-service-$_best')));
     final second = tester.getTopLeft(find.byKey(Key('picker-service-$_other')));
     final third = tester.getTopLeft(find.byKey(Key('picker-service-$_found')));

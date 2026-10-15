@@ -56,7 +56,7 @@ class ServiceStrings {
   static const skillsEmpty = 'The catalog has no skills.';
   static const servicesLoading = 'Reading the services of this skill…';
   static const servicesEmpty = 'No service covers this skill yet.';
-  static String servicesTitle(String skill) => 'Services for $skill, best first';
+  static const servicesTitle = 'Services, best first';
   static const bestService = 'Best';
   static String serviceScore(String score) => 'Score $score';
   static const serviceDeclared = 'A publisher declared that it covers the skill';
