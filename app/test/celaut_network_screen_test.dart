@@ -47,7 +47,7 @@ void main() {
   testWidgets('it starts with Tor off and says that the connections are direct', (tester) async {
     await open(tester, make());
     expect(find.text(NetworkStrings.status(current)), findsOneWidget);
-    expect(tester.widget<RadioListTile<NetworkMode>>(find.byKey(const Key('network-off'))).groupValue, NetworkMode.off);
+    expect(tester.widget<RadioGroup<NetworkMode>>(find.byType(RadioGroup<NetworkMode>)).groupValue, NetworkMode.off);
     expect(find.byKey(const Key('network-socks-address')), findsNothing);
   });
 
@@ -125,7 +125,7 @@ void main() {
       NetworkRoute.socksKey: '10.1.1.1:1080',
     });
     await open(tester, make());
-    expect(tester.widget<RadioListTile<NetworkMode>>(find.byKey(const Key('network-socks'))).groupValue, NetworkMode.socks);
+    expect(tester.widget<RadioGroup<NetworkMode>>(find.byType(RadioGroup<NetworkMode>)).groupValue, NetworkMode.socks);
     expect(tester.widget<TextField>(find.byKey(const Key('network-socks-address'))).controller!.text, '10.1.1.1:1080');
   });
 }

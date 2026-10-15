@@ -94,8 +94,6 @@ class _NetworkScreenState extends State<NetworkScreen> {
     return RadioListTile<NetworkMode>(
       key: Key('network-${mode.name}'),
       value: mode,
-      groupValue: _mode,
-      onChanged: _applying ? null : (m) => setState(() => _mode = m!),
       title: Text(title),
       subtitle: note == null ? null : Text(note),
       contentPadding: EdgeInsets.zero,
@@ -112,16 +110,26 @@ class _NetworkScreenState extends State<NetworkScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _option(NetworkMode.off, NetworkStrings.optionOff),
-              _option(
-                NetworkMode.embedded,
-                NetworkStrings.optionEmbedded,
-                note: NetworkStrings.optionEmbeddedNote,
-              ),
-              _option(
-                NetworkMode.socks,
-                NetworkStrings.optionSocks,
-                note: NetworkStrings.optionSocksNote,
+              RadioGroup<NetworkMode>(
+                groupValue: _mode,
+                onChanged: (mode) {
+                  if (mode != null && !_applying) setState(() => _mode = mode);
+                },
+                child: Column(
+                  children: [
+                    _option(NetworkMode.off, NetworkStrings.optionOff),
+                    _option(
+                      NetworkMode.embedded,
+                      NetworkStrings.optionEmbedded,
+                      note: NetworkStrings.optionEmbeddedNote,
+                    ),
+                    _option(
+                      NetworkMode.socks,
+                      NetworkStrings.optionSocks,
+                      note: NetworkStrings.optionSocksNote,
+                    ),
+                  ],
+                ),
               ),
               if (_mode == NetworkMode.socks) ...[
                 const SizedBox(height: 8),
