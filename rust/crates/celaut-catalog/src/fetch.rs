@@ -82,8 +82,12 @@ pub async fn load_skill_data<E: Explorer>(
         .filter_map(parse_benchmark)
         .filter(|b| b.skill_box_id == id)
         .collect();
-    let per_benchmark: Vec<Result<Vec<Value>, CatalogError>> = stream::iter(&benchmarks)
-        .map(|b| explorer.boxes(RESULT_TYPE, Some(&b.id)))
+    // Owned ids, not references: a closure over `&Benchmark` makes the future fail the
+    // `Send` check of flutter_rust_bridge ("implementation of `FnOnce` is not general
+    // enough").
+    let ids: Vec<String> = benchmarks.iter().map(|b| b.id.clone()).collect();
+    let per_benchmark: Vec<Result<Vec<Value>, CatalogError>> = stream::iter(ids)
+        .map(|id| async move { explorer.boxes(RESULT_TYPE, Some(&id)).await })
         .buffered(MAX_PARALLEL)
         .collect()
         .await;
