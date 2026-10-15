@@ -657,8 +657,9 @@ mod tests {
         db.update(sample).unwrap();
         let bytes = std::fs::read(&path).unwrap();
         let text = String::from_utf8_lossy(&bytes);
+        // Long markers: a short one such as "c1" can appear in random bytes by chance.
         assert!(!text.contains("secret-token"));
-        assert!(!text.contains("c1"));
+        assert!(!text.contains("node.example"));
         let err = CelautDb::open(&path, &[2u8; KEY_LEN]).unwrap_err();
         assert!(matches!(err, DbError::Unreadable(_)), "{err}");
         // The file is not changed by the failed open.
