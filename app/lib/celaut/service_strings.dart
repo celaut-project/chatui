@@ -10,8 +10,9 @@ class ServiceStrings {
   static const screenTitle = 'Celaut service';
   static const intro =
       'Launch a service on the best node: the balancer asks the nodes for a quote and the '
-      'app starts it on the best one that works. Or ask for the quotes and choose a node, '
-      'and call it through a port on this device. The app uses its own client on each '
+      'app starts it on the best one that works. You can also ask for the quotes and choose '
+      'a node yourself. Then call the service through a port on this device. The app uses '
+      'its own client on each '
       'node: a new client gets free credit from the node, and a deposit adds to it. '
       'Starting and stopping need a full wallet. The node must already have the service.';
   static const nodesLabel = 'Node addresses';
