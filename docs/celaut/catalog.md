@@ -79,3 +79,44 @@ Sort by score, then coverage reputation, descending.
 copies `nodo execute <id>`; no package source works today (the file-source lookup has
 its arguments swapped and no source boxes exist for the live services). The app can
 launch a catalog service only on nodes that have it or can get it from their peers.
+
+## Implemented in the app (M4)
+
+The skill catalog is in the crate `celaut-catalog` (`rust/crates/celaut-catalog`) and in the
+FFI module `celaut_catalog` (`rust/crates/wallet-ffi/src/api/celaut_catalog.rs`). The debug
+service screen has "Pick a skill".
+
+| Part | What it does |
+|---|---|
+| `parse` | Turns the JSON of an explorer box into a skill, a coverage, a benchmark or a result. A box that cannot be read is left out, never an error. A coverage with no service id, and a coverage of a benchmark (a runner), are left out. A metric that is a bare string, or has `higher_is_better` or `higherIsBetter`, is read; a missing direction means higher is better |
+| `rank` | The ranking above, as `scoreGlobal.ts` has it. `W(r)`, `N(x)`, the median of the cases, `C_r`, `P(S, B)`, `Perf(S)`, and `score(S)`. The services are the coverages (in the order of the explorer) and then the services that only a result names. Equal scores keep that order |
+| `fetch` | Asks an `Explorer` (a trait) for the boxes and the reputations. Per skill: one request for the coverages, one for the benchmarks, one for the results of each benchmark, and at most 64 for the reputation of the publishers. 4 requests at the same time |
+| FFI | `celaut_skills()` and `celaut_skill_services(skill_box_id)`. The explorer is the fixed `https://api.ergoplatform.com`. Each request has a 10 s timeout and 3 tries (a transport error, 429 and 5xx are tried again). The reputation of a token is kept for 5 minutes |
+
+The reputation of a profile is the sum of the values, in nanoERG, of the unspent boxes that
+hold its token (`GET /api/v1/boxes/unspent/byTokenId/{token}`, at most 2000 boxes). `N_max` is
+the largest reputation in the skill. The uploader of a result and the result are the same
+profile here, so `W(uploader)` and `W(result)` use the same reputation.
+
+The tests use real explorer answers of 2026-10-15 (`tests/fixtures`): 7 skills, 15 coverages,
+18 benchmarks and 50 results, and an independent implementation of the formula gave the same
+scores. `cargo test -p wallet-ffi the_real_catalog -- --ignored --nocapture` asks the real
+explorer.
+
+### Known limits
+
+- Most results on chain are test data (one says "False results, invented. Don't trust
+  them"). A high score is not a proof that a service works. The screen says so.
+- A reputation that the explorer does not give (a failed request, or a token over the limit of
+  64) counts as 0. The ranking then has less information. It does not fail.
+- `extended_skill_boxes` (a skill that extends another) is read but not used: the coverages
+  and the benchmarks of the extended skills are not merged.
+- Only unspent boxes count, and the reputation is the value of boxes, not the
+  `calculate_reputation` of the `reputation-system` library, which the dApp uses.
+- The read has no cache for the boxes: each time the user picks a skill, the app asks the
+  explorer. The explorer is slow at times (a skill takes a few seconds, the whole catalog up to
+  a minute).
+- The catalog has no filter by architecture: a service that the nodes cannot run is in the list.
+  The launch then fails on every node, and the screen says why.
+- The node must already have the service, or get it from its peers (see "Known gaps in
+  skills").

@@ -8,6 +8,7 @@ members = [
     "crates/celaut-wire",
     "crates/celaut-client",
     "crates/celaut-balancer",
+    "crates/celaut-catalog",
     "tools/gen-protos",
     "crates/vendor/citadel-core",
     "crates/vendor/ergo-tx",
@@ -80,6 +81,7 @@ webpki-roots = "1"
 bee-rpc = { git = "https://github.com/bee-rpc-protocol/bee-rpc-over-grpc-rs", tag = "v0.1.0", features = ["grpc"] }
 celaut-proto = { path = "crates/celaut-proto" }
 celaut-balancer = { path = "crates/celaut-balancer" }
+celaut-catalog = { path = "crates/celaut-catalog" }
 celaut-wire = { path = "crates/celaut-wire" }
 
 # ─── Vendored Citadel crates ─────────────────────────────────────────────

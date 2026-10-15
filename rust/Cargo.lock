@@ -408,6 +408,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "celaut-catalog"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "hex",
+ "serde_json",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "celaut-client"
 version = "0.1.0"
 dependencies = [
@@ -3442,6 +3453,7 @@ name = "wallet-ffi"
 version = "0.1.0"
 dependencies = [
  "celaut-balancer",
+ "celaut-catalog",
  "celaut-client",
  "celaut-proto",
  "celaut-wire",
@@ -3455,6 +3467,7 @@ dependencies = [
  "hex",
  "once_cell",
  "rand 0.10.3",
+ "reqwest",
  "serde",
  "serde_json",
  "thiserror",

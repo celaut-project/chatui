@@ -38,6 +38,9 @@ pub mod celaut_deposit;
 /// The compute overview of the home screen: offered compute, credit, instances.
 pub mod celaut_home;
 
+/// The skill catalog: the skills and the ranked services of a skill (milestone M4).
+pub mod celaut_catalog;
+
 fn err_str<E: Into<ArgusError>>(e: E) -> String {
     e.into().to_json_string()
 }

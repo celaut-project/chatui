@@ -1,0 +1,15 @@
+[package]
+name = "celaut-catalog"
+description = "Celaut skill catalog: boxes of the Ergo explorer, and the ranking of the services of a skill"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+futures = { workspace = true }
+hex = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt"] }
