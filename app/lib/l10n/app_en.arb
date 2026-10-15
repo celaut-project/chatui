@@ -4420,5 +4420,125 @@
         "type": "String"
       }
     }
-  }
+  },
+  "celautErrorNodeClosed": "The node is closed now: its operator accepts new work only at certain hours. Try later or choose another node.",
+  "celautErrorNoRoom": "The node has not enough free resources for this service now. Try later or choose another node.",
+  "celautErrorServiceMissing": "The node does not have this service. Choose a node that has it.",
+  "celautErrorPolicyRefused": "The policy of the node does not allow what this service connects to. Choose another node.",
+  "celautErrorUnsupportedArchitecture": "The node does not run this kind of service (it needs another processor architecture). Choose another node.",
+  "celautErrorRateLimited": "The node limits the calls of this app for a short time. Wait a moment and try again.",
+  "celautErrorRecursionLimit": "The node refused the request because it went round or too deep. Try again.",
+  "celautErrorInsufficientCredit": "Your credit on the node is less than the price of the service. Add a deposit on this node or choose another one.",
+  "celautErrorLaunchFailed": "The node tried to start the service and could not.",
+  "celautRunTitle": "Run a service",
+  "celautRunSearchHint": "Search skills",
+  "celautRunLoading": "Loading skills…",
+  "celautRunEmpty": "No skill matches.",
+  "celautRunCatalogError": "The skill catalog is not available now.",
+  "celautRunRetry": "Try again",
+  "celautRunServicesTitle": "Services with this skill",
+  "celautRunNoServices": "No service has this skill yet.",
+  "celautRunBest": "Best",
+  "celautRunScore": "Score {score}",
+  "@celautRunScore": {
+    "placeholders": {
+      "score": {
+        "type": "String"
+      }
+    }
+  },
+  "celautRunButton": "Run",
+  "celautRunStarting": "Starting…",
+  "celautRunStarted": "Started on {node}. Start cost: {cost}.",
+  "@celautRunStarted": {
+    "placeholders": {
+      "node": {
+        "type": "String"
+      },
+      "cost": {
+        "type": "String"
+      }
+    }
+  },
+  "celautRunOpenChat": "Open chat",
+  "celautRunFailedTitle": "The service did not start",
+  "celautRunFailedNoNodes": "There is no node to ask. Add a node in the Nodes list.",
+  "celautRunFailedNoQuotes": "No node gave a price. Here is why:",
+  "celautRunFailedAll": "Some nodes gave a price, but none of them started the service. Here is why:",
+  "celautRunNeedsCredit": "Your credit on this node is {credit}, and the service costs {cost}. Add a deposit on this node or choose another one.",
+  "@celautRunNeedsCredit": {
+    "placeholders": {
+      "credit": {
+        "type": "String"
+      },
+      "cost": {
+        "type": "String"
+      }
+    }
+  },
+  "celautRunLeftOut": "Left out: it did not answer the last checks.",
+  "celautRunDetails": "Details",
+  "celautRunClose": "Close",
+  "celautRunDeposit": "Add a deposit",
+  "celautNodeAvailable": "Available · {ms} ms",
+  "@celautNodeAvailable": {
+    "placeholders": {
+      "ms": {
+        "type": "String"
+      }
+    }
+  },
+  "celautNodeSlow": "Slow · {ms} ms",
+  "@celautNodeSlow": {
+    "placeholders": {
+      "ms": {
+        "type": "String"
+      }
+    }
+  },
+  "celautNodeUnreachable": "Not answering",
+  "celautNodeUnknownState": "Not checked yet",
+  "celautNodeLastSeen": "Last answer {ago} ago",
+  "@celautNodeLastSeen": {
+    "placeholders": {
+      "ago": {
+        "type": "String"
+      }
+    }
+  },
+  "celautNodeNeverSeen": "It has never answered",
+  "celautNodeChecking": "Checking…",
+  "celautAgoSeconds": "{n} s",
+  "@celautAgoSeconds": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "celautAgoMinutes": "{n} min",
+  "@celautAgoMinutes": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "celautAgoHours": "{n} h",
+  "@celautAgoHours": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "celautAgoDays": "{n} d",
+  "@celautAgoDays": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "celautNodesCheckNow": "Check now"
 }

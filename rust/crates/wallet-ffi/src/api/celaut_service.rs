@@ -260,6 +260,10 @@ pub struct QuoteView {
     /// The cost for the comparison in nanoERG, or `None` if the node gives no ERG rate
     /// (then its price is not compared, and it comes last).
     pub compared_nano_erg: Option<String>,
+    /// The balance of this client on the node, in MU of the node (empty if the app could
+    /// not read it). The app compares it with `cost_mu` before it asks the node to start
+    /// the service.
+    pub client_balance_mu: String,
 }
 
 /// A node that gave no quote.
@@ -292,8 +296,12 @@ fn quote_view(address: NodeAddress, peer_id: String, q: &EstimatedCost) -> Quote
         maintenance_seconds_loop: q.maintenance_seconds_loop,
         variance: q.variance,
         compared_nano_erg: None,
+        client_balance_mu: String::new(),
     }
 }
+
+/// How long the app waits for the balance of the client on a node that already quoted.
+const BALANCE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
 /// Ask each node for the price of the service, and give the quotes best first
 /// (`docs/celaut/balancer.md`). The nodes must already have the service.
@@ -358,13 +366,32 @@ pub async fn celaut_quote_service(
     if let Err(e) = stored {
         tracing::warn!("the quotes are not stored: {e}");
     }
+    // The balance of the client on each node that quoted, read at the same time. A node
+    // that does not answer in time leaves it unknown; that never stops a launch.
+    let balances = futures::future::join_all(answer.ranked.iter().map(|r| {
+        let peer_id = r.candidate.peer_id.clone();
+        let session = open
+            .iter()
+            .find(|(_, s)| s.peer_id() == peer_id)
+            .map(|(_, s)| s.clone());
+        async move {
+            let session = session?;
+            tokio::time::timeout(BALANCE_TIMEOUT, session.balance())
+                .await
+                .ok()?
+                .ok()
+        }
+    }))
+    .await;
     let quotes = answer
         .ranked
         .iter()
-        .map(|r| {
+        .zip(balances)
+        .map(|(r, balance)| {
             let peer_id = r.candidate.peer_id.clone();
             let mut view = quote_view(address_of(&peer_id), peer_id, &r.candidate.quote);
             view.compared_nano_erg = r.cost_nano_erg.map(|c| format!("{c:.0}"));
+            view.client_balance_mu = balance.map(|b| b.to_string()).unwrap_or_default();
             view
         })
         .collect();

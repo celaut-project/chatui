@@ -303,6 +303,11 @@ class QuoteView {
   /// (then its price is not compared, and it comes last).
   final String? comparedNanoErg;
 
+  /// The balance of this client on the node, in MU of the node (empty if the app could
+  /// not read it). The app compares it with `cost_mu` before it asks the node to start
+  /// the service.
+  final String clientBalanceMu;
+
   const QuoteView({
     required this.address,
     required this.peerId,
@@ -312,6 +317,7 @@ class QuoteView {
     required this.maintenanceSecondsLoop,
     required this.variance,
     this.comparedNanoErg,
+    required this.clientBalanceMu,
   });
 
   @override
@@ -323,7 +329,8 @@ class QuoteView {
       maxMaintenanceMu.hashCode ^
       maintenanceSecondsLoop.hashCode ^
       variance.hashCode ^
-      comparedNanoErg.hashCode;
+      comparedNanoErg.hashCode ^
+      clientBalanceMu.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -337,7 +344,8 @@ class QuoteView {
           maxMaintenanceMu == other.maxMaintenanceMu &&
           maintenanceSecondsLoop == other.maintenanceSecondsLoop &&
           variance == other.variance &&
-          comparedNanoErg == other.comparedNanoErg;
+          comparedNanoErg == other.comparedNanoErg &&
+          clientBalanceMu == other.clientBalanceMu;
 }
 
 /// The quotes, best first, and the nodes that failed.

@@ -7,7 +7,7 @@
 //! data for the debug screen.
 
 use celaut_client::{
-    connect_and_fetch, ClientError, DepositError, FilePeerStore, NodeInfo, PeerError,
+    connect_and_fetch, ClientError, DepositError, FilePeerStore, NodeInfo, PeerError, Refusal,
 };
 use celaut_proto::celaut::peer::Uri;
 use celaut_proto::celaut::{ArchitectureResources, Contract, ContractRate, Sysresources};
@@ -106,6 +106,25 @@ pub enum CelautErrorKind {
     /// The node does not know the client id of the app: it forgot it. The app asks the
     /// user: a new client (the old balance is lost) or a retry later.
     ClientUnknown,
+    /// The node is outside the hours that its operator set: it takes no new work now.
+    NodeClosed,
+    /// The node has not enough free resources for the service now.
+    NoRoom,
+    /// The node does not have the service.
+    ServiceMissing,
+    /// The policy of the node does not allow the networks that the service declares.
+    PolicyRefused,
+    /// The node does not run the architecture of the service.
+    UnsupportedArchitecture,
+    /// The node limits the calls of this client for a time.
+    RateLimited,
+    /// The node refused the request because it went round, or too deep.
+    RecursionLimit,
+    /// The balance of the client on the node is less than the price. The app finds this
+    /// before it asks the node to start the service.
+    InsufficientCredit,
+    /// The node tried to start the service and could not, and says no other reason.
+    LaunchFailed,
 }
 
 /// The error of [`celaut_peer_info`].
@@ -116,8 +135,36 @@ pub struct CelautError {
     pub message: String,
 }
 
+/// The kind of error for a reason that a node gave (`celaut_client::refusal`).
+fn kind_of_refusal(reason: Refusal) -> CelautErrorKind {
+    use CelautErrorKind as K;
+    match reason {
+        Refusal::ClientUnknown => K::ClientUnknown,
+        Refusal::RateLimited => K::RateLimited,
+        Refusal::NodeClosed => K::NodeClosed,
+        Refusal::NoRoom => K::NoRoom,
+        Refusal::ServiceMissing => K::ServiceMissing,
+        Refusal::PolicyRefused => K::PolicyRefused,
+        Refusal::UnsupportedArchitecture => K::UnsupportedArchitecture,
+        Refusal::RecursionLimit => K::RecursionLimit,
+        Refusal::InsufficientCredit => K::InsufficientCredit,
+        Refusal::LaunchFailed => K::LaunchFailed,
+    }
+}
+
 pub(crate) fn error_of(e: ClientError) -> CelautError {
     use CelautErrorKind as K;
+    // A refusal of the node is a text that says why. If the app knows the reason, the
+    // error has its own kind, and the message is the text of the node without the
+    // wrapper of the transport.
+    if let ClientError::Wire(WireError::Call(text)) = &e {
+        if let Some(reason) = celaut_client::refusal::classify(text) {
+            return CelautError {
+                kind: kind_of_refusal(reason),
+                message: celaut_client::refusal::message_of(text),
+            };
+        }
+    }
     let kind = match &e {
         e if e.is_unknown_client() => K::ClientUnknown,
         ClientError::Wire(WireError::Identity(IdentityError::PeerMismatch { .. })) => {
@@ -292,6 +339,47 @@ pub async fn celaut_peer_info(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn call(message: &str) -> ClientError {
+        ClientError::Wire(WireError::Call(format!(
+            "status: Unknown, message: \"Exception calling application: {message}\", details: [], metadata: MetadataMap {{ headers: {{}} }}"
+        )))
+    }
+
+    #[test]
+    fn a_refusal_of_a_node_has_its_own_kind_and_the_text_without_the_wrapper() {
+        let cases = [
+            ("This node is not accepting new work.", CelautErrorKind::NodeClosed),
+            (
+                "This node cannot run the service right now: not enough memory.",
+                CelautErrorKind::NoRoom,
+            ),
+            ("Service ab not on local registry.", CelautErrorKind::ServiceMissing),
+            (
+                "Network policy: this node refuses to run a service that reaches 'x'.",
+                CelautErrorKind::PolicyRefused,
+            ),
+            ("Unsupported architecture 'riscv64'.", CelautErrorKind::UnsupportedArchitecture),
+            ("Client c is calling too fast and is temporarily quarantined.", CelautErrorKind::RateLimited),
+            ("Unable to launch service ab: no eligible local executor or peer was available at this time.", CelautErrorKind::LaunchFailed),
+            (
+                "This RPC requires a client_id minted by GenerateClient first. Wrong or missing client_id: 'x'",
+                CelautErrorKind::ClientUnknown,
+            ),
+        ];
+        for (text, kind) in cases {
+            let e = error_of(call(text));
+            assert_eq!(e.kind, kind, "{text}");
+            assert_eq!(e.message, text, "the wrapper is removed");
+        }
+    }
+
+    #[test]
+    fn a_refusal_that_the_app_does_not_know_stays_a_protocol_error_with_the_whole_text() {
+        let e = error_of(call("something new that nodo says"));
+        assert_eq!(e.kind, CelautErrorKind::Protocol);
+        assert!(e.message.contains("something new that nodo says"));
+    }
 
     #[test]
     fn bytes_show_as_text_or_hex() {

@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `contract_view`, `error_of`, `hex_text`, `invalid`, `resources_view`, `show_bytes`, `to_i64`, `uri_view`, `view_of`
+// These functions are ignored because they are not marked as `pub`: `contract_view`, `error_of`, `hex_text`, `invalid`, `kind_of_refusal`, `resources_view`, `show_bytes`, `to_i64`, `uri_view`, `view_of`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Connect to a Celaut node and read its advertisement.
@@ -92,6 +92,34 @@ enum CelautErrorKind {
   /// The node does not know the client id of the app: it forgot it. The app asks the
   /// user: a new client (the old balance is lost) or a retry later.
   clientUnknown,
+
+  /// The node is outside the hours that its operator set: it takes no new work now.
+  nodeClosed,
+
+  /// The node has not enough free resources for the service now.
+  noRoom,
+
+  /// The node does not have the service.
+  serviceMissing,
+
+  /// The policy of the node does not allow the networks that the service declares.
+  policyRefused,
+
+  /// The node does not run the architecture of the service.
+  unsupportedArchitecture,
+
+  /// The node limits the calls of this client for a time.
+  rateLimited,
+
+  /// The node refused the request because it went round, or too deep.
+  recursionLimit,
+
+  /// The balance of the client on the node is less than the price. The app finds this
+  /// before it asks the node to start the service.
+  insufficientCredit,
+
+  /// The node tried to start the service and could not, and says no other reason.
+  launchFailed,
 }
 
 /// One key and its value, as text.

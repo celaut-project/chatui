@@ -30,6 +30,7 @@ QuoteView _quote(String peer, int port, String cost, String? compared) => QuoteV
   maintenanceSecondsLoop: 10,
   variance: 0,
   comparedNanoErg: compared,
+  clientBalanceMu: '',
 );
 
 class ServiceApi extends RustLibApi {

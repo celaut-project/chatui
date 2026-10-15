@@ -14,7 +14,7 @@ use celaut_client::overview::{
 };
 
 use super::celaut::{invalid, CelautError, CelautErrorKind};
-use super::celaut_db::{db, storage_error};
+use super::celaut_db::{db, now_seconds, storage_error};
 use super::celaut_service::{address_of_key, cost_so_far, key, session, NodeAddress, Session};
 
 /// How long the overview waits for one node.
@@ -145,23 +145,33 @@ fn nano_erg_total(t: Total<u128>, parts: u32) -> NanoErgTotalView {
 }
 
 #[flutter_rust_bridge::frb(ignore)]
-struct Reached {
-    session: Option<Session>,
-    address: String,
-    error: Option<CelautError>,
-    credit_mu: Option<u128>,
+pub(crate) struct Reached {
+    pub(crate) session: Option<Session>,
+    /// The address that answered, or the last one known.
+    pub(crate) address: String,
+    pub(crate) error: Option<CelautError>,
+    pub(crate) credit_mu: Option<u128>,
+    /// How long the working address took to answer, in milliseconds. 0 if none worked.
+    pub(crate) latency_ms: u32,
 }
 
 /// A session on the node at one of its addresses, the last one first.
 async fn reach(addresses: &[String]) -> Reached {
+    reach_within(addresses, NODE_TIMEOUT).await
+}
+
+/// [`reach`] with a limit of `limit` for each step of each address.
+#[flutter_rust_bridge::frb(ignore)]
+pub(crate) async fn reach_within(addresses: &[String], limit: Duration) -> Reached {
     let mut last_error = None;
     for text in addresses {
         let Some(address) = address_of_key(text) else {
             continue;
         };
-        match tokio::time::timeout(NODE_TIMEOUT, session(&address)).await {
+        let started = std::time::Instant::now();
+        match tokio::time::timeout(limit, session(&address)).await {
             Ok(Ok(s)) => {
-                let credit_mu = match tokio::time::timeout(NODE_TIMEOUT, s.balance()).await {
+                let credit_mu = match tokio::time::timeout(limit, s.balance()).await {
                     Ok(Ok(b)) => Some(b),
                     _ => None,
                 };
@@ -170,6 +180,7 @@ async fn reach(addresses: &[String]) -> Reached {
                     address: text.clone(),
                     error: None,
                     credit_mu,
+                    latency_ms: u32::try_from(started.elapsed().as_millis()).unwrap_or(u32::MAX),
                 };
             }
             Ok(Err(e)) => last_error = Some(e),
@@ -186,6 +197,7 @@ async fn reach(addresses: &[String]) -> Reached {
         address: addresses.first().cloned().unwrap_or_default(),
         error: Some(last_error.unwrap_or_else(|| invalid("the app has no address of this node"))),
         credit_mu: None,
+        latency_ms: 0,
     }
 }
 
@@ -207,6 +219,9 @@ pub async fn celaut_compute_overview() -> Result<ComputeOverviewView, CelautErro
             (peer_id.clone(), reach(&addresses).await)
         });
     let reached = futures::future::join_all(asks).await;
+    // What this reach says about each node is also its last check (`celaut_health`).
+    let now = now_seconds();
+    super::celaut_health::record(reached.iter().map(|(p, r)| (p.as_str(), r)), now);
 
     let mut nodes = Vec::new();
     let mut offers: Vec<(String, Offer)> = Vec::new();

@@ -5875,4 +5875,167 @@ class AppLocalizationsEn extends AppLocalizations {
   String chatStopped(String refund) {
     return 'The instance stopped. Refund: $refund';
   }
+
+  @override
+  String get celautErrorNodeClosed =>
+      'The node is closed now: its operator accepts new work only at certain hours. Try later or choose another node.';
+
+  @override
+  String get celautErrorNoRoom =>
+      'The node has not enough free resources for this service now. Try later or choose another node.';
+
+  @override
+  String get celautErrorServiceMissing =>
+      'The node does not have this service. Choose a node that has it.';
+
+  @override
+  String get celautErrorPolicyRefused =>
+      'The policy of the node does not allow what this service connects to. Choose another node.';
+
+  @override
+  String get celautErrorUnsupportedArchitecture =>
+      'The node does not run this kind of service (it needs another processor architecture). Choose another node.';
+
+  @override
+  String get celautErrorRateLimited =>
+      'The node limits the calls of this app for a short time. Wait a moment and try again.';
+
+  @override
+  String get celautErrorRecursionLimit =>
+      'The node refused the request because it went round or too deep. Try again.';
+
+  @override
+  String get celautErrorInsufficientCredit =>
+      'Your credit on the node is less than the price of the service. Add a deposit on this node or choose another one.';
+
+  @override
+  String get celautErrorLaunchFailed =>
+      'The node tried to start the service and could not.';
+
+  @override
+  String get celautRunTitle => 'Run a service';
+
+  @override
+  String get celautRunSearchHint => 'Search skills';
+
+  @override
+  String get celautRunLoading => 'Loading skills…';
+
+  @override
+  String get celautRunEmpty => 'No skill matches.';
+
+  @override
+  String get celautRunCatalogError => 'The skill catalog is not available now.';
+
+  @override
+  String get celautRunRetry => 'Try again';
+
+  @override
+  String get celautRunServicesTitle => 'Services with this skill';
+
+  @override
+  String get celautRunNoServices => 'No service has this skill yet.';
+
+  @override
+  String get celautRunBest => 'Best';
+
+  @override
+  String celautRunScore(String score) {
+    return 'Score $score';
+  }
+
+  @override
+  String get celautRunButton => 'Run';
+
+  @override
+  String get celautRunStarting => 'Starting…';
+
+  @override
+  String celautRunStarted(String node, String cost) {
+    return 'Started on $node. Start cost: $cost.';
+  }
+
+  @override
+  String get celautRunOpenChat => 'Open chat';
+
+  @override
+  String get celautRunFailedTitle => 'The service did not start';
+
+  @override
+  String get celautRunFailedNoNodes =>
+      'There is no node to ask. Add a node in the Nodes list.';
+
+  @override
+  String get celautRunFailedNoQuotes => 'No node gave a price. Here is why:';
+
+  @override
+  String get celautRunFailedAll =>
+      'Some nodes gave a price, but none of them started the service. Here is why:';
+
+  @override
+  String celautRunNeedsCredit(String credit, String cost) {
+    return 'Your credit on this node is $credit, and the service costs $cost. Add a deposit on this node or choose another one.';
+  }
+
+  @override
+  String get celautRunLeftOut => 'Left out: it did not answer the last checks.';
+
+  @override
+  String get celautRunDetails => 'Details';
+
+  @override
+  String get celautRunClose => 'Close';
+
+  @override
+  String get celautRunDeposit => 'Add a deposit';
+
+  @override
+  String celautNodeAvailable(String ms) {
+    return 'Available · $ms ms';
+  }
+
+  @override
+  String celautNodeSlow(String ms) {
+    return 'Slow · $ms ms';
+  }
+
+  @override
+  String get celautNodeUnreachable => 'Not answering';
+
+  @override
+  String get celautNodeUnknownState => 'Not checked yet';
+
+  @override
+  String celautNodeLastSeen(String ago) {
+    return 'Last answer $ago ago';
+  }
+
+  @override
+  String get celautNodeNeverSeen => 'It has never answered';
+
+  @override
+  String get celautNodeChecking => 'Checking…';
+
+  @override
+  String celautAgoSeconds(String n) {
+    return '$n s';
+  }
+
+  @override
+  String celautAgoMinutes(String n) {
+    return '$n min';
+  }
+
+  @override
+  String celautAgoHours(String n) {
+    return '$n h';
+  }
+
+  @override
+  String celautAgoDays(String n) {
+    return '$n d';
+  }
+
+  @override
+  String get celautNodesCheckNow => 'Check now';
 }

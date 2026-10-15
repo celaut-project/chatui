@@ -44,6 +44,9 @@ pub mod celaut_catalog;
 /// Optional Tor for the outbound connections (M5).
 pub mod celaut_network;
 
+/// Whether the nodes are available: the checks and their record (M4).
+pub mod celaut_health;
+
 fn err_str<E: Into<ArgusError>>(e: E) -> String {
     e.into().to_json_string()
 }

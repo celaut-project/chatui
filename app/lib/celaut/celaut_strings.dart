@@ -63,6 +63,15 @@ class CelautStrings {
         CelautErrorKind.limitReached => appL10n.celautErrorLimitReached,
         CelautErrorKind.wallet => appL10n.celautErrorWallet,
         CelautErrorKind.clientUnknown => appL10n.celautErrorClientUnknown,
+        CelautErrorKind.nodeClosed => appL10n.celautErrorNodeClosed,
+        CelautErrorKind.noRoom => appL10n.celautErrorNoRoom,
+        CelautErrorKind.serviceMissing => appL10n.celautErrorServiceMissing,
+        CelautErrorKind.policyRefused => appL10n.celautErrorPolicyRefused,
+        CelautErrorKind.unsupportedArchitecture => appL10n.celautErrorUnsupportedArchitecture,
+        CelautErrorKind.rateLimited => appL10n.celautErrorRateLimited,
+        CelautErrorKind.recursionLimit => appL10n.celautErrorRecursionLimit,
+        CelautErrorKind.insufficientCredit => appL10n.celautErrorInsufficientCredit,
+        CelautErrorKind.launchFailed => appL10n.celautErrorLaunchFailed,
       };
 
   static String detailLabel(String detail) => appL10n.celautDetailLabel(detail);

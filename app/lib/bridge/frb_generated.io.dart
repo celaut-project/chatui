@@ -8,6 +8,7 @@ import 'api/celaut.dart';
 import 'api/celaut_catalog.dart';
 import 'api/celaut_db.dart';
 import 'api/celaut_deposit.dart';
+import 'api/celaut_health.dart';
 import 'api/celaut_home.dart';
 import 'api/celaut_network.dart';
 import 'api/celaut_service.dart';
@@ -32,6 +33,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool dco_decode_bool(dynamic raw);
+
+  @protected
+  CelautErrorKind dco_decode_box_autoadd_celaut_error_kind(dynamic raw);
 
   @protected
   double dco_decode_box_autoadd_f_64(dynamic raw);
@@ -127,6 +131,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<NodeComputeView> dco_decode_list_node_compute_view(dynamic raw);
 
   @protected
+  List<NodeHealthView> dco_decode_list_node_health_view(dynamic raw);
+
+  @protected
   List<NodeResourcesView> dco_decode_list_node_resources_view(dynamic raw);
 
   @protected
@@ -178,7 +185,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   NodeAddress dco_decode_node_address(dynamic raw);
 
   @protected
+  NodeAvailability dco_decode_node_availability(dynamic raw);
+
+  @protected
   NodeComputeView dco_decode_node_compute_view(dynamic raw);
+
+  @protected
+  NodeHealthView dco_decode_node_health_view(dynamic raw);
 
   @protected
   NodeResourcesView dco_decode_node_resources_view(dynamic raw);
@@ -188,6 +201,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  CelautErrorKind? dco_decode_opt_box_autoadd_celaut_error_kind(dynamic raw);
 
   @protected
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
@@ -251,6 +267,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  CelautErrorKind sse_decode_box_autoadd_celaut_error_kind(
+    SseDeserializer deserializer,
+  );
 
   @protected
   double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
@@ -364,6 +385,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<NodeHealthView> sse_decode_list_node_health_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<NodeResourcesView> sse_decode_list_node_resources_view(
     SseDeserializer deserializer,
   );
@@ -427,7 +453,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   NodeAddress sse_decode_node_address(SseDeserializer deserializer);
 
   @protected
+  NodeAvailability sse_decode_node_availability(SseDeserializer deserializer);
+
+  @protected
   NodeComputeView sse_decode_node_compute_view(SseDeserializer deserializer);
+
+  @protected
+  NodeHealthView sse_decode_node_health_view(SseDeserializer deserializer);
 
   @protected
   NodeResourcesView sse_decode_node_resources_view(
@@ -439,6 +471,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  CelautErrorKind? sse_decode_opt_box_autoadd_celaut_error_kind(
+    SseDeserializer deserializer,
+  );
 
   @protected
   double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
@@ -506,6 +543,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_celaut_error_kind(
+    CelautErrorKind self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
@@ -658,6 +701,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_node_health_view(
+    List<NodeHealthView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_node_resources_view(
     List<NodeResourcesView> self,
     SseSerializer serializer,
@@ -745,8 +794,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_node_address(NodeAddress self, SseSerializer serializer);
 
   @protected
+  void sse_encode_node_availability(
+    NodeAvailability self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_node_compute_view(
     NodeComputeView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_node_health_view(
+    NodeHealthView self,
     SseSerializer serializer,
   );
 
@@ -761,6 +822,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_celaut_error_kind(
+    CelautErrorKind? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);

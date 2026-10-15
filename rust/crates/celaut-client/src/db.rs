@@ -68,6 +68,9 @@ pub struct NodeRecord {
     /// oldest first. The balance of these clients is lost for the app.
     #[serde(default)]
     pub earlier_client_ids: Vec<String>,
+    /// What the checks of the node say: when, how fast, and why a check failed.
+    #[serde(default)]
+    pub health: crate::health::Health,
 }
 
 fn listed_by_default() -> bool {
@@ -85,6 +88,7 @@ impl Default for NodeRecord {
             paid_mu: None,
             free_credit_mu: None,
             earlier_client_ids: Vec::new(),
+            health: crate::health::Health::default(),
         }
     }
 }

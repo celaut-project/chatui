@@ -38,6 +38,7 @@ like the English. Imperatives: "Escribe" (not "Introduce" or "Ingresa"),
 | unlock / lock | desbloquear / bloquear |
 | sync / synced | sincronizar / sincronizada |
 | node | nodo |
+| skill (of the catalog) | habilidad |
 | service | servicio |
 | deposit | depósito |
 | tunnel | túnel |
