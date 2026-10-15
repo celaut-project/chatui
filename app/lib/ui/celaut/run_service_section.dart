@@ -165,9 +165,13 @@ class _RunServiceSectionState extends State<RunServiceSection> {
         initialMu: ServiceStrings.initialDefault,
       );
       if (!mounted) return;
+      // The progress bar stops before the next screen or sheet, which can stay open.
+      setState(() => _running = false);
       await _started(outcome);
     } on LaunchFailure catch (failure) {
-      if (mounted) await _showFailure(failure);
+      if (!mounted) return;
+      setState(() => _running = false);
+      await _showFailure(failure);
     } on CelautError catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
