@@ -114,6 +114,29 @@ Rules for the numbers:
 - The Ergo explorer is fixed to the nodo default. A node does not advertise an
   explorer, and the app does not poll one from the node.
 
+### Availability of the nodes
+
+Each node card on the home screen has a line with the availability of the node, from the
+checks that the Rust core keeps in the Celaut database (`celaut-client/src/health.rs`):
+
+| State | Line |
+|---|---|
+| Available | "Available · 42 ms" |
+| Slow (3 s or more) | "Slow · 4200 ms", in the warning colour |
+| Unreachable | "Not answering · Last answer 2 h ago" (or "It has never answered"), then the reason in words (the text of the error kind) and the text of the node or of the transport in a smaller muted line |
+| Not checked yet | "Not checked yet" |
+
+A coloured dot goes with the text and never replaces it. While a check runs, the line adds
+"Checking…".
+
+When the home screen is open, the app asks the core every minute to check the nodes that are
+due, and when the app is in use again. The core decides which node is due: a node that works
+is checked every 5 minutes, and a node that fails later and later (30 s up to 15 minutes);
+through Tor the times are three times longer. A check has a limit of 5 seconds (25 through
+Tor). "Check now" under the node cards checks all the nodes. A check changes only the node
+cards: the overview (the figures) is not loaded again. Nothing is checked while Tor is
+starting or has failed.
+
 ## 5. Open items
 
 - The exact layout, colors and motion of the compute screen. Use the celaut-design

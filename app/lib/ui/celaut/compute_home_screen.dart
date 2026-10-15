@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../bridge/api/celaut.dart';
+import '../../bridge/api/celaut_health.dart';
 import '../../bridge/api/celaut_home.dart';
 import '../../bridge/api/celaut_service.dart';
 import '../../celaut/celaut_format.dart';
 import '../../celaut/celaut_strings.dart';
 import '../../celaut/host_port.dart';
+import '../../celaut/node_health_format.dart';
+import '../../celaut/node_health_monitor.dart';
 import '../../celaut/payers.dart';
 import '../../celaut/wallet_money.dart';
 import '../../format.dart';
@@ -40,7 +43,12 @@ class ComputeHomeScreen extends StatefulWidget {
     this.stop,
     this.newClient,
     this.refreshPrice,
+    this.healthMonitor,
   });
+
+  /// Keeps the availability of the nodes up to date while this screen is open. Tests give
+  /// their own; without one the screen makes its own and stops it when it closes.
+  final NodeHealthMonitor? healthMonitor;
 
   /// Ask the oracle pool price again (it is cached for some minutes).
   final Future<void> Function()? refreshPrice;
@@ -74,7 +82,8 @@ class ComputeHomeScreen extends StatefulWidget {
   State<ComputeHomeScreen> createState() => ComputeHomeScreenState();
 }
 
-class ComputeHomeScreenState extends State<ComputeHomeScreen> {
+class ComputeHomeScreenState extends State<ComputeHomeScreen> with WidgetsBindingObserver {
+  late final NodeHealthMonitor _health = widget.healthMonitor ?? NodeHealthMonitor();
   ComputeOverviewView? _data;
   bool _loading = false;
   String? _stopping;
@@ -88,6 +97,36 @@ class ComputeHomeScreenState extends State<ComputeHomeScreen> {
   void initState() {
     super.initState();
     refresh();
+    _health.addListener(_onHealth);
+    _health.start();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _health.removeListener(_onHealth);
+    if (widget.healthMonitor == null) {
+      _health.dispose();
+    } else {
+      _health.stop();
+    }
+    super.dispose();
+  }
+
+  /// The checks of the nodes go on only while the app is in use.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _health.resume();
+    } else if (state == AppLifecycleState.paused) {
+      _health.pause();
+    }
+  }
+
+  /// Only the node cards change when the checks give news: the overview is not loaded again.
+  void _onHealth() {
+    if (mounted) setState(() {});
   }
 
   /// Ask the nodes again.
@@ -415,6 +454,19 @@ class ComputeHomeScreenState extends State<ComputeHomeScreen> {
         ),
         const SizedBox(height: 8),
         for (final n in d.nodes) _node(context, n),
+        _Pad(
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton(
+              key: const Key('compute-home-check-nodes'),
+              onPressed: _health.checking ? null : _health.checkNow,
+              child: Text(
+                _health.checking ? l.celautNodeChecking : l.celautNodesCheckNow,
+                style: t.link,
+              ),
+            ),
+          ),
+        ),
       ],
       const SizedBox(height: 10),
       _Pad(
@@ -463,6 +515,7 @@ class ComputeHomeScreenState extends State<ComputeHomeScreen> {
               ],
             ),
             Text(detail, style: t.secondary),
+            ..._availability(context, n.peerId),
             if (n.clientUnknown) ...[
               Text(
                 CelautStrings.errorText(CelautErrorKind.clientUnknown),
@@ -481,6 +534,78 @@ class ComputeHomeScreenState extends State<ComputeHomeScreen> {
         ),
       ),
     );
+  }
+
+  /// The availability line of a node card, from the checks that the core keeps. A coloured
+  /// dot goes with the text, never alone. Nothing if the core has no state for the node and
+  /// no check runs.
+  List<Widget> _availability(BuildContext context, String peerId) {
+    final l = context.l10n;
+    final t = HomeText.of(context);
+    final tones = HomeTones.of(context);
+    final h = _health.of(peerId);
+    final checking = _health.checking;
+    if (h == null && !checking) return const [];
+    final Color dot;
+    final String text;
+    switch (h?.availability) {
+      case null:
+        dot = tones.muted;
+        text = l.celautNodeChecking;
+      case NodeAvailability.unknown:
+        dot = tones.muted;
+        text = l.celautNodeUnknownState;
+      case NodeAvailability.available:
+        dot = tones.positive;
+        text = l.celautNodeAvailable('${h!.latencyMs ?? '?'}');
+      case NodeAvailability.slow:
+        dot = rustFor(context);
+        text = l.celautNodeSlow('${h!.latencyMs ?? '?'}');
+      case NodeAvailability.unreachable:
+        dot = tones.negative;
+        final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        final seen = h!.lastOkAt == 0
+            ? l.celautNodeNeverSeen
+            : l.celautNodeLastSeen(agoText(l, now - h.lastOkAt));
+        text = '${l.celautNodeUnreachable} · $seen';
+    }
+    final shown = h != null && checking ? '$text · ${l.celautNodeChecking}' : text;
+    final kind = h?.errorKind;
+    final raw = h?.error;
+    return [
+      Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Row(
+          key: Key('compute-home-health-$peerId'),
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: Text(shown, style: t.secondary)),
+          ],
+        ),
+      ),
+      if (h != null && h.availability == NodeAvailability.unreachable) ...[
+        if (kind != null)
+          Text(
+            CelautStrings.errorText(kind),
+            key: Key('compute-home-health-reason-$peerId'),
+            style: t.secondary,
+          ),
+        if (raw != null && raw.isNotEmpty)
+          Text(
+            CelautStrings.detailLabel(raw),
+            key: Key('compute-home-health-detail-$peerId'),
+            style: t.secondary.copyWith(fontSize: 12, color: t.muted),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+      ],
+    ];
   }
 
   /// 3. The running instances.
