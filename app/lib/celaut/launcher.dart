@@ -1,0 +1,119 @@
+import '../bridge/api/celaut.dart';
+import '../bridge/api/celaut_home.dart';
+import '../bridge/api/celaut_service.dart';
+import 'host_port.dart';
+
+typedef QuoteCall = Future<QuotesView> Function({
+  required List<NodeAddress> nodes,
+  required String serviceIdHex,
+  String? initialMu,
+});
+
+typedef StartCall = Future<InstanceView> Function({
+  required NodeAddress node,
+  required String serviceIdHex,
+  String? initialMu,
+});
+
+/// A node that gave a quote but did not start the service.
+class LaunchSkip {
+  const LaunchSkip(this.quote, this.error);
+
+  final QuoteView quote;
+  final CelautError error;
+}
+
+/// The service started on the node of [quote], the best one that could start it.
+class LaunchOutcome {
+  const LaunchOutcome({required this.quote, required this.instance, required this.skipped});
+
+  final QuoteView quote;
+  final InstanceView instance;
+
+  /// The nodes that were better than [quote] and did not start the service.
+  final List<LaunchSkip> skipped;
+}
+
+enum LaunchFailureKind {
+  /// No node to ask: none typed and none known.
+  noNodes,
+
+  /// No node gave a quote.
+  noQuotes,
+
+  /// Nodes gave quotes, and none of them started the service.
+  allFailed,
+}
+
+class LaunchFailure implements Exception {
+  const LaunchFailure(
+    this.kind, {
+    this.quoteFailures = const [],
+    this.skipped = const [],
+  });
+
+  final LaunchFailureKind kind;
+  final List<QuoteFailureView> quoteFailures;
+  final List<LaunchSkip> skipped;
+
+  /// The nodes that forgot the client id of the app. The app asks the user what to do;
+  /// it never makes a new client by itself (`docs/celaut/ui.md`).
+  List<LaunchSkip> get clientUnknown => [
+        for (final s in skipped)
+          if (s.error.kind == CelautErrorKind.clientUnknown) s,
+      ];
+
+  @override
+  String toString() => 'LaunchFailure($kind, skipped: ${skipped.length})';
+}
+
+/// The nodes to ask when the user typed none: the most recent address of each known
+/// node. An address that does not parse is left out.
+List<NodeAddress> knownNodeAddresses(List<KnownNodeView> known) {
+  final nodes = <NodeAddress>[];
+  for (final node in known) {
+    if (node.addresses.isEmpty) continue;
+    final parsed = parseHostPort(node.addresses.first).value;
+    if (parsed != null) nodes.add(NodeAddress(host: parsed.host, port: parsed.port));
+  }
+  return nodes;
+}
+
+/// Start a service on the best node (`docs/celaut/balancer.md`): ask every node for a
+/// quote, take the quotes best first, and use the first node that starts the service.
+/// A node that fails is skipped, and the next one is tried.
+///
+/// [nodes] are the nodes to ask. Without them, the known nodes of the app.
+Future<LaunchOutcome> launchService({
+  required String serviceIdHex,
+  String? initialMu,
+  List<NodeAddress>? nodes,
+  QuoteCall quote = celautQuoteService,
+  StartCall start = celautStartService,
+  List<KnownNodeView> Function() knownNodes = celautKnownNodes,
+}) async {
+  final asked = nodes ?? knownNodeAddresses(knownNodes());
+  if (asked.isEmpty) throw const LaunchFailure(LaunchFailureKind.noNodes);
+  final quotes = await quote(nodes: asked, serviceIdHex: serviceIdHex, initialMu: initialMu);
+  if (quotes.quotes.isEmpty) {
+    throw LaunchFailure(LaunchFailureKind.noQuotes, quoteFailures: quotes.failures);
+  }
+  final skipped = <LaunchSkip>[];
+  for (final candidate in quotes.quotes) {
+    try {
+      final instance = await start(
+        node: candidate.address,
+        serviceIdHex: serviceIdHex,
+        initialMu: initialMu,
+      );
+      return LaunchOutcome(quote: candidate, instance: instance, skipped: skipped);
+    } on CelautError catch (e) {
+      skipped.add(LaunchSkip(candidate, e));
+    }
+  }
+  throw LaunchFailure(
+    LaunchFailureKind.allFailed,
+    quoteFailures: quotes.failures,
+    skipped: skipped,
+  );
+}

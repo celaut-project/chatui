@@ -36,11 +36,16 @@ class ServiceApi extends RustLibApi {
   final stops = <String>[];
   int tunnelPort = 0;
   var chatSlots = <int>[3030];
+  var knownNodes = <KnownNodeView>[];
+  final failStartOn = <int>{};
   Object? quoteAnswer;
   var instances = <InstanceListView>[];
 
   @override
   List<InstanceListView> crateApiCelautServiceCelautInstances() => instances;
+
+  @override
+  List<KnownNodeView> crateApiCelautHomeCelautKnownNodes() => knownNodes;
 
   @override
   Future<QuotesView> crateApiCelautServiceCelautQuoteService({
@@ -61,6 +66,9 @@ class ServiceApi extends RustLibApi {
     String? initialMu,
   }) async {
     startCalls.add((node: node, service: serviceIdHex, initial: initialMu));
+    if (failStartOn.contains(node.port)) {
+      throw const CelautError(kind: CelautErrorKind.unreachable, message: 'node down');
+    }
     return InstanceView(
       instanceId: 'inst-1',
       peerId: _cheap,
@@ -104,6 +112,8 @@ void main() {
     api.startCalls.clear();
     api.stops.clear();
     api.instances = [];
+    api.knownNodes = [];
+    api.failStartOn.clear();
     api.quoteAnswer = QuotesView(
       quotes: [_quote(_cheap, 18460, '1000000', '5316400'), _quote(_dear, 18461, '9000000', null)],
       failures: [
@@ -259,6 +269,80 @@ void main() {
     expect(api.stops, ['inst-1']);
     expect(find.text(ServiceStrings.stopped('976,399 MU', '4,476,399 MU')), findsOneWidget);
     expect(find.byKey(const Key('service-instance')), findsNothing);
+  });
+
+  testWidgets('launch starts the service on the best quote, with no choice by the user', (tester) async {
+    await pump(tester);
+    await fill(tester);
+    await tester.tap(find.byKey(const Key('service-launch')));
+    await tester.pumpAndSettle();
+
+    expect(api.quoteCalls.single.nodes, hasLength(2));
+    final start = api.startCalls.single;
+    expect(start.node, const NodeAddress(host: '127.0.0.1', port: 18460));
+    expect(find.byKey(const Key('service-launched')), findsOneWidget);
+    expect(find.text(ServiceStrings.launched('127.0.0.1:18460', '1,000,000 MU')), findsOneWidget);
+    expect(find.byKey(const Key('service-instance')), findsOneWidget);
+    expect(find.byKey(const Key('service-launch-failed')), findsNothing);
+  });
+
+  testWidgets('launch with no typed nodes asks the known nodes', (tester) async {
+    api.knownNodes = [
+      KnownNodeView(
+        peerId: _cheap,
+        addresses: ['127.0.0.1:18460', 'old.example:1'],
+        depositedNanoErg: BigInt.zero,
+      ),
+    ];
+    await pump(tester);
+    await fill(tester, nodes: '');
+    await tester.tap(find.byKey(const Key('service-launch')));
+    await tester.pumpAndSettle();
+
+    expect(api.quoteCalls.single.nodes, [const NodeAddress(host: '127.0.0.1', port: 18460)]);
+    expect(api.startCalls, hasLength(1));
+    expect(find.byKey(const Key('service-launched')), findsOneWidget);
+  });
+
+  testWidgets('launch with no typed and no known nodes asks nothing', (tester) async {
+    await pump(tester);
+    await fill(tester, nodes: '');
+    await tester.tap(find.byKey(const Key('service-launch')));
+    await tester.pumpAndSettle();
+
+    expect(find.text(ServiceStrings.nodesEmpty), findsOneWidget);
+    expect(api.quoteCalls, isEmpty);
+    expect(api.startCalls, isEmpty);
+  });
+
+  testWidgets('launch skips a better node that fails and uses the next one', (tester) async {
+    api.failStartOn.add(18460);
+    await pump(tester);
+    await fill(tester);
+    await tester.tap(find.byKey(const Key('service-launch')));
+    await tester.pumpAndSettle();
+
+    expect(api.startCalls.map((c) => c.node.port), [18460, 18461]);
+    expect(find.text(ServiceStrings.launched('127.0.0.1:18461', '9,000,000 MU')), findsOneWidget);
+    expect(find.text(ServiceStrings.skippedTitle), findsOneWidget);
+    expect(find.byKey(const Key('service-instance')), findsOneWidget);
+  });
+
+  testWidgets('launch shows why nothing started when every node fails', (tester) async {
+    api.failStartOn.addAll([18460, 18461]);
+    await pump(tester);
+    await fill(tester);
+    await tester.tap(find.byKey(const Key('service-launch')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('service-launch-failed')), findsOneWidget);
+    expect(find.text(ServiceStrings.launchAllFailed), findsOneWidget);
+    expect(find.byKey(const Key('service-instance')), findsNothing);
+  });
+
+  testWidgets('launch is off with no full wallet and while an instance runs', (tester) async {
+    await pump(tester, fullWallet: false);
+    expect(tester.widget<FilledButton>(find.byKey(const Key('service-launch'))).onPressed, isNull);
   });
 
   testWidgets('the chat button is only on a slot that follows the chat convention', (tester) async {
