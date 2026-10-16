@@ -1,6 +1,4 @@
-import 'package:argus_wallet/services/watch_only_service.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
-import 'package:argus_wallet/ui/home/overview_model.dart';
 import 'package:argus_wallet/ui/settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,64 +31,28 @@ void main() {
   testWidgets('without a wallet the hub is app-wide only', (tester) async {
     listWallets(tester, const []);
     await pump(tester, const SettingsScreen());
-    for (final text in ['Security', 'Offline signing', 'Network', 'Display', 'Address book', 'About Celaut']) {
+    for (final text in ['Security', 'Network', 'Display', 'Address book', 'About Celaut']) {
       expect(find.text(text), findsOneWidget, reason: text);
     }
-    // Wallets are listed, switched, created and watched on the overview;
-    // there is no second wallet list here.
-    for (final text in ['Manage', 'Watch-only', 'THIS WALLET', 'No wallet selected']) {
+    // The wallet is created and restored on the overview; there is no
+    // wallet list here, no offline signing and no default payer.
+    for (final text in ['Manage', 'Watch-only', 'THIS WALLET', 'No wallet selected', 'Offline signing']) {
       expect(find.text(text), findsNothing, reason: text);
     }
   });
 
-  testWidgets("a seed wallet's hub leads to its own settings and back to all wallets", (
-    tester,
-  ) async {
+  testWidgets("a seed wallet's hub leads to its own settings", (tester) async {
     listWallets(tester, const ['hub-wallet']);
     await tester.runAsync(
       () => walletService.saveWalletInfo('hub-wallet', name: 'Savings', createdAt: DateTime(2026)),
     );
-    var shownAll = 0;
-    await pump(
-      tester,
-      SettingsScreen(walletId: 'hub-wallet', onShowAllWallets: () => shownAll++),
-    );
+    await pump(tester, const SettingsScreen(walletId: 'hub-wallet'));
     expect(find.text('THIS WALLET'), findsOneWidget);
     expect(find.text('Name, addresses and backup'), findsOneWidget);
     expect(find.text('Security'), findsOneWidget);
     expect(find.text('Savings'), findsWidgets);
-    await tester.tap(find.text('All wallets'));
-    expect(shownAll, 1);
-  });
-
-  testWidgets('a watched address can be renamed and unwatched from its settings', (
-    tester,
-  ) async {
-    listWallets(tester, const []);
-    SharedPreferences.setMockInitialValues({
-      'argus_watch_only_addresses': '["9watched"]',
-    });
-    await watchOnlyService.load();
-    String? removed;
-    await pump(
-      tester,
-      SettingsScreen(
-        watched: const WalletRef.watchedAddress('9watched'),
-        onWalletRemoved: (id) => removed = id,
-      ),
-    );
-    expect(find.text('THIS ADDRESS'), findsOneWidget);
-    await tester.tap(find.text('Name'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), 'Cold storage');
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
-    expect(find.text('Cold storage'), findsWidgets);
-    await tester.tap(find.text('Stop watching').first);
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Stop watching'));
-    await tester.pumpAndSettle();
-    expect(watchOnlyService.addresses, isEmpty);
-    expect(removed, '9watched');
+    // One wallet: no way to all wallets, no count of wallets.
+    expect(find.text('All wallets'), findsNothing);
+    expect(find.textContaining('on this device'), findsNothing);
   });
 }

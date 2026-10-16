@@ -52,7 +52,7 @@ class ComputeHomeScreen extends StatefulWidget {
   /// Ask the oracle pool price again (it is cached for some minutes).
   final Future<void> Function()? refreshPrice;
 
-  /// The ERG of the full wallets and of the watched wallets, and the wallet gate.
+  /// The ERG of the wallet, and the wallet gate.
   final WalletMoney money;
 
   /// The USD price of one ERG from the oracle pool; null if it is not known.

@@ -52,20 +52,8 @@ final _evoke = WalletSummary(
   asOf: 'just now',
 );
 
-WalletSummary _watched(String id, String name, num erg, double fiat, int tokens) => WalletSummary(
-      ref: WalletRef.watchedAddress(id),
-      name: name,
-      nanoErg: _nano(erg),
-      fiatValue: fiat,
-      tokenCount: tokens,
-    );
-
 OverviewData _overviewData() => OverviewData(
       wallets: [_main, _evoke],
-      watched: [
-        _watched('9hUMAN', '9hUMAN…o9go', 25421.62, 11366.16, 38),
-        _watched('88dhgZ', '88dhgZ…CAJg', 441.87, 197.56, 1),
-      ],
       currency: _aud,
       network: const NetworkStatus(state: SyncState.synced, blockHeight: 1889207, label: 'Connected'),
       totalNano: _nano(26076.67),
@@ -136,7 +124,6 @@ void _noop([Object? _]) {}
 Widget _overview() => OverviewScreen(
       data: _overviewData(),
       onOpenWallet: _noop,
-      onReorder: (_, _) {},
       onAdd: _noop,
       onSettings: _noop,
       onToggleHidden: _noop,

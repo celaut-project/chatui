@@ -1,4 +1,4 @@
-/// Total across every wallet and watched address the home screen shows.
+/// Total across every wallet the home screen shows.
 class PortfolioTotal {
   const PortfolioTotal({required this.totalNano, required this.known, required this.unknown});
   final int totalNano;

@@ -17,7 +17,6 @@ import 'package:argus_wallet/ui/home/overview_screen.dart';
 import 'package:argus_wallet/ui/home/wallet_nav_bar.dart';
 import 'package:argus_wallet/ui/home/wallet_page.dart';
 import 'package:argus_wallet/ui/home/wallet_tools_sheet.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -45,7 +44,6 @@ void _noop([Object? _]) {}
 OverviewScreen _overview(OverviewData data) => OverviewScreen(
       data: data,
       onOpenWallet: _noop,
-      onReorder: (_, _) {},
       onAdd: _noop,
       onSettings: _noop,
       onToggleHidden: _noop,
@@ -76,8 +74,7 @@ Widget _walletPage(
       title: data.wallet.name,
       onBack: onBack ?? _noop,
       actions: [
-        if (!data.wallet.watchOnly)
-          IconButton(
+        IconButton(
             key: const Key('wallet-scan'),
             icon: const Icon(Icons.qr_code_scanner),
             tooltip: 'Scan a QR code',
@@ -101,7 +98,6 @@ Widget _walletPage(
       navBar: WalletNavBar(
         current: WalletTab.wallet,
         onSelect: onTab ?? _noop,
-        watchOnly: data.wallet.watchOnly,
         pendingCount: data.pendingCount,
       ),
     );
@@ -173,10 +169,6 @@ void main() {
           findsOneWidget,
         );
         expect(find.bySemanticsLabel(RegExp(r'^9evoke9, 0 ERG, empty$')), findsOneWidget);
-        expect(find.bySemanticsLabel(RegExp(r'^Watched, watch-only, 9hY16v…VENQ, 25,421\.62 ERG')), findsOneWidget);
-        // Every wallet and the way to add one, with room to spare.
-        final fold = tester.view.physicalSize.height / tester.view.devicePixelRatio;
-        expect(tester.getBottomLeft(find.byKey(const Key('overview-add-wallet'))).dy, lessThan(fold - 48));
       }
     });
 
@@ -192,7 +184,7 @@ void main() {
       );
       expect(find.bySemanticsLabel('incl. 3.2 ERG · 4 tokens on 1 other address'), findsOneWidget);
       expect(find.byKey(const Key('home-price-sparkline')), findsNothing, reason: 'the price strip is overview-only');
-      expect(find.byTooltip('All wallets'), findsOneWidget);
+      expect(find.byTooltip('Back'), findsOneWidget);
       expect(find.byKey(const Key('wallet-tab-discover')), findsOneWidget);
       if (scale == 1) {
         // The page opens on the scene: the balance, its pills and the
@@ -245,58 +237,7 @@ void main() {
       expect(picked, WalletTool.utxos);
     });
 
-    testWidgets('watched ${_tag(palette, 1)}', (tester) async {
-      await pumpRender(tester, _walletPage(sampleWatchedPage()), palette: palette);
-      expect(tester.takeException(), isNull);
-      await saveRender(tester, _file('watched', palette));
-      expect(find.bySemanticsLabel('Send with offline signer'), findsOneWidget);
-      expect(find.bySemanticsLabel('Receive'), findsOneWidget);
-      expect(find.byKey(const Key('watch-action-send')), findsOneWidget);
-      expect(find.byKey(const Key('watch-action-receive')), findsOneWidget);
-      for (final keyed in ['send', 'more']) {
-        expect(find.byKey(Key('wallet-action-$keyed')), findsNothing, reason: '$keyed needs keys on this phone');
-      }
-      expect(find.byKey(const Key('wallet-scan')), findsNothing);
-      expect(find.byKey(const Key('wallet-tab-discover')), findsNothing);
-      expect(find.textContaining('WATCHED ADDRESS'), findsOneWidget);
-      expect(find.bySemanticsLabel('Watch-only · cannot sign here, Updated 2m ago'), findsOneWidget);
-      expect(find.bySemanticsLabel(RegExp(r'^ERG, price A\$0\.47, 25,421\.62')), findsOneWidget,
-          reason: 'no 24h change without price history');
-      await _accessible(tester);
-    });
   }
-
-  testWidgets('watched dark-2x', (tester) async {
-    await pumpRender(tester, _walletPage(sampleWatchedPage()), palette: watchfulPalette, textScale: 2);
-    expect(tester.takeException(), isNull);
-    await saveRender(tester, _file('watched', watchfulPalette, 2));
-    await _accessible(tester);
-  });
-
-  testWidgets('an account before its first scan cannot send or receive yet', (tester) async {
-    final taps = <WalletAction>[];
-    final page = sampleWatchedPage();
-    await pumpRender(
-      tester,
-      _walletPage(
-        WalletPageData(
-          wallet: page.wallet,
-          currency: aud,
-          watched: const WatchedDetails(status: ['Watch-only · cannot sign here'], canSend: false, canReceive: false),
-        ),
-        onAction: taps.add,
-      ),
-      palette: watchfulPalette,
-    );
-    await tester.tap(find.byKey(const Key('watch-action-receive')));
-    await tester.tap(find.byKey(const Key('watch-action-send')));
-    expect(taps, isEmpty);
-    // Still announced as the action it is, disabled.
-    expect(
-      tester.getSemantics(find.bySemanticsLabel('Receive')),
-      isSemantics(isButton: true, hasEnabledState: true, isEnabled: false, hasTapAction: false),
-    );
-  });
 
   testWidgets('overview hides every amount', (tester) async {
     await pumpRender(tester, _overview(sampleOverview(hidden: true)), palette: watchfulPalette);
@@ -317,37 +258,27 @@ void main() {
     _expectNoFigures(tester);
   });
 
-  testWidgets('add a wallet', (tester) async {
-    final taps = <AddWalletChoice>[];
-    await pumpRender(tester, OverviewScreen(data: sampleOverview(), onAdd: taps.add), palette: watchfulPalette);
+  testWidgets('with a wallet the overview offers no other wallet', (tester) async {
+    await pumpRender(tester, OverviewScreen(data: sampleOverview(), onAdd: (_) {}), palette: watchfulPalette);
+    expect(find.byKey(const Key('overview-add-wallet')), findsNothing);
     for (final choice in AddWalletChoice.values) {
-      await _reveal(tester, find.byKey(const Key('overview-add-wallet')));
-      await tester.tap(find.byKey(const Key('overview-add-wallet')));
-      await tester.pumpAndSettle();
-      if (choice == AddWalletChoice.create) {
-        expect(tester.takeException(), isNull);
-        await saveRender(tester, _file('add-wallet', watchfulPalette));
-        await _accessible(tester);
-      }
-      await tester.tap(find.byKey(Key(choice.keyName)));
-      await tester.pumpAndSettle();
+      expect(find.byKey(Key(choice.keyName)), findsNothing);
     }
-    expect(taps, AddWalletChoice.values);
   });
 
   testWidgets('first launch', (tester) async {
     final taps = <AddWalletChoice>[];
     await pumpRender(
       tester,
-      OverviewScreen(data: sampleOverview(wallets: const [], watched: const []), onAdd: taps.add, onSettings: _noop),
+      OverviewScreen(data: sampleOverview(wallets: const []), onAdd: taps.add, onSettings: _noop),
       palette: watchfulPalette,
     );
     expect(tester.takeException(), isNull);
     await saveRender(tester, _file('overview', watchfulPalette, 1, '-empty'));
     expect(find.text('Create a wallet'), findsOneWidget);
     expect(find.text('Restore from recovery phrase'), findsOneWidget);
-    expect(find.text('Watch an address'), findsOneWidget);
-    expect(find.text('Watch an account (xpub)'), findsOneWidget);
+    expect(find.text('Watch an address'), findsNothing);
+    expect(find.text('Watch an account (xpub)'), findsNothing);
     expect(find.byTooltip('Settings'), findsOneWidget, reason: 'a node can be set before the first restore');
     await _accessible(tester);
     for (final choice in AddWalletChoice.values) {
@@ -363,7 +294,6 @@ void main() {
       OverviewScreen(
         data: sampleOverview(),
         onOpenWallet: (ref) => taps.add('open ${ref.id}'),
-        onReorder: (from, to) => taps.add('move $from to $to'),
         onSettings: () => taps.add('settings'),
         onToggleHidden: () => taps.add('hide'),
         onNetwork: () => taps.add('network'),
@@ -374,20 +304,7 @@ void main() {
       await _reveal(tester, find.byKey(Key(key)));
       await tester.tap(find.byKey(Key(key)));
     }
-    // A long press picks a wallet up; dropping it lower moves it.
-    final first = find.byKey(const Key('overview-row-seed-9evoke9'));
-    await _reveal(tester, find.byKey(const Key('overview-row-seed-main')));
-    // Past the whole of the next row, which is tall with its notes.
-    final below = tester.getSize(find.byKey(const Key('overview-row-seed-main'))).height;
-    final drag = await tester.startGesture(tester.getCenter(first));
-    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
-    for (var moved = 0.0; moved < below + 100; moved += 10) {
-      await drag.moveBy(const Offset(0, 10));
-      await tester.pump(const Duration(milliseconds: 50));
-    }
-    await drag.up();
-    await tester.pumpAndSettle();
-    expect(taps, ['open main', 'settings', 'hide', 'network', 'move 0 to 2']);
+    expect(taps, ['open main', 'settings', 'hide', 'network']);
   });
 
   testWidgets('wallet reports what was tapped', (tester) async {

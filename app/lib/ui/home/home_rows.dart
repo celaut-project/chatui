@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 
-import '../../format.dart';
 import '../../services/token_amounts.dart';
 import '../../services/token_evidence.dart';
 import '../../theme/argus_theme.dart';
@@ -30,15 +29,15 @@ class OverviewWalletRow extends StatelessWidget {
 
   final WalletSummary wallet;
 
-  /// Actions a screen reader offers on the row, e.g. Stop watching.
+  /// Actions a screen reader offers on the row.
   final Map<CustomSemanticsAction, VoidCallback>? semanticActions;
   final FiatCurrency currency;
   final bool hidden;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
 
-  /// The row's key, by kind and id, for whoever needs to find it.
-  static Key keyFor(WalletRef ref) => ValueKey('overview-row-${ref.kind.name}-${ref.id}');
+  /// The row's key, by id, for whoever needs to find it.
+  static Key keyFor(WalletRef ref) => ValueKey('overview-row-seed-${ref.id}');
 
   @override
   Widget build(BuildContext context) {
@@ -54,8 +53,6 @@ class OverviewWalletRow extends StatelessWidget {
       facts.add(TextSpan(text: text, style: style));
     }
 
-    // Watched rows are often unnamed: the address tells them apart.
-    final address = w.watchOnly && w.address != null ? shorten(w.address!, head: 6, tail: 4) : null;
     // Hidden balances drop "Empty" and the token count as well as the
     // figures: either tells an onlooker as much as an amount would.
     final String? holds;
@@ -71,8 +68,7 @@ class OverviewWalletRow extends StatelessWidget {
     final asOf = w.asOf != null && nano != null ? context.l10n.homeAsOfCompact('${w.asOf}') : null;
 
     // Only the open wallet is marked: "Locked" on every other row would be
-    // noise, and the eye and the Watched heading already mark a watched
-    // one (a screen reader still hears it).
+    // noise.
     if (w.unlocked) {
       facts.add(WidgetSpan(
         alignment: PlaceholderAlignment.middle,
@@ -83,7 +79,6 @@ class OverviewWalletRow extends StatelessWidget {
       ));
       facts.add(TextSpan(text: context.l10n.homeUnlocked, style: TextStyle(color: mossFor(context))));
     }
-    if (address != null) fact(address);
     if (holds != null) fact(holds);
     if (asOf != null) fact(asOf);
 
@@ -121,8 +116,6 @@ class OverviewWalletRow extends StatelessWidget {
       semanticLabel: spoken([
         w.name,
         if (w.unlocked) context.l10n.homeSpokenUnlocked,
-        if (w.watchOnly) context.l10n.homeSpokenWatchOnly,
-        ?address,
         if (nano != null) hidden ? context.l10n.homeSpokenBalanceHidden : '$amount ERG',
         if (fiat != null && !hidden) context.l10n.homeSpokenAbout(fiatFigure(fiatValue!, currency, approximate: false), currency.code),
         if (holds != null) holds.toLowerCase(),
@@ -130,7 +123,7 @@ class OverviewWalletRow extends StatelessWidget {
         if (pending != null) hidden ? context.l10n.homeSpokenSomethingPending : pending,
         if (other != null) context.l10n.homeSpokenIncl(other),
       ].join(', ')),
-      leading: WalletMark(name: w.name, kind: w.kind),
+      leading: WalletMark(name: w.name),
       // Each wallet's name in the serif, as its own page's title is.
       title: Text(
         w.name,

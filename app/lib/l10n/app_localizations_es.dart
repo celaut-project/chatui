@@ -81,15 +81,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get commonNotAnErgoAddress => 'No es una dirección de Ergo';
 
   @override
-  String get commonWatchedAccount => 'Cuenta observada';
-
-  @override
-  String get commonWatchedAddress => 'Dirección observada';
-
-  @override
-  String get commonStopWatching => 'Dejar de observar';
-
-  @override
   String get monthShort1 => 'ene';
 
   @override
@@ -466,13 +457,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'Bloqueo automático, capturas de pantalla, fondos sin confirmar';
 
   @override
-  String get settingsOfflineSigningTitle => 'Firma sin conexión';
-
-  @override
-  String get settingsOfflineSigningSubtitle =>
-      'Escanea, revisa y firma con esta billetera con frase';
-
-  @override
   String get settingsRemotePreviewsTitle => 'Vistas previas remotas';
 
   @override
@@ -491,47 +475,10 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get settingsAllWallets => 'Todas las billeteras';
-
-  @override
   String get settingsUnlocked => 'Desbloqueada';
 
   @override
   String get settingsLocked => 'Bloqueada';
-
-  @override
-  String settingsWalletsOnDevice(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count billeteras en este dispositivo',
-      one: '$count billetera en este dispositivo',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String settingsWatchOnlyAccountDetail(String id) {
-    return 'Cuenta de solo lectura · $id';
-  }
-
-  @override
-  String settingsWatchOnlyAddressDetail(String id) {
-    return 'Dirección de solo lectura · $id';
-  }
-
-  @override
-  String get settingsThisAccount => 'Esta cuenta';
-
-  @override
-  String get settingsThisAddress => 'Esta dirección';
-
-  @override
-  String get settingsWatchOnlyScope => 'Solo lectura';
-
-  @override
-  String get settingsStopWatchingSubtitle =>
-      'La quita de este dispositivo. No cambia nada en la cadena.';
 
   @override
   String get aboutSaveSettingFailed => 'No se pudo guardar el ajuste.';
@@ -1234,7 +1181,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get walletSettingsRemoveBody =>
-      'Esto quita la billetera de este dispositivo. Celaut no guarda una copia de la frase de recuperación; el papel en el que la escribiste al crear esta billetera es la única forma de volver a entrar.';
+      'Esto quita la billetera de este dispositivo. Celaut no guarda una copia de la frase de recuperación; el papel en el que la escribiste al crear esta billetera es la única forma de volver a entrar. Después puedes crear o restaurar otra billetera.';
 
   @override
   String get walletSettingsRemoveFailed => 'No se pudo quitar la billetera';
@@ -1304,7 +1251,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get walletSettingsUnlockToChange =>
-      'Desbloquea una billetera para cambiar este ajuste';
+      'Desbloquea la billetera para cambiar este ajuste';
 
   @override
   String get walletSettingsPrivacySaveFailed =>
@@ -1637,244 +1584,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String sendErrorTokenOverAllocated(String who, String amount, String token) {
     return '${who}tienes $amount $token en total entre todos los destinatarios';
   }
-
-  @override
-  String get coldUnlockBeforeReview =>
-      'Desbloquea la billetera con frase de recuperación antes de revisar.';
-
-  @override
-  String get coldWalletLockedOrChanged =>
-      'Billetera bloqueada o cambiada. Reinicia y revisa con la billetera seleccionada.';
-
-  @override
-  String get coldRefusingBroadcast =>
-      'Difusión rechazada: no hay ninguna respuesta verificada.';
-
-  @override
-  String get coldTxIdMismatch => 'El ID de transacción del nodo no coincide.';
-
-  @override
-  String get coldTitleHot => 'Envío desde billetera fría';
-
-  @override
-  String get coldTitleOffline => 'Firma sin conexión';
-
-  @override
-  String get coldSessionNote =>
-      'Las sesiones sin firmar caducan a los 30 minutos. Atrás pausa; vuelve aquí para continuar. Las respuestas verificadas siguen disponibles para reintentar. Cerrar la app descarta todas las sesiones.';
-
-  @override
-  String coldRefused(String error) {
-    return 'Rechazado: $error';
-  }
-
-  @override
-  String get coldScanRequestCodes =>
-      'Escanea cada código de solicitud con el firmante sin conexión.';
-
-  @override
-  String get coldSignedScanResponse =>
-      'Firmada. Escanea cada código de respuesta con la billetera en línea.';
-
-  @override
-  String get coldLoadQrCodes => 'Cargar códigos QR';
-
-  @override
-  String get coldScanSignedResponse => 'Escanear respuesta firmada';
-
-  @override
-  String get coldShowRequestAgain =>
-      'Volver a mostrar los códigos de solicitud';
-
-  @override
-  String get coldCollectResponse => 'Recopilar respuesta firmada (CSTX)';
-
-  @override
-  String get coldCollectRequest => 'Recopilar solicitud de firma (CSR)';
-
-  @override
-  String coldScannedProgress(String received, String total) {
-    return '$received de $total escaneados';
-  }
-
-  @override
-  String coldMissingPages(String pages) {
-    return 'Páginas que faltan: $pages';
-  }
-
-  @override
-  String get coldScanRefused =>
-      'Se rechazó este escaneo. Descarta las páginas recopiladas y empieza de nuevo.';
-
-  @override
-  String get coldScanACode => 'Escanear un código';
-
-  @override
-  String get coldScanNextCode => 'Escanear el siguiente código';
-
-  @override
-  String get coldResetPages => 'Reiniciar páginas recopiladas';
-
-  @override
-  String get coldVerifySigned => 'Verificar transacción firmada';
-
-  @override
-  String get coldReviewTransaction => 'Revisar transacción';
-
-  @override
-  String get coldReviewWarning =>
-      'Comprueba por tu cuenta las direcciones completas de los destinatarios y las cantidades. Mantén este dispositivo sin conexión. No se usan las etiquetas de la billetera en línea.';
-
-  @override
-  String get coldCheckedEverything =>
-      'Comprobé cada salida, token y comisión en este dispositivo';
-
-  @override
-  String get coldConfirmSign => 'Confirmar y firmar sin conexión';
-
-  @override
-  String get coldRejectReset => 'Rechazar y reiniciar';
-
-  @override
-  String get coldVerifiedMatch =>
-      'Todas las firmas son válidas y la transacción coincide exactamente con el pago preparado.';
-
-  @override
-  String coldTransactionId(String id) {
-    return 'ID de transacción: $id';
-  }
-
-  @override
-  String get coldBroadcastVerified => 'Difundir transacción verificada';
-
-  @override
-  String get coldRetryNote =>
-      'Si la red falla, reintentar envía la misma transacción verificada. No la vuelvas a crear mientras su estado sea incierto.';
-
-  @override
-  String get coldSubmitted => 'Transacción enviada';
-
-  @override
-  String get coldDiscardSession => 'Descartar sesión';
-
-  @override
-  String coldReviewNetwork(String network) {
-    return 'Revisión · $network';
-  }
-
-  @override
-  String coldMinerFeeValue(String fee) {
-    return 'Comisión de minería: $fee';
-  }
-
-  @override
-  String get coldOutputsNote =>
-      'Abajo aparecen todas las salidas. “Tu dirección” se verifica con las claves locales; puede ser cambio o un pago a ti mismo.';
-
-  @override
-  String get coldYourAddress => 'Tu dirección';
-
-  @override
-  String get coldExternalRecipient =>
-      'Destinatario externo / pago a una aplicación';
-
-  @override
-  String coldTokenId(String id) {
-    return 'ID de token: $id';
-  }
-
-  @override
-  String coldQuantityBaseUnits(String amount) {
-    return 'Cantidad: $amount unidades base';
-  }
-
-  @override
-  String coldTokenBurns(String none) {
-    return 'Quemas de tokens: $none';
-  }
-
-  @override
-  String coldTokenCreation(String none) {
-    return 'Creación de tokens: $none';
-  }
-
-  @override
-  String get coldNone => 'Ninguna';
-
-  @override
-  String coldTokenAmountBaseUnits(String id, String amount) {
-    return '$id · $amount unidades base';
-  }
-
-  @override
-  String coldCodeOf(String page, String total) {
-    return 'Código $page de $total';
-  }
-
-  @override
-  String get coldPrevious => 'Anterior';
-
-  @override
-  String get coldAutoRepeat => 'Repetición automática';
-
-  @override
-  String get coldPause => 'Pausar';
-
-  @override
-  String get coldNext => 'Siguiente';
-
-  @override
-  String get coldRefreshWatchedFirst =>
-      'Primero actualiza la cuenta observada.';
-
-  @override
-  String get coldChooseNodeFirst => 'Primero elige un nodo en línea.';
-
-  @override
-  String get coldAmountPositive =>
-      'Escribe un número entero positivo en Cantidad (nanoERG).';
-
-  @override
-  String get coldTokenQuantityPositive =>
-      'Escribe un número entero positivo en Cantidad de tokens.';
-
-  @override
-  String get coldNodeChanged =>
-      'El nodo cambió durante la preparación. Vuelve a intentarlo.';
-
-  @override
-  String get coldSendTitle => 'Enviar con firmante sin conexión';
-
-  @override
-  String get coldWatchIntro =>
-      'Pagos P2PK en mainnet. Este origen de solo lectura no tiene claves. Una billetera con frase de recuperación sin conexión debe revisar y firmar la solicitud.';
-
-  @override
-  String get coldChangeNote =>
-      'El cambio, incluidos los tokens restantes, vuelve a esta misma dirección observada. Reutilizarla reduce la privacidad. Una cuenta observada sigue más direcciones.';
-
-  @override
-  String get coldSignerMustOwn =>
-      'El firmante sin conexión debe poseer esta dirección P2PK de mainnet. Celaut busca automáticamente en la cuenta 0 de EIP-3, índices externos 0–512.';
-
-  @override
-  String get coldResumeSend => 'Reanudar envío en frío';
-
-  @override
-  String get coldRecipientLabel => 'Dirección completa del destinatario';
-
-  @override
-  String get coldAmountNanoLabel => 'Cantidad en nanoERG (1 ERG = 1000000000)';
-
-  @override
-  String get coldTokenIdOptional => 'ID de token (opcional)';
-
-  @override
-  String get coldTokenQuantityLabel =>
-      'Cantidad de tokens en unidades base (opcional)';
-
-  @override
-  String get coldPrepareRequest => 'Preparar solicitud en frío';
 
   @override
   String get priceHistoryNeedsExtraIndex =>
@@ -2496,49 +2205,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get syncLockedWalletsExplainer =>
-      'Las billeteras bloqueadas se actualizan con datos públicos cada 5 minutos, solo en las direcciones que esta app ya conoce. Desbloquea una para incluir direcciones nuevas.';
-
-  @override
-  String get watchSaveAddressesFailed =>
-      'No se pudieron guardar las direcciones observadas. Vuelve a intentarlo.';
-
-  @override
-  String get watchLimitations =>
-      'Solo direcciones de pago públicas. No puede firmar localmente; para enviar hace falta un firmante sin conexión.';
-
-  @override
-  String watchDisclosure(String limitations) {
-    return 'Una clave pública extendida permite a quien la tenga derivar y vincular para siempre todas las direcciones de pago públicas de esta cuenta. Importa solo una clave que quieras compartir con este dispositivo. $limitations';
-  }
-
-  @override
-  String get watchExpected =>
-      'Se esperaba una clave pública extendida de Ergo Wallet App: 156 caracteres hexadecimales que empiezan por 0488b21e (mainnet), profundidad 4 cadena externa /0 o profundidad 3 cuenta 0. No se admiten xpub en Base58 ni testnet.';
-
-  @override
-  String get watchIncompleteDerivation => 'Derivación incompleta';
-
-  @override
-  String watchScanIncomplete(String count) {
-    return 'Escaneo incompleto tras $count direcciones; no se confirmó ninguna dirección de recepción sin usar.';
-  }
-
-  @override
-  String get watchNodeChanged =>
-      'El nodo cambió. Actualiza la cuenta antes de recibir.';
-
-  @override
-  String get watchSaveAccountsFailed =>
-      'No se pudieron guardar las cuentas observadas. Vuelve a intentarlo.';
-
-  @override
-  String get watchNodeChangedDuringScan =>
-      'El nodo cambió durante el escaneo; vuelve a actualizar.';
-
-  @override
-  String watchAccountRefreshUnavailable(String detail) {
-    return 'No se pudo actualizar la cuenta: $detail';
-  }
+      'Una billetera bloqueada se actualiza con datos públicos cada 5 minutos, solo en las direcciones que esta app ya conoce. Desbloquéala para incluir direcciones nuevas.';
 
   @override
   String get syncPublicKnownOnly =>
@@ -2590,9 +2257,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String dashboardWalletRemoved(String name) {
     return '\"$name\" eliminada';
   }
-
-  @override
-  String get dashboardStoppedWatching => 'Ya no se observa';
 
   @override
   String get dashboardNoAddressDerived =>
@@ -2649,10 +2313,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get offlineNoNodes =>
       'No hay nodos accesibles. Toca Reintentar para comprobarlo.';
-
-  @override
-  String get overviewReorderHint =>
-      'Mantén pulsada una billetera para cambiar el orden.';
 
   @override
   String get discoverTokensBlurb =>
@@ -2742,71 +2402,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get discoverRowHint => 'Qué es y cómo entrar';
-
-  @override
-  String watchAddFailed(String detail) {
-    return 'No se pudo añadir la dirección observada: $detail';
-  }
-
-  @override
-  String get watchAddressAdded => 'Dirección de solo lectura añadida';
-
-  @override
-  String get watchAddInvalid =>
-      'Ya se observa o el dato no es válido. Usa una dirección de Ergo, una clave pública comprimida de 33 bytes o su árbol P2PK 0008cd (hex, sin 0x). Las claves sin procesar usan mainnet.';
-
-  @override
-  String get watchAddressTitle => 'Observar una dirección';
-
-  @override
-  String get watchAddressIntro =>
-      'Mira el saldo y la actividad de cualquier dirección de Ergo. No se guarda ninguna clave, así que no puede gastar.';
-
-  @override
-  String get watchAddressLabel => 'Dirección o clave pública';
-
-  @override
-  String get watchAddressHelper =>
-      'Clave de mainnet en hex: 02/03… o 0008cd02/03…';
-
-  @override
-  String get watchAction => 'Observar';
-
-  @override
-  String get watchXpubTitle => 'Observar una clave pública extendida';
-
-  @override
-  String get watchXpubLabel => 'Clave pública extendida de Ergo Wallet App';
-
-  @override
-  String get watchXpubHelper =>
-      '156 caracteres hexadecimales, mainnet. Sin suma de verificación: comprueba la primera dirección con la billetera de origen.';
-
-  @override
-  String get watchXpubAlreadyWatched => 'Esta clave extendida ya se observa.';
-
-  @override
-  String get watchAccountAction => 'Observar cuenta';
-
-  @override
-  String get watchNameOptional => 'Nombre (opcional)';
-
-  @override
-  String watchSaveNameFailed(String detail) {
-    return 'No se pudo guardar el nombre: $detail';
-  }
-
-  @override
-  String get watchStopTitle => '¿Dejar de observar?';
-
-  @override
-  String get watchStopAccountBody =>
-      'La clave extendida se elimina de este dispositivo. Vuelve a importarla para observar la cuenta otra vez.';
-
-  @override
-  String watchStopFailed(String detail) {
-    return 'No se pudo dejar de observar: $detail';
-  }
 
   @override
   String get navActivity => 'Actividad';
@@ -3013,9 +2608,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get homeSpokenUnlocked => 'desbloqueada';
 
   @override
-  String get homeSpokenWatchOnly => 'solo lectura';
-
-  @override
   String get homeSpokenBalanceHidden => 'saldo oculto';
 
   @override
@@ -3061,16 +2653,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get overviewTotalBalance => 'Saldo total';
 
   @override
-  String get overviewWallets => 'Billeteras';
-
-  @override
-  String get overviewAddWallet => 'Añadir una billetera';
-
-  @override
-  String get overviewWatchedAddresses => 'Direcciones observadas';
-
-  @override
-  String get overviewWatchTooltip => 'Observar una dirección o una cuenta';
+  String get overviewWallets => 'Billetera';
 
   @override
   String get overviewPrototypeTitle => 'Software prototipo';
@@ -3090,45 +2673,17 @@ class AppLocalizationsEs extends AppLocalizations {
   String get overviewLearnMore => 'Más información';
 
   @override
-  String get overviewWelcomeTitle => 'Aquí viven tus billeteras';
+  String get overviewWelcomeTitle => 'Aquí vive tu billetera';
 
   @override
   String get overviewWelcomeBody =>
-      'Aún no hay billeteras. Crea una billetera nueva, restaura una con su frase de recuperación u observa una dirección o una cuenta sin sus claves. Cada una se abre desde esta pantalla.';
+      'Aún no hay billetera. Crea una billetera nueva o restaura una con su frase de recuperación. La app tiene una billetera, y se abre desde esta pantalla.';
 
   @override
   String get overviewCreateWallet => 'Crear una billetera';
 
   @override
   String get overviewRestoreWallet => 'Restaurar con la frase de recuperación';
-
-  @override
-  String get overviewWatchAccountXpub => 'Observar una cuenta (xpub)';
-
-  @override
-  String get overviewAddCreate => 'Crear una billetera nueva';
-
-  @override
-  String get overviewAddCreateBlurb =>
-      'Una frase de recuperación nueva, guardada en este teléfono.';
-
-  @override
-  String get overviewAddRestore => 'Restaurar una billetera';
-
-  @override
-  String get overviewAddRestoreBlurb =>
-      'Con su frase de recuperación de 12, 15 o 24 palabras.';
-
-  @override
-  String get overviewAddWatchAddressBlurb =>
-      'Saldo y actividad, sin sus claves.';
-
-  @override
-  String get overviewAddWatchAccount => 'Observar una cuenta';
-
-  @override
-  String get overviewAddWatchAccountBlurb =>
-      'Todas las direcciones de una clave pública extendida (xpub).';
 
   @override
   String get homeBalanceLabel => 'Saldo';
@@ -3155,9 +2710,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get homeActionSend => 'Enviar';
-
-  @override
-  String get homeActionSendOffline => 'Enviar con firmante sin conexión';
 
   @override
   String get homeActionReceive => 'Recibir';
@@ -3211,7 +2763,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get homeShownAs => 'Mostrada como esta billetera';
 
   @override
-  String get homeAllWallets => 'Todas las billeteras';
+  String get homeAllWallets => 'Atrás';
 
   @override
   String get homeOtherAddressesHint =>
@@ -3269,10 +2821,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get homeNoAddresses => 'Aún no se ha leído ninguna dirección';
 
   @override
-  String get homeNoAddressesWatched =>
-      'Aún no se ha leído ninguna dirección. Aparecen después del primer escaneo.';
-
-  @override
   String get homeNoAddressesDot => 'Aún no se ha leído ninguna dirección.';
 
   @override
@@ -3288,88 +2836,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get homeNoActivity => 'Aún no hay actividad';
-
-  @override
-  String watchBalanceUnavailable(String detail) {
-    return 'Saldo no disponible: $detail';
-  }
-
-  @override
-  String get watchActivityPartial => 'No se pudo leer parte de la actividad.';
-
-  @override
-  String get watchActivityFailed => 'No se pudo cargar la actividad.';
-
-  @override
-  String get watchAccountRefreshRetry =>
-      'No se pudo actualizar la cuenta. Vuelve a intentarlo.';
-
-  @override
-  String get watchRescanAccount => 'Volver a escanear la cuenta';
-
-  @override
-  String get watchRefresh => 'Actualizar';
-
-  @override
-  String get watchMoreOptions => 'Más opciones';
-
-  @override
-  String get watchRename => 'Cambiar nombre';
-
-  @override
-  String get watchNotScannedTitle => 'Cuenta sin escanear';
-
-  @override
-  String get watchNotScannedBody =>
-      'Actualiza la cuenta para leer sus direcciones y su actividad.';
-
-  @override
-  String get watchRefreshAccount => 'Actualizar cuenta';
-
-  @override
-  String get watchRefreshToReadActivity =>
-      'Actualiza la cuenta para leer su actividad.';
-
-  @override
-  String get watchShowItsAddress => 'Mostrar su dirección';
-
-  @override
-  String get watchStatusWatchOnly => 'Solo lectura · no puede firmar aquí';
-
-  @override
-  String get watchScanning => 'Escaneando…';
-
-  @override
-  String get watchRefreshing => 'Actualizando…';
-
-  @override
-  String watchUpdated(String when) {
-    return 'Actualizada $when';
-  }
-
-  @override
-  String get watchGapNote =>
-      'La búsqueda se detiene tras 20 direcciones sin usar. Los pagos más allá de un hueco mayor pueden pasarse por alto.';
-
-  @override
-  String get watchAddressNote =>
-      'No puede firmar localmente. Envía con un firmante sin conexión; el cambio vuelve a esta misma dirección. Una cuenta observada sigue más direcciones.';
-
-  @override
-  String get watchFirstAddress => 'Primera dirección';
-
-  @override
-  String watchFirstAddressNote(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other:
-          'Comprueba que coincide con la primera dirección de la billetera de la que viene la clave: una clave extendida no tiene suma de verificación. $count direcciones escaneadas.',
-      one:
-          'Comprueba que coincide con la primera dirección de la billetera de la que viene la clave: una clave extendida no tiene suma de verificación. $count dirección escaneada.',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get activityTitleReceived => 'Recibido';
@@ -3802,15 +3268,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get receiveAddress => 'Dirección para recibir';
-
-  @override
-  String receiveWatchAccountNote(String limitations) {
-    return 'Dirección de pago sin usar. Después del pago se ofrece una nueva. $limitations';
-  }
-
-  @override
-  String get receiveWatchedNote =>
-      'Los pagos a esta dirección van a la billetera observada.';
 
   @override
   String get receiveFreshNote =>
@@ -5492,11 +4949,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get formatUnconfirmed => 'Sin confirmar';
 
   @override
-  String watchSomeUnavailable(String errors) {
-    return 'Algunos saldos observados no están disponibles.\n$errors';
-  }
-
-  @override
   String get celautDepositRowTitle => 'Depósito en Celaut';
 
   @override
@@ -5646,13 +5098,10 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautNoFullWallet =>
-      'Esto necesita una billetera completa: una billetera con su frase de recuperación en este dispositivo. Las billeteras de solo lectura no pueden pagar a un nodo ni iniciar o detener una instancia. Primero crea o restaura una billetera.';
+      'Esto necesita una billetera con su frase de recuperación en este dispositivo. Primero crea o restaura una billetera.';
 
   @override
   String get celautDepositPayerTitle => 'Billetera que paga';
-
-  @override
-  String get celautDepositPayerLabel => 'Billetera completa que paga';
 
   @override
   String celautDepositPayerBalance(String amount) {
@@ -5666,14 +5115,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get celautDepositPayerLocked =>
       'Esta billetera está bloqueada. La app pide su PIN o su huella antes del depósito, y la abre.';
-
-  @override
-  String get celautDepositSaveDefault =>
-      'Guardar como billetera de pago predeterminada';
-
-  @override
-  String get celautDepositIsDefault =>
-      'Esta es la billetera de pago predeterminada.';
 
   @override
   String get celautDepositRowPayer => 'Pagado por';
@@ -5692,16 +5133,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get celautDepositSentExpired =>
       'El token de depósito expiró. El nodo rechaza este depósito ahora.';
-
-  @override
-  String get celautDefaultPayerRowTitle => 'Billetera de pago predeterminada';
-
-  @override
-  String get celautDefaultPayerRowSubtitle =>
-      'La billetera completa que la pantalla de depósito elige primero';
-
-  @override
-  String get celautDefaultPayerNone => 'Sin predeterminada';
 
   @override
   String get celautComputeHomeRowTitle => 'Inicio de cómputo';
@@ -5749,7 +5180,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get celautHomeWallets => 'Billeteras';
+  String get celautHomeWallets => 'Billetera';
 
   @override
   String get celautHomeRefresh => 'Actualizar';
@@ -5790,10 +5221,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get celautHomeFullWallets => 'Billeteras completas · pueden pagar';
 
   @override
-  String get celautHomeWatched =>
-      'Direcciones y cuentas observadas · no pueden pagar';
-
-  @override
   String get celautHomePaidCredit => 'Crédito pagado en los nodos';
 
   @override
@@ -5827,7 +5254,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautOpenFullWalletNeeded =>
-      'Iniciar y detener necesitan una billetera completa abierta. Primero la app pide el PIN o la huella de una billetera completa.';
+      'Iniciar y detener necesitan la billetera abierta. Primero la app pide su PIN o su huella.';
 
   @override
   String get celautClientUnknownTitle => 'El nodo olvidó el cliente';

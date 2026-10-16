@@ -54,7 +54,7 @@ class HomeBalance extends StatelessWidget {
   /// "Total balance" or "Balance".
   final String label;
 
-  /// Read after the label in the same capitals, e.g. "Watched account".
+  /// Read after the label in the same capitals, e.g. "Locked".
   final String? labelExtra;
 
   /// Null while unknown: drawn as a placeholder while [loading], else as a

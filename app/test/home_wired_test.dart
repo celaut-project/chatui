@@ -6,8 +6,6 @@ import 'package:argus_wallet/services/public_wallet_sync.dart';
 import 'package:argus_wallet/services/token_pricer.dart';
 import 'package:argus_wallet/services/token_pricing.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
-import 'package:argus_wallet/services/watch_account_service.dart';
-import 'package:argus_wallet/services/watch_only_service.dart';
 import 'package:argus_wallet/ui/home/erg_price_feed.dart';
 import 'package:argus_wallet/ui/home/home_data.dart';
 import 'package:argus_wallet/ui/home/home_format.dart';
@@ -239,9 +237,7 @@ void main() {
     final api = HomeApi();
     setUpAll(() => RustLib.initMock(api: api));
     setUp(() async {
-      SharedPreferences.setMockInitialValues({'argus_watch_only_addresses': '[]'});
-      await watchOnlyService.load();
-      watchAccountService.accounts.clear();
+      SharedPreferences.setMockInitialValues({});
       publicWalletSync.setForeground(false);
     });
     tearDown(() async {

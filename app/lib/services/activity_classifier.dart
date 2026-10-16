@@ -356,8 +356,8 @@ WalletActivity readFlows(TxFlows f) {
   return make(ActivityCategory.sent);
 }
 
-/// [tx] re-read for a wallet that owns [owned] as well: a watched account
-/// whose later addresses were derived after its first history reads. The
+/// [tx] re-read for a wallet that owns [owned] as well: a wallet whose
+/// later addresses were found after its first history reads. The
 /// wallet-wide summary fields
 /// (`value_nano_erg`, `tokens_*`, `counterparty`) are recomputed with the
 /// flows. Rows without `io`, and rows where [owned] marks nothing new,

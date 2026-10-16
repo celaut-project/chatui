@@ -6,10 +6,7 @@ import 'package:argus_wallet/services/privacy_service.dart';
 import 'package:argus_wallet/services/public_wallet_sync.dart';
 import 'package:argus_wallet/services/wallet_database_service.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
-import 'package:argus_wallet/services/watch_account_service.dart';
-import 'package:argus_wallet/services/watch_only_service.dart';
 import 'package:argus_wallet/ui/home/overview_model.dart';
-import 'package:argus_wallet/ui/home/watched_wallet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,12 +15,10 @@ import 'support/home_finders.dart';
 import 'support/home_harness.dart';
 
 // What the mempool does to a balance shows wherever the balance does: on
-// the overview's total and rows, and under the wallet page's balance, for
-// seed and watched wallets alike. The line splits the figure above it, so
+// the overview's total and rows, and under the wallet page's balance. The line splits the figure above it, so
 // its confirmed side is that figure less what is pending.
 
 const erg = 1000000000;
-const watched = '9watchedAddressWithAPendingPaymentxxxxxxxxxxxxxxxxxx';
 const lockedZero = '9lockedWalletIndexZeroxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
 
 /// A node whose answers carry the mempool split `get_balance` and the sync
@@ -70,20 +65,15 @@ void main() {
   final api = PendingApi();
   setUpAll(() => RustLib.initMock(api: api));
   setUp(() async {
-    SharedPreferences.setMockInitialValues({
-      'argus_watch_only_addresses': '[]',
-    });
-    await watchOnlyService.load();
+    SharedPreferences.setMockInitialValues({});
     await privacyService.load();
     // Snapshot figures stay as saved: no public refresh in these tests.
     publicWalletSync.setForeground(false);
     api.balances.clear();
     api.summaries.clear();
     api.walletSummary = null;
-    watchAccountService.accounts.clear();
   });
   tearDown(() async {
-    watchAccountService.accounts.clear();
     publicWalletSync.setForeground(true);
     if (walletService.isUnlocked) await walletService.lock();
   });
@@ -101,20 +91,6 @@ void main() {
       createdAt: DateTime(2026),
       address0: 'y',
     );
-    final account = WatchAccount('account')
-      ..snapshot = WatchAccountSnapshot(
-        ['a0'],
-        'a0',
-        3 * erg,
-        const {},
-        const [],
-        0,
-        pending: const PendingBalance(
-          confirmedNano: 4 * erg,
-          pendingOutNano: erg,
-          transactions: 1,
-        ),
-      );
     final rows = buildOverviewEntries(
       wallets: [live, locked],
       lastKnown: {
@@ -144,17 +120,6 @@ void main() {
           transactions: 1,
         ),
       ),
-      watchedAddresses: const [watched],
-      watchedHoldings: {
-        watched: WatchedHoldings.fromBalance({
-          'balance_nano_erg': 2 * erg,
-          'tokens': [],
-          'summary': const PendingBalance(
-            confirmedNano: 2 * erg,
-          ).toJson(),
-        }),
-      },
-      accounts: [account],
     );
     final byId = {for (final r in rows) r.ref.id: r};
 
@@ -176,21 +141,12 @@ void main() {
     expect(lockedRow.pending!.confirmedNano, 4 * erg);
     expect(lockedRow.pending!.netNano, 5 * erg);
 
-    // A watched address with nothing pending says nothing.
-    expect(byId[watched]!.pending!.hasPending, isFalse);
-    expect(pendingBalanceText(byId[watched]!.pending), isNull);
-
-    // A watched account's scan carries its own split.
-    final accountRow = byId['account']!;
-    expect(accountRow.pending!.pendingDeltaNano, -erg);
-    expect(accountRow.pending!.netNano, 3 * erg);
-
     // The total: every row's movement, against the sum of the rows.
     final totals = overviewTotals(rows);
-    expect(totals.total.totalNano, (10 + 5 + 2 + 3) * erg);
-    expect(totals.pending!.pendingDeltaNano, 2500000000 + erg - erg);
+    expect(totals.total.totalNano, (10 + 5) * erg);
+    expect(totals.pending!.pendingDeltaNano, 2500000000 + erg);
     expect(totals.pending!.netNano, totals.total.totalNano);
-    expect(totals.pending!.transactions, 3);
+    expect(totals.pending!.transactions, 2);
   });
 
   test('a total with no split anywhere has no pending line', () {
@@ -213,18 +169,9 @@ void main() {
   });
 
   testWidgets(
-    'the overview shows pending on a locked row, a watched row and the total',
+    'the overview shows pending on a locked row and the total',
     (tester) async {
-      SharedPreferences.setMockInitialValues({
-        'argus_watch_only_addresses': jsonEncode([watched]),
-      });
-      await watchOnlyService.load();
-      api.balances[watched] = {'balance_nano_erg': 3 * erg, 'tokens': []};
-      api.summaries[watched] = const PendingBalance(
-        confirmedNano: 2 * erg,
-        pendingInNano: erg,
-        transactions: 1,
-      );
+      SharedPreferences.setMockInitialValues({});
       FakeKeystore(wallets: ['pend-locked']).install(tester);
       await tester.runAsync(() async {
         await saveWallet('pend-locked', name: 'Savings', address0: lockedZero);
@@ -252,22 +199,10 @@ void main() {
         ),
         findsOneWidget,
       );
-      final row = find.byKey(
-        const ValueKey('overview-row-watchedAddress-$watched'),
-      );
-      expect(
-        find.descendant(
-          of: row,
-          matching: textPlain('+1 ERG pending · 2 confirmed'),
-        ),
-        findsOneWidget,
-      );
-      // −1 and +1 cancel out in the total, but two transactions are still
-      // pending: the line stays, without a figure.
       expect(
         find.descendant(
           of: find.byKey(const Key('overview-total-pending')),
-          matching: textPlain('Pending · 7 confirmed'),
+          matching: textPlain('−1 ERG pending · 5 confirmed'),
         ),
         findsOneWidget,
       );
@@ -276,43 +211,11 @@ void main() {
       await tester.runAsync(() => privacyService.setHideBalances(true));
       addTearDown(() => privacyService.setHideBalances(false));
       await tester.pumpAndSettle();
-      expect(textPlain('•••• ERG pending'), findsNWidgets(3));
+      expect(textPlain('•••• ERG pending'), findsNWidgets(2));
       expect(textPlainContaining('confirmed'), findsNothing);
       await disposeHome(tester);
     },
   );
-
-  testWidgets('a watched address page shows pending under its balance', (
-    tester,
-  ) async {
-    SharedPreferences.setMockInitialValues({
-      'argus_watch_only_addresses': jsonEncode([watched]),
-    });
-    await watchOnlyService.load();
-    api.balances[watched] = {'balance_nano_erg': 3 * erg, 'tokens': []};
-    api.summaries[watched] = const PendingBalance(
-      confirmedNano: 2 * erg,
-      pendingInNano: erg,
-      transactions: 1,
-    );
-    FakeKeystore(wallets: const []).install(tester);
-    await pumpHome(tester);
-    final row = find.byKey(
-      const ValueKey('overview-row-watchedAddress-$watched'),
-    );
-    await tester.ensureVisible(row);
-    await tester.tap(row);
-    await tester.pumpAndSettle();
-    expect(find.byType(WatchedWalletPage), findsOneWidget);
-    expect(
-      find.descendant(
-        of: find.byKey(const Key('wallet-balance-pending')),
-        matching: textPlain('+1 ERG pending · 2 confirmed'),
-      ),
-      findsOneWidget,
-    );
-    await disposeHome(tester);
-  });
 
   testWidgets('an unlocked wallet page shows pending under its balance', (
     tester,

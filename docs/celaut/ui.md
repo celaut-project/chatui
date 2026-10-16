@@ -10,16 +10,22 @@ they differ.
 
 ## 1. Wallets
 
-The app holds more than one wallet. A wallet has one of two types:
+**Decision of 2026-10-16 (Josemi), which replaces the two types of wallet of
+2026-10-13:** the app holds **one** Ergo wallet, with its seed on this device. There are
+no read-only (watch-only) wallets and no offline signing.
 
-| Type | Has the seed | Can sign | Use |
-|---|---|---|---|
-| Full wallet | yes | yes | Manage instances, pay nodes, send ERG and tokens |
-| Read-only wallet (watch-only) | no | no | See balance and history only |
-
-Both types exist in the app today (watch-only accounts, `watch_account_service.dart`).
-Keep both.
-Read-only wallets never start, stop or pay for an instance.
+- With no wallet, the app offers to create a wallet or to restore one from its recovery
+  phrase. With a wallet, it offers neither.
+- To change the wallet, the user removes it in its settings (Settings, This wallet,
+  Remove wallet), then creates or restores another one.
+- **Migration at the update.** An earlier version can hold more than one wallet and
+  watched addresses or accounts. At each start the app removes them
+  (`app/lib/services/single_wallet.dart`):
+  - the watched addresses, the watched accounts and their token tables;
+  - the default payer of the deposits;
+  - every wallet after the first of the user order of the wallets list, with its seed.
+    This delete cannot be undone: the recovery phrase on paper is the only way back to
+    such a wallet.
 
 Rules:
 
@@ -27,26 +33,17 @@ Rules:
   tokens, node sessions, quotes and the reputation event log are kept in **one
   database for the whole app**. There is no database per wallet. Do not add a
   `wallet_id` key to the Celaut tables.
-- Instances are managed only with a **full wallet**: start, stop and any action that
-  needs a signature or the seed. A read-only wallet cannot manage instances, because it
-  has no seed. The instance data itself is still app-wide (see the rule above), so a
-  full wallet can manage any instance the app holds, whichever wallet started it.
-- A full wallet is also the only kind that **pays a node** (a deposit, M3). The app
-  uses **one** full wallet for each payment. A read-only wallet is not offered in the
-  payment choice. If the app has no full wallet, the deposit screen says so and does
-  not start, and instance actions that need a full wallet are disabled with the same
-  message.
-- Read-only wallets are still shown in the Celaut screens, for balance and history
-  only.
-- The payment wallet is chosen at the time of the deposit. The deposit screen shows
-  which wallet pays and its balance. A default wallet can be saved in the settings.
-- Before a deposit signs, the deposit screen asks for the PIN or fingerprint of the
-  chosen wallet, even if that wallet is already open.
-- Start and stop need a full wallet that is **open** (unlocked), not only one that
-  exists. If it is locked, the action asks the user to unlock it.
+- The wallet manages the instances (start, stop and any action that needs a signature)
+  and pays the nodes (a deposit, M3). If the app has no wallet, the deposit screen says
+  so and does not start, and the instance actions are disabled with the same message.
+- The deposit screen shows the wallet that pays and its balance. Before a deposit signs,
+  it asks for the PIN or fingerprint of the wallet, even if the wallet is already open.
+- Start and stop need the wallet **open** (unlocked). If it is locked, the action asks
+  the user to unlock it.
 - The data of a node (deposit, client id, balance) does not record which wallet paid,
   except in the transaction history that the user can see (transaction id, address).
-  A later deposit to the same node can come from another wallet.
+  After the user changes the wallet, a later deposit to the same node comes from the new
+  wallet.
 
 ## 2. Home screen: what the user acts on
 
@@ -66,16 +63,16 @@ each node are one tap away. In this order:
    - the nodes: "N of M nodes ready · cores · memory", with a coloured dot (all ready,
      some, none). It opens the Nodes screen;
    - the credit on the nodes, in ERG with its USD value. It opens the Nodes screen;
-   - the ERG of the full wallets, with its USD value. It opens the wallets list.
+   - the ERG of the wallet, with its USD value. It opens the page of the wallet; with no
+     wallet, the screen that creates or restores one.
    A node that forgot the client of the app shows its action under the nodes line,
    because the user must choose (section 3).
 
 Not on the home screen any more: the big figure of the cores, memory and disk as separate
-figures, the note "offered, not free", the watched wallets, the paid and the free credit
+figures, the note "offered, not free", the paid and the free credit
 apart, the USD source note, the card of each node (address, MU, rate, latency, reasons) and
 "Check now". The Nodes screen has the card of each node: its availability (section 4), its
-credit from the last overview, the action for a forgotten client, and "Check now". The
-wallets list has the watched wallets.
+credit from the last overview, the action for a forgotten client, and "Check now".
 
 **Load.** The home screen shows the last overview at once when it opens again (it is kept
 in memory), with a thin line while it asks the nodes; on the first open it says that it
@@ -125,8 +122,8 @@ balancer would use with its start cost. Run needs an open full wallet.
 
 | Milestone | Change |
 |---|---|
-| M3 | The deposit uses one full wallet that the user chooses. The confirmation screen shows the wallet, ERG and MU. Only full wallets are in the choice |
-| M4 | The conversation screen and the instance list read from the single database. Starting or stopping an instance needs a full wallet |
+| M3 | The deposit uses the wallet of the app. The confirmation screen shows the wallet, ERG and MU |
+| M4 | The conversation screen and the instance list read from the single database. Starting or stopping an instance needs the wallet open |
 | Home | The home screen follows section 2. Do it with the first screen that needs the node data (M3), or in its own PR before it |
 | Storage | The Celaut store (client ids, instance tokens) is one encrypted store for the app, as the plan already says. See plan section 3 |
 | Client ids | If a node forgets a stored client id, the app shows the error and asks the user: create a new client (the old balance is lost) or retry later. It never creates a client silently |

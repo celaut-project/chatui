@@ -21,13 +21,6 @@ void main() {
   group('screens', () {
     setUpAll(loadRenderFonts);
 
-    final watched = WalletSummary(
-      ref: const WalletRef.watchedAddress('9hWatched'),
-      name: '9hWatched…o9go',
-      nanoErg: _nano(5),
-      fiatValue: 2.2,
-      tokenCount: 0,
-    );
     final seed = WalletSummary(
       ref: const WalletRef.seed('main'),
       name: 'Main Wallet',
@@ -39,7 +32,6 @@ void main() {
     Widget overview(List<WalletSummary> wallets) => OverviewScreen(
           data: OverviewData(
             wallets: wallets,
-            watched: [watched],
             currency: _aud,
             network: const NetworkStatus(state: SyncState.synced, blockHeight: 1, label: 'Connected'),
             totalNano: _nano(10),
@@ -77,9 +69,9 @@ void main() {
       expect(hint('pill-settings'), 'Network settings');
     });
 
-    testWidgets('the Addresses tab of an account not yet scanned says so', (tester) async {
-      final account = WalletSummary(
-        ref: const WalletRef.watchedAccount('xpub'),
+    testWidgets('the Addresses tab of a wallet with no known address says so', (tester) async {
+      const account = WalletSummary(
+        ref: WalletRef.seed('new'),
         name: 'Account',
         loading: true,
       );
@@ -88,11 +80,7 @@ void main() {
         WalletPageScreen(
           title: 'Account',
           body: WalletPageView(
-            data: WalletPageData(
-              wallet: account,
-              currency: _aud,
-              watched: const WatchedDetails(status: ['Watch-only · cannot sign here'], canSend: false, canReceive: false),
-            ),
+            data: const WalletPageData(wallet: account, currency: _aud),
             onAction: (_) {},
           ),
         ),

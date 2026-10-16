@@ -4,8 +4,6 @@ import 'package:argus_wallet/services/privacy_service.dart';
 import 'package:argus_wallet/services/public_wallet_sync.dart';
 import 'package:argus_wallet/services/wallet_database_service.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
-import 'package:argus_wallet/services/watch_account_service.dart';
-import 'package:argus_wallet/services/watch_only_service.dart';
 import 'package:argus_wallet/ui/home/overview_model.dart';
 import 'package:argus_wallet/ui/settings_screen.dart';
 import 'package:argus_wallet/ui/wallets_overview_screen.dart';
@@ -16,12 +14,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'support/home_finders.dart';
 import 'support/home_harness.dart';
 
-// A1: the app opens on an overview of every wallet on the device, with
-// balances that need no unlock and the total across them.
+// A1: the app opens on an overview of the wallet of the app, with a
+// balance that needs no unlock.
 
 const vanity = '9vanityPinnedAddressAtIndex275xxxxxxxxxxxxxxxxxxxxx';
 const zero = '9zeroAddressOfThePinnedWalletxxxxxxxxxxxxxxxxxxxxxxx';
-const watched = '9watchedAddressForTheOverviewTestsxxxxxxxxxxxxxxxxxx';
 
 Map<String, dynamic> snapshot(String id, int nano, {int ageMinutes = 1}) => {
       'wallet_id': id,
@@ -44,26 +41,14 @@ void main() {
   final api = HomeApi();
   setUpAll(() => RustLib.initMock(api: api));
   setUp(() async {
-    SharedPreferences.setMockInitialValues({
-      'argus_watch_only_addresses': '["$watched"]',
-    });
-    await watchOnlyService.load();
+    SharedPreferences.setMockInitialValues({});
     await privacyService.load();
     // One scheduler for the whole test run: each launch starts due.
     publicWalletSync.resetSchedule();
-    api.balances
-      ..clear()
-      ..[watched] = {'balance_nano_erg': 2500000000, 'tokens': []};
+    api.balances.clear();
     api.balanceCalls.clear();
-    watchAccountService.accounts
-      ..clear()
-      ..add(
-        WatchAccount('overview-account', label: 'Cold account')
-          ..snapshot = WatchAccountSnapshot([watched], watched, 1000000000, {}, [], -1),
-      );
   });
   tearDown(() async {
-    watchAccountService.accounts.clear();
     publicWalletSync.setForeground(true);
     if (walletService.isUnlocked) await walletService.lock();
   });
@@ -72,27 +57,25 @@ void main() {
     WidgetTester tester, {
     Map<String, dynamic>? pinnedSnapshot,
   }) async {
-    FakeKeystore(wallets: ['ov-pinned', 'ov-plain']).install(tester);
+    FakeKeystore(wallets: ['ov-pinned']).install(tester);
     await tester.runAsync(() async {
       await saveWallet('ov-pinned', name: 'Vanity', address0: zero, pinnedIndex: 275, pinnedAddress: vanity);
-      await saveWallet('ov-plain', name: 'Plain', address0: '9plain');
       if (pinnedSnapshot != null) {
         await WalletDatabaseService.savePublicSnapshot('ov-pinned', pinnedSnapshot, () => true);
       }
     });
   }
 
-  testWidgets('every kind of wallet, its balance, and the total across them', (tester) async {
+  testWidgets('the wallet and its balance', (tester) async {
     publicWalletSync.setForeground(false);
     await wallets(tester, pinnedSnapshot: snapshot('ov-pinned', 12000000000));
     await pumpHome(tester);
     expect(walletService.isUnlocked, isFalse);
-    for (final name in ['Vanity', 'Plain', 'Watched address', 'Cold account']) {
-      expect(find.text(name), findsOneWidget, reason: name);
-    }
-    // 12 + 2.5 + 1 ERG; the never-synced wallet is counted as not loaded.
-    expect(plainOf(tester, find.byKey(const Key('overview-total'))), '15.5 ERG');
-    expect(textPlainContaining('1 wallet not loaded'), findsOneWidget);
+    expect(find.text('Vanity'), findsOneWidget);
+    expect(plainOf(tester, find.byKey(const Key('overview-total'))), '12 ERG');
+    expect(textPlainContaining('not loaded'), findsNothing);
+    // One wallet: no way to add another.
+    expect(find.byKey(const Key('overview-add-wallet')), findsNothing);
     // What index 0 of the pinned wallet holds is called out under its row.
     final row = find.byKey(const ValueKey('overview-row-seed-ov-pinned'));
     expect(find.descendant(of: row, matching: textPlain('3 ERG on another address')), findsOneWidget);
@@ -114,33 +97,23 @@ void main() {
     await pumpHome(tester);
     expect(plainOf(tester, find.byKey(const Key('overview-total'))), '•••••• ERG');
     expect(textPlainContaining(RegExp(r'\b12\b')), findsNothing);
-    expect(textPlainContaining('2.5'), findsNothing);
-    expect(textPlain('•••• ERG'), findsNWidgets(3), reason: 'every row with a known balance');
+    expect(textPlain('•••• ERG'), findsOneWidget, reason: 'the row of the wallet');
     expect(textPlain('Funds on another address'), findsOneWidget);
     expect(textPlainContaining('3 ERG'), findsNothing);
     await disposeHome(tester);
   });
 
-  testWidgets('no wallets yet: create, restore and both ways to watch', (tester) async {
-    SharedPreferences.setMockInitialValues({'argus_watch_only_addresses': '[]'});
-    await watchOnlyService.load();
-    watchAccountService.accounts.clear();
+  testWidgets('no wallet yet: create or restore one, and nothing to watch', (tester) async {
+    SharedPreferences.setMockInitialValues({});
     FakeKeystore(wallets: const []).install(tester);
     await pumpHome(tester);
-    expect(find.textContaining('No wallets yet'), findsOneWidget);
-    for (final key in ['overview-create', 'overview-restore', 'overview-watch-address', 'overview-watch-xpub']) {
+    expect(find.textContaining('No wallet yet'), findsOneWidget);
+    for (final key in ['overview-create', 'overview-restore']) {
       expect(find.byKey(Key(key)), findsOneWidget, reason: key);
     }
-    await tester.tap(find.byKey(const Key('overview-watch-xpub')));
-    await tester.pumpAndSettle();
-    expect(find.text(watchAccountDisclosure), findsOneWidget);
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('overview-watch-address')));
-    await tester.pumpAndSettle();
-    expect(find.descendant(of: find.byType(AlertDialog), matching: find.text('Watch an address')), findsOneWidget);
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
+    for (final key in ['overview-watch-address', 'overview-watch-xpub']) {
+      expect(find.byKey(Key(key)), findsNothing, reason: key);
+    }
     await disposeHome(tester);
   });
 
@@ -182,26 +155,14 @@ void main() {
     await disposeHome(tester);
   });
 
-  testWidgets('dragging a wallet saves the new order', (tester) async {
-    publicWalletSync.setForeground(false);
-    await wallets(tester);
-    final model = WalletsOverviewModel();
-    addTearDown(model.dispose);
-    await tester.runAsync(model.loadWallets);
-    expect(model.wallets.map((w) => w.walletId), ['ov-pinned', 'ov-plain']);
-    await tester.runAsync(() => model.reorder(1, 0));
-    expect(model.wallets.map((w) => w.walletId), ['ov-plain', 'ov-pinned']);
-    expect(await tester.runAsync(walletService.walletOrder), ['ov-plain', 'ov-pinned']);
-  });
-
   test('the overview total is the sum of what its rows show', () {
     final rows = [
       OverviewEntry(ref: const WalletRef.seed('a'), name: 'a', state: OverviewRowState.locked, balanceNano: 5),
       OverviewEntry(ref: const WalletRef.seed('b'), name: 'b', state: OverviewRowState.locked),
       OverviewEntry(
-        ref: const WalletRef.watchedAddress('c'),
+        ref: const WalletRef.seed('c'),
         name: 'c',
-        state: OverviewRowState.watched,
+        state: OverviewRowState.locked,
         balanceNano: 7,
         tokens: const [(id: 't', amount: 1, decimals: 0)],
       ),
@@ -209,8 +170,7 @@ void main() {
     final totals = overviewTotals(rows);
     expect(totals.total.totalNano, 12);
     expect(totals.total.unknown, 1);
-    expect(totals.wallets, 2);
-    expect(totals.watched, 1);
+    expect(totals.wallets, 3);
     expect(totals.tokens.single.id, 't');
   });
 

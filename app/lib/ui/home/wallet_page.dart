@@ -19,8 +19,7 @@ import '../../l10n/l10n.dart';
 /// state, the tab it is on, and its tabs.
 ///
 /// The back chevron returns to the overview, which is where wallets are
-/// switched. A seed wallet's header carries the scanner; a watched one's,
-/// its refresh. On the Wallet tab the header is [immersive]: it lies over
+/// switched. The header carries the scanner. On the Wallet tab the header is [immersive]: it lies over
 /// the scene the page opens on, clear until the page scrolls under it.
 class WalletPageScreen extends StatelessWidget {
   const WalletPageScreen({
@@ -166,7 +165,7 @@ class WalletPageView extends StatelessWidget {
   final WalletPageData data;
   final VoidCallback? onToggleHidden;
 
-  /// Send, Receive or Send with offline signer. More opens its sheet
+  /// Send or Receive. More opens its sheet
   /// here and reports the pick through [onTool].
   final ValueChanged<WalletAction>? onAction;
   final ValueChanged<WalletTool>? onTool;
@@ -189,7 +188,7 @@ class WalletPageView extends StatelessWidget {
   /// No node answers: look again.
   final VoidCallback? onRetry;
 
-  /// A watched wallet's address, copied.
+  /// The address of the wallet, copied.
   final VoidCallback? onCopyAddress;
 
   /// Pull to refresh.
@@ -222,7 +221,6 @@ class WalletPageView extends StatelessWidget {
             children: [
               const HomeRule(),
               ..._statusLines(context),
-              ..._notes(context),
             ],
           ),
         ),
@@ -234,7 +232,7 @@ class WalletPageView extends StatelessWidget {
               WalletPageTab.assets,
               WalletPageTab.activity,
               WalletPageTab.addresses,
-              if (!data.wallet.watchOnly) WalletPageTab.utxos,
+              WalletPageTab.utxos,
             ],
             content: (tab) => switch (tab) {
               WalletPageTab.assets => [..._assets(context), const SizedBox(height: 16), ..._activity(context)],
@@ -260,9 +258,8 @@ class WalletPageView extends StatelessWidget {
     final t = HomeText.of(context);
     final name = wallet.name.trim();
     const medallion = WalletPageScreen.medallionSize;
-    final seed = wallet.kind == WalletKind.seed;
     return Padding(
-      padding: EdgeInsets.fromLTRB(homeGutter, seed ? 18 : 4, homeGutter, 14),
+      padding: const EdgeInsets.fromLTRB(homeGutter, 18, homeGutter, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -271,11 +268,6 @@ class WalletPageView extends StatelessWidget {
             children: [
               HomeBalance(
                 label: context.l10n.homeBalanceLabel,
-                labelExtra: switch (wallet.kind) {
-                  WalletKind.seed => null,
-                  WalletKind.watchedAddress => context.l10n.commonWatchedAddress,
-                  WalletKind.watchedAccount => context.l10n.commonWatchedAccount,
-                },
                 figureKey: const Key('wallet-balance'),
                 pendingKey: const Key('wallet-balance-pending'),
                 nanoErg: wallet.nanoErg,
@@ -289,11 +281,11 @@ class WalletPageView extends StatelessWidget {
                 onToggleHidden: onToggleHidden,
                 onUnpriced: onAllAssets,
                 figureReserve: medallion - 18,
-                showLabel: wallet.kind != WalletKind.seed,
+                showLabel: false,
                 unpricedPill: false,
               ),
               PositionedDirectional(
-                top: seed ? -18 : 26,
+                top: -18,
                 end: -(homeGutter - WalletPageScreen.medallionInset),
                 child: WalletMedallion(
                   letter: name.isEmpty ? '?' : String.fromCharCode(name.runes.first).toUpperCase(),
@@ -322,8 +314,6 @@ class WalletPageView extends StatelessWidget {
           const SizedBox(height: 20),
           HomeActionCircles(
             actions: data.actions,
-            disabled: data.disabled,
-            watched: wallet.watchOnly,
             onAction: (a) => _act(context, a),
           ),
         ],
@@ -376,29 +366,6 @@ class WalletPageView extends StatelessWidget {
         ),
       ));
     }
-    if (data.watched case final watched?) {
-      lines.add(HomeLineRow(
-        inkKey: const Key('watched-status'),
-        semanticLabel: watched.status.join(', '),
-        leading: Icon(Icons.visibility_outlined, size: 16, color: t.muted),
-        text: TextSpan(
-          children: [
-            for (final (i, s) in watched.status.indexed)
-              TextSpan(
-                text: i == 0 ? s : '  ·  ${whole(s)}',
-                style: i == 0 ? TextStyle(color: t.ink, fontWeight: FontWeight.w700) : null,
-              ),
-          ],
-        ),
-      ));
-      if (watched.error case final error?) {
-        lines.add(HomeLineRow(
-          semanticLabel: error,
-          leading: Icon(Icons.cloud_off_outlined, size: 16, color: rustFor(context)),
-          text: TextSpan(text: error, style: TextStyle(color: rustFor(context))),
-        ));
-      }
-    }
     if (data.offline) {
       lines.add(HomeLineRow(
         inkKey: const Key('wallet-offline'),
@@ -434,43 +401,6 @@ class WalletPageView extends StatelessWidget {
       ));
     }
     return lines;
-  }
-
-  /// What a watched wallet can and cannot do, said plainly.
-  List<Widget> _notes(BuildContext context) {
-    final notes = data.watched?.notes ?? const [];
-    if (notes.isEmpty) return const [];
-    final t = HomeText.of(context);
-    return [
-      Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(homeGutter, 8, homeGutter, 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: homeMarkSize,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 1),
-                child: Icon(Icons.info_outline, size: 16, color: t.muted),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final (i, note) in notes.indexed)
-                    Padding(
-                      padding: EdgeInsets.only(top: i == 0 ? 0 : 6),
-                      child: Text(note, style: t.secondary.copyWith(height: 1.4)),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    ];
   }
 
   List<Widget> _assets(BuildContext context) {
@@ -575,42 +505,19 @@ class WalletPageView extends StatelessWidget {
   }
 
   /// Where the wallet's funds sit: the address it is shown as, its other
-  /// addresses and the way to every one; a watched wallet's address in
-  /// full, to check against the wallet the key came from and to copy.
+  /// addresses and the way to every one.
   List<Widget> _addresses(BuildContext context) {
     final t = HomeText.of(context);
     final wallet = data.wallet;
     final address = wallet.address;
     final other = wallet.otherAddresses;
-    final watched = data.watched;
     return [
       const SizedBox(height: 14),
       GlassCard(
         dividers: true,
         dividerIndent: glassGutter,
         children: [
-          if (watched != null && address != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(glassGutter, 4, glassGutter - 6, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(child: Text(watched.addressTitle ?? context.l10n.commonAddress, style: t.title)),
-                      if (onCopyAddress != null)
-                        HomeLink(text: 'Copy', onPressed: onCopyAddress, linkKey: const Key('watched-copy-address')),
-                    ],
-                  ),
-                  SelectableText(address, style: monoStyle(context, size: 12.5).copyWith(color: t.ink)),
-                  if (watched.addressNote case final note?) ...[
-                    const SizedBox(height: 8),
-                    Text(note, style: t.secondary.copyWith(height: 1.4)),
-                  ],
-                ],
-              ),
-            )
-          else if (address != null)
+          if (address != null)
             HomeLineRow(
               semanticLabel: spoken(wallet.pinnedIndex != null
                   ? context.l10n.homeSpokenPinnedAddress('${wallet.pinnedIndex}', shorten(address, head: 8, tail: 6))
@@ -630,7 +537,7 @@ class WalletPageView extends StatelessWidget {
               leading: Icon(Icons.subdirectory_arrow_right, size: 18, color: t.muted),
               text: TextSpan(text: otherAddressLine(other, hidden: data.hidden)),
             ),
-          if (!wallet.watchOnly && onTool != null)
+          if (onTool != null)
             HomeLineRow(
               inkKey: const Key('wallet-every-address'),
               onTap: () => onTool!(WalletTool.addresses),
@@ -638,15 +545,14 @@ class WalletPageView extends StatelessWidget {
               leading: Icon(Icons.account_tree_outlined, size: 18, color: t.muted),
               text: TextSpan(text: context.l10n.homeEveryAddress, style: TextStyle(color: t.ink)),
             ),
-          // Nothing known yet (a watched account before its first scan): the
-          // tab says so rather than showing an empty pane.
-          if (address == null && other == null && (wallet.watchOnly || onTool == null))
+          // Nothing known yet: the tab says so rather than showing an empty pane.
+          if (address == null && other == null && onTool == null)
             HomeLineRow(
               inkKey: const Key('wallet-no-addresses'),
               semanticLabel: context.l10n.homeNoAddresses,
               leading: Icon(Icons.account_tree_outlined, size: 18, color: t.muted),
               text: TextSpan(
-                text: wallet.watchOnly ? context.l10n.homeNoAddressesWatched : context.l10n.homeNoAddressesDot,
+                text: context.l10n.homeNoAddressesDot,
               ),
             ),
         ],

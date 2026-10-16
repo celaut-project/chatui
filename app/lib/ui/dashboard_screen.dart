@@ -18,10 +18,9 @@ import '../services/privacy_service.dart';
 import '../services/public_wallet_sync.dart';
 import '../services/secure_storage.dart';
 import '../services/session_lock.dart';
+import '../services/single_wallet.dart';
 import '../services/wallet_service.dart';
 import '../services/wallet_sync_controller.dart';
-import '../services/watch_account_service.dart';
-import '../services/watch_only_service.dart';
 import '../theme/argus_theme.dart';
 import 'assets_screen.dart';
 import '../celaut/wallet_money.dart';
@@ -37,7 +36,6 @@ import 'home/unlock_gate.dart';
 import 'home/wallet_ledger.dart';
 import 'home/wallet_nav_bar.dart';
 import 'home/wallet_page.dart';
-import 'home/watched_wallet.dart';
 import 'pin_fields.dart';
 import 'restore_wallet_screen.dart';
 import 'scan_screen.dart';
@@ -52,7 +50,6 @@ import 'widgets/entry_dialogs.dart';
 import 'widgets/error_sheet.dart';
 import 'widgets/token_detail_sheet.dart';
 import 'widgets/wallet_view_boundary.dart';
-import 'widgets/watch_account_list.dart';
 
 /// The app's home: the overview of every wallet, and the page of the one
 /// that is open.
@@ -62,9 +59,8 @@ import 'widgets/watch_account_list.dart';
 /// returns to the overview, which is how the user switches wallets. A seed
 /// wallet asks for its key once, when it is opened. A cancelled biometric
 /// prompt leaves its locked page ([UnlockGate]) with Unlock and Use PIN,
-/// and nothing asks again by itself. Watched addresses and accounts open
-/// the same page with key-only actions swapped for their watch-only
-/// equivalent ([WatchedWalletPage]).
+/// and nothing asks again by itself. The app holds one wallet and no
+/// watched wallets ([enforceSingleWallet]).
 ///
 /// An unlocked seed wallet's page has four tabs: Wallet ([WalletLedger]),
 /// Activity, Discover (the tools that act on its coins) and Settings.
@@ -74,9 +70,18 @@ import 'widgets/watch_account_list.dart';
 /// history the home screens chart, deep links and incoming-payment
 /// notifications.
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key, this.initializeWalletService, this.computeHome});
+  const DashboardScreen({
+    super.key,
+    this.initializeWalletService,
+    this.computeHome,
+    this.enforceSingleWallet,
+  });
 
   final Future<void> Function()? initializeWalletService;
+
+  /// Removes what an earlier version left beyond the one wallet. Null: the
+  /// app's [enforceSingleWallet]; tests give their own.
+  final Future<void> Function()? enforceSingleWallet;
 
   /// Whether the launch level is the compute home. Null: the setting decides (on by
   /// default). Tests of the wallets list give false.
@@ -158,8 +163,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     walletService.unlocked.addListener(_syncLock);
     _overview.attach();
     _price.attach();
-    watchOnlyService.addListener(_onWatchedListChanged);
-    watchAccountService.addListener(_onWatchedListChanged);
     _sync.addListener(_onSyncChanged);
     deepLinkController.addListener(_onDeepLink);
     computeHomeFlag.addListener(_onComputeHomeChanged);
@@ -201,8 +204,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     _probeTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     walletService.unlocked.removeListener(_syncLock);
-    watchOnlyService.removeListener(_onWatchedListChanged);
-    watchAccountService.removeListener(_onWatchedListChanged);
     _sync.removeListener(_onSyncChanged);
     deepLinkController.removeListener(_onDeepLink);
     _overview.dispose();
@@ -216,6 +217,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       await (widget.initializeWalletService ?? walletService.init)();
       await networkController.load();
       networkController.probe();
+      await (widget.enforceSingleWallet ?? enforceSingleWallet)();
       await _overview.loadWallets();
     } on ArgusException catch (e) {
       _notice = '${e.code}: ${e.message}';
@@ -237,16 +239,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (mounted) setState(() {});
     _openPendingDeepLink();
     _announceIncoming();
-  }
-
-  /// A watched wallet that stopped being watched cannot stay open.
-  void _onWatchedListChanged() {
-    final open = _open;
-    if (open == null || !open.watched || !mounted) return;
-    final exists = open.kind == WalletKind.watchedAddress
-        ? watchOnlyService.addresses.contains(open.id)
-        : watchAccountService.accounts.any((a) => a.key == open.id);
-    if (!exists) _closeWallet();
   }
 
   void _syncLock() {
@@ -370,8 +362,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         return;
       }
     } else {
-      // Locked wallets and watched addresses, each on its own five-minute
-      // floor. This needs no unlock: the overview shows them before one.
+      // The locked wallet, on its five-minute floor. This needs no unlock:
+      // the overview shows it before one.
       unawaited(_overview.refreshIfDue());
     }
     if (!_walletUnlocked || _sync.busy) return;
@@ -419,19 +411,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   // ── Opening and closing wallets ───────────────────────────────────────
 
-  Future<void> _openWallet(WalletRef ref) async {
-    if (ref.watched) {
-      setState(() {
-        _open = ref;
-        _tab = 0;
-        _visitedTabs
-          ..clear()
-          ..add(0);
-      });
-      return;
-    }
-    await _openSeed(ref.id);
-  }
+  Future<void> _openWallet(WalletRef ref) => _openSeed(ref.id);
 
   /// Shows [walletId]'s page without touching its lock state.
   void _showSeedPage(String walletId) {
@@ -547,15 +527,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
     await _overview.loadWallets();
     _snack(context.l10n.dashboardWalletRemoved(name));
-  }
-
-  /// [removed] is no longer watched. Its page closes only if it is still
-  /// the one open: the removal is saved after the confirmation closes, and
-  /// another wallet may have been opened while it was.
-  void _onWatchedRemoved(WalletRef removed) {
-    if (!mounted) return;
-    if (_open == removed) _closeWallet();
-    _snack(context.l10n.dashboardStoppedWatching);
   }
 
   Future<void> _openCreate() =>
@@ -945,16 +916,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   String _walletName(String? walletId) =>
       (walletId == null ? null : _overview.wallet(walletId)?.name) ?? context.l10n.commonWallet;
 
-  String _watchedName(WalletRef ref) {
-    if (ref.kind == WalletKind.watchedAddress) {
-      return addressLabelService.labelFor(ref.id) ?? context.l10n.commonWatchedAddress;
-    }
-    for (final a in watchAccountService.accounts) {
-      if (a.key == ref.id) return a.label ?? context.l10n.commonWatchedAccount;
-    }
-    return context.l10n.commonWatchedAccount;
-  }
-
   bool get _balanceHidden => privacyService.hideBalances;
 
   // ── Build ─────────────────────────────────────────────────────────────
@@ -974,8 +935,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         child: _overviewScreen(),
       );
     }
-    if (open.kind == WalletKind.seed) return _seedPage(open.id);
-    return _watchedPage(open);
+    return _seedPage(open.id);
   }
 
   /// Cold-start splash while the wallet core initialises: same branding as
@@ -1006,9 +966,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   final _computeHomeKey = GlobalKey<ComputeHomeScreenState>();
 
   /// The compute home, the default home screen (`docs/celaut/ui.md`, section 2). The ERG
-  /// of the full wallets and of the watched wallets come from the same figures as the
-  /// wallets list, as two figures; the USD price is the oracle pool price of the
-  /// pricer of the app.
+  /// of the wallet comes from the same figures as the wallets list; the USD price is the
+  /// oracle pool price of the pricer of the app.
   Widget _computeHome() {
     return ListenableBuilder(
       listenable: Listenable.merge([_overview, tokenPricer, walletService.currentWalletId]),
@@ -1018,7 +977,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           money: WalletMoney.of(_overview.entries()),
           usdPerErg: tokenPricer.result.ergUsd,
           refreshPrice: () => tokenPricer.refresh(),
-          onWallets: () => setState(() => _walletsLevel = true),
+          onWallets: _openTheWallet,
           onNodes: () async {
             await Navigator.push(context, fadeRoute(const KnownNodesScreen()));
             await _computeHomeKey.currentState?.refresh();
@@ -1029,6 +988,17 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
+  /// The Wallets line of the compute home: the page of the wallet of the app. With no
+  /// wallet, the wallets level, which offers to create or restore one.
+  void _openTheWallet() {
+    final wallets = _overview.wallets;
+    if (wallets.isEmpty) {
+      setState(() => _walletsLevel = true);
+    } else {
+      unawaited(_openWallet(WalletRef.seed(wallets.first.walletId)));
+    }
+  }
+
   Widget _overviewScreen() {
     return WalletsOverviewScreen(
       model: _overview,
@@ -1036,8 +1006,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       onOpen: _openWallet,
       onCreate: _openCreate,
       onRestore: _openRestore,
-      onWatchAddress: () => addWatchAddress(context),
-      onWatchAccount: () => addWatchAccount(context),
       onSettings: () => Navigator.push(context, fadeRoute(const SettingsScreen())),
       onNetwork: () => Navigator.push(context, fadeRoute(const NetworkSettingsPage())),
       notice: _notice,
@@ -1061,27 +1029,9 @@ class _DashboardScreenState extends State<DashboardScreen>
         _go('/send');
       case WalletAction.receive:
         _go('/receive');
-      case WalletAction.sendOffline:
       case WalletAction.more:
         break;
     }
-  }
-
-  Widget _watchedPage(WalletRef ref) {
-    return ListenableBuilder(
-      listenable: Listenable.merge([addressLabelService, watchAccountService]),
-      builder: (context, _) => WatchedWalletPage(
-        key: ValueKey(ref),
-        target: ref,
-        name: _watchedName(ref),
-        cached: ref.kind == WalletKind.watchedAddress
-            ? _overview.watchedHoldings(ref.id)
-            : null,
-        priceFeed: _price,
-        onClose: _closeWallet,
-        onRemoved: () => _onWatchedRemoved(ref),
-      ),
-    );
   }
 
   Widget _seedPage(String walletId) {
@@ -1215,7 +1165,6 @@ class _DashboardScreenState extends State<DashboardScreen>
               key: ValueKey('settings-$walletId'),
               embedded: true,
               walletId: walletId,
-              onShowAllWallets: _closeWallet,
               onWalletChanged: _onWalletEdited,
               onWalletRemoved: _onWalletRemoved,
             ),

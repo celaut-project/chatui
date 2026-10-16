@@ -1,5 +1,4 @@
 import 'services/preview/preview_service.dart';
-import 'services/watch_account_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -14,8 +13,6 @@ import 'services/token_pricer.dart';
 import 'services/session_lock.dart';
 import 'services/spend_policy.dart';
 import 'services/update_service.dart';
-import 'services/watch_only_service.dart';
-import 'services/watched_token_meta.dart';
 import 'services/wallet_service.dart';
 import 'services/wallet_sync_controller.dart';
 import 'theme/argus_theme.dart';
@@ -60,15 +57,11 @@ Future<void> main() async {
     sessionLock.loadGrace().catchError((_) {}),
     contactsService.load().catchError((_) {}),
     addressLabelService.load().catchError((_) {}),
-    watchOnlyService.load().catchError((_) {}),
-    watchAccountService.load().catchError((_) {}),
     privacyService.load().catchError((_) {}),
     spendPolicy.load().catchError((_) {}),
     previewSettings.load().catchError((_) {}),
   ]);
   networkController.priceRefresher = tokenPricer.refresh;
-  // Watched addresses and accounts name their holdings as seed wallets do.
-  watchedTokenMeta.attach();
   runApp(const ArgusApp());
   // Off until the user turns it on in About; then at most one request a day.
   updateService.checkOnStart().catchError((_) {});

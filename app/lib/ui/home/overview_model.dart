@@ -4,48 +4,30 @@ import 'package:flutter/foundation.dart';
 
 import '../../services/address_holdings.dart';
 import '../../services/address_label_service.dart';
-import '../../services/network_controller.dart';
 import '../../services/pending_balance.dart';
 import '../../services/portfolio.dart';
 import '../../services/public_wallet_sync.dart';
 import '../../services/wallet_database_service.dart';
 import '../../services/wallet_service.dart';
 import '../../services/wallet_sync_controller.dart';
-import '../../services/watch_account_service.dart';
-import '../../services/watch_only_service.dart';
 import '../../l10n/l10n.dart';
 
-enum WalletKind { seed, watchedAddress, watchedAccount }
-
-/// One wallet on the overview: a seed wallet, a watched address or a watched
-/// extended-key account. What the home screen has open, when it has one.
+/// The wallet of the app: what the home screen has open, when it has one.
 @immutable
 class WalletRef {
-  const WalletRef.seed(String walletId) : kind = WalletKind.seed, id = walletId;
-  const WalletRef.watchedAddress(String address)
-    : kind = WalletKind.watchedAddress,
-      id = address;
-  const WalletRef.watchedAccount(String key)
-    : kind = WalletKind.watchedAccount,
-      id = key;
+  const WalletRef.seed(this.id);
 
-  final WalletKind kind;
-
-  /// The wallet id, the watched address, or the account's extended key.
+  /// The wallet id.
   final String id;
 
-  /// No key on this device: nothing here can sign.
-  bool get watched => kind != WalletKind.seed;
+  @override
+  bool operator ==(Object other) => other is WalletRef && other.id == id;
 
   @override
-  bool operator ==(Object other) =>
-      other is WalletRef && other.kind == kind && other.id == id;
+  int get hashCode => id.hashCode;
 
   @override
-  int get hashCode => Object.hash(kind, id);
-
-  @override
-  String toString() => 'WalletRef(${kind.name}, $id)';
+  String toString() => 'WalletRef($id)';
 }
 
 enum OverviewRowState {
@@ -54,9 +36,6 @@ enum OverviewRowState {
 
   /// A seed wallet shown from its last public snapshot.
   locked,
-
-  /// A watched address or account: public data, no key at all.
-  watched,
 }
 
 /// One overview row with every figure already decided, so the row widget
@@ -83,8 +62,7 @@ class OverviewEntry {
   final String name;
   final OverviewRowState state;
 
-  /// The address the wallet is shown as: the pinned address, index 0, the
-  /// watched address, or a watched account's first address.
+  /// The address the wallet is shown as: the pinned address or index 0.
   final String? address;
 
   /// Null when unknown: never shown, and never added, as zero.
@@ -110,8 +88,6 @@ class OverviewEntry {
   /// no read since pending summaries, or one that could not value the
   /// mempool.
   final PendingBalance? pending;
-
-  bool get watched => ref.watched;
 }
 
 /// The overview's headline: the sum of the rows it can see.
@@ -119,13 +95,11 @@ class OverviewTotals {
   const OverviewTotals({
     required this.total,
     required this.wallets,
-    required this.watched,
     required this.tokens,
     this.pending,
   });
   final PortfolioTotal total;
   final int wallets;
-  final int watched;
 
   /// Every counted row's tokens, for the fiat valuation of the total.
   final List<({String id, int amount, int decimals})> tokens;
@@ -145,8 +119,7 @@ OverviewTotals overviewTotals(List<OverviewEntry> entries) {
   }
   return OverviewTotals(
     total: total,
-    wallets: entries.where((e) => !e.watched).length,
-    watched: entries.where((e) => e.watched).length,
+    wallets: entries.length,
     tokens: [
       for (final e in entries)
         if (e.balanceNano != null) ...e.tokens,
@@ -155,30 +128,6 @@ OverviewTotals overviewTotals(List<OverviewEntry> entries) {
     // knows, their figures are in blocks.
     pending: pending?.under(total.totalNano),
   );
-}
-
-/// What a watched address held at its last read.
-class WatchedHoldings {
-  const WatchedHoldings({
-    required this.nanoErg,
-    this.tokens = const [],
-    this.pending,
-  });
-  final int nanoErg;
-  final List<({String id, int amount})> tokens;
-
-  /// How [nanoErg] splits into confirmed and pending: `get_balance`'s
-  /// `summary`. Null when the answer had none.
-  final PendingBalance? pending;
-
-  factory WatchedHoldings.fromBalance(Map<String, dynamic> balance) {
-    final holding = AddressHolding.fromBalance('', balance);
-    return WatchedHoldings(
-      nanoErg: holding.nanoErg,
-      tokens: holding.tokens,
-      pending: PendingBalance.fromJson(balance['summary']),
-    );
-  }
 }
 
 /// Live figures of the unlocked wallet, read from the sync controller.
@@ -223,23 +172,14 @@ class ActiveWalletFigures {
   int? get totalNano => balanceNano;
 }
 
-/// The overview rows, in display order: seed wallets in the user's order,
-/// then watched addresses, then watched accounts.
+/// The overview rows, in the user's order of the wallets.
 List<OverviewEntry> buildOverviewEntries({
   required List<WalletInfo> wallets,
   required Map<String, LastKnownBalance> lastKnown,
   Map<String, PendingBalance> lastPending = const {},
   required String? unlockedWalletId,
   ActiveWalletFigures? active,
-  List<String> watchedAddresses = const [],
-  Map<String, WatchedHoldings?> watchedHoldings = const {},
-  Map<String, Duration> watchedAsOf = const {},
-  bool watchedLoading = false,
-  List<WatchAccount> accounts = const [],
-  String? Function(String address)? labelFor,
-  int Function(String tokenId)? decimalsOf,
 }) {
-  final decimals = decimalsOf ?? (_) => 0;
   return [
     for (final w in wallets)
       if (active != null && active.walletId == w.walletId)
@@ -251,17 +191,6 @@ List<OverviewEntry> buildOverviewEntries({
           lastPending[w.walletId],
           unlocked: w.walletId == unlockedWalletId,
         ),
-    for (final a in watchedAddresses)
-      _watchedAddressEntry(
-        a,
-        watchedHoldings[a],
-        loading: watchedLoading && !watchedHoldings.containsKey(a),
-        failed: watchedHoldings.containsKey(a) && watchedHoldings[a] == null,
-        asOf: watchedAsOf[a],
-        label: labelFor?.call(a),
-        decimals: decimals,
-      ),
-    for (final account in accounts) _accountEntry(account, decimals),
   ];
 }
 
@@ -331,66 +260,12 @@ OverviewEntry _lockedEntry(
   );
 }
 
-OverviewEntry _watchedAddressEntry(
-  String address,
-  WatchedHoldings? holdings, {
-  required bool loading,
-  required bool failed,
-  Duration? asOf,
-  required String? label,
-  required int Function(String) decimals,
-}) => OverviewEntry(
-  ref: WalletRef.watchedAddress(address),
-  name: label ?? appL10n.commonWatchedAddress,
-  state: OverviewRowState.watched,
-  address: address,
-  balanceNano: holdings?.nanoErg,
-  loading: loading,
-  tokens: [
-    for (final t in holdings?.tokens ?? const <({String id, int amount})>[])
-      (id: t.id, amount: t.amount, decimals: decimals(t.id)),
-  ],
-  tokensKnown: holdings != null,
-  asOf: asOf,
-  unavailable: failed ? appL10n.commonBalanceUnavailable : null,
-  pending: holdings?.pending?.under(holdings.nanoErg),
-);
-
-OverviewEntry _accountEntry(
-  WatchAccount account,
-  int Function(String) decimals,
-) {
-  final snapshot = account.snapshot;
-  return OverviewEntry(
-    ref: WalletRef.watchedAccount(account.key),
-    name: account.label ?? appL10n.commonWatchedAccount,
-    state: OverviewRowState.watched,
-    address: snapshot != null && snapshot.addresses.isNotEmpty
-        ? snapshot.addresses.first
-        : null,
-    balanceNano: snapshot?.balance,
-    loading: snapshot == null && account.busy,
-    tokens: [
-      for (final t in (snapshot?.tokens ?? const <String, int>{}).entries)
-        (id: t.key, amount: t.value, decimals: decimals(t.key)),
-    ],
-    tokensKnown: snapshot != null,
-    unavailable: snapshot == null && !account.busy
-        ? (account.error ?? appL10n.commonBalanceUnavailable)
-        : null,
-    pending: snapshot?.pending?.under(snapshot.balance),
-  );
-}
-
 /// Feeds the launch overview: the wallet list, each wallet's last public
-/// snapshot, watched balances, and the refresh schedule that keeps them
-/// current without an unlock.
+/// snapshot, and the refresh schedule that keeps them current without an
+/// unlock.
 ///
 /// Locked seed wallets refresh through [PublicWalletSync] (known addresses
-/// only, five-minute floor, one request at a time). Watched addresses are
-/// read on the same floor; watched accounts, whose scan costs dozens of
-/// requests, only at launch when they have no snapshot and on an explicit
-/// refresh.
+/// only, five-minute floor, one request at a time).
 class WalletsOverviewModel extends ChangeNotifier {
   WalletsOverviewModel({
     PublicWalletSync? publicSync,
@@ -406,19 +281,10 @@ class WalletsOverviewModel extends ChangeNotifier {
 
   final Map<String, LastKnownBalance> _lastKnown = {};
   final Map<String, PendingBalance> _lastPending = {};
-  final Map<String, WatchedHoldings?> _watched = {};
-  final Map<String, DateTime> _watchedReadAt = {};
-  final Set<String> _watchedStale = {};
-  bool _watchedLoading = false;
-  DateTime? _watchedAt;
-  int _watchedGeneration = 0;
   Future<void>? _refresh;
   int _loadGeneration = 0;
   bool _attached = false;
   bool _disposed = false;
-
-  /// Floor between two reads of the watched addresses, as for locked wallets.
-  static const watchedInterval = PublicWalletSync.interval;
 
   bool get refreshing => _refresh != null;
 
@@ -434,21 +300,12 @@ class WalletsOverviewModel extends ChangeNotifier {
   /// The pending split saved with [lastKnown]'s snapshot, if any.
   PendingBalance? lastPending(String walletId) => _lastPending[walletId];
 
-  /// What the watched [address] held at its last successful read; null when
-  /// it has not been read or every read failed.
-  WatchedHoldings? watchedHoldings(String address) => _watched[address];
-
-  bool get isEmpty =>
-      _wallets.isEmpty &&
-      watchOnlyService.addresses.isEmpty &&
-      watchAccountService.accounts.isEmpty;
+  bool get isEmpty => _wallets.isEmpty;
 
   /// Starts listening to the services the rows are drawn from.
   void attach() {
     if (_attached || _disposed) return;
     _attached = true;
-    watchOnlyService.addListener(_onWatchedChanged);
-    watchAccountService.addListener(notifyListeners);
     addressLabelService.addListener(notifyListeners);
     walletSyncController.addListener(notifyListeners);
     _public.addListener(_onPublicChanged);
@@ -457,8 +314,6 @@ class WalletsOverviewModel extends ChangeNotifier {
   @override
   void dispose() {
     if (_attached) {
-      watchOnlyService.removeListener(_onWatchedChanged);
-      watchAccountService.removeListener(notifyListeners);
       addressLabelService.removeListener(notifyListeners);
       walletSyncController.removeListener(notifyListeners);
       _public.removeListener(_onPublicChanged);
@@ -479,23 +334,12 @@ class WalletsOverviewModel extends ChangeNotifier {
     final unlocked = walletService.isUnlocked
         ? walletService.activeWalletId
         : null;
-    final now = _clock();
     return buildOverviewEntries(
       wallets: _wallets,
       lastKnown: _lastKnown,
       lastPending: _lastPending,
       unlockedWalletId: unlocked,
       active: ActiveWalletFigures.of(walletSyncController, unlocked),
-      watchedAddresses: watchOnlyService.addresses,
-      watchedHoldings: _watched,
-      watchedAsOf: {
-        for (final a in _watchedStale)
-          if (_watchedReadAt[a] case final at?) a: now.difference(at),
-      },
-      watchedLoading: _watchedLoading,
-      accounts: List.of(watchAccountService.accounts),
-      labelFor: addressLabelService.labelFor,
-      decimalsOf: (id) => walletService.cachedTokenMeta(id)?.decimals ?? 0,
     );
   }
 
@@ -550,18 +394,14 @@ class WalletsOverviewModel extends ChangeNotifier {
     await loadWallets();
   }
 
-  /// The launch pass: locked wallets and watched addresses, plus the
-  /// watched accounts that have no snapshot yet (they are not persisted).
-  Future<void> refreshOnLaunch() => _start(allAccounts: false);
+  /// The launch pass: the locked wallets.
+  Future<void> refreshOnLaunch() => refresh();
 
-  /// Pull to refresh: locked wallets (when due), watched addresses and
-  /// every watched account. Completes when all of them have.
-  Future<void> refresh() => _start(allAccounts: true);
-
-  Future<void> _start({required bool allAccounts}) {
+  /// Pull to refresh: the locked wallets, when due. Completes when they have.
+  Future<void> refresh() {
     final running = _refresh;
     if (running != null) return running;
-    final op = _run(allAccounts).whenComplete(() {
+    final op = _refreshPublic().whenComplete(() {
       _refresh = null;
       notifyListeners();
     });
@@ -570,30 +410,10 @@ class WalletsOverviewModel extends ChangeNotifier {
     return op;
   }
 
-  Future<void> _run(bool allAccounts) => Future.wait<void>([
-    _refreshPublic(),
-    refreshWatchedAddresses(),
-    watchMapOrdered(
-      [
-        for (final a in watchAccountService.accounts)
-          if (allAccounts || a.snapshot == null) a,
-      ],
-      watchAccountService.refresh,
-      concurrency: watchAccountConcurrency,
-    ),
-  ]);
-
-  /// The poll's share: whatever is due, never a watched-account scan.
+  /// The poll's share: whatever is due.
   Future<void> refreshIfDue() async {
     if (_refresh != null || _disposed) return;
-    final now = _clock();
-    final publicDue = _public.isDue(now);
-    final watchedDue =
-        _watchedAt == null || now.difference(_watchedAt!) >= watchedInterval;
-    await Future.wait<void>([
-      if (publicDue) _refreshPublic(),
-      if (watchedDue) refreshWatchedAddresses(),
-    ]);
+    if (_public.isDue(_clock())) await _refreshPublic();
   }
 
   Future<void> _refreshPublic() async {
@@ -624,61 +444,6 @@ class WalletsOverviewModel extends ChangeNotifier {
 
   void _onPublicChanged() => unawaited(_reloadSnapshots());
 
-  void _onWatchedChanged() {
-    final addresses = watchOnlyService.addresses.toSet();
-    _watched.removeWhere((a, _) => !addresses.contains(a));
-    _watchedReadAt.removeWhere((a, _) => !addresses.contains(a));
-    _watchedStale.removeWhere((a) => !addresses.contains(a));
-    notifyListeners();
-    // A newly watched address is read at once rather than at the next floor.
-    if (addresses.any((a) => !_watched.containsKey(a))) {
-      unawaited(refreshWatchedAddresses());
-    }
-  }
-
-  /// Reads every watched address's ERG and tokens from the user's node.
-  Future<void> refreshWatchedAddresses() async {
-    final generation = ++_watchedGeneration;
-    final addresses = watchOnlyService.addresses;
-    _watchedAt = _clock();
-    if (addresses.isEmpty) {
-      _watchedLoading = false;
-      notifyListeners();
-      return;
-    }
-    _watchedLoading = true;
-    notifyListeners();
-    final results = await Future.wait(
-      addresses.map((a) async {
-        try {
-          final balance = await walletService.getBalance(
-            a,
-            nodeUrl: networkController.activeUrl,
-          );
-          return (a, WatchedHoldings.fromBalance(balance));
-        } catch (_) {
-          return (a, null);
-        }
-      }),
-    );
-    if (generation != _watchedGeneration || _disposed) return;
-    final at = _clock();
-    for (final (a, holdings) in results) {
-      if (holdings != null) {
-        _watched[a] = holdings;
-        _watchedReadAt[a] = at;
-        _watchedStale.remove(a);
-      } else if (_watched[a] == null) {
-        // Never read: the row says the balance is unavailable.
-        _watched[a] = null;
-      } else {
-        // Keep the last figure, but say how old it is.
-        _watchedStale.add(a);
-      }
-    }
-    _watchedLoading = false;
-    notifyListeners();
-  }
 }
 
 typedef _Snapshots = ({

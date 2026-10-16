@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 
 import '../../theme/argus_theme.dart';
 import 'home_glass.dart';
@@ -13,8 +12,8 @@ import 'wallet_actions.dart';
 import 'wallet_tools_sheet.dart';
 import '../../l10n/l10n.dart';
 
-/// The launch screen: every wallet on this phone, seed and watched alike,
-/// under the total across them.
+/// The launch screen: the wallet of the app under its balance, or, with no
+/// wallet, the welcome that creates or restores one.
 ///
 /// It is the level above an open wallet, so it has no tab bar: its header
 /// carries the app's settings (there is no other way to reach them before
@@ -26,7 +25,6 @@ class OverviewScreen extends StatelessWidget {
     super.key,
     required this.data,
     this.onOpenWallet,
-    this.onReorder,
     this.onAdd,
     this.onSettings,
     this.onToggleHidden,
@@ -38,20 +36,12 @@ class OverviewScreen extends StatelessWidget {
     this.notice,
     this.noticeIsError = false,
     this.onAction,
-    this.onStopWatching,
   });
 
   final OverviewData data;
   final ValueChanged<WalletRef>? onOpenWallet;
 
-  /// A watched wallet's row swiped to the left, or its screen reader
-  /// action: confirm and stop watching it. True when it is gone.
-  final Future<bool> Function(WalletRef ref)? onStopWatching;
-
-  /// A wallet with keys here was dragged to a new place in the list (a
-  /// long press picks it up). Watched wallets keep the order they were
-  /// added in.
-  final void Function(int oldIndex, int newIndex)? onReorder;
+  /// Create or restore, on the welcome: the app has no wallet yet.
   final ValueChanged<AddWalletChoice>? onAdd;
   final VoidCallback? onSettings;
   final VoidCallback? onToggleHidden;
@@ -130,7 +120,6 @@ class OverviewScreen extends StatelessWidget {
       body: OverviewView(
         data: data,
         onOpenWallet: onOpenWallet,
-        onReorder: onReorder,
         onAdd: onAdd,
         onToggleHidden: onToggleHidden,
         onNetwork: onNetwork,
@@ -141,7 +130,6 @@ class OverviewScreen extends StatelessWidget {
         notice: notice,
         noticeIsError: noticeIsError,
         onAction: onAction,
-        onStopWatching: onStopWatching,
       ),
     );
     if (data.isEmpty) return scaffold;
@@ -161,13 +149,12 @@ class OverviewScreen extends StatelessWidget {
 
 /// The overview's scrolling body, for hosting under another app bar: the
 /// total on the raised panel with the ERG price under a hairline, the
-/// network line, then the wallets as flat lists ending in Add a wallet.
+/// network line, then the wallet.
 class OverviewView extends StatelessWidget {
   const OverviewView({
     super.key,
     required this.data,
     this.onOpenWallet,
-    this.onReorder,
     this.onAdd,
     this.onToggleHidden,
     this.onNetwork,
@@ -178,13 +165,10 @@ class OverviewView extends StatelessWidget {
     this.notice,
     this.noticeIsError = false,
     this.onAction,
-    this.onStopWatching,
   });
 
   final OverviewData data;
   final ValueChanged<WalletRef>? onOpenWallet;
-  final Future<bool> Function(WalletRef ref)? onStopWatching;
-  final void Function(int oldIndex, int newIndex)? onReorder;
   final ValueChanged<AddWalletChoice>? onAdd;
   final VoidCallback? onToggleHidden;
   final VoidCallback? onNetwork;
@@ -196,11 +180,6 @@ class OverviewView extends StatelessWidget {
   final bool noticeIsError;
   final ValueChanged<WalletAction>? onAction;
 
-  Future<void> _add(BuildContext context) async {
-    final choice = await showAddWalletSheet(context);
-    if (choice != null) onAdd?.call(choice);
-  }
-
   Widget _row(WalletSummary w) => OverviewWalletRow(
         wallet: w,
         currency: data.currency,
@@ -208,84 +187,11 @@ class OverviewView extends StatelessWidget {
         onTap: onOpenWallet == null ? null : () => onOpenWallet!(w.ref),
       );
 
-  /// A watched wallet's row. Swiped to the left it shows Stop watching and
-  /// asks before doing it; the row springs back either way, and leaves the
-  /// list when the overview next reads it without the wallet. A screen
-  /// reader, which cannot swipe, has the same as an action on the row.
-  /// Long-press is left alone: it reorders.
-  Widget _watchedRow(BuildContext context, WalletSummary w) {
-    final stop = onStopWatching;
-    final row = OverviewWalletRow(
-      wallet: w,
-      currency: data.currency,
-      hidden: data.hidden,
-      onTap: onOpenWallet == null ? null : () => onOpenWallet!(w.ref),
-      semanticActions: stop == null ? null : {CustomSemanticsAction(label: context.l10n.commonStopWatching): () => stop(w.ref)},
-    );
-    if (stop == null) return row;
-    final t = HomeText.of(context);
-    return Dismissible(
-      key: ValueKey(('stop-watching', w.ref.id)),
-      direction: DismissDirection.endToStart,
-      confirmDismiss: (_) async {
-        await stop(w.ref);
-        // Never dismissed here: the overview's own list drops the row
-        // once the wallet is gone, and a cancel leaves it as it was.
-        return false;
-      },
-      background: ColoredBox(
-        color: rust.withValues(alpha: 0.22),
-        child: Align(
-          alignment: AlignmentDirectional.centerEnd,
-          child: Padding(
-            padding: const EdgeInsetsDirectional.only(end: glassGutter + 4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.visibility_off_outlined, size: 20, color: rustFor(context)),
-                const SizedBox(width: 8),
-                Text(context.l10n.commonStopWatching, style: t.primary.copyWith(color: rustFor(context))),
-              ],
-            ),
-          ),
-        ),
-      ),
-      child: row,
-    );
-  }
-
-  /// A wallet with keys, on a glass card of its own.
+  /// The wallet, on a glass card of its own.
   Widget _card(WalletSummary w) => Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: GlassCard(children: [_row(w)]),
       );
-
-  /// The wallets with keys here, which a long press picks up and drags.
-  Widget _wallets() {
-    final rows = data.wallets;
-    final reorder = onReorder;
-    if (reorder == null || rows.length < 2) return Column(children: [for (final w in rows) _card(w)]);
-    return ReorderableListView(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      buildDefaultDragHandles: false,
-      // onReorderItem, the replacement, only exists on newer Flutter than
-      // this project builds with; the model makes the same index adjustment
-      // onReorderItem would.
-      // ignore: deprecated_member_use
-      onReorder: reorder,
-      children: [
-        for (final (i, w) in rows.indexed)
-          ReorderableDelayedDragStartListener(
-            // Distinct from the row's own key, which tests and the row
-            // itself use to find the row.
-            key: ValueKey<Object>(('reorder', w.id)),
-            index: i,
-            child: _card(w),
-          ),
-      ],
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -326,8 +232,6 @@ class OverviewView extends StatelessWidget {
                   onToggleHidden: onToggleHidden,
                   figureReserve: 40,
                 ),
-                // Only with a wallet that holds keys for them to act on: a
-                // list of watched addresses alone has nothing to send from.
                 if (onAction != null && data.wallets.isNotEmpty) ...[
                   const SizedBox(height: 22),
                   HomeActionCircles(
@@ -353,44 +257,9 @@ class OverviewView extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                HomeSectionHeader(
-                  title: context.l10n.overviewWallets,
-                  count: '${data.wallets.length}',
-                  trailing: RingButton(
-                    key: const Key('overview-add-wallet'),
-                    icon: Icons.add,
-                    tooltip: context.l10n.overviewAddWallet,
-                    onPressed: () => _add(context),
-                  ),
-                ),
+                HomeSectionHeader(title: context.l10n.overviewWallets),
                 const SizedBox(height: 6),
-                _wallets(),
-              ],
-            ),
-          ),
-        if (data.watched.isNotEmpty)
-          HomeEntrance(
-            order: 2,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 14),
-                HomeSectionHeader(
-                  title: context.l10n.overviewWatchedAddresses,
-                  count: '${data.watched.length}',
-                  trailing: RingButton(
-                    key: data.wallets.isEmpty ? const Key('overview-add-wallet') : const Key('overview-add-watched'),
-                    icon: Icons.add,
-                    tooltip: context.l10n.overviewWatchTooltip,
-                    onPressed: () => _add(context),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                GlassCard(
-                  key: const Key('overview-watched'),
-                  dividers: true,
-                  children: [for (final w in data.watched) _watchedRow(context, w)],
-                ),
+                for (final w in data.wallets) _card(w),
               ],
             ),
           ),
@@ -538,13 +407,6 @@ class _Welcome extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = HomeText.of(context);
     VoidCallback? add(AddWalletChoice c) => onAdd == null ? null : () => onAdd!(c);
-    Widget quiet(AddWalletChoice c, IconData icon, String label) => TextButton.icon(
-          key: Key(c.keyName),
-          onPressed: add(c),
-          style: TextButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          icon: Icon(icon, size: 20),
-          label: Text(label),
-        );
     return ListView(
       key: const Key('overview-welcome'),
       // The header already carries the mark; the page opens on the words.
@@ -574,9 +436,6 @@ class _Welcome extends StatelessWidget {
           icon: const Icon(Icons.settings_backup_restore, size: 20),
           label: Text(context.l10n.overviewRestoreWallet),
         ),
-        const SizedBox(height: 8),
-        quiet(AddWalletChoice.watchAddress, Icons.visibility_outlined, context.l10n.watchAddressTitle),
-        quiet(AddWalletChoice.watchAccount, Icons.account_tree_outlined, context.l10n.overviewWatchAccountXpub),
         const SizedBox(height: 36),
         PrototypeNote(onLearnMore: onLearnMore, inset: false),
       ],

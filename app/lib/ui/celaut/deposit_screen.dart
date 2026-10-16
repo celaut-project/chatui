@@ -29,13 +29,10 @@ const maxLimitNano = 1000000000;
 /// What the deposit screen needs from the wallets of the app. The app uses
 /// [AppDepositWallets]; tests give their own.
 ///
-/// Only full wallets pay (`docs/celaut/ui.md`, section 1): the user chooses one at each
-/// deposit, and a default can be saved. Read-only wallets are never offered. Before the
-/// deposit the screen asks for the PIN or fingerprint of the chosen wallet
-/// ([FullWallets.unlock]), also when it is already open.
+/// The wallet of the app pays (`docs/celaut/ui.md`, section 1). Before the deposit the
+/// screen asks for the PIN or fingerprint of the wallet ([FullWallets.unlock]), also when
+/// it is already open.
 abstract class DepositWallets implements FullWallets {
-  Future<void> saveDefault(String walletId);
-
   /// Prepare the deposit (`celaut_deposit_prepare`) with the addresses of [payer]. The
   /// payer must be the open wallet.
   Future<DepositPreparedView> prepare(PayerWallet payer, NodeAddress node, int amountNanoErg);
@@ -50,11 +47,8 @@ class AppDepositWallets extends AppFullWallets implements DepositWallets {
   const AppDepositWallets();
 
   @override
-  Future<void> saveDefault(String walletId) => const DefaultPayerStore().save(walletId);
-
-  @override
   Future<DepositPreparedView> prepare(PayerWallet payer, NodeAddress node, int amountNanoErg) {
-    // The addresses of the open wallet, from its sync; never those of a watched view.
+    // The addresses of the open wallet, from its sync.
     if (!walletSyncController.ownsWallet(payer.walletId)) {
       throw StateError(DepositStrings.payerLocked);
     }
@@ -77,11 +71,9 @@ class AppDepositWallets extends AppFullWallets implements DepositWallets {
   }
 }
 
-/// Debug screen of milestone M3: deposit ERG to a node from one full wallet. Choose the
-/// paying wallet, check the node, prepare the deposit, confirm it in the confirmation
+/// Debug screen of milestone M3: deposit ERG to a node from the wallet. Check the node, prepare the deposit, confirm it in the confirmation
 /// sheet of the wallet, wait until the explorer shows the box, then the node checks it
-/// once (`Payable`). With no full wallet in the app, the screen says so and does not
-/// start.
+/// once (`Payable`). With no wallet in the app, the screen says so and does not start.
 class DepositScreen extends StatefulWidget {
   const DepositScreen({super.key, this.wallets = const AppDepositWallets(), this.newClient});
 
@@ -108,7 +100,6 @@ class _DepositScreenState extends State<DepositScreen> {
 
   List<PayerWallet>? _payers;
   PayerWallet? _payer;
-  String? _defaultId;
   List<DepositSentView> _sentBefore = const [];
   String? _waitingFor;
 
@@ -128,21 +119,12 @@ class _DepositScreenState extends State<DepositScreen> {
 
   Future<void> _loadPayers() async {
     final payers = await widget.wallets.payers();
-    final saved = await widget.wallets.loadDefault();
     if (!mounted) return;
     setState(() {
       _payers = payers;
-      _defaultId = saved;
-      _payer = choosePayer(payers, chosenId: _payer?.walletId, defaultId: saved);
+      _payer = payers.isEmpty ? null : payers.first;
       _sentBefore = celautSentDeposits();
     });
-  }
-
-  Future<void> _saveDefault() async {
-    final payer = _payer;
-    if (payer == null) return;
-    await widget.wallets.saveDefault(payer.walletId);
-    if (mounted) setState(() => _defaultId = payer.walletId);
   }
 
   @override
@@ -384,7 +366,7 @@ class _DepositScreenState extends State<DepositScreen> {
             ),
           )
         else ...[
-          _payerCard(context, payers),
+          _payerCard(context),
           const SizedBox(height: 16),
           _nodeInput(context),
         ],
@@ -398,7 +380,7 @@ class _DepositScreenState extends State<DepositScreen> {
     );
   }
 
-  Widget _payerCard(BuildContext context, List<PayerWallet> payers) {
+  Widget _payerCard(BuildContext context) {
     final payer = _payer;
     final muted = ArgusColors.of(context).muted;
     return SoftCard(
@@ -408,23 +390,9 @@ class _DepositScreenState extends State<DepositScreen> {
         children: [
           SectionLabel(DepositStrings.payerTitle),
           const SizedBox(height: 6),
-          DropdownButtonFormField<String>(
-            key: const Key('deposit-payer'),
-            initialValue: payer?.walletId,
-            isExpanded: true,
-            decoration: InputDecoration(labelText: DepositStrings.payerLabel),
-            items: [
-              for (final p in payers) DropdownMenuItem(value: p.walletId, child: Text(p.name)),
-            ],
-            onChanged: _preparing || _waiting
-                ? null
-                : (id) => setState(() {
-                    _payer = choosePayer(payers, chosenId: id, defaultId: _defaultId);
-                    _amountError = null;
-                  }),
-          ),
           if (payer != null) ...[
-            const SizedBox(height: 8),
+            Text(payer.name, key: const Key('deposit-payer')),
+            const SizedBox(height: 4),
             Text(
               DepositStrings.payerBalance(ergOrUnknown(payer.balanceNano)),
               key: const Key('deposit-payer-balance'),
@@ -434,22 +402,6 @@ class _DepositScreenState extends State<DepositScreen> {
               key: const Key('deposit-payer-state'),
               style: TextStyle(fontSize: 12, color: payer.open ? muted : rustFor(context)),
             ),
-            const SizedBox(height: 6),
-            if (_defaultId == payer.walletId)
-              Text(
-                DepositStrings.isDefault,
-                key: const Key('deposit-is-default'),
-                style: TextStyle(fontSize: 12, color: muted),
-              )
-            else
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton(
-                  key: const Key('deposit-save-default'),
-                  onPressed: _saveDefault,
-                  child: Text(DepositStrings.saveDefault),
-                ),
-              ),
           ],
         ],
       ),

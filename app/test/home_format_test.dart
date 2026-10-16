@@ -133,13 +133,8 @@ void main() {
     expect(fittingColumns(maxWidth: 358, gap: 10, needs: [130, 100, 100]), 1);
   });
 
-  test('wallet page offers what each kind of wallet can do', () {
-    const watched = WalletSummary(ref: WalletRef.watchedAddress('w'), name: 'Cold');
+  test('wallet page offers what the wallet can do', () {
     const seed = WalletSummary(ref: WalletRef.seed('s'), name: 'Main');
-    expect(
-      const WalletPageData(wallet: watched, currency: _aud).actions,
-      [WalletAction.sendOffline, WalletAction.receive],
-    );
     expect(
       const WalletPageData(wallet: seed, currency: _aud).actions,
       [WalletAction.send, WalletAction.receive, WalletAction.more],
@@ -148,14 +143,5 @@ void main() {
     expect(tools.map((t) => t.tool), [WalletTool.tokens, WalletTool.utxos, WalletTool.addresses, WalletTool.lock]);
     expect(tools[1].status, 'Fragmented');
     expect(tools[1].warn, isTrue);
-    // An account before its first scan can neither vouch for an address to
-    // receive at nor build a send.
-    const unscanned = WalletPageData(
-      wallet: watched,
-      currency: _aud,
-      watched: WatchedDetails(status: ['Watch-only'], canSend: false, canReceive: false),
-    );
-    expect(unscanned.disabled, {WalletAction.sendOffline, WalletAction.receive});
-    expect(const WalletPageData(wallet: seed, currency: _aud).disabled, isEmpty);
   });
 }

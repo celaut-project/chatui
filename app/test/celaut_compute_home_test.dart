@@ -123,8 +123,7 @@ extension on ComputeOverviewView {
   );
 }
 
-const _full = WalletSum(count: 2, unknown: 0, knownNano: 250000000);
-const _watched = WalletSum(count: 1, unknown: 0, knownNano: 3000000000);
+const _full = WalletSum(count: 1, unknown: 0, knownNano: 250000000);
 
 class _Wallets implements FullWallets {
   _Wallets({this.open = true, this.unlocks = true});
@@ -137,9 +136,6 @@ class _Wallets implements FullWallets {
   Future<List<PayerWallet>> payers() async => [
     PayerWallet(walletId: 'w1', name: 'Main', balanceNano: 250000000, open: open),
   ];
-
-  @override
-  Future<String?> loadDefault() async => null;
 
   @override
   Future<bool> unlock(BuildContext context, PayerWallet wallet) async {
@@ -174,7 +170,7 @@ void main() {
         home: ComputeHomeScreen(
           money:
               money ??
-              const WalletMoney(full: _full, watched: _watched, gate: FullWalletGate.open),
+              const WalletMoney(full: _full, gate: FullWalletGate.open),
           usdPerErg: usdPerErg,
           onWallets: () => run.walletsOpened++,
           onNodes: () => run.nodesOpened++,
@@ -227,7 +223,6 @@ void main() {
     final l = appL10n;
     for (final gone in [
       l.celautHomeOfferedNote,
-      l.celautHomeWatched,
       l.celautHomePaidCredit,
       l.celautHomeFreeCredit,
       l.celautHomeUsdSource,
@@ -238,8 +233,6 @@ void main() {
     // No address, no rate in MU, no node card.
     expect(find.textContaining('a.example:1'), findsNothing);
     expect(find.byKey(Key('compute-home-credit-$_a')), findsNothing);
-    // The watched wallets are not added to the full ones either.
-    expect(find.textContaining(formatErg(3000000000)), findsNothing);
   });
 
   testWidgets('the nodes: one line with the ready ones, the cores and the memory', (tester) async {
@@ -275,21 +268,6 @@ void main() {
     expect(find.textContaining('\$0'), findsNothing);
   });
 
-  testWidgets('a wallet with an unknown balance makes "at least"', (tester) async {
-    await pump(
-      tester,
-      money: const WalletMoney(
-        full: WalletSum(count: 2, unknown: 1, knownNano: 250000000),
-        watched: WalletSum(count: 1, unknown: 1, knownNano: 0),
-        gate: FullWalletGate.open,
-      ),
-    );
-    expect(
-      rowTexts(tester, 'compute-home-wallets'),
-      contains(appL10n.celautAtLeastWallets(formatErg(250000000), 1)),
-    );
-  });
-
   testWidgets('with no instance, the instances are not on the home screen', (tester) async {
     await pump(tester, load: () async => _overview().copyWithNoInstances());
     expect(find.text(appL10n.celautHomeInstancesTitle.toUpperCase()), findsNothing);
@@ -321,7 +299,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: ComputeHomeScreen(
-          money: const WalletMoney(full: _full, watched: _watched, gate: FullWalletGate.open),
+          money: const WalletMoney(full: _full, gate: FullWalletGate.open),
           usdPerErg: 2.0,
           onWallets: () {},
           load: () => never.future,
@@ -345,7 +323,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: ComputeHomeScreen(
-          money: const WalletMoney(full: _full, watched: _watched, gate: FullWalletGate.open),
+          money: const WalletMoney(full: _full, gate: FullWalletGate.open),
           usdPerErg: 2.0,
           onWallets: () {},
           load: () => never.future,
@@ -404,7 +382,7 @@ void main() {
     final run = await pump(
       tester,
       wallets: wallets,
-      money: const WalletMoney(full: _full, watched: _watched, gate: FullWalletGate.locked),
+      money: const WalletMoney(full: _full, gate: FullWalletGate.locked),
     );
     expect(find.byKey(const Key('compute-home-wallet-locked')), findsOneWidget);
     await tester.tap(find.byKey(const Key('compute-home-stop-i1')));
@@ -418,7 +396,7 @@ void main() {
     final run = await pump(
       tester,
       wallets: wallets,
-      money: const WalletMoney(full: _full, watched: _watched, gate: FullWalletGate.locked),
+      money: const WalletMoney(full: _full, gate: FullWalletGate.locked),
     );
     await tester.tap(find.byKey(const Key('compute-home-stop-i1')));
     await tester.pumpAndSettle();
@@ -431,7 +409,6 @@ void main() {
       tester,
       money: const WalletMoney(
         full: WalletSum.empty,
-        watched: _watched,
         gate: FullWalletGate.none,
       ),
     );

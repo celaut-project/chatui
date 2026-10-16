@@ -14,17 +14,13 @@ import 'home/home_models.dart';
 import 'home/overview_model.dart';
 import 'home/overview_screen.dart';
 import 'home/wallet_tools_sheet.dart';
-import 'home/watched_actions.dart';
 
-/// The launch screen: every wallet on this device — seed wallets, watched
-/// addresses and watched accounts — with its balance, and the total across
-/// them. Nothing here needs an unlock: locked wallets show their public
-/// snapshot. Tapping a wallet opens its page; that is where a key is asked
-/// for, if it needs one.
+/// The launch screen: the wallet of the app with its balance. Nothing here
+/// needs an unlock: a locked wallet shows its public snapshot. Tapping the
+/// wallet opens its page; that is where its key is asked for.
 ///
-/// This is the only wallet list in the app. Creating, restoring and
-/// watching start here; renaming and removing live in each wallet's own
-/// settings. The screen itself is [OverviewScreen]; this reads the overview
+/// The app holds one wallet. With none, this screen offers to create or
+/// restore it; renaming and removing it live in its own settings. The screen itself is [OverviewScreen]; this reads the overview
 /// model, the pricer and the network into its figures.
 class WalletsOverviewScreen extends StatelessWidget {
   const WalletsOverviewScreen({
@@ -33,8 +29,6 @@ class WalletsOverviewScreen extends StatelessWidget {
     required this.onOpen,
     required this.onCreate,
     required this.onRestore,
-    required this.onWatchAddress,
-    required this.onWatchAccount,
     required this.onSettings,
     this.onNetwork,
     this.priceFeed,
@@ -50,8 +44,6 @@ class WalletsOverviewScreen extends StatelessWidget {
   final ValueChanged<WalletRef> onOpen;
   final VoidCallback onCreate;
   final VoidCallback onRestore;
-  final VoidCallback onWatchAddress;
-  final VoidCallback onWatchAccount;
   final VoidCallback onSettings;
 
   /// The network line, while a node answers: its settings.
@@ -67,8 +59,6 @@ class WalletsOverviewScreen extends StatelessWidget {
   void _add(AddWalletChoice choice) => switch (choice) {
         AddWalletChoice.create => onCreate(),
         AddWalletChoice.restore => onRestore(),
-        AddWalletChoice.watchAddress => onWatchAddress(),
-        AddWalletChoice.watchAccount => onWatchAccount(),
       };
 
   Future<void> _refresh() async {
@@ -93,7 +83,6 @@ class WalletsOverviewScreen extends StatelessWidget {
         return OverviewScreen(
           data: data,
           onOpenWallet: onOpen,
-          onReorder: model.reorder,
           onAdd: _add,
           onSettings: onSettings,
           onToggleHidden: () => privacyService.setHideBalances(!hidden),
@@ -102,16 +91,10 @@ class WalletsOverviewScreen extends StatelessWidget {
           onNetwork: offline ? networkController.probe : onNetwork,
           networkAction: offline ? context.l10n.commonRetry : null,
           onRefresh: _refresh,
-          footnote: data.wallets.isEmpty
-              ? null
-              : [
-                  if (data.wallets.length > 1) context.l10n.overviewReorderHint,
-                  lockedWalletsExplainer,
-                ].join(' '),
+          footnote: data.wallets.isEmpty ? null : lockedWalletsExplainer,
           notice: notice,
           noticeIsError: noticeIsError,
           onAction: onAction,
-          onStopWatching: (ref) => stopWatching(context, ref),
         );
       },
     );
@@ -150,14 +133,7 @@ OverviewData overviewData(WalletsOverviewModel model, {required bool hidden, Erg
   final known = totals.total.known > 0;
   final value = known ? holdingsFiat(totals.total.totalNano, totals.tokens) : (fiat: null, unpriced: 0);
   return OverviewData(
-    wallets: [
-      for (final e in entries)
-        if (!e.watched) summary(e),
-    ],
-    watched: [
-      for (final e in entries)
-        if (e.watched) summary(e),
-    ],
+    wallets: [for (final e in entries) summary(e)],
     currency: homeCurrency(),
     network: overviewNetwork(),
     totalNano: known ? totals.total.totalNano : null,

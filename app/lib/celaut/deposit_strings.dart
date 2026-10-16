@@ -38,12 +38,9 @@ class DepositStrings {
 
   // Paying wallet (docs/celaut/ui.md, section 1)
   static String get payerTitle => appL10n.celautDepositPayerTitle;
-  static String get payerLabel => appL10n.celautDepositPayerLabel;
   static String payerBalance(String amount) => appL10n.celautDepositPayerBalance(amount);
   static String get payerOpen => appL10n.celautDepositPayerOpen;
   static String get payerLocked => appL10n.celautDepositPayerLocked;
-  static String get saveDefault => appL10n.celautDepositSaveDefault;
-  static String get isDefault => appL10n.celautDepositIsDefault;
   static String get noFullWallet => appL10n.celautNoFullWallet;
   static String get unknown => appL10n.celautUnknown;
 
@@ -76,9 +73,4 @@ class DepositStrings {
   static String sentRow(String amount, String mu, String node) =>
       appL10n.celautDepositSentRow(amount, mu, node);
   static String get sentExpired => appL10n.celautDepositSentExpired;
-
-  // Settings: the default payer
-  static String get defaultPayerTitle => appL10n.celautDefaultPayerRowTitle;
-  static String get defaultPayerSubtitle => appL10n.celautDefaultPayerRowSubtitle;
-  static String get defaultPayerNone => appL10n.celautDefaultPayerNone;
 }

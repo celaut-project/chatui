@@ -25,16 +25,12 @@ class HomeApi extends RustLibApi {
   final balances = <String, Map<String, dynamic>>{};
   final histories = <String, List<Map<String, dynamic>>>{};
   final balanceCalls = <String>[];
-  int watchScans = 0;
 
   /// Addresses an unlocked wallet derives, by index.
   String Function(int index) derived = (i) => 'addr$i';
 
   /// Discovery's answer for an unlocked wallet.
   Map<String, dynamic> discovery = {'addresses': [], 'next_unused_index': 0};
-
-  /// Addresses a watched extended key derives, by index.
-  String Function(int index) watchDerived = (i) => 'watch$i';
 
   Map<String, dynamic> _balance(String address) =>
       balances[address] ?? {'balance_nano_erg': 0, 'tokens': []};
@@ -135,16 +131,6 @@ class HomeApi extends RustLibApi {
       '[]';
 
   @override
-  Future<List<String>> crateApiDeriveWatchAddresses({
-    required String input,
-    required int start,
-    required int count,
-  }) async {
-    watchScans++;
-    return List.generate(count, (i) => watchDerived(start + i));
-  }
-
-  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
@@ -214,6 +200,7 @@ Future<void> pumpHome(
   Map<String, WidgetBuilder> routes = const {},
   TransitionBuilder? builder,
   bool computeHome = false,
+  Future<void> Function()? enforceSingleWallet,
 }) async {
   networkController.probing = true;
   addTearDown(() => networkController.probing = false);
@@ -245,7 +232,12 @@ Future<void> pumpHome(
         },
         // The wallets list, which these tests are about; the compute home is the default
         // of the app and has its own tests.
-        home: DashboardScreen(initializeWalletService: () async {}, computeHome: computeHome),
+        home: DashboardScreen(
+          initializeWalletService: () async {},
+          computeHome: computeHome,
+          // The migration has its own test (single_wallet_test.dart).
+          enforceSingleWallet: enforceSingleWallet ?? () async {},
+        ),
         routes: {
           '/receive': (_) => const ReceiveScreen(),
           ...routes,

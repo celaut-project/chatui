@@ -172,83 +172,12 @@ class WalletToolsSheet extends StatelessWidget {
   }
 }
 
-/// What the overview's "Add a wallet" row offers.
+/// What the welcome offers when the app has no wallet.
 enum AddWalletChoice {
   create('overview-create'),
-  restore('overview-restore'),
-  watchAddress('overview-watch-address'),
-  watchAccount('overview-watch-xpub');
+  restore('overview-restore');
 
   const AddWalletChoice(this.keyName);
 
-  /// The same key wherever the choice is offered: the first-launch page
-  /// and the sheet are never on screen together.
   final String keyName;
-}
-
-({IconData icon, String title, String blurb}) addWalletLook(AddWalletChoice choice) => switch (choice) {
-      AddWalletChoice.create => (
-          icon: Icons.add,
-          title: appL10n.overviewAddCreate,
-          blurb: appL10n.overviewAddCreateBlurb,
-        ),
-      AddWalletChoice.restore => (
-          icon: Icons.settings_backup_restore,
-          title: appL10n.overviewAddRestore,
-          blurb: appL10n.overviewAddRestoreBlurb,
-        ),
-      AddWalletChoice.watchAddress => (
-          icon: Icons.visibility_outlined,
-          title: appL10n.watchAddressTitle,
-          blurb: appL10n.overviewAddWatchAddressBlurb,
-        ),
-      AddWalletChoice.watchAccount => (
-          icon: Icons.account_tree_outlined,
-          title: appL10n.overviewAddWatchAccount,
-          blurb: appL10n.overviewAddWatchAccountBlurb,
-        ),
-    };
-
-/// Opens the small Add a wallet menu and returns the choice.
-Future<AddWalletChoice?> showAddWalletSheet(BuildContext context) {
-  return showHomeSheet<AddWalletChoice>(
-    context,
-    builder: (ctx) => AddWalletSheet(onSelect: (c) => Navigator.pop(ctx, c)),
-  );
-}
-
-/// Create, restore or watch: four rows in a sheet, so the overview needs
-/// only one quiet row for all of them.
-class AddWalletSheet extends StatelessWidget {
-  const AddWalletSheet({super.key, required this.onSelect});
-
-  final ValueChanged<AddWalletChoice> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = HomeText.of(context);
-    return SafeArea(
-      top: false,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            HomeSheetHeader(title: context.l10n.overviewAddWallet),
-            for (final choice in AddWalletChoice.values)
-              HomeRow(
-                inkKey: Key(choice.keyName),
-                onTap: () => onSelect(choice),
-                semanticLabel: '${addWalletLook(choice).title}, ${addWalletLook(choice).blurb}',
-                leading: HomeDisc(child: Icon(addWalletLook(choice).icon, size: 18, color: t.ink)),
-                title: Text(addWalletLook(choice).title, style: t.primary),
-                subtitle: TextSpan(text: addWalletLook(choice).blurb),
-                trailing: Icon(Icons.chevron_right, size: 18, color: t.muted),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
 }
