@@ -11,7 +11,6 @@ import '../../l10n/l10n.dart';
 /// Mark and words for each primary action.
 ({IconData icon, String label}) walletActionLook(WalletAction action) => switch (action) {
       WalletAction.send => (icon: Icons.near_me_outlined, label: appL10n.homeActionSend),
-      WalletAction.sendOffline => (icon: Icons.qr_code_2, label: appL10n.homeActionSendOffline),
       WalletAction.receive => (icon: Icons.arrow_downward_rounded, label: appL10n.homeActionReceive),
       WalletAction.more => (icon: Icons.more_horiz, label: appL10n.homeActionMore),
     };
@@ -37,7 +36,6 @@ class HomeActionCircles extends StatelessWidget {
     required this.actions,
     required this.onAction,
     this.disabled = const {},
-    this.watched = false,
     this.keyPrefix,
     this.gridMore = false,
   });
@@ -47,10 +45,6 @@ class HomeActionCircles extends StatelessWidget {
 
   /// Drawn, so the page keeps its shape, but not offered right now.
   final Set<WalletAction> disabled;
-
-  /// A watched wallet's actions keep the keys they have always had
-  /// ("watch-action-send"), which other screens' tests look for.
-  final bool watched;
 
   /// Keys "<prefix>-<action>" instead, e.g. the overview's own row.
   final String? keyPrefix;
@@ -64,9 +58,7 @@ class HomeActionCircles extends StatelessWidget {
 
   Key _key(WalletAction action) => keyPrefix != null
       ? Key('$keyPrefix-${action.name}')
-      : watched
-          ? Key('watch-action-${action == WalletAction.sendOffline ? 'send' : action.name}')
-          : Key('wallet-action-${action.name}');
+      : Key('wallet-action-${action.name}');
 
   @override
   Widget build(BuildContext context) {

@@ -578,9 +578,6 @@ class _Wallets implements FullWallets {
       : const [];
 
   @override
-  Future<String?> loadDefault() async => null;
-
-  @override
   Future<bool> unlock(BuildContext context, PayerWallet wallet) async {
     unlocked.add(wallet.walletId);
     if (consent) open = true;

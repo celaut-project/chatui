@@ -2,8 +2,6 @@ import 'package:argus_wallet/bridge/frb_generated.dart';
 import 'package:argus_wallet/services/public_wallet_sync.dart';
 import 'package:argus_wallet/services/session_lock.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
-import 'package:argus_wallet/services/watch_account_service.dart';
-import 'package:argus_wallet/services/watch_only_service.dart';
 import 'package:argus_wallet/ui/home/unlock_gate.dart';
 import 'package:argus_wallet/ui/wallets_overview_screen.dart';
 import 'package:flutter/material.dart';
@@ -23,9 +21,7 @@ void main() {
   final api = HomeApi();
   setUpAll(() => RustLib.initMock(api: api));
   setUp(() async {
-    SharedPreferences.setMockInitialValues({'argus_watch_only_addresses': '[]'});
-    await watchOnlyService.load();
-    watchAccountService.accounts.clear();
+    SharedPreferences.setMockInitialValues({});
     // Snapshot figures stay as they are: no public refresh in these tests.
     publicWalletSync.setForeground(false);
   });
@@ -116,7 +112,7 @@ void main() {
   testWidgets('back from the gate is the overview, and asks nothing', (tester) async {
     final keystore = await launch(tester);
     await openDaily(tester);
-    await tester.tap(find.byTooltip('All wallets'));
+    await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
     expect(find.byType(WalletsOverviewScreen), findsOneWidget);
     expect(keystore.prompts, 1);
@@ -177,7 +173,7 @@ void main() {
   testWidgets('reopening the unlocked wallet from the overview asks nothing', (tester) async {
     final keystore = await launch(tester, biometricResult: 'wrap-key');
     await openDaily(tester);
-    await tester.tap(find.byTooltip('All wallets'));
+    await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Unlocked'), findsOneWidget, reason: 'the overview row says so');
     await openDaily(tester);
@@ -190,7 +186,7 @@ void main() {
     final keystore = await launch(tester, biometricResult: 'wrap-key');
     await openDaily(tester);
     expect(walletService.activeWalletId, 'unlock-w1');
-    await tester.tap(find.byTooltip('All wallets'));
+    await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
     keystore.biometricResult = null;
     await tester.tap(find.byKey(const ValueKey('overview-row-seed-unlock-w2')));

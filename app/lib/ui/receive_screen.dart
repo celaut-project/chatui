@@ -1,4 +1,3 @@
-import '../services/watch_account_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -114,7 +113,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
   Widget build(BuildContext context) {
     final args = WalletRouteArgs.of(context);
     final address = args.receiveAddress;
-    final fresh = !args.watchOnly &&
+    final fresh =
         privacyService.useUnusedChangeAddress(walletService.activeWalletId);
 
     return Scaffold(
@@ -127,11 +126,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
               ? context.l10n.receiveUnusedAddress : context.l10n.receiveAddress),
           const SizedBox(height: 8),
           Text(
-            args.watchOnly
-                ? args.watchAccount
-                    ? context.l10n.receiveWatchAccountNote(watchAccountLimitations)
-                    : context.l10n.receiveWatchedNote
-                : fresh
+            fresh
                 ? context.l10n.receiveFreshNote
                 : context.l10n.receiveStaticNote,
             style: Theme.of(context).textTheme.bodyMedium,
@@ -233,7 +228,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                     ),
             child: Text(context.l10n.receiveShare),
           ),
-          if (!args.watchOnly && args.historyAddresses.where((a) => a != address).isNotEmpty) ...[
+          if (args.historyAddresses.where((a) => a != address).isNotEmpty) ...[
             const SizedBox(height: 28),
             SectionLabel(context.l10n.receiveUsedAddresses),
             const SizedBox(height: 4),

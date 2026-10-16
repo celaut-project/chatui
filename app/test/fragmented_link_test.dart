@@ -3,8 +3,6 @@ import 'dart:convert';
 import 'package:argus_wallet/bridge/frb_generated.dart';
 import 'package:argus_wallet/services/public_wallet_sync.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
-import 'package:argus_wallet/services/watch_account_service.dart';
-import 'package:argus_wallet/services/watch_only_service.dart';
 import 'package:argus_wallet/ui/utxo_management_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -40,11 +38,7 @@ void main() {
   final api = BoxCountApi();
   setUpAll(() => RustLib.initMock(api: api));
   setUp(() async {
-    SharedPreferences.setMockInitialValues({
-      'argus_watch_only_addresses': '[]',
-    });
-    await watchOnlyService.load();
-    watchAccountService.accounts.clear();
+    SharedPreferences.setMockInitialValues({});
     publicWalletSync.setForeground(false);
   });
   tearDown(() async {

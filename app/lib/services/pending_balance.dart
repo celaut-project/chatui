@@ -40,8 +40,7 @@ class PendingTokenFlow {
 }
 
 /// What transactions still in the mempool do to a set of addresses'
-/// holdings: a wallet, a locked wallet's known addresses, a watched address
-/// or account.
+/// holdings: a wallet, or a locked wallet's known addresses.
 ///
 /// [pendingOutNano] is what pending transactions take from confirmed boxes;
 /// [pendingInNano] is what they pay to the set and nothing pending spends

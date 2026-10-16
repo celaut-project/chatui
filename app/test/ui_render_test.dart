@@ -2,8 +2,6 @@ import 'package:argus_wallet/bridge/frb_generated.dart';
 import 'package:argus_wallet/services/privacy_service.dart';
 import 'package:argus_wallet/services/public_wallet_sync.dart';
 import 'package:argus_wallet/services/wallet_database_service.dart';
-import 'package:argus_wallet/services/watch_account_service.dart';
-import 'package:argus_wallet/services/watch_only_service.dart';
 import 'package:argus_wallet/theme/argus_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,10 +20,6 @@ import 'support/render_harness.dart';
 
 const vanity = '9evoke9Rk4VQ7pMfXa1nG2sT8wLcYe3HdJ5uBq6ZhNv0xKmPoW';
 const zero = '9fRAxbQ2mTe8LwZk5Ny7cVh3PdG6uJs1BqX4aKoHnYtMv9WEeR';
-const savingsZero = '9gNq4TuKd8VbXo2WcM6sYh1PeR7aLj3FzQ5mHnGk9tBvC0iDu';
-const watchedAddress = '9iWatchHq3Nb7Kx2Ty5Vm8Gc1Rz4Fd6Ls9Pw0Ja3Ue7Mo2Yk';
-const accountKey =
-    '0488b21e04220c2217000000009216e49a70865823eff5381d6fd33ac96743af1f3051dc4cc8edd66a29a740860326cfc301b0c8d4d815ac721e0551304417e6133c2c9137f9f22c33895a3e1650';
 const tokenA =
     '03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04';
 const tokenB =
@@ -47,8 +41,7 @@ void main() {
       0 => zero,
       275 => vanity,
       _ => '9hDerived$i',
-    })
-    ..watchDerived = ((i) => i == 0 ? watchedAddress : '9iAccount$i');
+    });
 
   setUpAll(() async {
     RustLib.initMock(api: api);
@@ -56,10 +49,7 @@ void main() {
   });
 
   setUp(() async {
-    SharedPreferences.setMockInitialValues({
-      'argus_watch_only_addresses': '["$watchedAddress"]',
-    });
-    await watchOnlyService.load();
+    SharedPreferences.setMockInitialValues({});
     await privacyService.load();
     api.balances
       ..clear()
@@ -70,10 +60,6 @@ void main() {
       ..[vanity] = {
         'balance_nano_erg': 9314000000,
         ...tokens([(tokenA, 25)]),
-      }
-      ..[watchedAddress] = {
-        'balance_nano_erg': 25421629296273,
-        ...tokens([(tokenB, 40)]),
       };
     api.histories
       ..clear()
@@ -90,14 +76,6 @@ void main() {
           'timestamp': 1759600000000,
           'value_nano_erg': -1000000000,
         },
-      ]
-      ..[watchedAddress] = [
-        {
-          'tx_id': 'w1',
-          'height': 1500010,
-          'timestamp': 1759710000000,
-          'value_nano_erg': 1000000000000,
-        },
       ];
     api.discovery = {
       'addresses': [
@@ -112,34 +90,14 @@ void main() {
     };
     // Snapshot figures stay as written: no public refresh replaces them.
     publicWalletSync.setForeground(false);
-    final account = WatchAccount(accountKey, label: 'Ledger account')
-      ..snapshot = WatchAccountSnapshot(
-        [watchedAddress, '9iAccount1'],
-        '9iAccount2',
-        4200000000,
-        {tokenA: 12},
-        [
-          {
-            'tx_id': 'x1',
-            'height': 1500020,
-            'timestamp': 1759720000000,
-            'value_nano_erg': 4200000000,
-          },
-        ],
-        1,
-      );
-    watchAccountService.accounts
-      ..clear()
-      ..add(account);
   });
 
   tearDown(() {
     publicWalletSync.setForeground(true);
-    watchAccountService.accounts.clear();
   });
 
-  /// Two seed wallets: the pinned "9evoke9", last seen with funds on index
-  /// 0 as well, and "Savings", never synced on this device.
+  /// The seed wallet: the pinned "9evoke9", last seen with funds on index
+  /// 0 as well.
   Future<void> seedWallets(WidgetTester tester, FakeKeystore keystore) async {
     keystore.install(tester);
     await tester.runAsync(() async {
@@ -150,7 +108,6 @@ void main() {
         pinnedIndex: 275,
         pinnedAddress: vanity,
       );
-      await saveWallet('w-savings', name: 'Savings', address0: savingsZero);
       await WalletDatabaseService.savePublicSnapshot('w-evoke', {
         'wallet_id': 'w-evoke',
         'primary_address': vanity,
@@ -190,30 +147,18 @@ void main() {
   for (final scale in [1.0, 2.0]) {
     final tag = scale == 1 ? '' : '@2x';
 
-    testWidgets('overview with every kind of wallet$tag', (tester) async {
-      await seedWallets(
-        tester,
-        FakeKeystore(wallets: ['w-evoke', 'w-savings']),
-      );
+    testWidgets('overview with the wallet$tag', (tester) async {
+      await seedWallets(tester, FakeKeystore(wallets: ['w-evoke']));
       await pumpHome(tester, textScale: scale);
       expect(textPlainContaining('TOTAL BALANCE'), findsOneWidget);
       expect(textPlainContaining('on another address'), findsOneWidget);
       await renderPng(tester, 'overview$tag');
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('overview-add-wallet')),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await renderPng(tester, 'overview-bottom$tag');
+      expect(find.byKey(const Key('overview-add-wallet')), findsNothing);
       await disposeHome(tester);
     });
 
     testWidgets('overview with no wallets$tag', (tester) async {
-      SharedPreferences.setMockInitialValues({
-        'argus_watch_only_addresses': '[]',
-      });
-      await watchOnlyService.load();
-      watchAccountService.accounts.clear();
+      SharedPreferences.setMockInitialValues({});
       FakeKeystore(wallets: const []).install(tester);
       await pumpHome(tester, textScale: scale);
       expect(find.byKey(const Key('overview-create')), findsOneWidget);
@@ -224,7 +169,7 @@ void main() {
     testWidgets('a cancelled biometric prompt leaves the gate$tag', (
       tester,
     ) async {
-      final keystore = FakeKeystore(wallets: ['w-evoke', 'w-savings']);
+      final keystore = FakeKeystore(wallets: ['w-evoke']);
       await seedWallets(tester, keystore);
       await pumpHome(tester, textScale: scale);
       await tester.tap(find.byKey(const ValueKey('overview-row-seed-w-evoke')));
@@ -241,7 +186,7 @@ void main() {
     testWidgets('an unlocked wallet with funds on another address$tag', (
       tester,
     ) async {
-      final keystore = FakeKeystore(wallets: ['w-evoke', 'w-savings'])
+      final keystore = FakeKeystore(wallets: ['w-evoke'])
         ..biometricResult = 'wrap-key';
       await seedWallets(tester, keystore);
       await pumpHome(tester, textScale: scale);
@@ -281,80 +226,10 @@ void main() {
       await disposeHome(tester);
     });
 
-    testWidgets('a watched address on the standard page$tag', (tester) async {
-      await seedWallets(
-        tester,
-        FakeKeystore(wallets: ['w-evoke', 'w-savings']),
-      );
-      await pumpHome(tester, textScale: scale);
-      final row = find.byKey(
-        const ValueKey('overview-row-watchedAddress-$watchedAddress'),
-      );
-      await tester.scrollUntilVisible(
-        row,
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.ensureVisible(row);
-      await tester.pumpAndSettle();
-      await tester.tap(row);
-      await tester.pumpAndSettle();
-      await renderPng(tester, 'watched-address$tag');
-      await tester.scrollUntilVisible(
-        find.text('Recent Activity'),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await renderPng(tester, 'watched-address-lower$tag');
-      await tester.tap(find.widgetWithText(NavigationDestination, 'Activity'));
-      await tester.pumpAndSettle();
-      await renderPng(tester, 'watched-address-activity$tag');
-      await tester.tap(find.widgetWithText(NavigationDestination, 'Settings'));
-      await tester.pumpAndSettle();
-      await renderPng(tester, 'watched-address-settings$tag');
-      await disposeHome(tester);
-    });
-
-    testWidgets('a watched account on the standard page$tag', (tester) async {
-      await seedWallets(
-        tester,
-        FakeKeystore(wallets: ['w-evoke', 'w-savings']),
-      );
-      await pumpHome(tester, textScale: scale);
-      final row = find.byKey(
-        const ValueKey('overview-row-watchedAccount-$accountKey'),
-      );
-      await tester.scrollUntilVisible(
-        row,
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.ensureVisible(row);
-      await tester.pumpAndSettle();
-      await tester.tap(row);
-      await tester.pumpAndSettle();
-      await renderPng(tester, 'watched-account$tag');
-      // The full address is on the Addresses tab.
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('wallet-page-tab-addresses')),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('wallet-page-tab-addresses')));
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('First address'),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await renderPng(tester, 'watched-account-lower$tag');
-      await disposeHome(tester);
-    });
   }
 
   testWidgets('overview with balances hidden, dark', (tester) async {
-    await seedWallets(tester, FakeKeystore(wallets: ['w-evoke', 'w-savings']));
+    await seedWallets(tester, FakeKeystore(wallets: ['w-evoke']));
     await privacyService.setHideBalances(true);
     addTearDown(() => privacyService.setHideBalances(false));
     await pumpHome(tester, dark: true);
@@ -366,11 +241,10 @@ void main() {
 
   // The redesigned home as the app wires it, from the same mock node: the
   // overview, an unlocked wallet and its address breakdown, the locked page
-  // after a cancelled fingerprint prompt, and a watched address, in Harbor
-  // (teal) and the default dark palette. Written to ui-renders/wired/.
+  // after a cancelled fingerprint prompt, in Harbor (teal) and the default dark palette. Written to ui-renders/wired/.
   for (final (palette, look) in [(harborPalette, 'teal'), (watchfulPalette, 'dark')]) {
     testWidgets('wired screens, $look', (tester) async {
-      final keystore = FakeKeystore(wallets: ['w-evoke', 'w-savings']);
+      final keystore = FakeKeystore(wallets: ['w-evoke']);
       await seedWallets(tester, keystore);
       await pumpHome(tester, palette: palette);
       expect(tester.takeException(), isNull);
@@ -397,18 +271,6 @@ void main() {
       await tester.tapAt(const Offset(20, 20));
       await tester.pumpAndSettle();
 
-      // Back to every wallet, and into the watched address.
-      await tester.tap(find.byTooltip('All wallets'));
-      await tester.pumpAndSettle();
-      final row = find.byKey(const ValueKey('overview-row-watchedAddress-$watchedAddress'));
-      await tester.scrollUntilVisible(row, 300, scrollable: find.byType(Scrollable).first);
-      await tester.ensureVisible(row);
-      await tester.pumpAndSettle();
-      await tester.tap(row);
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('watch-action-send')), findsOneWidget);
-      expect(tester.takeException(), isNull);
-      await renderPng(tester, 'wired/watched-$look-1x');
       await disposeHome(tester);
     });
   }

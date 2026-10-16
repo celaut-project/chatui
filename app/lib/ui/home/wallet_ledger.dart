@@ -113,7 +113,7 @@ class WalletLedger extends StatelessWidget {
           onAction: (a) => switch (a) {
             WalletAction.send => actions.go('/send'),
             WalletAction.receive => actions.go('/receive'),
-            WalletAction.sendOffline || WalletAction.more => null,
+            WalletAction.more => null,
           },
           onTool: (tool) => switch (tool) {
             WalletTool.tokens => actions.go('/tokens'),

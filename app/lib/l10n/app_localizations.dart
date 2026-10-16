@@ -242,24 +242,6 @@ abstract class AppLocalizations {
   /// **'Not an Ergo address'**
   String get commonNotAnErgoAddress;
 
-  /// No description provided for @commonWatchedAccount.
-  ///
-  /// In en, this message translates to:
-  /// **'Watched account'**
-  String get commonWatchedAccount;
-
-  /// No description provided for @commonWatchedAddress.
-  ///
-  /// In en, this message translates to:
-  /// **'Watched address'**
-  String get commonWatchedAddress;
-
-  /// No description provided for @commonStopWatching.
-  ///
-  /// In en, this message translates to:
-  /// **'Stop watching'**
-  String get commonStopWatching;
-
   /// No description provided for @monthShort1.
   ///
   /// In en, this message translates to:
@@ -866,18 +848,6 @@ abstract class AppLocalizations {
   /// **'Auto-lock, screenshots, unconfirmed funds'**
   String get settingsSecurityAppSubtitle;
 
-  /// No description provided for @settingsOfflineSigningTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Offline signing'**
-  String get settingsOfflineSigningTitle;
-
-  /// No description provided for @settingsOfflineSigningSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Scan, review and sign with this seed wallet'**
-  String get settingsOfflineSigningSubtitle;
-
   /// No description provided for @settingsRemotePreviewsTitle.
   ///
   /// In en, this message translates to:
@@ -896,12 +866,6 @@ abstract class AppLocalizations {
   /// **'{count, plural, other{{count} contacts}}'**
   String settingsContactsCount(int count);
 
-  /// No description provided for @settingsAllWallets.
-  ///
-  /// In en, this message translates to:
-  /// **'All wallets'**
-  String get settingsAllWallets;
-
   /// No description provided for @settingsUnlocked.
   ///
   /// In en, this message translates to:
@@ -913,48 +877,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Locked'**
   String get settingsLocked;
-
-  /// No description provided for @settingsWalletsOnDevice.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{{count} wallet on this device} other{{count} wallets on this device}}'**
-  String settingsWalletsOnDevice(int count);
-
-  /// No description provided for @settingsWatchOnlyAccountDetail.
-  ///
-  /// In en, this message translates to:
-  /// **'Watch-only account · {id}'**
-  String settingsWatchOnlyAccountDetail(String id);
-
-  /// No description provided for @settingsWatchOnlyAddressDetail.
-  ///
-  /// In en, this message translates to:
-  /// **'Watch-only address · {id}'**
-  String settingsWatchOnlyAddressDetail(String id);
-
-  /// No description provided for @settingsThisAccount.
-  ///
-  /// In en, this message translates to:
-  /// **'This account'**
-  String get settingsThisAccount;
-
-  /// No description provided for @settingsThisAddress.
-  ///
-  /// In en, this message translates to:
-  /// **'This address'**
-  String get settingsThisAddress;
-
-  /// No description provided for @settingsWatchOnlyScope.
-  ///
-  /// In en, this message translates to:
-  /// **'Watch-only'**
-  String get settingsWatchOnlyScope;
-
-  /// No description provided for @settingsStopWatchingSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Removes it from this device. Nothing on chain changes.'**
-  String get settingsStopWatchingSubtitle;
 
   /// No description provided for @aboutSaveSettingFailed.
   ///
@@ -2097,7 +2019,7 @@ abstract class AppLocalizations {
   /// No description provided for @walletSettingsRemoveBody.
   ///
   /// In en, this message translates to:
-  /// **'This removes the wallet from this device. Celaut does not keep a copy of the recovery phrase; the paper you wrote when creating this wallet is the only way back in.'**
+  /// **'This removes the wallet from this device. Celaut does not keep a copy of the recovery phrase; the paper you wrote when creating this wallet is the only way back in. After that, you can create or restore another wallet.'**
   String get walletSettingsRemoveBody;
 
   /// No description provided for @walletSettingsRemoveFailed.
@@ -2205,7 +2127,7 @@ abstract class AppLocalizations {
   /// No description provided for @walletSettingsUnlockToChange.
   ///
   /// In en, this message translates to:
-  /// **'Unlock a wallet to change this setting'**
+  /// **'Unlock the wallet to change this setting'**
   String get walletSettingsUnlockToChange;
 
   /// No description provided for @walletSettingsPrivacySaveFailed.
@@ -2639,390 +2561,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{who}you hold {amount} {token} in total across all recipients'**
   String sendErrorTokenOverAllocated(String who, String amount, String token);
-
-  /// No description provided for @coldUnlockBeforeReview.
-  ///
-  /// In en, this message translates to:
-  /// **'Unlock the seed wallet before reviewing.'**
-  String get coldUnlockBeforeReview;
-
-  /// No description provided for @coldWalletLockedOrChanged.
-  ///
-  /// In en, this message translates to:
-  /// **'Wallet locked or changed. Reset and review with the selected wallet.'**
-  String get coldWalletLockedOrChanged;
-
-  /// No description provided for @coldRefusingBroadcast.
-  ///
-  /// In en, this message translates to:
-  /// **'Refusing broadcast: no verified response.'**
-  String get coldRefusingBroadcast;
-
-  /// No description provided for @coldTxIdMismatch.
-  ///
-  /// In en, this message translates to:
-  /// **'Node transaction ID mismatch.'**
-  String get coldTxIdMismatch;
-
-  /// No description provided for @coldTitleHot.
-  ///
-  /// In en, this message translates to:
-  /// **'Cold-wallet send'**
-  String get coldTitleHot;
-
-  /// No description provided for @coldTitleOffline.
-  ///
-  /// In en, this message translates to:
-  /// **'Offline signing'**
-  String get coldTitleOffline;
-
-  /// No description provided for @coldSessionNote.
-  ///
-  /// In en, this message translates to:
-  /// **'Unsigned sessions expire after 30 minutes. Back pauses; return here to resume. Verified returns remain available for retry. Closing the app discards all sessions.'**
-  String get coldSessionNote;
-
-  /// No description provided for @coldRefused.
-  ///
-  /// In en, this message translates to:
-  /// **'Refused: {error}'**
-  String coldRefused(String error);
-
-  /// No description provided for @coldScanRequestCodes.
-  ///
-  /// In en, this message translates to:
-  /// **'Scan every request code with the offline signer.'**
-  String get coldScanRequestCodes;
-
-  /// No description provided for @coldSignedScanResponse.
-  ///
-  /// In en, this message translates to:
-  /// **'Signed. Scan every response code with the online wallet.'**
-  String get coldSignedScanResponse;
-
-  /// No description provided for @coldLoadQrCodes.
-  ///
-  /// In en, this message translates to:
-  /// **'Load QR codes'**
-  String get coldLoadQrCodes;
-
-  /// No description provided for @coldScanSignedResponse.
-  ///
-  /// In en, this message translates to:
-  /// **'Scan signed response'**
-  String get coldScanSignedResponse;
-
-  /// No description provided for @coldShowRequestAgain.
-  ///
-  /// In en, this message translates to:
-  /// **'Show request codes again'**
-  String get coldShowRequestAgain;
-
-  /// No description provided for @coldCollectResponse.
-  ///
-  /// In en, this message translates to:
-  /// **'Collect signed response (CSTX)'**
-  String get coldCollectResponse;
-
-  /// No description provided for @coldCollectRequest.
-  ///
-  /// In en, this message translates to:
-  /// **'Collect signing request (CSR)'**
-  String get coldCollectRequest;
-
-  /// total is a number or ? when not known yet.
-  ///
-  /// In en, this message translates to:
-  /// **'{received} of {total} scanned'**
-  String coldScannedProgress(String received, String total);
-
-  /// No description provided for @coldMissingPages.
-  ///
-  /// In en, this message translates to:
-  /// **'Missing pages: {pages}'**
-  String coldMissingPages(String pages);
-
-  /// No description provided for @coldScanRefused.
-  ///
-  /// In en, this message translates to:
-  /// **'This scan was refused. Discard the collected pages and restart.'**
-  String get coldScanRefused;
-
-  /// No description provided for @coldScanACode.
-  ///
-  /// In en, this message translates to:
-  /// **'Scan a code'**
-  String get coldScanACode;
-
-  /// No description provided for @coldScanNextCode.
-  ///
-  /// In en, this message translates to:
-  /// **'Scan next code'**
-  String get coldScanNextCode;
-
-  /// No description provided for @coldResetPages.
-  ///
-  /// In en, this message translates to:
-  /// **'Reset collected pages'**
-  String get coldResetPages;
-
-  /// No description provided for @coldVerifySigned.
-  ///
-  /// In en, this message translates to:
-  /// **'Verify signed transaction'**
-  String get coldVerifySigned;
-
-  /// No description provided for @coldReviewTransaction.
-  ///
-  /// In en, this message translates to:
-  /// **'Review transaction'**
-  String get coldReviewTransaction;
-
-  /// No description provided for @coldReviewWarning.
-  ///
-  /// In en, this message translates to:
-  /// **'Independently check the full recipient addresses and quantities. Keep this device offline. Labels from the online wallet are not used.'**
-  String get coldReviewWarning;
-
-  /// No description provided for @coldCheckedEverything.
-  ///
-  /// In en, this message translates to:
-  /// **'I checked every output, token and fee on this device'**
-  String get coldCheckedEverything;
-
-  /// No description provided for @coldConfirmSign.
-  ///
-  /// In en, this message translates to:
-  /// **'Confirm and sign offline'**
-  String get coldConfirmSign;
-
-  /// No description provided for @coldRejectReset.
-  ///
-  /// In en, this message translates to:
-  /// **'Reject and reset'**
-  String get coldRejectReset;
-
-  /// No description provided for @coldVerifiedMatch.
-  ///
-  /// In en, this message translates to:
-  /// **'Every signature verifies and the transaction exactly matches the prepared payment.'**
-  String get coldVerifiedMatch;
-
-  /// No description provided for @coldTransactionId.
-  ///
-  /// In en, this message translates to:
-  /// **'Transaction ID: {id}'**
-  String coldTransactionId(String id);
-
-  /// No description provided for @coldBroadcastVerified.
-  ///
-  /// In en, this message translates to:
-  /// **'Broadcast verified transaction'**
-  String get coldBroadcastVerified;
-
-  /// No description provided for @coldRetryNote.
-  ///
-  /// In en, this message translates to:
-  /// **'If the network fails, retry sends the same verified transaction. Do not rebuild while its status is uncertain.'**
-  String get coldRetryNote;
-
-  /// No description provided for @coldSubmitted.
-  ///
-  /// In en, this message translates to:
-  /// **'Transaction submitted'**
-  String get coldSubmitted;
-
-  /// No description provided for @coldDiscardSession.
-  ///
-  /// In en, this message translates to:
-  /// **'Discard session'**
-  String get coldDiscardSession;
-
-  /// No description provided for @coldReviewNetwork.
-  ///
-  /// In en, this message translates to:
-  /// **'Review · {network}'**
-  String coldReviewNetwork(String network);
-
-  /// No description provided for @coldMinerFeeValue.
-  ///
-  /// In en, this message translates to:
-  /// **'Miner fee: {fee}'**
-  String coldMinerFeeValue(String fee);
-
-  /// No description provided for @coldOutputsNote.
-  ///
-  /// In en, this message translates to:
-  /// **'Every output is listed below. “Your address” is verified from local keys; it may be change or a self-payment.'**
-  String get coldOutputsNote;
-
-  /// No description provided for @coldYourAddress.
-  ///
-  /// In en, this message translates to:
-  /// **'Your address'**
-  String get coldYourAddress;
-
-  /// No description provided for @coldExternalRecipient.
-  ///
-  /// In en, this message translates to:
-  /// **'External recipient / application payment'**
-  String get coldExternalRecipient;
-
-  /// No description provided for @coldTokenId.
-  ///
-  /// In en, this message translates to:
-  /// **'Token ID: {id}'**
-  String coldTokenId(String id);
-
-  /// No description provided for @coldQuantityBaseUnits.
-  ///
-  /// In en, this message translates to:
-  /// **'Quantity: {amount} base units'**
-  String coldQuantityBaseUnits(String amount);
-
-  /// none is coldNone when the list is empty, else empty.
-  ///
-  /// In en, this message translates to:
-  /// **'Token burns: {none}'**
-  String coldTokenBurns(String none);
-
-  /// none is coldNone when the list is empty, else empty.
-  ///
-  /// In en, this message translates to:
-  /// **'Token creation: {none}'**
-  String coldTokenCreation(String none);
-
-  /// No description provided for @coldNone.
-  ///
-  /// In en, this message translates to:
-  /// **'None'**
-  String get coldNone;
-
-  /// No description provided for @coldTokenAmountBaseUnits.
-  ///
-  /// In en, this message translates to:
-  /// **'{id} · {amount} base units'**
-  String coldTokenAmountBaseUnits(String id, String amount);
-
-  /// No description provided for @coldCodeOf.
-  ///
-  /// In en, this message translates to:
-  /// **'Code {page} of {total}'**
-  String coldCodeOf(String page, String total);
-
-  /// No description provided for @coldPrevious.
-  ///
-  /// In en, this message translates to:
-  /// **'Previous'**
-  String get coldPrevious;
-
-  /// No description provided for @coldAutoRepeat.
-  ///
-  /// In en, this message translates to:
-  /// **'Auto-repeat'**
-  String get coldAutoRepeat;
-
-  /// No description provided for @coldPause.
-  ///
-  /// In en, this message translates to:
-  /// **'Pause'**
-  String get coldPause;
-
-  /// No description provided for @coldNext.
-  ///
-  /// In en, this message translates to:
-  /// **'Next'**
-  String get coldNext;
-
-  /// No description provided for @coldRefreshWatchedFirst.
-  ///
-  /// In en, this message translates to:
-  /// **'Refresh the watched account first.'**
-  String get coldRefreshWatchedFirst;
-
-  /// No description provided for @coldChooseNodeFirst.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose an online node first.'**
-  String get coldChooseNodeFirst;
-
-  /// No description provided for @coldAmountPositive.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter a positive whole number for Amount (nanoERG).'**
-  String get coldAmountPositive;
-
-  /// No description provided for @coldTokenQuantityPositive.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter a positive whole number for Token quantity.'**
-  String get coldTokenQuantityPositive;
-
-  /// No description provided for @coldNodeChanged.
-  ///
-  /// In en, this message translates to:
-  /// **'Node changed during preparation. Try again.'**
-  String get coldNodeChanged;
-
-  /// No description provided for @coldSendTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Send with offline signer'**
-  String get coldSendTitle;
-
-  /// No description provided for @coldWatchIntro.
-  ///
-  /// In en, this message translates to:
-  /// **'Mainnet P2PK payments. This watch-only source has no keys. An offline seed wallet must review and sign the request.'**
-  String get coldWatchIntro;
-
-  /// No description provided for @coldChangeNote.
-  ///
-  /// In en, this message translates to:
-  /// **'Change, including remaining tokens, returns to this same watched address. Reusing it reduces privacy. A watched account tracks more addresses.'**
-  String get coldChangeNote;
-
-  /// No description provided for @coldSignerMustOwn.
-  ///
-  /// In en, this message translates to:
-  /// **'The offline signer must own this mainnet P2PK address. Celaut automatically searches EIP-3 account 0, external indices 0–512.'**
-  String get coldSignerMustOwn;
-
-  /// No description provided for @coldResumeSend.
-  ///
-  /// In en, this message translates to:
-  /// **'Resume cold send'**
-  String get coldResumeSend;
-
-  /// No description provided for @coldRecipientLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Full recipient address'**
-  String get coldRecipientLabel;
-
-  /// No description provided for @coldAmountNanoLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Amount in nanoERG (1 ERG = 1000000000)'**
-  String get coldAmountNanoLabel;
-
-  /// No description provided for @coldTokenIdOptional.
-  ///
-  /// In en, this message translates to:
-  /// **'Token ID (optional)'**
-  String get coldTokenIdOptional;
-
-  /// No description provided for @coldTokenQuantityLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Token quantity in base units (optional)'**
-  String get coldTokenQuantityLabel;
-
-  /// No description provided for @coldPrepareRequest.
-  ///
-  /// In en, this message translates to:
-  /// **'Prepare cold request'**
-  String get coldPrepareRequest;
 
   /// No description provided for @priceHistoryNeedsExtraIndex.
   ///
@@ -3987,68 +3525,8 @@ abstract class AppLocalizations {
   /// No description provided for @syncLockedWalletsExplainer.
   ///
   /// In en, this message translates to:
-  /// **'Locked wallets refresh from public data every 5 minutes, covering only the addresses this app already knows. Unlock one to pick up new addresses.'**
+  /// **'A locked wallet refreshes from public data every 5 minutes, covering only the addresses this app already knows. Unlock it to pick up new addresses.'**
   String get syncLockedWalletsExplainer;
-
-  /// No description provided for @watchSaveAddressesFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Could not save watched addresses. Please try again.'**
-  String get watchSaveAddressesFailed;
-
-  /// No description provided for @watchLimitations.
-  ///
-  /// In en, this message translates to:
-  /// **'Public payment addresses only. Cannot sign locally; sending requires an offline signer.'**
-  String get watchLimitations;
-
-  /// limitations is the text of watchLimitations.
-  ///
-  /// In en, this message translates to:
-  /// **'An extended public key lets anyone holding it derive and link every public payment address in this account forever. Only import a key you intend to share with this device. {limitations}'**
-  String watchDisclosure(String limitations);
-
-  /// No description provided for @watchExpected.
-  ///
-  /// In en, this message translates to:
-  /// **'Expected an Ergo Wallet App extended public key: 156 hex characters starting 0488b21e (mainnet), depth 4 external chain /0 or depth 3 account 0. Base58 xpub and testnet are not supported.'**
-  String get watchExpected;
-
-  /// No description provided for @watchIncompleteDerivation.
-  ///
-  /// In en, this message translates to:
-  /// **'Incomplete derivation'**
-  String get watchIncompleteDerivation;
-
-  /// No description provided for @watchScanIncomplete.
-  ///
-  /// In en, this message translates to:
-  /// **'Scan incomplete after {count} addresses; no unused receive address confirmed.'**
-  String watchScanIncomplete(String count);
-
-  /// No description provided for @watchNodeChanged.
-  ///
-  /// In en, this message translates to:
-  /// **'Node changed. Refresh the account before receiving.'**
-  String get watchNodeChanged;
-
-  /// No description provided for @watchSaveAccountsFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Could not save watched accounts. Please try again.'**
-  String get watchSaveAccountsFailed;
-
-  /// No description provided for @watchNodeChangedDuringScan.
-  ///
-  /// In en, this message translates to:
-  /// **'Node changed during scan; refresh again.'**
-  String get watchNodeChangedDuringScan;
-
-  /// No description provided for @watchAccountRefreshUnavailable.
-  ///
-  /// In en, this message translates to:
-  /// **'Account refresh unavailable: {detail}'**
-  String watchAccountRefreshUnavailable(String detail);
 
   /// No description provided for @syncPublicKnownOnly.
   ///
@@ -4127,12 +3605,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'\"{name}\" removed'**
   String dashboardWalletRemoved(String name);
-
-  /// No description provided for @dashboardStoppedWatching.
-  ///
-  /// In en, this message translates to:
-  /// **'Stopped watching'**
-  String get dashboardStoppedWatching;
 
   /// No description provided for @dashboardNoAddressDerived.
   ///
@@ -4229,12 +3701,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No reachable nodes. Tap Retry to check.'**
   String get offlineNoNodes;
-
-  /// No description provided for @overviewReorderHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Long-press a wallet to change the order.'**
-  String get overviewReorderHint;
 
   /// No description provided for @discoverTokensBlurb.
   ///
@@ -4379,114 +3845,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'What it is, and the way in'**
   String get discoverRowHint;
-
-  /// No description provided for @watchAddFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Could not add watched address: {detail}'**
-  String watchAddFailed(String detail);
-
-  /// No description provided for @watchAddressAdded.
-  ///
-  /// In en, this message translates to:
-  /// **'Watch-only address added'**
-  String get watchAddressAdded;
-
-  /// No description provided for @watchAddInvalid.
-  ///
-  /// In en, this message translates to:
-  /// **'Already watched or invalid input. Use an Ergo address, a 33-byte compressed public key, or its 0008cd P2PK tree (hex, no 0x). Raw keys use mainnet.'**
-  String get watchAddInvalid;
-
-  /// No description provided for @watchAddressTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Watch an address'**
-  String get watchAddressTitle;
-
-  /// No description provided for @watchAddressIntro.
-  ///
-  /// In en, this message translates to:
-  /// **'See balance and activity for any Ergo address. No keys are stored, so it cannot spend.'**
-  String get watchAddressIntro;
-
-  /// No description provided for @watchAddressLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Address or public key'**
-  String get watchAddressLabel;
-
-  /// No description provided for @watchAddressHelper.
-  ///
-  /// In en, this message translates to:
-  /// **'Mainnet key hex: 02/03… or 0008cd02/03…'**
-  String get watchAddressHelper;
-
-  /// No description provided for @watchAction.
-  ///
-  /// In en, this message translates to:
-  /// **'Watch'**
-  String get watchAction;
-
-  /// No description provided for @watchXpubTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Watch an extended public key'**
-  String get watchXpubTitle;
-
-  /// No description provided for @watchXpubLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Ergo Wallet App extended public key'**
-  String get watchXpubLabel;
-
-  /// No description provided for @watchXpubHelper.
-  ///
-  /// In en, this message translates to:
-  /// **'156 hex characters, mainnet. No checksum: verify the first address with the source wallet.'**
-  String get watchXpubHelper;
-
-  /// No description provided for @watchXpubAlreadyWatched.
-  ///
-  /// In en, this message translates to:
-  /// **'This extended key is already watched.'**
-  String get watchXpubAlreadyWatched;
-
-  /// No description provided for @watchAccountAction.
-  ///
-  /// In en, this message translates to:
-  /// **'Watch account'**
-  String get watchAccountAction;
-
-  /// No description provided for @watchNameOptional.
-  ///
-  /// In en, this message translates to:
-  /// **'Name (optional)'**
-  String get watchNameOptional;
-
-  /// No description provided for @watchSaveNameFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Could not save the name: {detail}'**
-  String watchSaveNameFailed(String detail);
-
-  /// No description provided for @watchStopTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Stop watching?'**
-  String get watchStopTitle;
-
-  /// No description provided for @watchStopAccountBody.
-  ///
-  /// In en, this message translates to:
-  /// **'The extended key is removed from this device. Re-import it to watch the account again.'**
-  String get watchStopAccountBody;
-
-  /// No description provided for @watchStopFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Could not stop watching: {detail}'**
-  String watchStopFailed(String detail);
 
   /// No description provided for @navActivity.
   ///
@@ -4740,12 +4098,6 @@ abstract class AppLocalizations {
   /// **'unlocked'**
   String get homeSpokenUnlocked;
 
-  /// No description provided for @homeSpokenWatchOnly.
-  ///
-  /// In en, this message translates to:
-  /// **'watch-only'**
-  String get homeSpokenWatchOnly;
-
   /// No description provided for @homeSpokenBalanceHidden.
   ///
   /// In en, this message translates to:
@@ -4827,26 +4179,8 @@ abstract class AppLocalizations {
   /// No description provided for @overviewWallets.
   ///
   /// In en, this message translates to:
-  /// **'Wallets'**
+  /// **'Wallet'**
   String get overviewWallets;
-
-  /// No description provided for @overviewAddWallet.
-  ///
-  /// In en, this message translates to:
-  /// **'Add a wallet'**
-  String get overviewAddWallet;
-
-  /// No description provided for @overviewWatchedAddresses.
-  ///
-  /// In en, this message translates to:
-  /// **'Watched addresses'**
-  String get overviewWatchedAddresses;
-
-  /// No description provided for @overviewWatchTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Watch an address or account'**
-  String get overviewWatchTooltip;
 
   /// No description provided for @overviewPrototypeTitle.
   ///
@@ -4881,13 +4215,13 @@ abstract class AppLocalizations {
   /// No description provided for @overviewWelcomeTitle.
   ///
   /// In en, this message translates to:
-  /// **'Your wallets live here'**
+  /// **'Your wallet lives here'**
   String get overviewWelcomeTitle;
 
   /// No description provided for @overviewWelcomeBody.
   ///
   /// In en, this message translates to:
-  /// **'No wallets yet. Create a new wallet, restore one from its recovery phrase, or watch an address or an account without its keys. Each one opens from this screen.'**
+  /// **'No wallet yet. Create a new wallet, or restore one from its recovery phrase. The app holds one wallet, and it opens from this screen.'**
   String get overviewWelcomeBody;
 
   /// No description provided for @overviewCreateWallet.
@@ -4901,54 +4235,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Restore from recovery phrase'**
   String get overviewRestoreWallet;
-
-  /// No description provided for @overviewWatchAccountXpub.
-  ///
-  /// In en, this message translates to:
-  /// **'Watch an account (xpub)'**
-  String get overviewWatchAccountXpub;
-
-  /// No description provided for @overviewAddCreate.
-  ///
-  /// In en, this message translates to:
-  /// **'Create a new wallet'**
-  String get overviewAddCreate;
-
-  /// No description provided for @overviewAddCreateBlurb.
-  ///
-  /// In en, this message translates to:
-  /// **'A fresh recovery phrase, kept on this phone.'**
-  String get overviewAddCreateBlurb;
-
-  /// No description provided for @overviewAddRestore.
-  ///
-  /// In en, this message translates to:
-  /// **'Restore a wallet'**
-  String get overviewAddRestore;
-
-  /// No description provided for @overviewAddRestoreBlurb.
-  ///
-  /// In en, this message translates to:
-  /// **'From its 12, 15 or 24-word recovery phrase.'**
-  String get overviewAddRestoreBlurb;
-
-  /// No description provided for @overviewAddWatchAddressBlurb.
-  ///
-  /// In en, this message translates to:
-  /// **'Balance and activity, without its keys.'**
-  String get overviewAddWatchAddressBlurb;
-
-  /// No description provided for @overviewAddWatchAccount.
-  ///
-  /// In en, this message translates to:
-  /// **'Watch an account'**
-  String get overviewAddWatchAccount;
-
-  /// No description provided for @overviewAddWatchAccountBlurb.
-  ///
-  /// In en, this message translates to:
-  /// **'Every address of an extended public key (xpub).'**
-  String get overviewAddWatchAccountBlurb;
 
   /// No description provided for @homeBalanceLabel.
   ///
@@ -4997,12 +4283,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Send'**
   String get homeActionSend;
-
-  /// No description provided for @homeActionSendOffline.
-  ///
-  /// In en, this message translates to:
-  /// **'Send with offline signer'**
-  String get homeActionSendOffline;
 
   /// No description provided for @homeActionReceive.
   ///
@@ -5085,7 +4365,7 @@ abstract class AppLocalizations {
   /// No description provided for @homeAllWallets.
   ///
   /// In en, this message translates to:
-  /// **'All wallets'**
+  /// **'Back'**
   String get homeAllWallets;
 
   /// No description provided for @homeOtherAddressesHint.
@@ -5184,12 +4464,6 @@ abstract class AppLocalizations {
   /// **'No addresses read yet'**
   String get homeNoAddresses;
 
-  /// No description provided for @homeNoAddressesWatched.
-  ///
-  /// In en, this message translates to:
-  /// **'No addresses read yet. They appear after the first scan.'**
-  String get homeNoAddressesWatched;
-
   /// No description provided for @homeNoAddressesDot.
   ///
   /// In en, this message translates to:
@@ -5219,132 +4493,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No activity yet'**
   String get homeNoActivity;
-
-  /// No description provided for @watchBalanceUnavailable.
-  ///
-  /// In en, this message translates to:
-  /// **'Balance unavailable: {detail}'**
-  String watchBalanceUnavailable(String detail);
-
-  /// No description provided for @watchActivityPartial.
-  ///
-  /// In en, this message translates to:
-  /// **'Some activity could not be read.'**
-  String get watchActivityPartial;
-
-  /// No description provided for @watchActivityFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Could not load activity.'**
-  String get watchActivityFailed;
-
-  /// No description provided for @watchAccountRefreshRetry.
-  ///
-  /// In en, this message translates to:
-  /// **'Account refresh unavailable. Try again.'**
-  String get watchAccountRefreshRetry;
-
-  /// No description provided for @watchRescanAccount.
-  ///
-  /// In en, this message translates to:
-  /// **'Rescan account'**
-  String get watchRescanAccount;
-
-  /// No description provided for @watchRefresh.
-  ///
-  /// In en, this message translates to:
-  /// **'Refresh'**
-  String get watchRefresh;
-
-  /// No description provided for @watchMoreOptions.
-  ///
-  /// In en, this message translates to:
-  /// **'More options'**
-  String get watchMoreOptions;
-
-  /// No description provided for @watchRename.
-  ///
-  /// In en, this message translates to:
-  /// **'Rename'**
-  String get watchRename;
-
-  /// No description provided for @watchNotScannedTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Account not scanned'**
-  String get watchNotScannedTitle;
-
-  /// No description provided for @watchNotScannedBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Refresh the account to read its addresses and activity.'**
-  String get watchNotScannedBody;
-
-  /// No description provided for @watchRefreshAccount.
-  ///
-  /// In en, this message translates to:
-  /// **'Refresh account'**
-  String get watchRefreshAccount;
-
-  /// No description provided for @watchRefreshToReadActivity.
-  ///
-  /// In en, this message translates to:
-  /// **'Refresh the account to read its activity.'**
-  String get watchRefreshToReadActivity;
-
-  /// No description provided for @watchShowItsAddress.
-  ///
-  /// In en, this message translates to:
-  /// **'Show its address'**
-  String get watchShowItsAddress;
-
-  /// No description provided for @watchStatusWatchOnly.
-  ///
-  /// In en, this message translates to:
-  /// **'Watch-only · cannot sign here'**
-  String get watchStatusWatchOnly;
-
-  /// No description provided for @watchScanning.
-  ///
-  /// In en, this message translates to:
-  /// **'Scanning…'**
-  String get watchScanning;
-
-  /// No description provided for @watchRefreshing.
-  ///
-  /// In en, this message translates to:
-  /// **'Refreshing…'**
-  String get watchRefreshing;
-
-  /// when is a sync age, e.g. "2m ago".
-  ///
-  /// In en, this message translates to:
-  /// **'Updated {when}'**
-  String watchUpdated(String when);
-
-  /// No description provided for @watchGapNote.
-  ///
-  /// In en, this message translates to:
-  /// **'Discovery stops after 20 unused addresses. Payments beyond a larger gap can be missed.'**
-  String get watchGapNote;
-
-  /// No description provided for @watchAddressNote.
-  ///
-  /// In en, this message translates to:
-  /// **'Cannot sign locally. Send with an offline signer; change returns to this same address. A watched account tracks more addresses.'**
-  String get watchAddressNote;
-
-  /// No description provided for @watchFirstAddress.
-  ///
-  /// In en, this message translates to:
-  /// **'First address'**
-  String get watchFirstAddress;
-
-  /// No description provided for @watchFirstAddressNote.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, other{Check this matches the first address in the wallet the key came from: an extended key has no checksum. {count} addresses scanned.}}'**
-  String watchFirstAddressNote(int count);
 
   /// No description provided for @activityTitleReceived.
   ///
@@ -6047,18 +5195,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Receive address'**
   String get receiveAddress;
-
-  /// limitations is the note on what a watched account cannot do.
-  ///
-  /// In en, this message translates to:
-  /// **'Unused payment address. A new one is offered after payment. {limitations}'**
-  String receiveWatchAccountNote(String limitations);
-
-  /// No description provided for @receiveWatchedNote.
-  ///
-  /// In en, this message translates to:
-  /// **'Payments to this address go to the watched wallet.'**
-  String get receiveWatchedNote;
 
   /// No description provided for @receiveFreshNote.
   ///
@@ -8573,12 +7709,6 @@ abstract class AppLocalizations {
   /// **'Unconfirmed'**
   String get formatUnconfirmed;
 
-  /// No description provided for @watchSomeUnavailable.
-  ///
-  /// In en, this message translates to:
-  /// **'Some watched balances are unavailable.\n{errors}'**
-  String watchSomeUnavailable(String errors);
-
   /// No description provided for @celautDepositRowTitle.
   ///
   /// In en, this message translates to:
@@ -8822,7 +7952,7 @@ abstract class AppLocalizations {
   /// No description provided for @celautNoFullWallet.
   ///
   /// In en, this message translates to:
-  /// **'This needs a full wallet: a wallet with its recovery phrase on this device. Read-only wallets cannot pay a node or start or stop an instance. Create or restore a wallet first.'**
+  /// **'This needs a wallet with its recovery phrase on this device. Create or restore a wallet first.'**
   String get celautNoFullWallet;
 
   /// No description provided for @celautDepositPayerTitle.
@@ -8830,12 +7960,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Paying wallet'**
   String get celautDepositPayerTitle;
-
-  /// No description provided for @celautDepositPayerLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Full wallet that pays'**
-  String get celautDepositPayerLabel;
 
   /// No description provided for @celautDepositPayerBalance.
   ///
@@ -8854,18 +7978,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This wallet is locked. The app asks for its PIN or fingerprint before the deposit, and opens it.'**
   String get celautDepositPayerLocked;
-
-  /// No description provided for @celautDepositSaveDefault.
-  ///
-  /// In en, this message translates to:
-  /// **'Save as the default payer'**
-  String get celautDepositSaveDefault;
-
-  /// No description provided for @celautDepositIsDefault.
-  ///
-  /// In en, this message translates to:
-  /// **'This is the default payer.'**
-  String get celautDepositIsDefault;
 
   /// No description provided for @celautDepositRowPayer.
   ///
@@ -8896,24 +8008,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The deposit token expired. The node refuses this deposit now.'**
   String get celautDepositSentExpired;
-
-  /// No description provided for @celautDefaultPayerRowTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Default payer'**
-  String get celautDefaultPayerRowTitle;
-
-  /// No description provided for @celautDefaultPayerRowSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'The full wallet that the deposit screen chooses first'**
-  String get celautDefaultPayerRowSubtitle;
-
-  /// No description provided for @celautDefaultPayerNone.
-  ///
-  /// In en, this message translates to:
-  /// **'No default'**
-  String get celautDefaultPayerNone;
 
   /// No description provided for @celautComputeHomeRowTitle.
   ///
@@ -8990,7 +8084,7 @@ abstract class AppLocalizations {
   /// No description provided for @celautHomeWallets.
   ///
   /// In en, this message translates to:
-  /// **'Wallets'**
+  /// **'Wallet'**
   String get celautHomeWallets;
 
   /// No description provided for @celautHomeRefresh.
@@ -9034,12 +8128,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Full wallets · can pay'**
   String get celautHomeFullWallets;
-
-  /// No description provided for @celautHomeWatched.
-  ///
-  /// In en, this message translates to:
-  /// **'Watched addresses and accounts · cannot pay'**
-  String get celautHomeWatched;
 
   /// No description provided for @celautHomePaidCredit.
   ///
@@ -9098,7 +8186,7 @@ abstract class AppLocalizations {
   /// No description provided for @celautOpenFullWalletNeeded.
   ///
   /// In en, this message translates to:
-  /// **'Start and stop need an open full wallet. The app asks for the PIN or fingerprint of a full wallet first.'**
+  /// **'Start and stop need the wallet open. The app asks for its PIN or fingerprint first.'**
   String get celautOpenFullWalletNeeded;
 
   /// No description provided for @celautClientUnknownTitle.

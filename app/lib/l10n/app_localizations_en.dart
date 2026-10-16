@@ -81,15 +81,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonNotAnErgoAddress => 'Not an Ergo address';
 
   @override
-  String get commonWatchedAccount => 'Watched account';
-
-  @override
-  String get commonWatchedAddress => 'Watched address';
-
-  @override
-  String get commonStopWatching => 'Stop watching';
-
-  @override
   String get monthShort1 => 'Jan';
 
   @override
@@ -463,13 +454,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Auto-lock, screenshots, unconfirmed funds';
 
   @override
-  String get settingsOfflineSigningTitle => 'Offline signing';
-
-  @override
-  String get settingsOfflineSigningSubtitle =>
-      'Scan, review and sign with this seed wallet';
-
-  @override
   String get settingsRemotePreviewsTitle => 'Remote previews';
 
   @override
@@ -487,47 +471,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get settingsAllWallets => 'All wallets';
-
-  @override
   String get settingsUnlocked => 'Unlocked';
 
   @override
   String get settingsLocked => 'Locked';
-
-  @override
-  String settingsWalletsOnDevice(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count wallets on this device',
-      one: '$count wallet on this device',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String settingsWatchOnlyAccountDetail(String id) {
-    return 'Watch-only account · $id';
-  }
-
-  @override
-  String settingsWatchOnlyAddressDetail(String id) {
-    return 'Watch-only address · $id';
-  }
-
-  @override
-  String get settingsThisAccount => 'This account';
-
-  @override
-  String get settingsThisAddress => 'This address';
-
-  @override
-  String get settingsWatchOnlyScope => 'Watch-only';
-
-  @override
-  String get settingsStopWatchingSubtitle =>
-      'Removes it from this device. Nothing on chain changes.';
 
   @override
   String get aboutSaveSettingFailed => 'Could not save the setting.';
@@ -1214,7 +1161,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get walletSettingsRemoveBody =>
-      'This removes the wallet from this device. Celaut does not keep a copy of the recovery phrase; the paper you wrote when creating this wallet is the only way back in.';
+      'This removes the wallet from this device. Celaut does not keep a copy of the recovery phrase; the paper you wrote when creating this wallet is the only way back in. After that, you can create or restore another wallet.';
 
   @override
   String get walletSettingsRemoveFailed => 'Could not remove wallet';
@@ -1284,7 +1231,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get walletSettingsUnlockToChange =>
-      'Unlock a wallet to change this setting';
+      'Unlock the wallet to change this setting';
 
   @override
   String get walletSettingsPrivacySaveFailed =>
@@ -1610,241 +1557,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String sendErrorTokenOverAllocated(String who, String amount, String token) {
     return '${who}you hold $amount $token in total across all recipients';
   }
-
-  @override
-  String get coldUnlockBeforeReview =>
-      'Unlock the seed wallet before reviewing.';
-
-  @override
-  String get coldWalletLockedOrChanged =>
-      'Wallet locked or changed. Reset and review with the selected wallet.';
-
-  @override
-  String get coldRefusingBroadcast =>
-      'Refusing broadcast: no verified response.';
-
-  @override
-  String get coldTxIdMismatch => 'Node transaction ID mismatch.';
-
-  @override
-  String get coldTitleHot => 'Cold-wallet send';
-
-  @override
-  String get coldTitleOffline => 'Offline signing';
-
-  @override
-  String get coldSessionNote =>
-      'Unsigned sessions expire after 30 minutes. Back pauses; return here to resume. Verified returns remain available for retry. Closing the app discards all sessions.';
-
-  @override
-  String coldRefused(String error) {
-    return 'Refused: $error';
-  }
-
-  @override
-  String get coldScanRequestCodes =>
-      'Scan every request code with the offline signer.';
-
-  @override
-  String get coldSignedScanResponse =>
-      'Signed. Scan every response code with the online wallet.';
-
-  @override
-  String get coldLoadQrCodes => 'Load QR codes';
-
-  @override
-  String get coldScanSignedResponse => 'Scan signed response';
-
-  @override
-  String get coldShowRequestAgain => 'Show request codes again';
-
-  @override
-  String get coldCollectResponse => 'Collect signed response (CSTX)';
-
-  @override
-  String get coldCollectRequest => 'Collect signing request (CSR)';
-
-  @override
-  String coldScannedProgress(String received, String total) {
-    return '$received of $total scanned';
-  }
-
-  @override
-  String coldMissingPages(String pages) {
-    return 'Missing pages: $pages';
-  }
-
-  @override
-  String get coldScanRefused =>
-      'This scan was refused. Discard the collected pages and restart.';
-
-  @override
-  String get coldScanACode => 'Scan a code';
-
-  @override
-  String get coldScanNextCode => 'Scan next code';
-
-  @override
-  String get coldResetPages => 'Reset collected pages';
-
-  @override
-  String get coldVerifySigned => 'Verify signed transaction';
-
-  @override
-  String get coldReviewTransaction => 'Review transaction';
-
-  @override
-  String get coldReviewWarning =>
-      'Independently check the full recipient addresses and quantities. Keep this device offline. Labels from the online wallet are not used.';
-
-  @override
-  String get coldCheckedEverything =>
-      'I checked every output, token and fee on this device';
-
-  @override
-  String get coldConfirmSign => 'Confirm and sign offline';
-
-  @override
-  String get coldRejectReset => 'Reject and reset';
-
-  @override
-  String get coldVerifiedMatch =>
-      'Every signature verifies and the transaction exactly matches the prepared payment.';
-
-  @override
-  String coldTransactionId(String id) {
-    return 'Transaction ID: $id';
-  }
-
-  @override
-  String get coldBroadcastVerified => 'Broadcast verified transaction';
-
-  @override
-  String get coldRetryNote =>
-      'If the network fails, retry sends the same verified transaction. Do not rebuild while its status is uncertain.';
-
-  @override
-  String get coldSubmitted => 'Transaction submitted';
-
-  @override
-  String get coldDiscardSession => 'Discard session';
-
-  @override
-  String coldReviewNetwork(String network) {
-    return 'Review · $network';
-  }
-
-  @override
-  String coldMinerFeeValue(String fee) {
-    return 'Miner fee: $fee';
-  }
-
-  @override
-  String get coldOutputsNote =>
-      'Every output is listed below. “Your address” is verified from local keys; it may be change or a self-payment.';
-
-  @override
-  String get coldYourAddress => 'Your address';
-
-  @override
-  String get coldExternalRecipient =>
-      'External recipient / application payment';
-
-  @override
-  String coldTokenId(String id) {
-    return 'Token ID: $id';
-  }
-
-  @override
-  String coldQuantityBaseUnits(String amount) {
-    return 'Quantity: $amount base units';
-  }
-
-  @override
-  String coldTokenBurns(String none) {
-    return 'Token burns: $none';
-  }
-
-  @override
-  String coldTokenCreation(String none) {
-    return 'Token creation: $none';
-  }
-
-  @override
-  String get coldNone => 'None';
-
-  @override
-  String coldTokenAmountBaseUnits(String id, String amount) {
-    return '$id · $amount base units';
-  }
-
-  @override
-  String coldCodeOf(String page, String total) {
-    return 'Code $page of $total';
-  }
-
-  @override
-  String get coldPrevious => 'Previous';
-
-  @override
-  String get coldAutoRepeat => 'Auto-repeat';
-
-  @override
-  String get coldPause => 'Pause';
-
-  @override
-  String get coldNext => 'Next';
-
-  @override
-  String get coldRefreshWatchedFirst => 'Refresh the watched account first.';
-
-  @override
-  String get coldChooseNodeFirst => 'Choose an online node first.';
-
-  @override
-  String get coldAmountPositive =>
-      'Enter a positive whole number for Amount (nanoERG).';
-
-  @override
-  String get coldTokenQuantityPositive =>
-      'Enter a positive whole number for Token quantity.';
-
-  @override
-  String get coldNodeChanged => 'Node changed during preparation. Try again.';
-
-  @override
-  String get coldSendTitle => 'Send with offline signer';
-
-  @override
-  String get coldWatchIntro =>
-      'Mainnet P2PK payments. This watch-only source has no keys. An offline seed wallet must review and sign the request.';
-
-  @override
-  String get coldChangeNote =>
-      'Change, including remaining tokens, returns to this same watched address. Reusing it reduces privacy. A watched account tracks more addresses.';
-
-  @override
-  String get coldSignerMustOwn =>
-      'The offline signer must own this mainnet P2PK address. Celaut automatically searches EIP-3 account 0, external indices 0–512.';
-
-  @override
-  String get coldResumeSend => 'Resume cold send';
-
-  @override
-  String get coldRecipientLabel => 'Full recipient address';
-
-  @override
-  String get coldAmountNanoLabel => 'Amount in nanoERG (1 ERG = 1000000000)';
-
-  @override
-  String get coldTokenIdOptional => 'Token ID (optional)';
-
-  @override
-  String get coldTokenQuantityLabel =>
-      'Token quantity in base units (optional)';
-
-  @override
-  String get coldPrepareRequest => 'Prepare cold request';
 
   @override
   String get priceHistoryNeedsExtraIndex =>
@@ -2456,49 +2168,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get syncLockedWalletsExplainer =>
-      'Locked wallets refresh from public data every 5 minutes, covering only the addresses this app already knows. Unlock one to pick up new addresses.';
-
-  @override
-  String get watchSaveAddressesFailed =>
-      'Could not save watched addresses. Please try again.';
-
-  @override
-  String get watchLimitations =>
-      'Public payment addresses only. Cannot sign locally; sending requires an offline signer.';
-
-  @override
-  String watchDisclosure(String limitations) {
-    return 'An extended public key lets anyone holding it derive and link every public payment address in this account forever. Only import a key you intend to share with this device. $limitations';
-  }
-
-  @override
-  String get watchExpected =>
-      'Expected an Ergo Wallet App extended public key: 156 hex characters starting 0488b21e (mainnet), depth 4 external chain /0 or depth 3 account 0. Base58 xpub and testnet are not supported.';
-
-  @override
-  String get watchIncompleteDerivation => 'Incomplete derivation';
-
-  @override
-  String watchScanIncomplete(String count) {
-    return 'Scan incomplete after $count addresses; no unused receive address confirmed.';
-  }
-
-  @override
-  String get watchNodeChanged =>
-      'Node changed. Refresh the account before receiving.';
-
-  @override
-  String get watchSaveAccountsFailed =>
-      'Could not save watched accounts. Please try again.';
-
-  @override
-  String get watchNodeChangedDuringScan =>
-      'Node changed during scan; refresh again.';
-
-  @override
-  String watchAccountRefreshUnavailable(String detail) {
-    return 'Account refresh unavailable: $detail';
-  }
+      'A locked wallet refreshes from public data every 5 minutes, covering only the addresses this app already knows. Unlock it to pick up new addresses.';
 
   @override
   String get syncPublicKnownOnly => 'Public data · known addresses only';
@@ -2548,9 +2218,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String dashboardWalletRemoved(String name) {
     return '\"$name\" removed';
   }
-
-  @override
-  String get dashboardStoppedWatching => 'Stopped watching';
 
   @override
   String get dashboardNoAddressDerived =>
@@ -2603,9 +2270,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get offlineNoNodes => 'No reachable nodes. Tap Retry to check.';
-
-  @override
-  String get overviewReorderHint => 'Long-press a wallet to change the order.';
 
   @override
   String get discoverTokensBlurb =>
@@ -2695,70 +2359,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get discoverRowHint => 'What it is, and the way in';
-
-  @override
-  String watchAddFailed(String detail) {
-    return 'Could not add watched address: $detail';
-  }
-
-  @override
-  String get watchAddressAdded => 'Watch-only address added';
-
-  @override
-  String get watchAddInvalid =>
-      'Already watched or invalid input. Use an Ergo address, a 33-byte compressed public key, or its 0008cd P2PK tree (hex, no 0x). Raw keys use mainnet.';
-
-  @override
-  String get watchAddressTitle => 'Watch an address';
-
-  @override
-  String get watchAddressIntro =>
-      'See balance and activity for any Ergo address. No keys are stored, so it cannot spend.';
-
-  @override
-  String get watchAddressLabel => 'Address or public key';
-
-  @override
-  String get watchAddressHelper => 'Mainnet key hex: 02/03… or 0008cd02/03…';
-
-  @override
-  String get watchAction => 'Watch';
-
-  @override
-  String get watchXpubTitle => 'Watch an extended public key';
-
-  @override
-  String get watchXpubLabel => 'Ergo Wallet App extended public key';
-
-  @override
-  String get watchXpubHelper =>
-      '156 hex characters, mainnet. No checksum: verify the first address with the source wallet.';
-
-  @override
-  String get watchXpubAlreadyWatched => 'This extended key is already watched.';
-
-  @override
-  String get watchAccountAction => 'Watch account';
-
-  @override
-  String get watchNameOptional => 'Name (optional)';
-
-  @override
-  String watchSaveNameFailed(String detail) {
-    return 'Could not save the name: $detail';
-  }
-
-  @override
-  String get watchStopTitle => 'Stop watching?';
-
-  @override
-  String get watchStopAccountBody =>
-      'The extended key is removed from this device. Re-import it to watch the account again.';
-
-  @override
-  String watchStopFailed(String detail) {
-    return 'Could not stop watching: $detail';
-  }
 
   @override
   String get navActivity => 'Activity';
@@ -2963,9 +2563,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeSpokenUnlocked => 'unlocked';
 
   @override
-  String get homeSpokenWatchOnly => 'watch-only';
-
-  @override
   String get homeSpokenBalanceHidden => 'balance hidden';
 
   @override
@@ -3011,16 +2608,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get overviewTotalBalance => 'Total balance';
 
   @override
-  String get overviewWallets => 'Wallets';
-
-  @override
-  String get overviewAddWallet => 'Add a wallet';
-
-  @override
-  String get overviewWatchedAddresses => 'Watched addresses';
-
-  @override
-  String get overviewWatchTooltip => 'Watch an address or account';
+  String get overviewWallets => 'Wallet';
 
   @override
   String get overviewPrototypeTitle => 'Prototype software';
@@ -3040,45 +2628,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get overviewLearnMore => 'Learn more';
 
   @override
-  String get overviewWelcomeTitle => 'Your wallets live here';
+  String get overviewWelcomeTitle => 'Your wallet lives here';
 
   @override
   String get overviewWelcomeBody =>
-      'No wallets yet. Create a new wallet, restore one from its recovery phrase, or watch an address or an account without its keys. Each one opens from this screen.';
+      'No wallet yet. Create a new wallet, or restore one from its recovery phrase. The app holds one wallet, and it opens from this screen.';
 
   @override
   String get overviewCreateWallet => 'Create a wallet';
 
   @override
   String get overviewRestoreWallet => 'Restore from recovery phrase';
-
-  @override
-  String get overviewWatchAccountXpub => 'Watch an account (xpub)';
-
-  @override
-  String get overviewAddCreate => 'Create a new wallet';
-
-  @override
-  String get overviewAddCreateBlurb =>
-      'A fresh recovery phrase, kept on this phone.';
-
-  @override
-  String get overviewAddRestore => 'Restore a wallet';
-
-  @override
-  String get overviewAddRestoreBlurb =>
-      'From its 12, 15 or 24-word recovery phrase.';
-
-  @override
-  String get overviewAddWatchAddressBlurb =>
-      'Balance and activity, without its keys.';
-
-  @override
-  String get overviewAddWatchAccount => 'Watch an account';
-
-  @override
-  String get overviewAddWatchAccountBlurb =>
-      'Every address of an extended public key (xpub).';
 
   @override
   String get homeBalanceLabel => 'Balance';
@@ -3104,9 +2664,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homeActionSend => 'Send';
-
-  @override
-  String get homeActionSendOffline => 'Send with offline signer';
 
   @override
   String get homeActionReceive => 'Receive';
@@ -3159,7 +2716,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeShownAs => 'Shown as this wallet';
 
   @override
-  String get homeAllWallets => 'All wallets';
+  String get homeAllWallets => 'Back';
 
   @override
   String get homeOtherAddressesHint => 'Shows each address and what it holds';
@@ -3216,10 +2773,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeNoAddresses => 'No addresses read yet';
 
   @override
-  String get homeNoAddressesWatched =>
-      'No addresses read yet. They appear after the first scan.';
-
-  @override
   String get homeNoAddressesDot => 'No addresses read yet.';
 
   @override
@@ -3235,86 +2788,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homeNoActivity => 'No activity yet';
-
-  @override
-  String watchBalanceUnavailable(String detail) {
-    return 'Balance unavailable: $detail';
-  }
-
-  @override
-  String get watchActivityPartial => 'Some activity could not be read.';
-
-  @override
-  String get watchActivityFailed => 'Could not load activity.';
-
-  @override
-  String get watchAccountRefreshRetry =>
-      'Account refresh unavailable. Try again.';
-
-  @override
-  String get watchRescanAccount => 'Rescan account';
-
-  @override
-  String get watchRefresh => 'Refresh';
-
-  @override
-  String get watchMoreOptions => 'More options';
-
-  @override
-  String get watchRename => 'Rename';
-
-  @override
-  String get watchNotScannedTitle => 'Account not scanned';
-
-  @override
-  String get watchNotScannedBody =>
-      'Refresh the account to read its addresses and activity.';
-
-  @override
-  String get watchRefreshAccount => 'Refresh account';
-
-  @override
-  String get watchRefreshToReadActivity =>
-      'Refresh the account to read its activity.';
-
-  @override
-  String get watchShowItsAddress => 'Show its address';
-
-  @override
-  String get watchStatusWatchOnly => 'Watch-only · cannot sign here';
-
-  @override
-  String get watchScanning => 'Scanning…';
-
-  @override
-  String get watchRefreshing => 'Refreshing…';
-
-  @override
-  String watchUpdated(String when) {
-    return 'Updated $when';
-  }
-
-  @override
-  String get watchGapNote =>
-      'Discovery stops after 20 unused addresses. Payments beyond a larger gap can be missed.';
-
-  @override
-  String get watchAddressNote =>
-      'Cannot sign locally. Send with an offline signer; change returns to this same address. A watched account tracks more addresses.';
-
-  @override
-  String get watchFirstAddress => 'First address';
-
-  @override
-  String watchFirstAddressNote(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other:
-          'Check this matches the first address in the wallet the key came from: an extended key has no checksum. $count addresses scanned.',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get activityTitleReceived => 'Received';
@@ -3745,15 +3218,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get receiveAddress => 'Receive address';
-
-  @override
-  String receiveWatchAccountNote(String limitations) {
-    return 'Unused payment address. A new one is offered after payment. $limitations';
-  }
-
-  @override
-  String get receiveWatchedNote =>
-      'Payments to this address go to the watched wallet.';
 
   @override
   String get receiveFreshNote =>
@@ -5417,11 +4881,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get formatUnconfirmed => 'Unconfirmed';
 
   @override
-  String watchSomeUnavailable(String errors) {
-    return 'Some watched balances are unavailable.\n$errors';
-  }
-
-  @override
   String get celautDepositRowTitle => 'Celaut deposit';
 
   @override
@@ -5570,13 +5029,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get celautNoFullWallet =>
-      'This needs a full wallet: a wallet with its recovery phrase on this device. Read-only wallets cannot pay a node or start or stop an instance. Create or restore a wallet first.';
+      'This needs a wallet with its recovery phrase on this device. Create or restore a wallet first.';
 
   @override
   String get celautDepositPayerTitle => 'Paying wallet';
-
-  @override
-  String get celautDepositPayerLabel => 'Full wallet that pays';
 
   @override
   String celautDepositPayerBalance(String amount) {
@@ -5590,12 +5046,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get celautDepositPayerLocked =>
       'This wallet is locked. The app asks for its PIN or fingerprint before the deposit, and opens it.';
-
-  @override
-  String get celautDepositSaveDefault => 'Save as the default payer';
-
-  @override
-  String get celautDepositIsDefault => 'This is the default payer.';
 
   @override
   String get celautDepositRowPayer => 'Paid by';
@@ -5614,16 +5064,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get celautDepositSentExpired =>
       'The deposit token expired. The node refuses this deposit now.';
-
-  @override
-  String get celautDefaultPayerRowTitle => 'Default payer';
-
-  @override
-  String get celautDefaultPayerRowSubtitle =>
-      'The full wallet that the deposit screen chooses first';
-
-  @override
-  String get celautDefaultPayerNone => 'No default';
 
   @override
   String get celautComputeHomeRowTitle => 'Compute home';
@@ -5671,7 +5111,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get celautHomeWallets => 'Wallets';
+  String get celautHomeWallets => 'Wallet';
 
   @override
   String get celautHomeRefresh => 'Refresh';
@@ -5712,9 +5152,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get celautHomeFullWallets => 'Full wallets · can pay';
 
   @override
-  String get celautHomeWatched => 'Watched addresses and accounts · cannot pay';
-
-  @override
   String get celautHomePaidCredit => 'Paid credit on nodes';
 
   @override
@@ -5748,7 +5185,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get celautOpenFullWalletNeeded =>
-      'Start and stop need an open full wallet. The app asks for the PIN or fingerprint of a full wallet first.';
+      'Start and stop need the wallet open. The app asks for its PIN or fingerprint first.';
 
   @override
   String get celautClientUnknownTitle => 'The node forgot the client';

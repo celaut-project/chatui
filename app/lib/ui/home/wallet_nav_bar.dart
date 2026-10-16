@@ -19,8 +19,7 @@ import 'home_models.dart';
 /// The open wallet's tabs: Wallet, Activity, Discover, Settings.
 ///
 /// Discover gathers the tools that act on the wallet's coins. Settings
-/// lives here and nowhere in a header. A watched wallet has no keys to use
-/// a tool with, so it has no Discover tab. Activity carries a badge while anything is
+/// lives here and nowhere in a header. Activity carries a badge while anything is
 /// unconfirmed. The current tab sits on a pill of the accent, its icon and
 /// name in the accent; the rest are quiet line icons.
 class WalletNavBar extends StatelessWidget {
@@ -28,13 +27,11 @@ class WalletNavBar extends StatelessWidget {
     super.key,
     required this.current,
     required this.onSelect,
-    this.watchOnly = false,
     this.pendingCount = 0,
   });
 
   final WalletTab current;
   final ValueChanged<WalletTab> onSelect;
-  final bool watchOnly;
   final int pendingCount;
 
   /// The bar's labels stop growing here: at larger sizes they no longer
@@ -44,7 +41,7 @@ class WalletNavBar extends StatelessWidget {
   List<WalletTab> get tabs => [
         WalletTab.wallet,
         WalletTab.activity,
-        if (!watchOnly) WalletTab.discover,
+        WalletTab.discover,
         WalletTab.settings,
       ];
 

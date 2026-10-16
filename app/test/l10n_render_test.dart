@@ -37,7 +37,6 @@ Widget _walletPage(WalletPageData data) => WalletPageScreen(
       navBar: WalletNavBar(
         current: WalletTab.wallet,
         onSelect: _noop,
-        watchOnly: data.wallet.watchOnly,
         pendingCount: data.pendingCount,
       ),
     );
@@ -52,7 +51,6 @@ void main() {
         OverviewScreen(
           data: sampleOverview(),
           onOpenWallet: _noop,
-          onReorder: (_, _) {},
           onAdd: _noop,
           onSettings: _noop,
           onToggleHidden: _noop,
@@ -78,17 +76,6 @@ void main() {
       );
       expect(tester.takeException(), isNull);
       expect(find.bySemanticsLabel(RegExp('^Saldo ')), findsOneWidget);
-    });
-
-    testWidgets('a watched wallet page in Spanish at ${scale}x', (tester) async {
-      await pumpRender(
-        tester,
-        _walletPage(sampleWatchedPage()),
-        palette: watchfulPalette,
-        textScale: scale,
-        locale: _spanish,
-      );
-      expect(tester.takeException(), isNull);
     });
   }
 }

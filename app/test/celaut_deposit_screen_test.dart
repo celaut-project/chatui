@@ -103,10 +103,9 @@ const _main = PayerWallet(walletId: 'w1', name: 'Main', balanceNano: 250000000, 
 const _spare = PayerWallet(walletId: 'w2', name: 'Spare', balanceNano: null, open: false);
 
 class FakeWallets implements DepositWallets {
-  FakeWallets([this.list = const [_main, _spare]]);
+  FakeWallets([this.list = const [_main]]);
 
   List<PayerWallet> list;
-  String? saved;
 
   /// True if the user gives the PIN or the fingerprint when the screen asks.
   bool consent = true;
@@ -116,7 +115,7 @@ class FakeWallets implements DepositWallets {
   Future<bool> unlock(BuildContext context, PayerWallet wallet) async {
     unlocks.add(wallet.walletId);
     if (!consent) return false;
-    // The chosen wallet is now the open one; the other full wallets are locked.
+    // The wallet is now open.
     list = [
       for (final p in list)
         PayerWallet(
@@ -133,12 +132,6 @@ class FakeWallets implements DepositWallets {
 
   @override
   Future<List<PayerWallet>> payers() async => list;
-
-  @override
-  Future<String?> loadDefault() async => saved;
-
-  @override
-  Future<void> saveDefault(String walletId) async => saved = walletId;
 
   @override
   Future<DepositPreparedView> prepare(
@@ -318,7 +311,7 @@ void main() {
     });
 
     testWidgets('bad amounts, and no PIN or fingerprint, prepare nothing', (tester) async {
-      await pump(tester);
+      await pump(tester, FakeWallets(const [_spare]));
       await check(tester);
       for (final bad in ['', '0.0005', 'lots']) {
         await tester.enterText(find.byKey(const Key('deposit-amount')), bad);
@@ -328,10 +321,6 @@ void main() {
       }
       expect(wallet.unlocks, isEmpty);
       await tester.enterText(find.byKey(const Key('deposit-amount')), '0.01');
-      await tester.tap(find.byKey(const Key('deposit-payer')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Spare').last);
-      await tester.pumpAndSettle();
       wallet.consent = false;
       await tester.tap(find.byKey(const Key('deposit-prepare')));
       await tester.pumpAndSettle();
@@ -341,12 +330,8 @@ void main() {
     });
 
     testWidgets('a locked payer opens with its PIN or fingerprint, then pays', (tester) async {
-      await pump(tester);
+      await pump(tester, FakeWallets(const [_spare]));
       await check(tester);
-      await tester.tap(find.byKey(const Key('deposit-payer')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Spare').last);
-      await tester.pumpAndSettle();
       expect(find.text(DepositStrings.payerLocked), findsOneWidget);
       await tester.tap(find.byKey(const Key('deposit-prepare')));
       await tester.pumpAndSettle();
@@ -403,38 +388,27 @@ void main() {
       await pump(tester, FakeWallets(const []));
       expect(find.byKey(const Key('deposit-no-full-wallet')), findsOneWidget);
       expect(find.text(DepositStrings.noFullWallet), findsOneWidget);
-      // No payer choice, no node, no deposit.
+      // No payer, no node, no deposit.
       expect(find.byKey(const Key('deposit-payer')), findsNothing);
       expect(find.byKey(const Key('deposit-node')), findsNothing);
       expect(find.byKey(const Key('deposit-prepare')), findsNothing);
       expect(api.nodeCalls, isEmpty);
     });
 
-    testWidgets('shows the paying wallet, its balance, and saves the default', (tester) async {
+    testWidgets('shows the paying wallet and its balance', (tester) async {
       await pump(tester);
-      // The open wallet comes first when no default is saved.
       expect(find.text('Main'), findsOneWidget);
       expect(find.text(DepositStrings.payerBalance(formatErg(250000000))), findsOneWidget);
       expect(find.text(DepositStrings.payerOpen), findsOneWidget);
-      await tester.tap(find.byKey(const Key('deposit-save-default')));
-      await tester.pumpAndSettle();
-      expect(wallet.saved, 'w1');
-      expect(find.byKey(const Key('deposit-is-default')), findsOneWidget);
-
-      // Another payer: unknown balance is "unknown", not 0.
-      await tester.tap(find.byKey(const Key('deposit-payer')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Spare').last);
-      await tester.pumpAndSettle();
-      expect(find.text(DepositStrings.payerBalance(DepositStrings.unknown)), findsOneWidget);
-      expect(find.text(DepositStrings.payerLocked), findsOneWidget);
-      expect(find.byKey(const Key('deposit-save-default')), findsOneWidget);
+      // No choice of payer and no default: the app has one wallet.
+      expect(find.byType(DropdownButtonFormField<String>), findsNothing);
     });
 
-    testWidgets('the saved default payer is chosen first', (tester) async {
-      await pump(tester, FakeWallets()..saved = 'w2');
+    testWidgets('a locked wallet with an unknown balance says so, not 0', (tester) async {
+      await pump(tester, FakeWallets(const [_spare]));
       expect(find.text('Spare'), findsOneWidget);
-      expect(find.byKey(const Key('deposit-is-default')), findsOneWidget);
+      expect(find.text(DepositStrings.payerBalance(DepositStrings.unknown)), findsOneWidget);
+      expect(find.text(DepositStrings.payerLocked), findsOneWidget);
     });
 
     testWidgets('a deposit sent in an earlier run can be waited for', (tester) async {

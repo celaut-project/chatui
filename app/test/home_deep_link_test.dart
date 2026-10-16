@@ -2,8 +2,6 @@ import 'package:argus_wallet/bridge/frb_generated.dart';
 import 'package:argus_wallet/services/deep_link_controller.dart';
 import 'package:argus_wallet/services/public_wallet_sync.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
-import 'package:argus_wallet/services/watch_account_service.dart';
-import 'package:argus_wallet/services/watch_only_service.dart';
 import 'package:argus_wallet/ui/home/overview_screen.dart';
 import 'package:argus_wallet/ui/transactions_screen.dart';
 import 'package:flutter/material.dart';
@@ -19,9 +17,7 @@ void main() {
   final api = HomeApi();
   setUpAll(() => RustLib.initMock(api: api));
   setUp(() async {
-    SharedPreferences.setMockInitialValues({'argus_watch_only_addresses': '[]'});
-    await watchOnlyService.load();
-    watchAccountService.accounts.clear();
+    SharedPreferences.setMockInitialValues({});
     publicWalletSync.setForeground(false);
     deepLinkController.take();
   });

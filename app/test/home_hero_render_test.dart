@@ -29,7 +29,6 @@ BigInt _units(num whole, int decimals) => BigInt.from((whole * BigInt.from(10).p
 
 /// Shown as "9iArkadi…WspUZA".
 const _pinned = '9iArkadiXq3Nb7Kx2Ty5Vm8Gc1Rz4Fd6Ls9Pw0Ja3Ue7MWspUZA';
-const _cold = '9fColdStoragePq3Nb7Kx2Ty5Vm8Gc1Rz4Fd6Ls9Pw0Ja7Lk2';
 
 /// A$ per ERG on the user's screen: 203.16 ERG ≈ A$90.54.
 const _rate = 0.44566;
@@ -68,22 +67,12 @@ final _savings = WalletSummary(
   asOf: '3h ago',
 );
 
-final _coldStorage = WalletSummary(
-  ref: const WalletRef.watchedAddress(_cold),
-  name: 'Cold storage',
-  nanoErg: _nano(1250),
-  fiatValue: 1250 * _rate,
-  tokenCount: 0,
-  address: _cold,
-);
-
 OverviewData _overviewData({bool hidden = false}) => OverviewData(
       wallets: [_main, _savings],
-      watched: [_coldStorage],
       currency: _aud,
       network: const NetworkStatus(state: SyncState.synced, blockHeight: 1889161, label: 'Connected'),
-      totalNano: _nano(203.16 + 51.3 + 1250),
-      totalFiat: 90.54 + (51.3 + 1250) * _rate,
+      totalNano: _nano(203.16 + 51.3),
+      totalFiat: 90.54 + 51.3 * _rate,
       unpricedCount: 6,
       price: _price,
       hidden: hidden,
@@ -180,49 +169,13 @@ WalletPageData _mainPage({bool hidden = false, num erg = 203.16}) => WalletPageD
       hidden: hidden,
     );
 
-WalletPageData _watchedPage() => WalletPageData(
-      wallet: _coldStorage,
-      currency: _aud,
-      assets: [
-        AssetRowData(
-          id: 'ERG',
-          ticker: 'ERG',
-          name: 'Ergo',
-          amount: BigInt.from(_nano(1250)),
-          decimals: 9,
-          fiatValue: 1250 * _rate,
-          unitFiat: _rate,
-          changePercent: 2.4,
-          kind: AssetKind.erg,
-        ),
-      ],
-      assetCount: 1,
-      activity: [
-        ActivityRowData(
-          id: 'c1',
-          kind: ActivityKind.received,
-          time: 'Sep 18',
-          counterparty: 'from 9iArka…pUZA',
-          legs: [AmountLeg(amount: BigInt.from(_nano(250)), decimals: 9, unit: 'ERG')],
-        ),
-      ],
-      watched: const WatchedDetails(
-        status: ['Watch-only · cannot sign here', 'Updated just now'],
-        notes: [
-          'Cannot sign locally. Send with an offline signer; change returns to this same address. '
-              'A watched account tracks more addresses.',
-        ],
-      ),
-    );
-
 void _noop([Object? _]) {}
 
 Widget _page(WalletPageData data) => WalletPageScreen(
       title: data.wallet.name,
       onBack: _noop,
       actions: [
-        if (!data.wallet.watchOnly)
-          IconButton(
+        IconButton(
             key: const Key('wallet-scan'),
             icon: const Icon(Icons.qr_code_scanner),
             tooltip: 'Scan a QR code',
@@ -243,13 +196,12 @@ Widget _page(WalletPageData data) => WalletPageScreen(
         onOtherAddresses: _noop,
         onCopyAddress: _noop,
       ),
-      navBar: WalletNavBar(current: WalletTab.wallet, onSelect: _noop, watchOnly: data.wallet.watchOnly),
+      navBar: WalletNavBar(current: WalletTab.wallet, onSelect: _noop),
     );
 
 Widget _overview(OverviewData data) => OverviewScreen(
       data: data,
       onOpenWallet: _noop,
-      onReorder: (_, _) {},
       onAdd: _noop,
       onSettings: _noop,
       onToggleHidden: _noop,
@@ -330,14 +282,6 @@ void main() {
       await _accessible(tester);
     });
   }
-
-  testWidgets('watched page, Harbor', (tester) async {
-    await pumpRender(tester, _page(_watchedPage()), palette: harborPalette);
-    expect(tester.takeException(), isNull);
-    await saveRender(tester, file('watched', harborPalette));
-    expect(find.byKey(const Key('watch-action-send')), findsOneWidget);
-    await _accessible(tester);
-  });
 
   for (final screen in ['wallet', 'overview']) {
     testWidgets('$screen at 2x text, Harbor', (tester) async {

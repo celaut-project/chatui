@@ -6,7 +6,6 @@ import 'package:flutter/semantics.dart';
 import '../../theme/argus_theme.dart';
 
 import 'home_glass.dart';
-import 'home_models.dart';
 import 'home_style.dart';
 
 /// Pieces shared by the overview, the wallet page and their sheets.
@@ -267,13 +266,11 @@ class _HomeEntranceState extends State<HomeEntrance> with SingleTickerProviderSt
   }
 }
 
-/// A wallet's mark: its initial on the same disc a token gets, or an eye
-/// for a wallet watched without keys, so a page of marks reads as one set.
+/// A wallet's mark: its initial on the same disc a token gets.
 class WalletMark extends StatelessWidget {
-  const WalletMark({super.key, required this.name, required this.kind});
+  const WalletMark({super.key, required this.name});
 
   final String name;
-  final WalletKind kind;
 
   /// The disc every wallet's mark sits on: a deep, cool shade a step off
   /// the page, the same for every wallet so the names, not the colours,
@@ -291,13 +288,11 @@ class WalletMark extends StatelessWidget {
     return ExcludeSemantics(
       child: HomeDisc(
         fill: discOf(context),
-        child: kind == WalletKind.seed
-            ? Text(
-                trimmed.isEmpty ? '?' : String.fromCharCode(trimmed.runes.first).toUpperCase(),
-                textScaler: TextScaler.noScaling,
-                style: TextStyle(fontFamily: headingFont, fontSize: 20, fontWeight: FontWeight.w500, height: 1, color: t.ink),
-              )
-            : Icon(Icons.visibility_outlined, size: 20, color: t.ink),
+        child: Text(
+          trimmed.isEmpty ? '?' : String.fromCharCode(trimmed.runes.first).toUpperCase(),
+          textScaler: TextScaler.noScaling,
+          style: TextStyle(fontFamily: headingFont, fontSize: 20, fontWeight: FontWeight.w500, height: 1, color: t.ink),
+        ),
       ),
     );
   }
@@ -480,9 +475,8 @@ double measureText(BuildContext context, String text, TextStyle style) =>
     measureSpan(context, TextSpan(text: text, style: style));
 
 /// [label] as it should be set in [maxWidth]: unchanged when it fits on a
-/// line, else broken at the space nearest its middle, so "Send with
-/// offline signer" becomes two even lines rather than a long one and an
-/// orphan.
+/// line, else broken at the space nearest its middle, so a long name
+/// becomes two even lines rather than a long one and an orphan.
 String balancedLabel(BuildContext context, String label, TextStyle style, double maxWidth) {
   if (!label.contains(' ') || measureText(context, label, style) <= maxWidth) return label;
   final middle = label.length / 2;

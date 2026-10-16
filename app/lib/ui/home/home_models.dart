@@ -7,7 +7,7 @@ import '../../l10n/l10n.dart';
 export '../../services/activity_classifier.dart' show ActivityKind;
 export '../../services/address_holdings.dart' show FundsElsewhere;
 export '../../services/pending_balance.dart' show PendingBalance;
-export 'overview_model.dart' show WalletKind, WalletRef;
+export 'overview_model.dart' show WalletRef;
 
 /// View models for the wallets overview and the wallet page.
 ///
@@ -155,20 +155,17 @@ class WalletSummary {
   /// Open in this session: entering it again asks for nothing.
   final bool unlocked;
 
-  /// Age of a snapshot balance ("3h ago"). Locked and watched wallets show
-  /// the last public read.
+  /// Age of a snapshot balance ("3h ago"). Locked wallets show the last
+  /// public read.
   final String? asOf;
 
-  /// The address the wallet is shown as: the pinned address, index 0, the
-  /// watched address or a watched account's first address.
+  /// The address the wallet is shown as: the pinned address or index 0.
   final String? address;
 
   /// Set when [address] is a pinned address, shown as "#275".
   final int? pinnedIndex;
 
   String get id => ref.id;
-  WalletKind get kind => ref.kind;
-  bool get watchOnly => ref.watched;
 }
 
 /// Everything the wallets overview shows.
@@ -177,7 +174,6 @@ class OverviewData {
     required this.wallets,
     required this.currency,
     required this.network,
-    this.watched = const [],
     this.totalNano,
     this.loading = false,
     this.notLoaded = 0,
@@ -192,8 +188,6 @@ class OverviewData {
   /// Wallets with keys on this phone, in the order the user dragged them.
   final List<WalletSummary> wallets;
 
-  /// Watched addresses and accounts.
-  final List<WalletSummary> watched;
   final FiatCurrency currency;
   final NetworkStatus network;
 
@@ -218,7 +212,7 @@ class OverviewData {
   /// Hidden-balances mode: every amount is masked.
   final bool hidden;
 
-  bool get isEmpty => wallets.isEmpty && watched.isEmpty;
+  bool get isEmpty => wallets.isEmpty;
 }
 
 /// What an asset row is, for its badge and its mark.
@@ -329,7 +323,7 @@ class ActivityRowData {
 }
 
 /// The wallet page's primary actions.
-enum WalletAction { send, sendOffline, receive, more }
+enum WalletAction { send, receive, more }
 
 /// What the More sheet offers.
 enum WalletTool { tokens, utxos, addresses, lock }
@@ -345,35 +339,6 @@ class WalletToolEntry {
 
   /// Draw [status] as something to deal with.
   final bool warn;
-}
-
-/// What a watched wallet's page adds: how it is read, what it cannot do,
-/// and the address it is shown as.
-class WatchedDetails {
-  const WatchedDetails({
-    required this.status,
-    this.error,
-    this.notes = const [],
-    this.addressTitle,
-    this.addressNote,
-    this.canSend = true,
-    this.canReceive = true,
-  });
-
-  /// "Watch-only · cannot sign here", "Updated 2m ago".
-  final List<String> status;
-  final String? error;
-
-  /// What this wallet can and cannot do, one sentence each.
-  final List<String> notes;
-  /// Null for "Address" in the language of the app.
-  final String? addressTitle;
-  final String? addressNote;
-
-  /// False while the action cannot work, e.g. before an account's first
-  /// scan.
-  final bool canSend;
-  final bool canReceive;
 }
 
 /// Everything the wallet page shows.
@@ -397,7 +362,6 @@ class WalletPageData {
     this.hidden = false,
     this.pendingCount = 0,
     this.pinIssue,
-    this.watched,
     List<WalletAction>? actions,
     List<WalletToolEntry>? tools,
   })  : _actions = actions,
@@ -406,8 +370,7 @@ class WalletPageData {
   final WalletSummary wallet;
   final FiatCurrency currency;
 
-  /// The wallet's sync state, with its block and UTXO count; null for a
-  /// watched wallet, which says how it is read instead ([watched]).
+  /// The wallet's sync state, with its block and UTXO count; null when unknown.
   final NetworkStatus? status;
 
   /// No node answers: said once, with a way to look again.
@@ -448,38 +411,20 @@ class WalletPageData {
   /// The pinned address cannot be derived; settings can fix it.
   final String? pinIssue;
 
-  /// Set for a watched address or account.
-  final WatchedDetails? watched;
-
   final List<WalletAction>? _actions;
   final List<WalletToolEntry>? _tools;
 
-  /// A watched wallet signs elsewhere, so it trades Send for the offline
-  /// signer and drops what needs keys here.
   List<WalletAction> get actions =>
-      _actions ??
-      (wallet.watchOnly
-          ? const [WalletAction.sendOffline, WalletAction.receive]
-          : const [WalletAction.send, WalletAction.receive, WalletAction.more]);
-
-  /// Actions drawn but not offered right now.
-  Set<WalletAction> get disabled => {
-        if (watched case final w?) ...{
-          if (!w.canSend) WalletAction.sendOffline,
-          if (!w.canReceive) WalletAction.receive,
-        },
-      };
+      _actions ?? const [WalletAction.send, WalletAction.receive, WalletAction.more];
 
   List<WalletToolEntry> get tools =>
       _tools ??
-      (wallet.watchOnly
-          ? const [WalletToolEntry(WalletTool.addresses)]
-          : [
-              const WalletToolEntry(WalletTool.tokens),
-              WalletToolEntry(WalletTool.utxos, status: fragmented ? appL10n.homeFragmented : null, warn: fragmented),
-              const WalletToolEntry(WalletTool.addresses),
-              const WalletToolEntry(WalletTool.lock),
-            ]);
+      [
+        const WalletToolEntry(WalletTool.tokens),
+        WalletToolEntry(WalletTool.utxos, status: fragmented ? appL10n.homeFragmented : null, warn: fragmented),
+        const WalletToolEntry(WalletTool.addresses),
+        const WalletToolEntry(WalletTool.lock),
+      ];
 }
 
 /// Tabs of the wallet page's bottom navigation.

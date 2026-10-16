@@ -31,41 +31,24 @@ class WalletSum {
   );
 }
 
-/// The money of the wallets for the compute home (`docs/celaut/ui.md`, section 2): the
-/// ERG of the full wallets, which can pay for compute, and the ERG of the watched
-/// addresses and accounts, which cannot. They are two figures and are never added.
+/// The money of the wallet for the compute home (`docs/celaut/ui.md`, section 2): the
+/// ERG of the wallet of the app, which pays for compute.
 class WalletMoney {
-  const WalletMoney({required this.full, required this.watched, required this.gate});
+  const WalletMoney({required this.full, required this.gate});
 
-  static const none = WalletMoney(
-    full: WalletSum.empty,
-    watched: WalletSum.empty,
-    gate: FullWalletGate.none,
-  );
+  static const none = WalletMoney(full: WalletSum.empty, gate: FullWalletGate.none);
 
-  /// The full wallets (a seed on this device).
+  /// The wallet (a seed on this device).
   final WalletSum full;
 
-  /// The watched addresses and the watched accounts.
-  final WalletSum watched;
-
-  /// Whether start and stop can run: no full wallet, only locked ones, or an open one.
+  /// Whether start and stop can run: no wallet, a locked one, or an open one.
   final FullWalletGate gate;
 
   factory WalletMoney.of(Iterable<OverviewEntry> entries) {
     var full = WalletSum.empty;
-    var watched = WalletSum.empty;
     for (final e in entries) {
-      if (e.ref.kind == WalletKind.seed) {
-        full = full.plus(e.balanceNano);
-      } else {
-        watched = watched.plus(e.balanceNano);
-      }
+      full = full.plus(e.balanceNano);
     }
-    return WalletMoney(
-      full: full,
-      watched: watched,
-      gate: fullWalletGate(payerWallets(entries)),
-    );
+    return WalletMoney(full: full, gate: fullWalletGate(payerWallets(entries)));
   }
 }

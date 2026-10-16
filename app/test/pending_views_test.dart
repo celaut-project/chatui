@@ -2,7 +2,6 @@ import 'package:argus_wallet/services/pending_balance.dart';
 import 'package:argus_wallet/services/public_wallet_sync.dart';
 import 'package:argus_wallet/services/wallet_database_service.dart';
 import 'package:argus_wallet/services/wallet_sync_controller.dart';
-import 'package:argus_wallet/services/watch_account_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -68,50 +67,6 @@ void main() {
     expect(rows, ['in-flight', 'tx7', 'tx6', 'tx5', 'tx4']);
     expect((saved['transactions'] as List)[1]['height'], isNot(0));
     expect(gw.peak, 1);
-  });
-
-  test('a watched account adds its addresses\' splits', () async {
-    // The first address has a pending payment; the rest are empty, and
-    // answer with or without a split.
-    Future<WatchAccountSnapshot> scan({required bool everywhere}) =>
-        scanWatchAccount(
-          gap: 2,
-          derive: (start, count) async => [
-            for (var i = start; i < start + count; i++) 'a$i',
-          ],
-          history: (address) async => address == 'a0'
-              ? [
-                  {'tx_id': 'x'},
-                ]
-              : [],
-          balance: (address) async => address == 'a0'
-              ? {
-                  'balance_nano_erg': erg + 5,
-                  'tokens': [],
-                  'summary': const PendingBalance(
-                    confirmedNano: erg,
-                    pendingInNano: 5,
-                    transactions: 1,
-                  ).toJson(),
-                }
-              : {
-                  'balance_nano_erg': 0,
-                  'tokens': [],
-                  if (everywhere)
-                    'summary': const PendingBalance(confirmedNano: 0).toJson(),
-                },
-        );
-    final all = await scan(everywhere: true);
-    expect(all.addresses.length, greaterThan(1));
-    expect(all.pending!.confirmedNano, erg);
-    expect(all.pending!.pendingInNano, 5);
-    expect(all.pending!.netNano, all.balance);
-    final partial = await scan(everywhere: false);
-    expect(
-      partial.pending,
-      isNull,
-      reason: 'a partial sum would understate it',
-    );
   });
 
   test('the overview can read any wallet\'s last split back', () async {

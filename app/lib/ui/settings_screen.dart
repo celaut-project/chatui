@@ -1,30 +1,21 @@
 import 'package:flutter/material.dart';
-import 'cold_signing_screen.dart';
 
 import '../celaut/celaut_strings.dart';
 import '../celaut/compute_home_flag.dart';
 import '../celaut/deposit_strings.dart';
-import '../celaut/payers.dart';
 import '../celaut/network_strings.dart';
 import '../celaut/service_strings.dart';
-import '../format.dart';
 import '../l10n/l10n.dart';
-import '../services/address_label_service.dart';
 import '../services/contacts_service.dart';
 import '../services/network_controller.dart';
 import '../services/wallet_service.dart';
-import '../services/watch_account_service.dart';
-import '../services/watch_only_service.dart';
 import '../theme/argus_theme.dart';
 import '../theme/theme_controller.dart';
 import 'celaut/network_screen.dart';
 import 'celaut/node_connect_screen.dart';
-import 'celaut/default_payer_dialog.dart';
 import 'celaut/deposit_screen.dart';
 import 'celaut/known_nodes_screen.dart';
 import 'celaut/service_screen.dart';
-import 'home/overview_model.dart';
-import 'home/watched_actions.dart';
 import 'settings/about_page.dart';
 import 'settings/address_book_page.dart';
 import 'settings/display_settings_page.dart';
@@ -39,15 +30,13 @@ import 'widgets/soft_card.dart';
 /// Settings hub: the open wallet on top, then short groups whose rows open
 /// their own page. Per-wallet and app-wide scopes are labelled.
 ///
-/// Wallets themselves — switching, creating, restoring, watching — live on
-/// the overview. Renaming and removing a wallet live in its own settings.
+/// The app holds one wallet. Creating and restoring it live on the overview;
+/// renaming and removing it live in its own settings.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
     super.key,
     this.walletId,
-    this.watched,
     this.embedded = false,
-    this.onShowAllWallets,
     this.onWalletChanged,
     this.onWalletRemoved,
   });
@@ -55,19 +44,13 @@ class SettingsScreen extends StatefulWidget {
   /// The seed wallet whose page hosts these settings.
   final String? walletId;
 
-  /// The watched address or account whose page hosts these settings.
-  final WalletRef? watched;
-
   /// Hosted as a wallet page's tab: no app bar of its own.
   final bool embedded;
-
-  /// Back to the overview, from the header.
-  final VoidCallback? onShowAllWallets;
 
   /// The wallet was renamed or its pinned address changed.
   final VoidCallback? onWalletChanged;
 
-  /// The wallet was removed, or stopped being watched; carries its id.
+  /// The wallet was removed; carries its id.
   final ValueChanged<String>? onWalletRemoved;
 
   @override
@@ -77,16 +60,9 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late Future<List<WalletInfo>> _walletsFuture = walletService.listWallets();
 
-  /// Only a seed wallet's page has a seed wallet; the overview's settings
-  /// and a watched wallet's page have none.
-  String? get _walletId => widget.watched != null ? null : widget.walletId;
-
-  Future<void> _chooseDefaultPayer() async {
-    final payers = await const AppDepositWallets().payers();
-    final current = await const DefaultPayerStore().load();
-    if (!mounted) return;
-    await showDefaultPayerDialog(context, payers: payers, current: current);
-  }
+  /// Only the page of the wallet has the wallet; the settings of the overview
+  /// have none.
+  String? get _walletId => widget.walletId;
 
   Future<void> _open(Widget page) async {
     await Navigator.push(context, fadeRoute(page));
@@ -107,9 +83,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           themeController,
           networkController,
           walletService.unlocked,
-          watchOnlyService,
-          watchAccountService,
-          addressLabelService,
           contactsService,
         ]),
         builder: (context, _) {
@@ -121,19 +94,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               for (final w in wallets) {
                 if (w.walletId == _walletId) current = w;
               }
-              final watched = widget.watched;
               return ListView(
                 padding: EdgeInsets.fromLTRB(16, 8, 16, 32 + MediaQuery.paddingOf(context).bottom),
                 children: [
                   const UpdateNotice(),
                   if (current != null) ...[
-                    _walletHeader(context, current, wallets.length),
+                    _walletHeader(context, current),
                     const SizedBox(height: 24),
                     _seedGroup(current),
-                  ] else if (watched != null) ...[
-                    _watchedHeader(context, watched),
-                    const SizedBox(height: 24),
-                    _watchedGroup(watched),
                   ],
                   _appGroup(includeSecurity: current == null),
                   SettingsGroup(
@@ -171,13 +139,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         title: DepositStrings.rowTitle,
                         subtitle: DepositStrings.rowSubtitle,
                         onTap: () => _open(const DepositScreen()),
-                      ),
-                      SettingsRow(
-                        key: const Key('settings-default-payer'),
-                        icon: Icons.how_to_reg_outlined,
-                        title: DepositStrings.defaultPayerTitle,
-                        subtitle: DepositStrings.defaultPayerSubtitle,
-                        onTap: _chooseDefaultPayer,
                       ),
                       ValueListenableBuilder<bool>(
                         valueListenable: computeHomeFlag,
@@ -259,12 +220,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () => _open(const SecuritySettingsPage()),
           ),
         SettingsRow(
-          icon: Icons.qr_code_scanner,
-          title: t.settingsOfflineSigningTitle,
-          subtitle: t.settingsOfflineSigningSubtitle,
-          onTap: () => openColdSigner(context),
-        ),
-        SettingsRow(
           icon: Icons.image_outlined,
           title: t.settingsRemotePreviewsTitle,
           subtitle: t.settingsRemotePreviewsSubtitle,
@@ -329,85 +284,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
-          if (widget.onShowAllWallets != null)
-            TextButton(
-              onPressed: widget.onShowAllWallets,
-              child: Text(context.l10n.settingsAllWallets),
-            ),
         ],
       ),
     );
   }
 
-  Widget _walletHeader(BuildContext context, WalletInfo current, int count) {
+  Widget _walletHeader(BuildContext context, WalletInfo current) {
     final unlocked = walletService.isUnlocked && walletService.activeWalletId == current.walletId;
     final t = context.l10n;
     return _header(
       context,
       icon: Icons.account_balance_wallet_outlined,
       name: current.name,
-      detail: [
-        unlocked ? t.settingsUnlocked : t.settingsLocked,
-        t.settingsWalletsOnDevice(count),
-      ].join(' · '),
+      detail: unlocked ? t.settingsUnlocked : t.settingsLocked,
     );
-  }
-
-  // ── Watched wallets ────────────────────────────────────────────────────
-
-  WatchAccount? _account(WalletRef ref) {
-    for (final a in watchAccountService.accounts) {
-      if (a.key == ref.id) return a;
-    }
-    return null;
-  }
-
-  String _watchedName(WalletRef ref) => ref.kind == WalletKind.watchedAccount
-      ? (_account(ref)?.label ?? context.l10n.commonWatchedAccount)
-      : (addressLabelService.labelFor(ref.id) ?? context.l10n.commonWatchedAddress);
-
-  Widget _watchedHeader(BuildContext context, WalletRef ref) {
-    return _header(
-      context,
-      icon: Icons.visibility_outlined,
-      name: _watchedName(ref),
-      detail: ref.kind == WalletKind.watchedAccount
-          ? context.l10n.settingsWatchOnlyAccountDetail(shorten(ref.id, head: 8, tail: 6))
-          : context.l10n.settingsWatchOnlyAddressDetail(shorten(ref.id, head: 6, tail: 6)),
-    );
-  }
-
-  Widget _watchedGroup(WalletRef ref) {
-    final account = ref.kind == WalletKind.watchedAccount;
-    final t = context.l10n;
-    return SettingsGroup(
-      title: account ? t.settingsThisAccount : t.settingsThisAddress,
-      scope: t.settingsWatchOnlyScope,
-      children: [
-        SettingsRow(
-          icon: Icons.edit_outlined,
-          title: t.commonName,
-          subtitle: _watchedName(ref),
-          onTap: () => _renameWatched(ref),
-        ),
-        SettingsRow(
-          icon: Icons.visibility_off_outlined,
-          title: t.commonStopWatching,
-          subtitle: t.settingsStopWatchingSubtitle,
-          danger: true,
-          onTap: () => _unwatch(ref),
-        ),
-      ],
-    );
-  }
-
-  // The same flows as the watched wallet's ⋮ menu and its overview row's
-  // swipe (home/watched_actions.dart).
-  Future<void> _renameWatched(WalletRef ref) async {
-    if (await renameWatched(context, ref)) widget.onWalletChanged?.call();
-  }
-
-  Future<void> _unwatch(WalletRef ref) async {
-    if (await stopWatching(context, ref)) widget.onWalletRemoved?.call(ref.id);
   }
 }

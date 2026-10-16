@@ -37,7 +37,6 @@ const ergPriceWithoutHistory = ErgPriceView(
 );
 
 const mainAddress = '9fRAxbQ2mTe8LwZk5Ny7cVh3PdG6uJs1BqX4aKoHnYtMv9WEeR';
-const watchedAddress = '9hY16vzHmmfyVBwKeFGHvb2bMFsG94A1u7To1QWtUokACyFVENQ';
 
 /// 2.5 ERG arriving into a wallet showing 107.7134.
 final mainPending = PendingBalance(
@@ -66,19 +65,9 @@ const emptyWallet = WalletSummary(
   tokenCount: 0,
 );
 
-final watchedWallet = WalletSummary(
-  ref: const WalletRef.watchedAddress(watchedAddress),
-  name: 'Watched',
-  nanoErg: _nano(25421.6293),
-  fiatValue: 11901.08,
-  tokenCount: 3,
-  address: watchedAddress,
-);
-
-OverviewData sampleOverview({bool hidden = false, List<WalletSummary>? wallets, List<WalletSummary>? watched}) =>
+OverviewData sampleOverview({bool hidden = false, List<WalletSummary>? wallets}) =>
     OverviewData(
       wallets: wallets ?? [emptyWallet, mainWallet],
-      watched: watched ?? [watchedWallet],
       currency: aud,
       network: connected,
       totalNano: _nano(25529.3427),
@@ -201,73 +190,6 @@ WalletPageData sampleMainPage({bool hidden = false, List<ActivityRowData>? activ
       unpricedCount: 46,
       hidden: hidden,
       pendingCount: 1,
-    );
-
-WalletPageData sampleWatchedPage({bool hidden = false}) => WalletPageData(
-      wallet: watchedWallet,
-      currency: aud,
-      assets: [
-        // On a node without price history the row has the price but no
-        // 24h change.
-        AssetRowData(
-          id: 'ERG',
-          ticker: 'ERG',
-          name: 'Ergo',
-          amount: BigInt.from(_nano(25421.6293)),
-          decimals: 9,
-          fiatValue: 11901.08,
-          unitFiat: 0.4682,
-          kind: AssetKind.erg,
-        ),
-        AssetRowData(
-          id: 'e023c5f382b6e96fbd878f6811aac73345489032157ad5affb84aefd4956c297',
-          ticker: 'rsADA',
-          name: 'Rosen-bridged ADA',
-          amount: _units(1204.5, 6),
-          decimals: 6,
-          verified: true,
-        ),
-        AssetRowData(
-          id: '1fd6e032e8476c4aa54c18c1a308dce83940e8f4a28f576440513ed7326ad489',
-          ticker: 'Paideia',
-          name: 'Paideia DAO token',
-          amount: _units(2400, 4),
-          decimals: 4,
-          verified: true,
-        ),
-      ],
-      assetCount: 4,
-      activity: [
-        ActivityRowData(
-          id: 'w1',
-          kind: ActivityKind.received,
-          time: 'Oct 2',
-          counterparty: 'from 9fRxq3…3kQe',
-          legs: [AmountLeg(amount: BigInt.from(_nano(12000)), decimals: 9, unit: 'ERG')],
-        ),
-        ActivityRowData(
-          id: 'w2',
-          kind: ActivityKind.sent,
-          time: 'Sep 18',
-          counterparty: 'to 9hP2kd…Lx8v',
-          legs: [AmountLeg(amount: BigInt.from(-_nano(500)), decimals: 9, unit: 'ERG')],
-        ),
-        ActivityRowData(
-          id: 'w3',
-          kind: ActivityKind.received,
-          time: 'Sep 2',
-          counterparty: 'from 9gRosn…Br1d',
-          legs: [AmountLeg(amount: _units(1204.5, 6), decimals: 6, unit: 'rsADA')],
-        ),
-      ],
-      hidden: hidden,
-      watched: const WatchedDetails(
-        status: ['Watch-only · cannot sign here', 'Updated 2m ago'],
-        notes: [
-          'Cannot sign locally. Send with an offline signer; change returns to this same address. '
-              'A watched account tracks more addresses.',
-        ],
-      ),
     );
 
 /// The samples' own amounts and counts as summary surfaces print them, for

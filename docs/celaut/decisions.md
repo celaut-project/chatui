@@ -1,10 +1,11 @@
 # Product decisions (2026-10-11)
 
 - **Base:** fork of the Argus Ergo wallet (arkadianet/Argus, MIT), history kept.
-- **Wallet scope:** seed, send and receive ERG and tokens, history, ErgoPay, cold
-  signing, watch-only accounts, payment notifications, ERG/USD from the on-chain oracle
+- **Wallet scope:** one wallet with its seed, send and receive ERG and tokens, history,
+  ErgoPay, payment notifications, ERG/USD from the on-chain oracle
   pool. Removed: AMM, SigmaUSD, Dexy, DuckPools, Rosen, SigmaFi, stake recovery, stealth,
-  ZeroJoin, dApp browser, CoinGecko prices, the Argus app fee.
+  ZeroJoin, dApp browser, CoinGecko prices, the Argus app fee. Removed on 2026-10-16:
+  more than one wallet, watch-only addresses and accounts, offline (cold) signing.
 - **Updater:** reads the releases of celaut-project/chatui.
 - **QR scanner:** flutter_zxing (no Google ML Kit).
 - **App:** label "Celaut", applicationId `org.celaut.chatui`. Android only (GrapheneOS
@@ -24,11 +25,10 @@
 - **Service catalog:** celaut-project/skills. The user picks a skill. The app selects
   the service with the highest score. The user can also launch by service hash, or
   upload a package from the phone.
-- **Wallets and storage (2026-10-13):** the app has full wallets (with the seed, can sign)
-  and read-only wallets. Only full wallets manage instances (start, stop) and pay nodes;
-  read-only wallets are for viewing. All Celaut data is in one database (no database per
-  wallet). A node is paid with one full wallet, chosen at
-  the time of the deposit. See [ui.md](ui.md).
+- **Wallets and storage (2026-10-16, replaces 2026-10-13):** the app holds one Ergo
+  wallet, with its seed. There are no read-only wallets. The wallet manages instances
+  (start, stop) and pays nodes. All Celaut data is in one database (no database per
+  wallet). See [ui.md](ui.md), section 1.
 - **Home screen (2026-10-13):** it shows the compute that the connected nodes offer
   (sum of their resources) and the money for compute first. The ERG of each wallet is
   second level. See [ui.md](ui.md).

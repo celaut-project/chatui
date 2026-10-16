@@ -24,9 +24,6 @@
   "commonOffline": "Offline",
   "commonBalanceUnavailable": "Balance unavailable",
   "commonNotAnErgoAddress": "Not an Ergo address",
-  "commonWatchedAccount": "Watched account",
-  "commonWatchedAddress": "Watched address",
-  "commonStopWatching": "Stop watching",
   "monthShort1": "Jan",
   "monthShort2": "Feb",
   "monthShort3": "Mar",
@@ -304,8 +301,6 @@
   "settingsSecurityWalletSubtitle": "PIN, biometric unlock, auto-lock",
   "settingsAppGroup": "App",
   "settingsSecurityAppSubtitle": "Auto-lock, screenshots, unconfirmed funds",
-  "settingsOfflineSigningTitle": "Offline signing",
-  "settingsOfflineSigningSubtitle": "Scan, review and sign with this seed wallet",
   "settingsRemotePreviewsTitle": "Remote previews",
   "settingsRemotePreviewsSubtitle": "IPFS gateway and Never load remote previews",
   "settingsContactsCount": "{count, plural, other{{count} contacts}}",
@@ -316,37 +311,8 @@
       }
     }
   },
-  "settingsAllWallets": "All wallets",
   "settingsUnlocked": "Unlocked",
   "settingsLocked": "Locked",
-  "settingsWalletsOnDevice": "{count, plural, =1{{count} wallet on this device} other{{count} wallets on this device}}",
-  "@settingsWalletsOnDevice": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "settingsWatchOnlyAccountDetail": "Watch-only account · {id}",
-  "@settingsWatchOnlyAccountDetail": {
-    "placeholders": {
-      "id": {
-        "type": "String"
-      }
-    }
-  },
-  "settingsWatchOnlyAddressDetail": "Watch-only address · {id}",
-  "@settingsWatchOnlyAddressDetail": {
-    "placeholders": {
-      "id": {
-        "type": "String"
-      }
-    }
-  },
-  "settingsThisAccount": "This account",
-  "settingsThisAddress": "This address",
-  "settingsWatchOnlyScope": "Watch-only",
-  "settingsStopWatchingSubtitle": "Removes it from this device. Nothing on chain changes.",
   "aboutSaveSettingFailed": "Could not save the setting.",
   "aboutAskingGithub": "Asking GitHub…",
   "aboutNotCheckedYet": "Not checked yet",
@@ -720,7 +686,7 @@
       }
     }
   },
-  "walletSettingsRemoveBody": "This removes the wallet from this device. Celaut does not keep a copy of the recovery phrase; the paper you wrote when creating this wallet is the only way back in.",
+  "walletSettingsRemoveBody": "This removes the wallet from this device. Celaut does not keep a copy of the recovery phrase; the paper you wrote when creating this wallet is the only way back in. After that, you can create or restore another wallet.",
   "walletSettingsRemoveFailed": "Could not remove wallet",
   "walletSettingsPinIndexTitle": "Pin address index",
   "walletSettingsPinIndexIntro": "Derive the address at this index and use it as the primary address for send and receive. Index 0 resets to the default. The balance still counts every address of the wallet.",
@@ -783,7 +749,7 @@
   "walletSettingsUnpin": "Unpin",
   "walletSettingsFreshAddresses": "Fresh addresses",
   "walletSettingsFreshAddressesSubtitle": "Receive and change on a new address each time, like Nautilus. Off: everything uses your pinned or first address.",
-  "walletSettingsUnlockToChange": "Unlock a wallet to change this setting",
+  "walletSettingsUnlockToChange": "Unlock the wallet to change this setting",
   "walletSettingsPrivacySaveFailed": "Could not update privacy setting",
   "walletSettingsBackup": "Backup",
   "walletSettingsBackupNote": "Celaut does not keep a copy of the recovery phrase. The paper you wrote at create or restore is the only way back in.",
@@ -1108,166 +1074,6 @@
       }
     }
   },
-  "coldUnlockBeforeReview": "Unlock the seed wallet before reviewing.",
-  "coldWalletLockedOrChanged": "Wallet locked or changed. Reset and review with the selected wallet.",
-  "coldRefusingBroadcast": "Refusing broadcast: no verified response.",
-  "coldTxIdMismatch": "Node transaction ID mismatch.",
-  "coldTitleHot": "Cold-wallet send",
-  "coldTitleOffline": "Offline signing",
-  "coldSessionNote": "Unsigned sessions expire after 30 minutes. Back pauses; return here to resume. Verified returns remain available for retry. Closing the app discards all sessions.",
-  "coldRefused": "Refused: {error}",
-  "@coldRefused": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
-  "coldScanRequestCodes": "Scan every request code with the offline signer.",
-  "coldSignedScanResponse": "Signed. Scan every response code with the online wallet.",
-  "coldLoadQrCodes": "Load QR codes",
-  "coldScanSignedResponse": "Scan signed response",
-  "coldShowRequestAgain": "Show request codes again",
-  "coldCollectResponse": "Collect signed response (CSTX)",
-  "coldCollectRequest": "Collect signing request (CSR)",
-  "coldScannedProgress": "{received} of {total} scanned",
-  "@coldScannedProgress": {
-    "description": "total is a number or ? when not known yet.",
-    "placeholders": {
-      "received": {
-        "type": "String"
-      },
-      "total": {
-        "type": "String"
-      }
-    }
-  },
-  "coldMissingPages": "Missing pages: {pages}",
-  "@coldMissingPages": {
-    "placeholders": {
-      "pages": {
-        "type": "String"
-      }
-    }
-  },
-  "coldScanRefused": "This scan was refused. Discard the collected pages and restart.",
-  "coldScanACode": "Scan a code",
-  "coldScanNextCode": "Scan next code",
-  "coldResetPages": "Reset collected pages",
-  "coldVerifySigned": "Verify signed transaction",
-  "coldReviewTransaction": "Review transaction",
-  "coldReviewWarning": "Independently check the full recipient addresses and quantities. Keep this device offline. Labels from the online wallet are not used.",
-  "coldCheckedEverything": "I checked every output, token and fee on this device",
-  "coldConfirmSign": "Confirm and sign offline",
-  "coldRejectReset": "Reject and reset",
-  "coldVerifiedMatch": "Every signature verifies and the transaction exactly matches the prepared payment.",
-  "coldTransactionId": "Transaction ID: {id}",
-  "@coldTransactionId": {
-    "placeholders": {
-      "id": {
-        "type": "String"
-      }
-    }
-  },
-  "coldBroadcastVerified": "Broadcast verified transaction",
-  "coldRetryNote": "If the network fails, retry sends the same verified transaction. Do not rebuild while its status is uncertain.",
-  "coldSubmitted": "Transaction submitted",
-  "coldDiscardSession": "Discard session",
-  "coldReviewNetwork": "Review · {network}",
-  "@coldReviewNetwork": {
-    "placeholders": {
-      "network": {
-        "type": "String"
-      }
-    }
-  },
-  "coldMinerFeeValue": "Miner fee: {fee}",
-  "@coldMinerFeeValue": {
-    "placeholders": {
-      "fee": {
-        "type": "String"
-      }
-    }
-  },
-  "coldOutputsNote": "Every output is listed below. “Your address” is verified from local keys; it may be change or a self-payment.",
-  "coldYourAddress": "Your address",
-  "coldExternalRecipient": "External recipient / application payment",
-  "coldTokenId": "Token ID: {id}",
-  "@coldTokenId": {
-    "placeholders": {
-      "id": {
-        "type": "String"
-      }
-    }
-  },
-  "coldQuantityBaseUnits": "Quantity: {amount} base units",
-  "@coldQuantityBaseUnits": {
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
-  "coldTokenBurns": "Token burns: {none}",
-  "@coldTokenBurns": {
-    "description": "none is coldNone when the list is empty, else empty.",
-    "placeholders": {
-      "none": {
-        "type": "String"
-      }
-    }
-  },
-  "coldTokenCreation": "Token creation: {none}",
-  "@coldTokenCreation": {
-    "description": "none is coldNone when the list is empty, else empty.",
-    "placeholders": {
-      "none": {
-        "type": "String"
-      }
-    }
-  },
-  "coldNone": "None",
-  "coldTokenAmountBaseUnits": "{id} · {amount} base units",
-  "@coldTokenAmountBaseUnits": {
-    "placeholders": {
-      "id": {
-        "type": "String"
-      },
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
-  "coldCodeOf": "Code {page} of {total}",
-  "@coldCodeOf": {
-    "placeholders": {
-      "page": {
-        "type": "String"
-      },
-      "total": {
-        "type": "String"
-      }
-    }
-  },
-  "coldPrevious": "Previous",
-  "coldAutoRepeat": "Auto-repeat",
-  "coldPause": "Pause",
-  "coldNext": "Next",
-  "coldRefreshWatchedFirst": "Refresh the watched account first.",
-  "coldChooseNodeFirst": "Choose an online node first.",
-  "coldAmountPositive": "Enter a positive whole number for Amount (nanoERG).",
-  "coldTokenQuantityPositive": "Enter a positive whole number for Token quantity.",
-  "coldNodeChanged": "Node changed during preparation. Try again.",
-  "coldSendTitle": "Send with offline signer",
-  "coldWatchIntro": "Mainnet P2PK payments. This watch-only source has no keys. An offline seed wallet must review and sign the request.",
-  "coldChangeNote": "Change, including remaining tokens, returns to this same watched address. Reusing it reduces privacy. A watched account tracks more addresses.",
-  "coldSignerMustOwn": "The offline signer must own this mainnet P2PK address. Celaut automatically searches EIP-3 account 0, external indices 0–512.",
-  "coldResumeSend": "Resume cold send",
-  "coldRecipientLabel": "Full recipient address",
-  "coldAmountNanoLabel": "Amount in nanoERG (1 ERG = 1000000000)",
-  "coldTokenIdOptional": "Token ID (optional)",
-  "coldTokenQuantityLabel": "Token quantity in base units (optional)",
-  "coldPrepareRequest": "Prepare cold request",
   "priceHistoryNeedsExtraIndex": "This node cannot serve price history: it needs the extra index.",
   "oracleSigmaUsd": "SigmaUSD oracle",
   "oracleDexyUsd": "Dexy USD oracle",
@@ -1748,39 +1554,7 @@
       }
     }
   },
-  "syncLockedWalletsExplainer": "Locked wallets refresh from public data every 5 minutes, covering only the addresses this app already knows. Unlock one to pick up new addresses.",
-  "watchSaveAddressesFailed": "Could not save watched addresses. Please try again.",
-  "watchLimitations": "Public payment addresses only. Cannot sign locally; sending requires an offline signer.",
-  "watchDisclosure": "An extended public key lets anyone holding it derive and link every public payment address in this account forever. Only import a key you intend to share with this device. {limitations}",
-  "@watchDisclosure": {
-    "description": "limitations is the text of watchLimitations.",
-    "placeholders": {
-      "limitations": {
-        "type": "String"
-      }
-    }
-  },
-  "watchExpected": "Expected an Ergo Wallet App extended public key: 156 hex characters starting 0488b21e (mainnet), depth 4 external chain /0 or depth 3 account 0. Base58 xpub and testnet are not supported.",
-  "watchIncompleteDerivation": "Incomplete derivation",
-  "watchScanIncomplete": "Scan incomplete after {count} addresses; no unused receive address confirmed.",
-  "@watchScanIncomplete": {
-    "placeholders": {
-      "count": {
-        "type": "String"
-      }
-    }
-  },
-  "watchNodeChanged": "Node changed. Refresh the account before receiving.",
-  "watchSaveAccountsFailed": "Could not save watched accounts. Please try again.",
-  "watchNodeChangedDuringScan": "Node changed during scan; refresh again.",
-  "watchAccountRefreshUnavailable": "Account refresh unavailable: {detail}",
-  "@watchAccountRefreshUnavailable": {
-    "placeholders": {
-      "detail": {
-        "type": "String"
-      }
-    }
-  },
+  "syncLockedWalletsExplainer": "A locked wallet refreshes from public data every 5 minutes, covering only the addresses this app already knows. Unlock it to pick up new addresses.",
   "syncPublicKnownOnly": "Public data · known addresses only",
   "syncSyncing": "Syncing…",
   "syncOutOfSync": "Out of sync",
@@ -1825,7 +1599,6 @@
       }
     }
   },
-  "dashboardStoppedWatching": "Stopped watching",
   "dashboardNoAddressDerived": "Unlocked, but no address could be derived",
   "dashboardPinLockoutCheckFailed": "Could not check PIN lockout",
   "dashboardNoPinWallet": "No PIN-protected wallet found.",
@@ -1842,7 +1615,6 @@
   "homeUnlocked": "Unlocked",
   "homeLocked": "Locked",
   "offlineNoNodes": "No reachable nodes. Tap Retry to check.",
-  "overviewReorderHint": "Long-press a wallet to change the order.",
   "discoverTokensBlurb": "Issue a token or an NFT, or burn tokens you hold.",
   "discoverTokensWhat": "Any Ergo transaction can create a new token: its id is the id of the first input box, its name, decimals and description live in the registers of the box that carries it (EIP-4). An NFT is a token with one unit and a link to its media.",
   "discoverTokensCanIssue": "Issue a fungible token with a name, decimals and supply",
@@ -1867,45 +1639,6 @@
   "discoverIntro": "What Celaut can do beyond sending and receiving. Each one says what it is, what you can do with it, and what to watch for before it opens.",
   "discoverTools": "Tools",
   "discoverRowHint": "What it is, and the way in",
-  "watchAddFailed": "Could not add watched address: {detail}",
-  "@watchAddFailed": {
-    "placeholders": {
-      "detail": {
-        "type": "String"
-      }
-    }
-  },
-  "watchAddressAdded": "Watch-only address added",
-  "watchAddInvalid": "Already watched or invalid input. Use an Ergo address, a 33-byte compressed public key, or its 0008cd P2PK tree (hex, no 0x). Raw keys use mainnet.",
-  "watchAddressTitle": "Watch an address",
-  "watchAddressIntro": "See balance and activity for any Ergo address. No keys are stored, so it cannot spend.",
-  "watchAddressLabel": "Address or public key",
-  "watchAddressHelper": "Mainnet key hex: 02/03… or 0008cd02/03…",
-  "watchAction": "Watch",
-  "watchXpubTitle": "Watch an extended public key",
-  "watchXpubLabel": "Ergo Wallet App extended public key",
-  "watchXpubHelper": "156 hex characters, mainnet. No checksum: verify the first address with the source wallet.",
-  "watchXpubAlreadyWatched": "This extended key is already watched.",
-  "watchAccountAction": "Watch account",
-  "watchNameOptional": "Name (optional)",
-  "watchSaveNameFailed": "Could not save the name: {detail}",
-  "@watchSaveNameFailed": {
-    "placeholders": {
-      "detail": {
-        "type": "String"
-      }
-    }
-  },
-  "watchStopTitle": "Stop watching?",
-  "watchStopAccountBody": "The extended key is removed from this device. Re-import it to watch the account again.",
-  "watchStopFailed": "Could not stop watching: {detail}",
-  "@watchStopFailed": {
-    "placeholders": {
-      "detail": {
-        "type": "String"
-      }
-    }
-  },
   "navActivity": "Activity",
   "navDiscover": "Discover",
   "navActivityPending": "{count, plural, other{Activity, {count} pending}}",
@@ -2150,7 +1883,6 @@
   },
   "homeOpensWallet": "Opens the wallet",
   "homeSpokenUnlocked": "unlocked",
-  "homeSpokenWatchOnly": "watch-only",
   "homeSpokenBalanceHidden": "balance hidden",
   "homeSpokenIncl": "incl. {other}",
   "@homeSpokenIncl": {
@@ -2185,27 +1917,16 @@
   "overviewNotLoadedYet": "Not loaded yet",
   "overviewTagline": "Decentralized compute",
   "overviewTotalBalance": "Total balance",
-  "overviewWallets": "Wallets",
-  "overviewAddWallet": "Add a wallet",
-  "overviewWatchedAddresses": "Watched addresses",
-  "overviewWatchTooltip": "Watch an address or account",
+  "overviewWallets": "Wallet",
   "overviewPrototypeTitle": "Prototype software",
   "overviewPrototypeBody": "Celaut is an unaudited prototype. Transactions on Ergo are irreversible — use only funds you can afford to lose.",
   "overviewGotIt": "Got it",
   "overviewPrototypeNote": "Unaudited prototype. Use only funds you can afford to lose.",
   "overviewLearnMore": "Learn more",
-  "overviewWelcomeTitle": "Your wallets live here",
-  "overviewWelcomeBody": "No wallets yet. Create a new wallet, restore one from its recovery phrase, or watch an address or an account without its keys. Each one opens from this screen.",
+  "overviewWelcomeTitle": "Your wallet lives here",
+  "overviewWelcomeBody": "No wallet yet. Create a new wallet, or restore one from its recovery phrase. The app holds one wallet, and it opens from this screen.",
   "overviewCreateWallet": "Create a wallet",
   "overviewRestoreWallet": "Restore from recovery phrase",
-  "overviewWatchAccountXpub": "Watch an account (xpub)",
-  "overviewAddCreate": "Create a new wallet",
-  "overviewAddCreateBlurb": "A fresh recovery phrase, kept on this phone.",
-  "overviewAddRestore": "Restore a wallet",
-  "overviewAddRestoreBlurb": "From its 12, 15 or 24-word recovery phrase.",
-  "overviewAddWatchAddressBlurb": "Balance and activity, without its keys.",
-  "overviewAddWatchAccount": "Watch an account",
-  "overviewAddWatchAccountBlurb": "Every address of an extended public key (xpub).",
   "homeBalanceLabel": "Balance",
   "homeUnlockPrompt": "Unlock to see activity, send and receive.",
   "homeUnlock": "Unlock",
@@ -2214,7 +1935,6 @@
   "homeUnlockAndSetPin": "Unlock and set PIN",
   "homeKeysNotHere": "This wallet's keys are not stored on this device.",
   "homeActionSend": "Send",
-  "homeActionSendOffline": "Send with offline signer",
   "homeActionReceive": "Receive",
   "homeActionMore": "More",
   "homeToolTokensBlurb": "Issue tokens and NFTs, or burn tokens.",
@@ -2235,7 +1955,7 @@
   "homeNameAddressHint": "Names this address. Long press to copy",
   "homeSpokenShownAs": "shown as this wallet",
   "homeShownAs": "Shown as this wallet",
-  "homeAllWallets": "All wallets",
+  "homeAllWallets": "Back",
   "homeOtherAddressesHint": "Shows each address and what it holds",
   "homeUtxos": "UTXOs",
   "homeUtxoCount": "{count} UTXOs",
@@ -2274,7 +1994,6 @@
   "homeFullHistory": "Full history",
   "homeEveryAddress": "Every address and what it holds",
   "homeNoAddresses": "No addresses read yet",
-  "homeNoAddressesWatched": "No addresses read yet. They appear after the first scan.",
   "homeNoAddressesDot": "No addresses read yet.",
   "homeSpokenCountFragmented": "{count}, fragmented",
   "@homeSpokenCountFragmented": {
@@ -2287,49 +2006,6 @@
   "homeAssets": "Assets",
   "homeShowMyAddress": "Show my address",
   "homeNoActivity": "No activity yet",
-  "watchBalanceUnavailable": "Balance unavailable: {detail}",
-  "@watchBalanceUnavailable": {
-    "placeholders": {
-      "detail": {
-        "type": "String"
-      }
-    }
-  },
-  "watchActivityPartial": "Some activity could not be read.",
-  "watchActivityFailed": "Could not load activity.",
-  "watchAccountRefreshRetry": "Account refresh unavailable. Try again.",
-  "watchRescanAccount": "Rescan account",
-  "watchRefresh": "Refresh",
-  "watchMoreOptions": "More options",
-  "watchRename": "Rename",
-  "watchNotScannedTitle": "Account not scanned",
-  "watchNotScannedBody": "Refresh the account to read its addresses and activity.",
-  "watchRefreshAccount": "Refresh account",
-  "watchRefreshToReadActivity": "Refresh the account to read its activity.",
-  "watchShowItsAddress": "Show its address",
-  "watchStatusWatchOnly": "Watch-only · cannot sign here",
-  "watchScanning": "Scanning…",
-  "watchRefreshing": "Refreshing…",
-  "watchUpdated": "Updated {when}",
-  "@watchUpdated": {
-    "description": "when is a sync age, e.g. \"2m ago\".",
-    "placeholders": {
-      "when": {
-        "type": "String"
-      }
-    }
-  },
-  "watchGapNote": "Discovery stops after 20 unused addresses. Payments beyond a larger gap can be missed.",
-  "watchAddressNote": "Cannot sign locally. Send with an offline signer; change returns to this same address. A watched account tracks more addresses.",
-  "watchFirstAddress": "First address",
-  "watchFirstAddressNote": "{count, plural, other{Check this matches the first address in the wallet the key came from: an extended key has no checksum. {count} addresses scanned.}}",
-  "@watchFirstAddressNote": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "activityTitleReceived": "Received",
   "activityTitleSent": "Sent",
   "activityTitleMoved": "Moved",
@@ -2613,16 +2289,6 @@
   "receiveTitle": "Receive",
   "receiveUnusedAddress": "Unused address",
   "receiveAddress": "Receive address",
-  "receiveWatchAccountNote": "Unused payment address. A new one is offered after payment. {limitations}",
-  "@receiveWatchAccountNote": {
-    "description": "limitations is the note on what a watched account cannot do.",
-    "placeholders": {
-      "limitations": {
-        "type": "String"
-      }
-    }
-  },
-  "receiveWatchedNote": "Payments to this address go to the watched wallet.",
   "receiveFreshNote": "A new address is shown after this one is used.",
   "receiveStaticNote": "This address stays the same. Turn on Fresh addresses in Settings to use a new one after each payment.",
   "@receiveStaticNote": {
@@ -4085,14 +3751,6 @@
   },
   "homeLockedCaps": "LOCKED",
   "formatUnconfirmed": "Unconfirmed",
-  "watchSomeUnavailable": "Some watched balances are unavailable.\n{errors}",
-  "@watchSomeUnavailable": {
-    "placeholders": {
-      "errors": {
-        "type": "String"
-      }
-    }
-  },
   "celautDepositRowTitle": "Celaut deposit",
   "celautDepositRowSubtitle": "Pay a node in ERG from a full wallet",
   "celautDepositScreenTitle": "Celaut deposit",
@@ -4217,9 +3875,8 @@
     }
   },
   "celautUnknown": "unknown",
-  "celautNoFullWallet": "This needs a full wallet: a wallet with its recovery phrase on this device. Read-only wallets cannot pay a node or start or stop an instance. Create or restore a wallet first.",
+  "celautNoFullWallet": "This needs a wallet with its recovery phrase on this device. Create or restore a wallet first.",
   "celautDepositPayerTitle": "Paying wallet",
-  "celautDepositPayerLabel": "Full wallet that pays",
   "celautDepositPayerBalance": "Balance: {amount}",
   "@celautDepositPayerBalance": {
     "placeholders": {
@@ -4230,8 +3887,6 @@
   },
   "celautDepositPayerOpen": "This wallet is open. The app asks for its PIN or fingerprint before the deposit.",
   "celautDepositPayerLocked": "This wallet is locked. The app asks for its PIN or fingerprint before the deposit, and opens it.",
-  "celautDepositSaveDefault": "Save as the default payer",
-  "celautDepositIsDefault": "This is the default payer.",
   "celautDepositRowPayer": "Paid by",
   "celautDepositRowPayerBalance": "Balance of the paying wallet",
   "celautDepositSentTitle": "Sent deposits",
@@ -4250,9 +3905,6 @@
     }
   },
   "celautDepositSentExpired": "The deposit token expired. The node refuses this deposit now.",
-  "celautDefaultPayerRowTitle": "Default payer",
-  "celautDefaultPayerRowSubtitle": "The full wallet that the deposit screen chooses first",
-  "celautDefaultPayerNone": "No default",
   "celautComputeHomeRowTitle": "Compute home",
   "celautComputeHomeRowSubtitle": "The home screen shows the compute of your nodes first. This is the default. Turn it off to see the wallets list first.",
   "celautHomeComputeTitle": "Offered compute",
@@ -4292,7 +3944,7 @@
       }
     }
   },
-  "celautHomeWallets": "Wallets",
+  "celautHomeWallets": "Wallet",
   "celautHomeRefresh": "Refresh",
   "celautHomeLoading": "Asking the nodes…",
   "celautErrorClientUnknown": "The node does not know the client of this app: it forgot it. Choose a new client or retry later.",
@@ -4320,7 +3972,6 @@
   },
   "celautHomeTagline": "Compute",
   "celautHomeFullWallets": "Full wallets · can pay",
-  "celautHomeWatched": "Watched addresses and accounts · cannot pay",
   "celautHomePaidCredit": "Paid credit on nodes",
   "celautHomeFreeCredit": "Free credit on nodes",
   "celautHomeUsd": "≈ {amount}",
@@ -4350,7 +4001,7 @@
   "celautHomeNodeUnreachable": "Not reachable",
   "celautHomeNodesButton": "Nodes",
   "celautHomeClientUnknownAction": "Choose what to do",
-  "celautOpenFullWalletNeeded": "Start and stop need an open full wallet. The app asks for the PIN or fingerprint of a full wallet first.",
+  "celautOpenFullWalletNeeded": "Start and stop need the wallet open. The app asks for its PIN or fingerprint first.",
   "celautClientUnknownTitle": "The node forgot the client",
   "celautClientUnknownBody": "The node {node} does not know the client id of this app. Make a new client now, or retry later.",
   "@celautClientUnknownBody": {
