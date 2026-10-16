@@ -7,8 +7,8 @@ import '../frb_generated.dart';
 import 'celaut.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `client`, `describe`, `error_of`, `items`, `new`, `request`, `short`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `HttpExplorer`
+// These functions are ignored because they are not marked as `pub`: `client`, `describe`, `error_of`, `fresh`, `items`, `lock`, `new`, `new`, `request`, `settle`, `short`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CatalogCache`, `HttpExplorer`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `boxes`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `token_value`
 
 /// The skills of the catalog, in the order of the explorer.

@@ -4647,5 +4647,25 @@
         "type": "String"
       }
     }
+  },
+  "celautHomeNodesReady": "{ready} of {total} nodes ready",
+  "@celautHomeNodesReady": {
+    "placeholders": {
+      "ready": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "celautHomeCreditOnNodes": "Credit on nodes",
+  "celautNodeCredit": "Credit: {credit}",
+  "@celautNodeCredit": {
+    "placeholders": {
+      "credit": {
+        "type": "String"
+      }
+    }
   }
 }

@@ -43,6 +43,53 @@ const PROSE_CHARS: usize = 200;
 static REPUTATIONS: LazyLock<Mutex<HashMap<String, (Instant, f64)>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
+/// How long a list of the catalog is used again before the app asks the explorer. The
+/// catalog changes on chain, a few times a day at most; the explorer can take seconds.
+const CATALOG_TTL: Duration = Duration::from_secs(300);
+
+/// The last answers of the catalog, by key. A fresh one is given at once. When the explorer
+/// fails, the last answer is given again, also an old one: an old list is more useful than
+/// an error. Only a key with no answer at all gives the error.
+struct CatalogCache<K, V> {
+    entries: LazyLock<Mutex<HashMap<K, (Instant, V)>>>,
+}
+
+impl<K: std::hash::Hash + Eq + Clone, V: Clone> CatalogCache<K, V> {
+    const fn new() -> Self {
+        CatalogCache {
+            entries: LazyLock::new(|| Mutex::new(HashMap::new())),
+        }
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<K, (Instant, V)>> {
+        self.entries.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    fn fresh(&self, key: &K) -> Option<V> {
+        let entries = self.lock();
+        let (at, value) = entries.get(key)?;
+        (at.elapsed() < CATALOG_TTL).then(|| value.clone())
+    }
+
+    /// Keep a new answer and give it; on an error, give the last answer if there is one.
+    fn settle(&self, key: K, loaded: Result<V, CelautError>) -> Result<V, CelautError> {
+        let mut entries = self.lock();
+        match loaded {
+            Ok(value) => {
+                entries.insert(key, (Instant::now(), value.clone()));
+                Ok(value)
+            }
+            Err(e) => match entries.get(&key) {
+                Some((_, last)) => Ok(last.clone()),
+                None => Err(e),
+            },
+        }
+    }
+}
+
+static SKILLS: CatalogCache<(), Vec<SkillView>> = CatalogCache::new();
+static SERVICES: CatalogCache<String, Vec<SkillServiceView>> = CatalogCache::new();
+
 /// A skill that the user can pick.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SkillView {
@@ -69,17 +116,22 @@ pub struct SkillServiceView {
 /// The skills of the catalog, in the order of the explorer.
 #[flutter_rust_bridge::frb]
 pub async fn celaut_skills() -> Result<Vec<SkillView>, CelautError> {
+    if let Some(fresh) = SKILLS.fresh(&()) {
+        return Ok(fresh);
+    }
     let explorer = HttpExplorer::new(NODO_DEFAULT_EXPLORER);
-    let skills = load_skills(&explorer).await.map_err(error_of)?;
-    Ok(skills
-        .into_iter()
-        .map(|s| SkillView {
-            box_id: s.box_id,
-            name: s.name,
-            prose: short(&s.prose),
-            tags: s.tags,
-        })
-        .collect())
+    let loaded = load_skills(&explorer).await.map_err(error_of).map(|skills| {
+        skills
+            .into_iter()
+            .map(|s| SkillView {
+                box_id: s.box_id,
+                name: s.name,
+                prose: short(&s.prose),
+                tags: s.tags,
+            })
+            .collect::<Vec<_>>()
+    });
+    SKILLS.settle((), loaded)
 }
 
 /// The services of a skill, best first. The score follows `docs/celaut/catalog.md`: the
@@ -89,18 +141,23 @@ pub async fn celaut_skills() -> Result<Vec<SkillView>, CelautError> {
 pub async fn celaut_skill_services(
     skill_box_id: String,
 ) -> Result<Vec<SkillServiceView>, CelautError> {
+    if let Some(fresh) = SERVICES.fresh(&skill_box_id) {
+        return Ok(fresh);
+    }
     let explorer = HttpExplorer::new(NODO_DEFAULT_EXPLORER);
-    let ranked = load_skill_services(&explorer, &skill_box_id)
-        .await
-        .map_err(error_of)?;
-    Ok(ranked
+    let ranked = match load_skill_services(&explorer, &skill_box_id).await {
+        Ok(ranked) => ranked,
+        Err(e) => return SERVICES.settle(skill_box_id, Err(error_of(e))),
+    };
+    let views: Vec<SkillServiceView> = ranked
         .into_iter()
         .map(|s| SkillServiceView {
             service_id: s.service_id,
             score: s.score,
             direct: s.direct,
         })
-        .collect())
+        .collect();
+    SERVICES.settle(skill_box_id, Ok(views))
 }
 
 fn error_of(e: CatalogError) -> CelautError {
@@ -255,6 +312,45 @@ impl Explorer for HttpExplorer {
             cache.insert(token_id.to_string(), (Instant::now(), total));
         }
         Ok(total)
+    }
+}
+
+#[cfg(test)]
+mod cache_tests {
+    use super::*;
+
+    fn error() -> CelautError {
+        CelautError {
+            kind: super::super::celaut::CelautErrorKind::Unreachable,
+            message: "the explorer did not answer".into(),
+        }
+    }
+
+    #[test]
+    fn a_fresh_answer_is_used_again_and_an_error_gives_the_last_answer() {
+        let cache: CatalogCache<String, Vec<u32>> = CatalogCache::new();
+        assert_eq!(cache.fresh(&"a".into()), None);
+        // No answer yet: the error goes to the caller.
+        assert!(cache.settle("a".into(), Err(error())).is_err());
+        assert_eq!(cache.settle("a".into(), Ok(vec![1, 2])).unwrap(), vec![1, 2]);
+        assert_eq!(cache.fresh(&"a".into()), Some(vec![1, 2]));
+        // The explorer fails later: the last list is given, not the error.
+        assert_eq!(cache.settle("a".into(), Err(error())).unwrap(), vec![1, 2]);
+        // Another key has its own answer.
+        assert_eq!(cache.fresh(&"b".into()), None);
+        assert!(cache.settle("b".into(), Err(error())).is_err());
+    }
+
+    #[test]
+    fn an_old_answer_is_not_fresh_but_still_helps_when_the_explorer_fails() {
+        let cache: CatalogCache<(), Vec<u32>> = CatalogCache::new();
+        let old = Instant::now() - CATALOG_TTL - Duration::from_secs(1);
+        cache.lock().insert((), (old, vec![7]));
+        assert_eq!(cache.fresh(&()), None);
+        assert_eq!(cache.settle((), Err(error())).unwrap(), vec![7]);
+        // A new answer replaces it and is fresh.
+        cache.settle((), Ok(vec![8])).unwrap();
+        assert_eq!(cache.fresh(&()), Some(vec![8]));
     }
 }
 

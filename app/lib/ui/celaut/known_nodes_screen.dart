@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import '../../bridge/api/celaut.dart';
 import '../../bridge/api/celaut_home.dart';
 import '../../bridge/api/celaut_service.dart';
+import '../../celaut/celaut_format.dart';
 import '../../celaut/celaut_strings.dart';
 import '../../celaut/host_port.dart';
+import '../../celaut/node_health_monitor.dart';
+import '../../celaut/overview_cache.dart';
 import '../../format.dart';
 import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
@@ -12,6 +15,7 @@ import '../scan_screen.dart';
 import '../settings/settings_shared.dart';
 import '../widgets/soft_card.dart';
 import 'client_unknown_dialog.dart';
+import 'node_status.dart';
 
 /// What the node list screen needs. The app uses [AppKnownNodes]; tests give their own.
 abstract class KnownNodes {
@@ -43,7 +47,12 @@ class KnownNodesScreen extends StatefulWidget {
     this.nodes = const AppKnownNodes(),
     this.newClient,
     this.scan,
+    this.healthMonitor,
   });
+
+  /// Keeps the availability of the nodes up to date while this screen is open. Tests give
+  /// their own; without one the screen makes its own and stops it when it closes.
+  final NodeHealthMonitor? healthMonitor;
 
   final KnownNodes nodes;
 
@@ -61,6 +70,39 @@ class KnownNodesScreen extends StatefulWidget {
 class _KnownNodesScreenState extends State<KnownNodesScreen> {
   final _addressCtrl = TextEditingController();
   late List<KnownNodeView> _list = widget.nodes.list();
+  late final NodeHealthMonitor _health = widget.healthMonitor ?? NodeHealthMonitor();
+
+  @override
+  void initState() {
+    super.initState();
+    _health.addListener(_onHealth);
+    _health.start();
+  }
+
+  void _onHealth() {
+    if (mounted) setState(() {});
+  }
+
+  /// What the last overview of the home screen says of a node: its credit, and whether it
+  /// forgot the client of the app.
+  NodeComputeView? _computed(String peerId) {
+    for (final n in overviewCache.value?.nodes ?? const <NodeComputeView>[]) {
+      if (n.peerId == peerId) return n;
+    }
+    return null;
+  }
+
+  Future<void> _clientUnknown(KnownNodeView n) async {
+    if (n.addresses.isEmpty) return;
+    final parsed = parseHostPort(n.addresses.first).value;
+    if (parsed == null) return;
+    await showClientUnknownChoice(
+      context,
+      node: NodeAddress(host: parsed.host, port: parsed.port),
+      error: _computed(n.peerId)?.error ?? '',
+      newClient: widget.newClient,
+    );
+  }
   String? _addressError;
   bool _adding = false;
   String? _note;
@@ -68,6 +110,12 @@ class _KnownNodesScreenState extends State<KnownNodesScreen> {
 
   @override
   void dispose() {
+    _health.removeListener(_onHealth);
+    if (widget.healthMonitor == null) {
+      _health.dispose();
+    } else {
+      _health.stop();
+    }
     _addressCtrl.dispose();
     super.dispose();
   }
@@ -208,6 +256,15 @@ class _KnownNodesScreenState extends State<KnownNodesScreen> {
         const SizedBox(height: 8),
         if (_list.isEmpty)
           SoftCard(child: Text(l.celautNodesEmpty, style: TextStyle(color: muted))),
+        if (_list.isNotEmpty)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton(
+              key: const Key('nodes-check-now'),
+              onPressed: _health.checking ? null : _health.checkNow,
+              child: Text(_health.checking ? l.celautNodeChecking : l.celautNodesCheckNow),
+            ),
+          ),
         for (final n in _list)
           SoftCard(
             child: Row(
@@ -226,6 +283,29 @@ class _KnownNodesScreenState extends State<KnownNodesScreen> {
                         l.celautNodesDeposited(formatErg(n.depositedNanoErg.toInt())),
                         style: TextStyle(fontSize: 12.5, color: muted),
                       ),
+                      if (_computed(n.peerId) case final c?)
+                        Text(
+                          l.celautNodeCredit(muOrUnknown(c.creditMu)),
+                          key: Key('nodes-credit-${n.peerId}'),
+                          style: TextStyle(fontSize: 12.5, color: muted),
+                        ),
+                      ...nodeStatusLines(
+                        context,
+                        peerId: n.peerId,
+                        health: _health.of(n.peerId),
+                        checking: _health.checking,
+                      ),
+                      if (_computed(n.peerId)?.clientUnknown ?? false) ...[
+                        Text(
+                          CelautStrings.errorText(CelautErrorKind.clientUnknown),
+                          style: TextStyle(fontSize: 12.5, color: rustFor(context)),
+                        ),
+                        TextButton(
+                          key: Key('nodes-client-unknown-${n.peerId}'),
+                          onPressed: () => _clientUnknown(n),
+                          child: Text(l.celautHomeClientUnknownAction),
+                        ),
+                      ],
                     ],
                   ),
                 ),

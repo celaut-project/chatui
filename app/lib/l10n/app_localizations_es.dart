@@ -6242,4 +6242,17 @@ class AppLocalizationsEs extends AppLocalizations {
   String celautSendFromLibrary(String to) {
     return 'Envía tu fichero cargado a $to';
   }
+
+  @override
+  String celautHomeNodesReady(String ready, String total) {
+    return '$ready de $total nodos listos';
+  }
+
+  @override
+  String get celautHomeCreditOnNodes => 'Crédito en nodos';
+
+  @override
+  String celautNodeCredit(String credit) {
+    return 'Crédito: $credit';
+  }
 }

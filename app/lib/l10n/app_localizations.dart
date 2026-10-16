@@ -9766,6 +9766,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Send your loaded file to {to}'**
   String celautSendFromLibrary(String to);
+
+  /// No description provided for @celautHomeNodesReady.
+  ///
+  /// In en, this message translates to:
+  /// **'{ready} of {total} nodes ready'**
+  String celautHomeNodesReady(String ready, String total);
+
+  /// No description provided for @celautHomeCreditOnNodes.
+  ///
+  /// In en, this message translates to:
+  /// **'Credit on nodes'**
+  String get celautHomeCreditOnNodes;
+
+  /// No description provided for @celautNodeCredit.
+  ///
+  /// In en, this message translates to:
+  /// **'Credit: {credit}'**
+  String celautNodeCredit(String credit);
 }
 
 class _AppLocalizationsDelegate

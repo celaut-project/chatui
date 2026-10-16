@@ -48,35 +48,43 @@ Rules:
   except in the transaction history that the user can see (transaction id, address).
   A later deposit to the same node can come from another wallet.
 
-## 2. Home screen: compute first, ERG second
+## 2. Home screen: what the user acts on
 
-Today the home screen is a wallet screen: it shows the wallets and how much ERG each
-one holds. The app is now a client for compute, so the home screen changes its focus.
+The compute view is the default home screen. The landing page of Celaut (branch
+`celaut-design`) is the visual reference.
 
-The compute view is the default home screen from the first release that has it. The
-landing page of Celaut (branch `celaut-design`) is the visual reference.
+**Decision of 2026-10-16 (Josemi), which replaces the order of 2026-10-13 ("compute
+first"):** the home screen shows only what the user acts on. The figures and the detail of
+each node are one tap away. In this order:
 
-The home screen must show, in this order of importance:
+1. **Running instances**, only when there are some: they cost money now. Each has its cost
+   so far and a stop action. With no instance, nothing is shown.
+2. **Run a service**: one button. It opens a screen of its own with the catalog of skills,
+   the service files of the user and the import of a file
+   (`app/lib/ui/celaut/run_service_screen.dart`). The catalog is read only there.
+3. **One card of state**, three lines, each opens its detail:
+   - the nodes: "N of M nodes ready · cores · memory", with a coloured dot (all ready,
+     some, none). It opens the Nodes screen;
+   - the credit on the nodes, in ERG with its USD value. It opens the Nodes screen;
+   - the ERG of the full wallets, with its USD value. It opens the wallets list.
+   A node that forgot the client of the app shows its action under the nodes line,
+   because the user must choose (section 3).
 
-1. **Available compute.** The sum of the resources that all known nodes offer:
-   CPU (cores), memory, disk, and the number of nodes. The data comes from the
-   advertisement of each node (`GetPeerInfo`, resources). The nodes come from the
-   app's explicit node list (see section 4). A node that is not reachable is not
-   counted. Show the number of nodes that are counted and the number that are not
-   reachable. Do not hide the difference.
-2. **Money for compute.** Two separate figures, with distinct labels:
-   - ERG in full wallets, which can pay for compute.
-   - ERG in read-only wallets (watched addresses and accounts), which cannot pay.
-   Also show the credit already deposited on nodes, in MU and in ERG. Show the free
-   credit of each new client as a separate figure from the credit the user paid.
-   The USD value of the ERG is shown here too, from the oracle pool price.
-3. **Running instances.** The instances now running, with the cost so far, and a
-   stop action.
+Not on the home screen any more: the big figure of the cores, memory and disk as separate
+figures, the note "offered, not free", the watched wallets, the paid and the free credit
+apart, the USD source note, the card of each node (address, MU, rate, latency, reasons) and
+"Check now". The Nodes screen has the card of each node: its availability (section 4), its
+credit from the last overview, the action for a forgotten client, and "Check now". The
+wallets list has the watched wallets.
 
-The ERG amount of each wallet moves to a second level. It is not on the first view of
-the home screen. The user reaches it from a wallets entry (a list of wallets with
-their type, balance and history). Send, receive, ErgoPay and cold signing stay in the
-wallet screens and do not change.
+**Load.** The home screen shows the last overview at once when it opens again (it is kept
+in memory), with a thin line while it asks the nodes; on the first open it says that it
+loads, and the button and the wallets do not wait. The overview gives each node 5 seconds
+for each step (20 through Tor), not 15: one node that does not answer no longer holds the
+screen for 30 seconds. The home screen does not check the nodes in the background (the
+overview records one check for each node it asks); the Nodes screen checks them while it is
+open. The catalog keeps its answers for 5 minutes, and gives the last answer when the
+explorer fails.
 
 Rules for the numbers:
 
