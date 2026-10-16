@@ -60,20 +60,21 @@ class NodeHealthMonitor extends ChangeNotifier {
   }
 
   /// Read the stored state at once (no connection), check the nodes that are due, and
-  /// check again every [interval].
-  void start() {
+  /// check again every [interval]. With `checkFirst: false` the first check waits for the
+  /// first interval: for a screen that has just asked the nodes another way.
+  void start({bool checkFirst = true}) {
     if (_started || _disposed) return;
     _started = true;
     _readStored();
-    resume();
+    resume(checkFirst: checkFirst);
   }
 
   /// Start the timer and check the nodes that are due. Use it when the app is in use again.
-  void resume() {
+  void resume({bool checkFirst = true}) {
     if (!_started || _disposed) return;
     _ticker?.cancel();
     _ticker = _timer(interval, () => _run(false));
-    _run(false).ignore();
+    if (checkFirst) _run(false).ignore();
   }
 
   /// Stop the timer. The state stays. Use it when the app goes to the background.

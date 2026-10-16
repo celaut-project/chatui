@@ -17,8 +17,22 @@ use super::celaut::{invalid, CelautError, CelautErrorKind};
 use super::celaut_db::{db, now_seconds, storage_error};
 use super::celaut_service::{address_of_key, cost_so_far, key, session, NodeAddress, Session};
 
-/// How long the overview waits for one node.
-const NODE_TIMEOUT: Duration = Duration::from_secs(15);
+/// How long the overview waits for each step of one node (the connection, then the
+/// balance). Short, because the home screen waits for the slowest node: a node that does
+/// not answer in this time counts as unreachable, and the checks in the background
+/// (`celaut_health`) try it again later.
+const NODE_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// [`NODE_TIMEOUT`] through Tor or another proxy, where a circuit is slow.
+const NODE_TIMEOUT_PROXY: Duration = Duration::from_secs(20);
+
+fn node_timeout() -> Duration {
+    if matches!(celaut_net::route(), celaut_net::Route::Direct) {
+        NODE_TIMEOUT
+    } else {
+        NODE_TIMEOUT_PROXY
+    }
+}
 
 /// A sum where some parts can be unknown (`docs/celaut/ui.md`, section 2):
 /// - `total` is the sum when every part is known;
@@ -157,7 +171,7 @@ pub(crate) struct Reached {
 
 /// A session on the node at one of its addresses, the last one first.
 async fn reach(addresses: &[String]) -> Reached {
-    reach_within(addresses, NODE_TIMEOUT).await
+    reach_within(addresses, node_timeout()).await
 }
 
 /// [`reach`] with a limit of `limit` for each step of each address.
@@ -298,7 +312,7 @@ pub async fn celaut_compute_overview() -> Result<ComputeOverviewView, CelautErro
             .and_then(|(_, r)| r.session.clone());
         let balance = match &found {
             Some(s) => {
-                match tokio::time::timeout(NODE_TIMEOUT, s.instance_balance(&record.token)).await {
+                match tokio::time::timeout(node_timeout(), s.instance_balance(&record.token)).await {
                     Ok(Ok(b)) => Some(b),
                     _ => None,
                 }

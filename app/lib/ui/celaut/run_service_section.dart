@@ -49,7 +49,11 @@ class RunServiceSection extends StatefulWidget {
     this.transfer,
     this.packages,
     this.library,
+    this.showTitle = true,
   });
+
+  /// Show the title of the section. Off on its own screen, where the app bar has it.
+  final bool showTitle;
 
   /// The full wallets: Run needs one that is open. Tests give their own.
   final FullWallets wallets;
@@ -434,8 +438,10 @@ class _RunServiceSectionState extends State<RunServiceSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(l.celautRunTitle.toUpperCase(), style: t.label),
-          const SizedBox(height: 10),
+          if (widget.showTitle) ...[
+            Text(l.celautRunTitle.toUpperCase(), style: t.label),
+            const SizedBox(height: 10),
+          ],
           TextField(
             key: const Key('run-search'),
             controller: _search,

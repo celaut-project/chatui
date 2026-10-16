@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../bridge/api/celaut.dart';
-import '../../bridge/api/celaut_health.dart';
 import '../../bridge/api/celaut_home.dart';
 import '../../bridge/api/celaut_service.dart';
 import '../../celaut/celaut_format.dart';
 import '../../celaut/celaut_strings.dart';
 import '../../celaut/host_port.dart';
-import '../../celaut/node_health_format.dart';
-import '../../celaut/node_health_monitor.dart';
+import '../../celaut/overview_cache.dart';
 import '../../celaut/payers.dart';
 import '../../celaut/wallet_money.dart';
 import '../../format.dart';
@@ -17,20 +15,21 @@ import '../../theme/argus_theme.dart';
 import '../home/home_scene.dart';
 import '../home/home_style.dart';
 import 'client_unknown_dialog.dart';
-import 'run_service_section.dart';
+import 'run_service_screen.dart';
 
 /// The home screen of the app (`docs/celaut/ui.md`, section 2), in the look of the
-/// Celaut landing page: the palette, Playfair Display for the figure and the headings,
-/// Lato for the rest, spaced capitals for the labels, hairlines between the parts.
+/// Celaut landing page. It shows only what the user acts on, in this order:
 ///
-/// In order of importance:
-/// 1. the compute that the nodes of the node list offer;
-/// 2. the money for compute: the ERG of the full wallets and of the watched wallets as
-///    two figures, the paid credit and the free credit on the nodes, each with its USD
-///    value from the oracle pool price;
-/// 3. the running instances, with their cost so far and a stop action.
+/// 1. the running instances, if there are some: they cost money now, and can be stopped;
+/// 2. the button that opens "Run a service";
+/// 3. one card of state: the nodes in one line (how many are ready, the compute that they
+///    offer), the credit on the nodes, and the ERG of the full wallets. Each line opens
+///    its detail: the Nodes screen, or the wallets list. A node that forgot the client of
+///    the app shows its action here, because the user must choose.
 ///
-/// The ERG of each wallet is one level down, in the wallets list.
+/// The detail of each node (availability, reasons, credit) is on the Nodes screen. The
+/// screen shows the last overview at once when it opens again, and asks the nodes in the
+/// background.
 class ComputeHomeScreen extends StatefulWidget {
   const ComputeHomeScreen({
     super.key,
@@ -44,12 +43,11 @@ class ComputeHomeScreen extends StatefulWidget {
     this.stop,
     this.newClient,
     this.refreshPrice,
-    this.healthMonitor,
+    this.runScreen,
   });
 
-  /// Keeps the availability of the nodes up to date while this screen is open. Tests give
-  /// their own; without one the screen makes its own and stops it when it closes.
-  final NodeHealthMonitor? healthMonitor;
+  /// The screen of "Run a service". Tests give their own.
+  final WidgetBuilder? runScreen;
 
   /// Ask the oracle pool price again (it is cached for some minutes).
   final Future<void> Function()? refreshPrice;
@@ -83,9 +81,9 @@ class ComputeHomeScreen extends StatefulWidget {
   State<ComputeHomeScreen> createState() => ComputeHomeScreenState();
 }
 
-class ComputeHomeScreenState extends State<ComputeHomeScreen> with WidgetsBindingObserver {
-  late final NodeHealthMonitor _health = widget.healthMonitor ?? NodeHealthMonitor();
-  ComputeOverviewView? _data;
+class ComputeHomeScreenState extends State<ComputeHomeScreen> {
+  /// The last overview: the one of the last open of this screen at first.
+  ComputeOverviewView? _data = overviewCache.value;
   bool _loading = false;
   String? _stopping;
   String? _note;
@@ -98,36 +96,6 @@ class ComputeHomeScreenState extends State<ComputeHomeScreen> with WidgetsBindin
   void initState() {
     super.initState();
     refresh();
-    _health.addListener(_onHealth);
-    _health.start();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _health.removeListener(_onHealth);
-    if (widget.healthMonitor == null) {
-      _health.dispose();
-    } else {
-      _health.stop();
-    }
-    super.dispose();
-  }
-
-  /// The checks of the nodes go on only while the app is in use.
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _health.resume();
-    } else if (state == AppLifecycleState.paused) {
-      _health.pause();
-    }
-  }
-
-  /// Only the node cards change when the checks give news: the overview is not loaded again.
-  void _onHealth() {
-    if (mounted) setState(() {});
   }
 
   /// Ask the nodes again.
@@ -140,6 +108,7 @@ class ComputeHomeScreenState extends State<ComputeHomeScreen> with WidgetsBindin
     });
     try {
       final data = await (widget.load ?? celautComputeOverview)();
+      overviewCache.value = data;
       if (mounted) setState(() => _data = data);
     } on CelautError catch (e) {
       if (mounted) setState(() => _error = e);
@@ -229,12 +198,6 @@ class ComputeHomeScreenState extends State<ComputeHomeScreen> with WidgetsBindin
           ),
         ),
         actions: [
-          IconButton(
-            key: const Key('compute-home-refresh'),
-            tooltip: l.celautHomeRefresh,
-            onPressed: _loading ? null : refresh,
-            icon: const Icon(Icons.refresh),
-          ),
           if (widget.onSettings != null)
             IconButton(
               key: const Key('compute-home-settings'),
@@ -250,18 +213,17 @@ class ComputeHomeScreenState extends State<ComputeHomeScreen> with WidgetsBindin
         child: ListView(
           padding: EdgeInsets.fromLTRB(0, 8, 0, 32 + MediaQuery.paddingOf(context).bottom),
           children: [
-            if (_loading && data == null)
-              _Pad(
-                child: Text(
-                  l.celautHomeLoading,
-                  key: const Key('compute-home-loading'),
-                  style: t.secondary,
-                ),
-              ),
+            // A thin line while the nodes are asked: the last overview stays readable.
+            SizedBox(
+              height: 2,
+              child: _loading && data != null
+                  ? const LinearProgressIndicator(key: Key('compute-home-updating'))
+                  : null,
+            ),
             if (_error != null)
               _Pad(
                 child: Text(
-                  '${CelautStrings.errorText(_error!.kind)}\n${_error!.message}',
+                  CelautStrings.errorText(_error!.kind),
                   key: const Key('compute-home-error'),
                   style: t.secondary.copyWith(color: rustFor(context)),
                 ),
@@ -276,49 +238,21 @@ class ComputeHomeScreenState extends State<ComputeHomeScreen> with WidgetsBindin
               ),
             if (_note != null)
               _Pad(child: Text(_note!, key: const Key('compute-home-note'), style: t.secondary)),
-            ..._compute(context, data),
-            const SizedBox(height: 28),
-            const HomeRule(),
-            const SizedBox(height: 24),
-            RunServiceSection(
-              wallets: widget.wallets,
-              newClient: widget.newClient,
-              onChanged: refresh,
-            ),
-            const SizedBox(height: 28),
-            const HomeRule(),
-            const SizedBox(height: 24),
-            ..._money(context, data),
-            const SizedBox(height: 28),
-            const HomeRule(),
-            const SizedBox(height: 24),
             ..._instances(context, data),
-            const SizedBox(height: 32),
+            const SizedBox(height: 16),
             _Pad(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      key: const Key('compute-home-wallets'),
-                      onPressed: widget.onWallets,
-                      icon: const Icon(Icons.account_balance_wallet_outlined),
-                      label: Text(l.celautHomeWallets),
-                    ),
-                  ),
-                  if (widget.onNodes != null) ...[
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        key: const Key('compute-home-nodes-button'),
-                        onPressed: widget.onNodes,
-                        icon: const Icon(Icons.hub_outlined),
-                        label: Text(l.celautHomeNodesButton),
-                      ),
-                    ),
-                  ],
-                ],
+              child: FilledButton.icon(
+                key: const Key('compute-home-run'),
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                onPressed: _openRun,
+                icon: const Icon(Icons.play_arrow_rounded),
+                label: Text(l.celautRunTitle),
               ),
             ),
+            const SizedBox(height: 28),
+            const HomeRule(),
+            const SizedBox(height: 12),
+            ..._state(context, data),
           ],
         ),
       ),
@@ -336,79 +270,17 @@ class ComputeHomeScreenState extends State<ComputeHomeScreen> with WidgetsBindin
     );
   }
 
-  /// 1. The compute that the nodes of the node list offer.
-  List<Widget> _compute(BuildContext context, ComputeOverviewView? d) {
-    final l = context.l10n;
-    final t = HomeText.of(context);
-    final figure = TextStyle(
-      fontFamily: headingFont,
-      fontWeight: FontWeight.w500,
-      fontSize: 46,
-      height: 1.08,
-      letterSpacing: -1,
-      color: t.ink,
-      fontFeatures: const [FontFeature.liningFigures()],
-    );
-    final children = <Widget>[
-      _Pad(child: Text(l.celautHomeComputeTitle.toUpperCase(), style: t.label)),
-      const SizedBox(height: 10),
-    ];
-    if (d == null) return children;
-    if (d.nodes.isEmpty) {
-      return [
-        ...children,
-        _Pad(
-          child: Text(l.celautHomeNoNodes, key: const Key('compute-home-empty'), style: t.primary),
-        ),
-      ];
-    }
-    final cores = d.cpuCores;
-    final coresText = partialSum<double>(
-      total: cores.total,
-      known: cores.known,
-      unknownNodes: cores.unknownNodes,
-      atLeast: cores.atLeast,
-      format: CelautStrings.cores,
-    );
-    return [
-      ...children,
-      _Pad(
-        child: Text(
-          coresText,
-          key: const Key('compute-home-cpu'),
-          style: cores.total == null ? figure.copyWith(fontSize: 28, height: 1.2) : figure,
-        ),
-      ),
-      const SizedBox(height: 14),
-      _Pad(
-        child: Wrap(
-          spacing: 28,
-          runSpacing: 10,
-          children: [
-            _Stat(
-              key: const Key('compute-home-memory'),
-              label: CelautStrings.memoryLabel,
-              value: _bytes(d.memBytes),
+  Future<void> _openRun() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: widget.runScreen ??
+            (_) => RunServiceScreen(
+              wallets: widget.wallets,
+              newClient: widget.newClient,
+              onChanged: refresh,
             ),
-            _Stat(
-              key: const Key('compute-home-disk'),
-              label: CelautStrings.diskLabel,
-              value: _bytes(d.diskBytes),
-            ),
-          ],
-        ),
       ),
-      const SizedBox(height: 14),
-      _Pad(
-        child: Text(
-          l.celautHomeNodes('${d.nodesCounted}', '${d.nodesUnreachable}'),
-          key: const Key('compute-home-nodes'),
-          style: t.primary,
-        ),
-      ),
-      const SizedBox(height: 4),
-      _Pad(child: Text(l.celautHomeOfferedNote, style: t.secondary)),
-    ];
+    );
   }
 
   String _bytes(BytesTotalView b) => partialSum<int>(
@@ -427,193 +299,92 @@ class ComputeHomeScreenState extends State<ComputeHomeScreen> with WidgetsBindin
     format: ergTextOrUnknown,
   );
 
-  /// 2. The money for compute.
-  List<Widget> _money(BuildContext context, ComputeOverviewView? d) {
-    final l = context.l10n;
-    final t = HomeText.of(context);
-    final usd = widget.usdPerErg;
-    final money = widget.money;
-    return [
-      _Pad(child: Text(l.celautHomeMoneyTitle.toUpperCase(), style: t.label)),
-      const SizedBox(height: 6),
-      _MoneyRow(
-        key: const Key('compute-home-full'),
-        title: l.celautHomeFullWallets,
-        value: money.full.text,
-        usd: usdTextOf(money.full.exactNano, usd),
-      ),
-      _MoneyRow(
-        key: const Key('compute-home-watched'),
-        title: l.celautHomeWatched,
-        value: money.watched.text,
-        usd: usdTextOf(money.watched.exactNano, usd),
-      ),
-      if (d != null && d.nodes.isNotEmpty) ...[
-        _MoneyRow(
-          key: const Key('compute-home-paid'),
-          title: l.celautHomePaidCredit,
-          value: _erg(d.paidNanoErg),
-          usd: usdTextOf(nanoOf(d.paidNanoErg.total), usd),
-        ),
-        _MoneyRow(
-          key: const Key('compute-home-free'),
-          title: l.celautHomeFreeCredit,
-          value: _erg(d.freeNanoErg),
-          usd: usdTextOf(nanoOf(d.freeNanoErg.total), usd),
-        ),
-        const SizedBox(height: 8),
-        for (final n in d.nodes) _node(context, n),
-        _Pad(
-          child: Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: TextButton(
-              key: const Key('compute-home-check-nodes'),
-              onPressed: _health.checking ? null : _health.checkNow,
-              child: Text(
-                _health.checking ? l.celautNodeChecking : l.celautNodesCheckNow,
-                style: t.link,
-              ),
-            ),
-          ),
-        ),
-      ],
-      const SizedBox(height: 10),
-      _Pad(
-        child: Text(
-          l.celautHomeUsdSource,
-          key: const Key('compute-home-usd-source'),
-          style: t.secondary,
-        ),
-      ),
-    ];
-  }
-
-  Widget _node(BuildContext context, NodeComputeView n) {
-    final l = context.l10n;
-    final t = HomeText.of(context);
-    final String detail;
-    if (n.reachable) {
-      detail = l.celautHomeNodeCredit(
-        muOrUnknown(n.paidMu),
-        muOrUnknown(n.freeMu),
-        n.muPerNanoErg ?? l.celautUnknown,
-      );
-    } else {
-      detail = l.celautHomeNodeUnreachable;
-    }
-    return _Pad(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
-          key: Key('compute-home-credit-${n.peerId}'),
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    '${shorten(n.peerId, head: 8, tail: 6)} · ${n.address}',
-                    style: t.primary,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(muOrUnknown(n.creditMu), style: t.primary),
-              ],
-            ),
-            Text(detail, style: t.secondary),
-            ..._availability(context, n.peerId),
-            if (n.clientUnknown) ...[
-              Text(
-                CelautStrings.errorText(CelautErrorKind.clientUnknown),
-                style: t.secondary.copyWith(color: rustFor(context)),
-              ),
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: TextButton(
-                  key: Key('compute-home-client-unknown-${n.peerId}'),
-                  onPressed: () => _clientUnknown(n),
-                  child: Text(l.celautHomeClientUnknownAction, style: t.link),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// The availability line of a node card, from the checks that the core keeps. A coloured
-  /// dot goes with the text, never alone. Nothing if the core has no state for the node and
-  /// no check runs.
-  List<Widget> _availability(BuildContext context, String peerId) {
+  /// The card of state: the nodes, the credit on them, and the full wallets.
+  List<Widget> _state(BuildContext context, ComputeOverviewView? d) {
     final l = context.l10n;
     final t = HomeText.of(context);
     final tones = HomeTones.of(context);
-    final h = _health.of(peerId);
-    final checking = _health.checking;
-    if (h == null && !checking) return const [];
+    final usd = widget.usdPerErg;
+    final String nodesText;
     final Color dot;
-    final String text;
-    switch (h?.availability) {
-      case null:
-        dot = tones.muted;
-        text = l.celautNodeChecking;
-      case NodeAvailability.unknown:
-        dot = tones.muted;
-        text = l.celautNodeUnknownState;
-      case NodeAvailability.available:
-        dot = tones.positive;
-        text = l.celautNodeAvailable('${h!.latencyMs ?? '?'}');
-      case NodeAvailability.slow:
-        dot = rustFor(context);
-        text = l.celautNodeSlow('${h!.latencyMs ?? '?'}');
-      case NodeAvailability.unreachable:
-        dot = tones.negative;
-        final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-        final seen = h!.lastOkAt == 0
-            ? l.celautNodeNeverSeen
-            : l.celautNodeLastSeen(agoText(l, now - h.lastOkAt));
-        text = '${l.celautNodeUnreachable} · $seen';
+    if (d == null) {
+      nodesText = l.celautHomeLoading;
+      dot = tones.muted;
+    } else if (d.nodes.isEmpty) {
+      nodesText = l.celautHomeNoNodes;
+      dot = tones.muted;
+    } else {
+      final total = d.nodesCounted + d.nodesUnreachable;
+      final cores = d.cpuCores;
+      final parts = [
+        l.celautHomeNodesReady('${d.nodesCounted}', '$total'),
+        if (d.nodesCounted > 0)
+          partialSum<double>(
+            total: cores.total,
+            known: cores.known,
+            unknownNodes: cores.unknownNodes,
+            atLeast: cores.atLeast,
+            format: CelautStrings.cores,
+          ),
+        if (d.nodesCounted > 0) _bytes(d.memBytes),
+      ];
+      nodesText = parts.join(' · ');
+      dot = d.nodesUnreachable == 0
+          ? tones.positive
+          : d.nodesCounted == 0
+              ? tones.negative
+              : rustFor(context);
     }
-    final shown = h != null && checking ? '$text · ${l.celautNodeChecking}' : text;
-    final kind = h?.errorKind;
-    final raw = h?.error;
+    final forgot = [
+      for (final n in d?.nodes ?? const <NodeComputeView>[])
+        if (n.clientUnknown) n,
+    ];
     return [
-      Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Row(
-          key: Key('compute-home-health-$peerId'),
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
-            ),
-            const SizedBox(width: 8),
-            Expanded(child: Text(shown, style: t.secondary)),
-          ],
+      _Line(
+        key: const Key('compute-home-nodes'),
+        onTap: widget.onNodes,
+        leading: Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
         ),
+        title: nodesText,
       ),
-      if (h != null && h.availability == NodeAvailability.unreachable) ...[
-        if (kind != null)
-          Text(
-            CelautStrings.errorText(kind),
-            key: Key('compute-home-health-reason-$peerId'),
-            style: t.secondary,
+      for (final n in forgot)
+        _Pad(
+          child: Row(
+            key: Key('compute-home-client-unknown-row-${n.peerId}'),
+            children: [
+              Expanded(
+                child: Text(
+                  '${shorten(n.peerId, head: 8, tail: 6)}: '
+                  '${CelautStrings.errorText(CelautErrorKind.clientUnknown)}',
+                  style: t.secondary.copyWith(color: rustFor(context)),
+                ),
+              ),
+              TextButton(
+                key: Key('compute-home-client-unknown-${n.peerId}'),
+                onPressed: () => _clientUnknown(n),
+                child: Text(l.celautHomeClientUnknownAction, style: t.link),
+              ),
+            ],
           ),
-        if (raw != null && raw.isNotEmpty)
-          Text(
-            CelautStrings.detailLabel(raw),
-            key: Key('compute-home-health-detail-$peerId'),
-            style: t.secondary.copyWith(fontSize: 12, color: t.muted),
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-          ),
-      ],
+        ),
+      if (d != null && d.nodes.isNotEmpty)
+        _Line(
+          key: const Key('compute-home-credit'),
+          onTap: widget.onNodes,
+          title: l.celautHomeCreditOnNodes,
+          value: _erg(d.creditNanoErg),
+          detail: usdTextOf(nanoOf(d.creditNanoErg.total), usd),
+        ),
+      _Line(
+        key: const Key('compute-home-wallets'),
+        onTap: widget.onWallets,
+        title: l.celautHomeWallets,
+        value: widget.money.full.text,
+        detail: usdTextOf(widget.money.full.exactNano, usd),
+      ),
     ];
   }
 
@@ -623,12 +394,12 @@ class ComputeHomeScreenState extends State<ComputeHomeScreen> with WidgetsBindin
     final t = HomeText.of(context);
     final gate = widget.money.gate;
     final instances = d?.instances ?? const <RunningInstanceView>[];
+    if (instances.isEmpty) return const [];
     return [
+      const SizedBox(height: 8),
       _Pad(child: Text(l.celautHomeInstancesTitle.toUpperCase(), style: t.label)),
-      const SizedBox(height: 10),
-      if (d != null && instances.isEmpty)
-        _Pad(child: Text(l.celautHomeNoInstances, style: t.secondary)),
-      if (instances.isNotEmpty && gate == FullWalletGate.none)
+      const SizedBox(height: 6),
+      if (gate == FullWalletGate.none)
         _Pad(
           child: Text(
             l.celautNoFullWallet,
@@ -636,7 +407,7 @@ class ComputeHomeScreenState extends State<ComputeHomeScreen> with WidgetsBindin
             style: t.secondary.copyWith(color: rustFor(context)),
           ),
         ),
-      if (instances.isNotEmpty && gate == FullWalletGate.locked)
+      if (gate == FullWalletGate.locked)
         _Pad(
           child: Text(
             l.celautOpenFullWalletNeeded,
@@ -701,61 +472,55 @@ class _Pad extends StatelessWidget {
   );
 }
 
-/// A label in spaced capitals over a value.
-class _Stat extends StatelessWidget {
-  const _Stat({super.key, required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = HomeText.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(label.toUpperCase(), style: t.label.copyWith(fontSize: 11)),
-        const SizedBox(height: 2),
-        Text(value, style: t.primary.copyWith(fontSize: 18)),
-      ],
-    );
-  }
-}
-
-/// A row of the money: what it is on the left, the ERG and the USD on the right.
-class _MoneyRow extends StatelessWidget {
-  const _MoneyRow({super.key, required this.title, required this.value, required this.usd});
+/// One line of the card of state: a title on the left, a value and a detail on the right,
+/// and an arrow when it opens something.
+class _Line extends StatelessWidget {
+  const _Line({
+    super.key,
+    required this.title,
+    this.value,
+    this.detail,
+    this.leading,
+    this.onTap,
+  });
 
   final String title;
-  final String value;
-  final String usd;
+  final String? value;
+  final String? detail;
+  final Widget? leading;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final t = HomeText.of(context);
-    return _Pad(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: Text(title, style: t.primary)),
-            const SizedBox(width: 12),
-            Flexible(
-              // Align fills the slot, so the figures end on the right edge of the page.
-              child: Align(
-                alignment: AlignmentDirectional.topEnd,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(value, textAlign: TextAlign.end, style: t.primary),
-                    Text(usd, textAlign: TextAlign.end, style: t.secondary),
-                  ],
+    return InkWell(
+      onTap: onTap,
+      child: _Pad(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            children: [
+              if (leading != null) ...[leading!, const SizedBox(width: 12)],
+              Expanded(child: Text(title, style: t.primary)),
+              if (value != null) ...[
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(value!, textAlign: TextAlign.end, style: t.primary),
+                      if (detail != null)
+                        Text(detail!, textAlign: TextAlign.end, style: t.secondary),
+                    ],
+                  ),
                 ),
-              ),
-            ),
-          ],
+              ],
+              if (onTap != null) ...[
+                const SizedBox(width: 6),
+                Icon(Icons.chevron_right, size: 20, color: t.muted),
+              ],
+            ],
+          ),
         ),
       ),
     );

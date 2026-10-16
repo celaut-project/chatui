@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:argus_wallet/bridge/api/celaut_home.dart';
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
 import 'package:argus_wallet/celaut/celaut_format.dart';
 import 'package:argus_wallet/celaut/celaut_strings.dart';
 import 'package:argus_wallet/celaut/compute_home_flag.dart';
+import 'package:argus_wallet/celaut/overview_cache.dart';
 import 'package:argus_wallet/celaut/payers.dart';
 import 'package:argus_wallet/celaut/wallet_money.dart';
 import 'package:argus_wallet/format.dart';
@@ -92,6 +95,34 @@ ComputeOverviewView _overview() => ComputeOverviewView(
   ],
 );
 
+extension on ComputeOverviewView {
+  ComputeOverviewView copyWithNoInstances() => ComputeOverviewView(
+    nodesCounted: nodesCounted,
+    nodesUnreachable: nodesUnreachable,
+    cpuCores: cpuCores,
+    memBytes: memBytes,
+    diskBytes: diskBytes,
+    creditNanoErg: creditNanoErg,
+    paidNanoErg: paidNanoErg,
+    freeNanoErg: freeNanoErg,
+    nodes: nodes,
+    instances: const [],
+  );
+
+  ComputeOverviewView copyWithNoNodes() => ComputeOverviewView(
+    nodesCounted: 0,
+    nodesUnreachable: 0,
+    cpuCores: cpuCores,
+    memBytes: memBytes,
+    diskBytes: diskBytes,
+    creditNanoErg: creditNanoErg,
+    paidNanoErg: paidNanoErg,
+    freeNanoErg: freeNanoErg,
+    nodes: const [],
+    instances: const [],
+  );
+}
+
 const _full = WalletSum(count: 2, unknown: 0, knownNano: 250000000);
 const _watched = WalletSum(count: 1, unknown: 0, knownNano: 3000000000);
 
@@ -122,6 +153,8 @@ class _Run {
   final stops = <String>[];
   final newClients = <String>[];
   var loads = 0;
+  var nodesOpened = 0;
+  var walletsOpened = 0;
 }
 
 void main() {
@@ -130,6 +163,7 @@ void main() {
     WalletMoney? money,
     double? usdPerErg = 2.0,
     FullWallets? wallets,
+    Future<ComputeOverviewView> Function()? load,
   }) async {
     tester.view.physicalSize = const Size(390, 4000);
     tester.view.devicePixelRatio = 1;
@@ -142,12 +176,13 @@ void main() {
               money ??
               const WalletMoney(full: _full, watched: _watched, gate: FullWalletGate.open),
           usdPerErg: usdPerErg,
-          onWallets: () {},
-          onNodes: () {},
+          onWallets: () => run.walletsOpened++,
+          onNodes: () => run.nodesOpened++,
+          runScreen: (_) => const Scaffold(body: Text('the run screen')),
           wallets: wallets ?? _Wallets(),
           load: () async {
             run.loads++;
-            return _overview();
+            return load == null ? _overview() : load();
           },
           stop: (id) async {
             run.stops.add(id);
@@ -171,57 +206,72 @@ void main() {
       .map((t) => t.data)
       .join(' | ');
 
-  testWidgets('compute first: a partial sum is "at least", a missing one is unknown', (
-    tester,
-  ) async {
+  setUp(() => overviewCache.value = null);
+
+  testWidgets('the order: running instances, then Run, then the card of state', (tester) async {
     await pump(tester);
-    final l = appL10n;
-    expect(text(tester, 'compute-home-nodes'), l.celautHomeNodes('2', '1'));
-    expect(text(tester, 'compute-home-cpu'), l.celautAtLeast(CelautStrings.cores(6), 1));
-    expect(text(tester, 'compute-home-cpu'), contains('1 node unknown'));
-    expect(rowTexts(tester, 'compute-home-memory'), contains(CelautStrings.bytes(8589934592)));
-    expect(rowTexts(tester, 'compute-home-disk'), contains(l.celautUnknown));
-    expect(find.text(l.celautHomeOfferedNote), findsOneWidget);
-    // The order: compute, money, instances.
-    final compute = tester.getTopLeft(find.byKey(const Key('compute-home-cpu'))).dy;
-    final money = tester.getTopLeft(find.byKey(const Key('compute-home-full'))).dy;
     final instance = tester.getTopLeft(find.byKey(const Key('compute-home-instance-i1'))).dy;
-    expect(compute, lessThan(money));
-    expect(money, lessThan(instance));
-    // The Celaut header.
+    final runButton = tester.getTopLeft(find.byKey(const Key('compute-home-run'))).dy;
+    final nodes = tester.getTopLeft(find.byKey(const Key('compute-home-nodes'))).dy;
+    final credit = tester.getTopLeft(find.byKey(const Key('compute-home-credit'))).dy;
+    final wallets = tester.getTopLeft(find.byKey(const Key('compute-home-wallets'))).dy;
+    expect(instance, lessThan(runButton));
+    expect(runButton, lessThan(nodes));
+    expect(nodes, lessThan(credit));
+    expect(credit, lessThan(wallets));
     expect(find.text('CELAUT'), findsOneWidget);
   });
 
-  testWidgets('full wallets and watched wallets are two figures with USD', (tester) async {
+  testWidgets('the detail of each node and of the money is not on the home screen', (tester) async {
     await pump(tester);
     final l = appL10n;
-    final full = rowTexts(tester, 'compute-home-full');
-    expect(full, contains(l.celautHomeFullWallets));
-    expect(full, contains(formatErg(250000000)));
-    expect(full, contains(l.celautHomeUsd('\$0.50')));
-    final watched = rowTexts(tester, 'compute-home-watched');
-    expect(watched, contains(l.celautHomeWatched));
-    expect(watched, contains(formatErg(3000000000)));
-    expect(watched, contains(l.celautHomeUsd('\$6.00')));
-    // Never one sum of the two.
-    expect(find.textContaining(formatErg(3250000000)), findsNothing);
-    expect(find.byKey(const Key('compute-home-usd-source')), findsOneWidget);
+    for (final gone in [
+      l.celautHomeOfferedNote,
+      l.celautHomeWatched,
+      l.celautHomePaidCredit,
+      l.celautHomeFreeCredit,
+      l.celautHomeUsdSource,
+      l.celautNodesCheckNow,
+    ]) {
+      expect(find.text(gone), findsNothing, reason: gone);
+    }
+    // No address, no rate in MU, no node card.
+    expect(find.textContaining('a.example:1'), findsNothing);
+    expect(find.byKey(Key('compute-home-credit-$_a')), findsNothing);
+    // The watched wallets are not added to the full ones either.
+    expect(find.textContaining(formatErg(3000000000)), findsNothing);
   });
 
-  testWidgets('the money figures end on the right edge of the page', (tester) async {
-    await pump(tester);
-    final value = tester.getTopRight(find.text(formatErg(250000000)));
-    final usd = tester.getTopRight(find.text(appL10n.celautHomeUsd('\$0.50')));
-    // 390 px wide, 24 px gutter.
-    expect(value.dx, closeTo(366, 1));
-    expect(usd.dx, closeTo(366, 1));
+  testWidgets('the nodes: one line with the ready ones, the cores and the memory', (tester) async {
+    final run = await pump(tester);
+    final l = appL10n;
+    final line = rowTexts(tester, 'compute-home-nodes');
+    expect(line, contains(l.celautHomeNodesReady('2', '3')));
+    expect(line, contains(l.celautAtLeast(CelautStrings.cores(6), 1)));
+    expect(line, contains(CelautStrings.bytes(8589934592)));
+    await tester.tap(find.byKey(const Key('compute-home-nodes')));
+    expect(run.nodesOpened, 1);
+  });
+
+  testWidgets('the credit on the nodes and the full wallets are one line each, with USD', (tester) async {
+    final run = await pump(tester);
+    final l = appL10n;
+    final credit = rowTexts(tester, 'compute-home-credit');
+    expect(credit, contains(l.celautHomeCreditOnNodes));
+    expect(credit, contains(l.celautAtLeast(formatNanoErg(BigInt.from(14500000)), 1)));
+    final wallets = rowTexts(tester, 'compute-home-wallets');
+    expect(wallets, contains(l.celautHomeWallets));
+    expect(wallets, contains(formatErg(250000000)));
+    expect(wallets, contains(l.celautHomeUsd('\$0.50')));
+    await tester.tap(find.byKey(const Key('compute-home-wallets')));
+    expect(run.walletsOpened, 1);
+    await tester.tap(find.byKey(const Key('compute-home-credit')));
+    expect(run.nodesOpened, 1);
   });
 
   testWidgets('without the oracle price the USD is unknown, not \$0', (tester) async {
     await pump(tester, usdPerErg: null);
-    final l = appL10n;
-    expect(rowTexts(tester, 'compute-home-full'), contains(l.celautHomeUsdUnknown));
-    expect(rowTexts(tester, 'compute-home-watched'), contains(l.celautHomeUsdUnknown));
+    expect(rowTexts(tester, 'compute-home-wallets'), contains(appL10n.celautHomeUsdUnknown));
     expect(find.textContaining('\$0'), findsNothing);
   });
 
@@ -234,29 +284,81 @@ void main() {
         gate: FullWalletGate.open,
       ),
     );
-    final l = appL10n;
     expect(
-      rowTexts(tester, 'compute-home-full'),
-      contains(l.celautAtLeastWallets(formatErg(250000000), 1)),
+      rowTexts(tester, 'compute-home-wallets'),
+      contains(appL10n.celautAtLeastWallets(formatErg(250000000), 1)),
     );
-    expect(rowTexts(tester, 'compute-home-full'), contains(l.celautHomeUsdUnknown));
-    expect(rowTexts(tester, 'compute-home-watched'), contains(l.celautUnknown));
   });
 
-  testWidgets('the free credit is apart from the paid credit', (tester) async {
+  testWidgets('with no instance, the instances are not on the home screen', (tester) async {
+    await pump(tester, load: () async => _overview().copyWithNoInstances());
+    expect(find.text(appL10n.celautHomeInstancesTitle.toUpperCase()), findsNothing);
+    expect(find.text(appL10n.celautHomeNoInstances), findsNothing);
+    expect(find.byKey(const Key('compute-home-run')), findsOneWidget);
+  });
+
+  testWidgets('with no node, the nodes line says how to add one', (tester) async {
+    await pump(tester, load: () async => _overview().copyWithNoNodes());
+    expect(rowTexts(tester, 'compute-home-nodes'), contains(appL10n.celautHomeNoNodes));
+    expect(find.byKey(const Key('compute-home-credit')), findsNothing);
+  });
+
+  testWidgets('Run a service opens its own screen', (tester) async {
     await pump(tester);
-    final l = appL10n;
-    final paid = rowTexts(tester, 'compute-home-paid');
-    expect(paid, contains(l.celautHomePaidCredit));
-    expect(paid, contains(l.celautAtLeast(formatNanoErg(BigInt.from(10000000)), 1)));
-    final free = rowTexts(tester, 'compute-home-free');
-    expect(free, contains(l.celautHomeFreeCredit));
-    expect(free, contains(l.celautAtLeast(formatNanoErg(BigInt.from(4500000)), 1)));
-    expect(
-      rowTexts(tester, 'compute-home-credit-$_a'),
-      contains(l.celautHomeNodeCredit('10,000,000 MU', '4,500,000 MU', '1')),
+    await tester.tap(find.byKey(const Key('compute-home-run')));
+    await tester.pumpAndSettle();
+    expect(find.text('the run screen'), findsOneWidget);
+  });
+
+  testWidgets('the last overview shows at once when the screen opens again', (tester) async {
+    await pump(tester);
+    expect(overviewCache.value, isNotNull);
+    // The next open: the nodes do not answer yet, and the last state is there.
+    final never = Completer<ComputeOverviewView>();
+    await tester.pumpWidget(const SizedBox());
+    tester.view.physicalSize = const Size(390, 4000);
+    tester.view.devicePixelRatio = 1;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ComputeHomeScreen(
+          money: const WalletMoney(full: _full, watched: _watched, gate: FullWalletGate.open),
+          usdPerErg: 2.0,
+          onWallets: () {},
+          load: () => never.future,
+        ),
+      ),
     );
-    expect(rowTexts(tester, 'compute-home-credit-$_c'), contains(l.celautHomeNodeUnreachable));
+    await tester.pump();
+    expect(rowTexts(tester, 'compute-home-nodes'), contains(appL10n.celautHomeNodesReady('2', '3')));
+    expect(find.byKey(const Key('compute-home-updating')), findsOneWidget);
+    expect(find.text(appL10n.celautHomeLoading), findsNothing);
+    never.complete(_overview());
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('compute-home-updating')), findsNothing);
+  });
+
+  testWidgets('the first open, with no last overview, says that it loads', (tester) async {
+    final never = Completer<ComputeOverviewView>();
+    tester.view.physicalSize = const Size(390, 4000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ComputeHomeScreen(
+          money: const WalletMoney(full: _full, watched: _watched, gate: FullWalletGate.open),
+          usdPerErg: 2.0,
+          onWallets: () {},
+          load: () => never.future,
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(rowTexts(tester, 'compute-home-nodes'), contains(appL10n.celautHomeLoading));
+    // The button and the wallets do not wait for the nodes.
+    expect(find.byKey(const Key('compute-home-run')), findsOneWidget);
+    expect(rowTexts(tester, 'compute-home-wallets'), contains(formatErg(250000000)));
+    never.complete(_overview());
+    await tester.pumpAndSettle();
   });
 
   testWidgets('a forgotten client: the user chooses a new client', (tester) async {

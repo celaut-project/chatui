@@ -8,7 +8,7 @@ import 'celaut.dart';
 import 'celaut_service.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `at_least`, `bytes_total`, `known_node`, `nano_erg_total`, `reach_within`, `reach`, `to_i64`
+// These functions are ignored because they are not marked as `pub`: `at_least`, `bytes_total`, `known_node`, `nano_erg_total`, `node_timeout`, `reach_within`, `reach`, `to_i64`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Reached`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 

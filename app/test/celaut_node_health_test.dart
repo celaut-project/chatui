@@ -3,13 +3,13 @@ import 'dart:async';
 import 'package:argus_wallet/bridge/api/celaut.dart';
 import 'package:argus_wallet/bridge/api/celaut_health.dart';
 import 'package:argus_wallet/bridge/api/celaut_home.dart';
+import 'package:argus_wallet/bridge/api/celaut_service.dart';
 import 'package:argus_wallet/celaut/celaut_strings.dart';
 import 'package:argus_wallet/celaut/node_health_format.dart';
 import 'package:argus_wallet/celaut/node_health_monitor.dart';
-import 'package:argus_wallet/celaut/payers.dart';
-import 'package:argus_wallet/celaut/wallet_money.dart';
+import 'package:argus_wallet/celaut/overview_cache.dart';
 import 'package:argus_wallet/l10n/l10n.dart';
-import 'package:argus_wallet/ui/celaut/compute_home_screen.dart';
+import 'package:argus_wallet/ui/celaut/known_nodes_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -245,29 +245,17 @@ void main() {
     });
   });
 
-  group('the node cards of the home screen', () {
-    setUp(() => SharedPreferences.setMockInitialValues({}));
-
-    ComputeOverviewView overview() => ComputeOverviewView(
-      nodesCounted: 4,
-      nodesUnreachable: 0,
-      cpuCores: const CoresTotalView(total: 1, known: 1, unknownNodes: 0, atLeast: false),
-      memBytes: const BytesTotalView(total: 1, known: 1, unknownNodes: 0, atLeast: false),
-      diskBytes: const BytesTotalView(total: 1, known: 1, unknownNodes: 0, atLeast: false),
-      creditNanoErg: const NanoErgTotalView(total: '1', known: '1', unknownNodes: 0, atLeast: false),
-      paidNanoErg: const NanoErgTotalView(total: '1', known: '1', unknownNodes: 0, atLeast: false),
-      freeNanoErg: const NanoErgTotalView(total: '1', known: '1', unknownNodes: 0, atLeast: false),
-      nodes: [
-        for (final p in [_a, _b, _c, _d])
-          NodeComputeView(peerId: p, address: '$p.example:1', reachable: true, clientUnknown: false),
-      ],
-      instances: const [],
-    );
+  group('the nodes on the Nodes screen', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+      overviewCache.value = null;
+    });
 
     Future<NodeHealthMonitor> pump(
       WidgetTester tester,
       List<NodeHealthView> views, {
       NodeHealthCheck? check,
+      _Timers? timers,
     }) async {
       tester.view.physicalSize = const Size(390, 4000);
       tester.view.devicePixelRatio = 1;
@@ -275,21 +263,11 @@ void main() {
       final monitor = NodeHealthMonitor(
         read: () => views,
         check: check ?? (force) async => views,
-        timer: _Timers().make,
+        timer: (timers ?? _Timers()).make,
       );
       await tester.pumpWidget(
         MaterialApp(
-          home: ComputeHomeScreen(
-            money: const WalletMoney(
-              full: WalletSum(count: 1, unknown: 0, knownNano: 1),
-              watched: WalletSum(count: 0, unknown: 0, knownNano: 0),
-              gate: FullWalletGate.open,
-            ),
-            usdPerErg: 2,
-            onWallets: () {},
-            load: () async => overview(),
-            healthMonitor: monitor,
-          ),
+          home: KnownNodesScreen(nodes: _Nodes([_a, _b, _c, _d]), healthMonitor: monitor),
         ),
       );
       await tester.pumpAndSettle();
@@ -298,10 +276,7 @@ void main() {
 
     String line(WidgetTester tester, String peer) => tester
         .widgetList<Text>(
-          find.descendant(
-            of: find.byKey(Key('compute-home-health-$peer')),
-            matching: find.byType(Text),
-          ),
+          find.descendant(of: find.byKey(Key('node-health-$peer')), matching: find.byType(Text)),
         )
         .map((t) => t.data)
         .join(' ');
@@ -323,39 +298,28 @@ void main() {
       expect(line(tester, _a), l.celautNodeAvailable('42'));
       expect(line(tester, _b), l.celautNodeSlow('4200'));
       expect(line(tester, _c), l.celautNodeUnknownState);
+      expect(line(tester, _d), '${l.celautNodeUnreachable} · ${l.celautNodeLastSeen('2 h')}');
       expect(
-        line(tester, _d),
-        '${l.celautNodeUnreachable} · ${l.celautNodeLastSeen('2 h')}',
-      );
-      // The reason, with the text of the node folded below it.
-      expect(
-        tester.widget<Text>(find.byKey(Key('compute-home-health-reason-$_d'))).data,
+        tester.widget<Text>(find.byKey(Key('node-health-reason-$_d'))).data,
         CelautStrings.errorText(CelautErrorKind.timeout),
       );
       expect(
-        tester.widget<Text>(find.byKey(Key('compute-home-health-detail-$_d'))).data,
+        tester.widget<Text>(find.byKey(Key('node-health-detail-$_d'))).data,
         CelautStrings.detailLabel('the node did not answer in time'),
       );
-      // An available node has no reason lines.
-      expect(find.byKey(Key('compute-home-health-reason-$_a')), findsNothing);
+      expect(find.byKey(Key('node-health-reason-$_a')), findsNothing);
     });
 
     testWidgets('a node that never answered says so', (tester) async {
-      await pump(tester, [
-        _view(_a, NodeAvailability.unreachable, kind: CelautErrorKind.unreachable),
-      ]);
-      expect(
-        line(tester, _a),
-        '${appL10n.celautNodeUnreachable} · ${appL10n.celautNodeNeverSeen}',
-      );
-      expect(find.byKey(Key('compute-home-health-detail-$_a')), findsNothing);
+      await pump(tester, [_view(_a, NodeAvailability.unreachable, kind: CelautErrorKind.unreachable)]);
+      expect(line(tester, _a), '${appL10n.celautNodeUnreachable} · ${appL10n.celautNodeNeverSeen}');
+      expect(find.byKey(Key('node-health-detail-$_a')), findsNothing);
     });
 
-    testWidgets('without a state from the core there is no line', (tester) async {
+    testWidgets('without a state from the core there is no line, and the node is listed', (tester) async {
       await pump(tester, const []);
-      expect(find.byKey(Key('compute-home-health-$_a')), findsNothing);
-      // The figures of the card are still there.
-      expect(find.byKey(Key('compute-home-credit-$_a')), findsOneWidget);
+      expect(find.byKey(Key('node-health-$_a')), findsNothing);
+      expect(find.byKey(Key('nodes-row-$_a')), findsOneWidget);
     });
 
     testWidgets('Check now forces a check and shows that it runs', (tester) async {
@@ -370,86 +334,74 @@ void main() {
           return force ? gate.future : Future.value(views);
         },
       );
-      expect(find.text(appL10n.celautNodesCheckNow), findsOneWidget);
-      await tester.tap(find.byKey(const Key('compute-home-check-nodes')));
+      await tester.tap(find.byKey(const Key('nodes-check-now')));
       await tester.pump();
       expect(forced.last, isTrue);
       expect(find.text(appL10n.celautNodeChecking), findsWidgets);
-      expect(
-        tester.widget<TextButton>(find.byKey(const Key('compute-home-check-nodes'))).onPressed,
-        isNull,
-      );
+      expect(tester.widget<TextButton>(find.byKey(const Key('nodes-check-now'))).onPressed, isNull);
       gate.complete([_view(_a, NodeAvailability.slow, latency: 9000)]);
       await tester.pumpAndSettle();
       expect(line(tester, _a), appL10n.celautNodeSlow('9000'));
-      expect(find.text(appL10n.celautNodesCheckNow), findsOneWidget);
     });
 
-    testWidgets('the overview is not loaded again when the checks give news', (tester) async {
-      var loads = 0;
-      final views = [_view(_a, NodeAvailability.available, latency: 10)];
-      tester.view.physicalSize = const Size(390, 4000);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      final monitor = NodeHealthMonitor(
-        read: () => views,
-        check: (force) async => views,
-        timer: _Timers().make,
-      );
-      await tester.pumpWidget(
-        MaterialApp(
-          home: ComputeHomeScreen(
-            money: const WalletMoney(
-              full: WalletSum(count: 1, unknown: 0, knownNano: 1),
-              watched: WalletSum(count: 0, unknown: 0, knownNano: 0),
-              gate: FullWalletGate.open,
-            ),
-            usdPerErg: 2,
-            onWallets: () {},
-            load: () async {
-              loads++;
-              return overview();
-            },
-            healthMonitor: monitor,
+    testWidgets('the credit of a node comes from the last overview of the home screen', (tester) async {
+      overviewCache.value = ComputeOverviewView(
+        nodesCounted: 1,
+        nodesUnreachable: 0,
+        cpuCores: const CoresTotalView(total: 1, known: 1, unknownNodes: 0, atLeast: false),
+        memBytes: const BytesTotalView(total: 1, known: 1, unknownNodes: 0, atLeast: false),
+        diskBytes: const BytesTotalView(total: 1, known: 1, unknownNodes: 0, atLeast: false),
+        creditNanoErg: const NanoErgTotalView(total: '1', known: '1', unknownNodes: 0, atLeast: false),
+        paidNanoErg: const NanoErgTotalView(total: '1', known: '1', unknownNodes: 0, atLeast: false),
+        freeNanoErg: const NanoErgTotalView(total: '0', known: '0', unknownNodes: 0, atLeast: false),
+        nodes: [
+          NodeComputeView(
+            peerId: _a,
+            address: '$_a.example:1',
+            reachable: true,
+            creditMu: '4500000',
+            clientUnknown: false,
           ),
-        ),
+          NodeComputeView(peerId: _b, address: '$_b.example:1', reachable: false, clientUnknown: true),
+        ],
+        instances: const [],
       );
-      await tester.pumpAndSettle();
-      await monitor.checkNow();
-      await tester.pumpAndSettle();
-      expect(loads, 1);
+      await pump(tester, const []);
+      expect(
+        tester.widget<Text>(find.byKey(Key('nodes-credit-$_a'))).data,
+        appL10n.celautNodeCredit('4,500,000 MU'),
+      );
+      expect(find.byKey(Key('nodes-client-unknown-$_b')), findsOneWidget);
+      expect(find.byKey(Key('nodes-client-unknown-$_a')), findsNothing);
     });
 
     testWidgets('closing the screen stops the monitor that a test gave', (tester) async {
       final timers = _Timers();
-      final monitor = NodeHealthMonitor(
-        read: () => const [],
-        check: (_) async => const [],
-        timer: timers.make,
-      );
-      tester.view.physicalSize = const Size(390, 4000);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      await tester.pumpWidget(
-        MaterialApp(
-          home: ComputeHomeScreen(
-            money: const WalletMoney(
-              full: WalletSum(count: 0, unknown: 0, knownNano: 0),
-              watched: WalletSum(count: 0, unknown: 0, knownNano: 0),
-              gate: FullWalletGate.none,
-            ),
-            usdPerErg: null,
-            onWallets: () {},
-            load: () async => overview(),
-            healthMonitor: monitor,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(timers.created.single.timer.cancelled, isFalse);
+      final monitor = await pump(tester, const [], timers: timers);
+      expect(timers.created, isNotEmpty);
       await tester.pumpWidget(const SizedBox());
-      expect(timers.created.single.timer.cancelled, isTrue);
-      monitor.dispose();
+      expect(timers.created.last.timer.isActive, isFalse);
+      // The monitor of a test is stopped, not disposed: the test can still read it.
+      expect(monitor.nodes, isEmpty);
     });
   });
+}
+
+/// The node list of a test.
+class _Nodes implements KnownNodes {
+  _Nodes(this.peers);
+
+  final List<String> peers;
+
+  @override
+  List<KnownNodeView> list() => [
+    for (final p in peers)
+      KnownNodeView(peerId: p, addresses: ['$p.example:1'], depositedNanoErg: BigInt.zero),
+  ];
+
+  @override
+  Future<KnownNodeView> add(NodeAddress node) => throw UnimplementedError();
+
+  @override
+  void remove(String peerId) {}
 }
