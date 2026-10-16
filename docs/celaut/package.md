@@ -32,6 +32,29 @@ The skill catalog does not give a source for a package today (`docs/celaut/catal
   markers** before it ends the request (bee-rpc 0.2: block A opens, block B opens, block A
   closes). nodo refuses them with `IntersectionError`, and does not store the service.
 
+## The screens
+
+When a launch from the home screen fails and some node says that it does not have the
+service, the failure sheet has a section "The service is not on these nodes", with one
+button (`app/lib/celaut/service_transfer.dart` decides which):
+
+- **Send it from A to B**, when a node of the list has the service. A node has it if it
+  gave a quote, or if it refused for a reason that nodo gives only for a service that it
+  has (closed, no room, no credit, rate limit, launch failed, network policy,
+  architecture). A node that did not answer says nothing.
+- **Choose a .celaut.bee file and send it to B**, when no node of the list has it. The
+  Android file picker copies the file into the cache of the app with a stream
+  (`PackageHandler.kt`). A file of another service, or with no Service part, is refused
+  before anything is sent.
+
+B is the first node that said that it lacks the service. Before the transfer, a
+confirmation says that the whole service goes through the phone and can be large, and on
+a metered network it warns about mobile data. A dialog shows the bytes (and the percent
+when the size is known) and has Cancel. When the node has the service, the launch runs
+again, so the balancer sees that node. A failed or cancelled transfer, or a refusal of
+the quote by the node (it stored the service but cannot run it), is shown with its
+reason, and the launch does not run again.
+
 ## The Bee-RPC part
 
 bee-rpc-over-grpc-rs 0.2 has two calls for a relay (`grpc::call_buffers`,

@@ -4553,5 +4553,61 @@
     }
   },
   "celautRunPreviewLoading": "Looking for the best node…",
-  "celautErrorTransferFailed": "The transfer of the service stopped (the file could not be read, it is cut, or it was cancelled). The node did not keep the cut service. Try again."
+  "celautErrorTransferFailed": "The transfer of the service stopped (the file could not be read, it is cut, or it was cancelled). The node did not keep the cut service. Try again.",
+  "celautSendMissingTitle": "The service is not on these nodes",
+  "celautSendFromNode": "Send it from {from} to {to}",
+  "@celautSendFromNode": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "celautSendFromFile": "Choose a .celaut.bee file and send it to {to}",
+  "@celautSendFromFile": {
+    "placeholders": {
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "celautSendNoHolder": "No node of your list has this service. You can give it to a node from a .celaut.bee file.",
+  "celautSendConfirmTitle": "Send the service?",
+  "celautSendConfirmBody": "The whole service goes through this phone to the node, and a service can be large. The node keeps it, so later launches on that node do not send it again.",
+  "celautSendMetered": "You are on mobile data: this can use a lot of it.",
+  "celautSendConfirm": "Send",
+  "celautSendCancel": "Cancel",
+  "celautSendFetching": "Getting the service from the node…",
+  "celautSendSending": "Giving the service to the node…",
+  "celautSendStarting": "Starting the transfer…",
+  "celautSendProgress": "{done} of {total} ({percent}%)",
+  "@celautSendProgress": {
+    "placeholders": {
+      "done": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "celautSendSoFar": "{done} so far",
+  "@celautSendSoFar": {
+    "placeholders": {
+      "done": {
+        "type": "String"
+      }
+    }
+  },
+  "celautSendDone": "The node has the service now. Starting it…",
+  "celautSendFailedTitle": "The service was not sent",
+  "celautSendOtherService": "This file holds another service.",
+  "celautSendNoServicePart": "This file has no service in it.",
+  "celautSendNoDirectory": "The app has no place to keep the service."
 }

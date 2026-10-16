@@ -6133,4 +6133,74 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get celautErrorTransferFailed =>
       'La transferencia del servicio se detuvo (no se pudo leer el fichero, está cortado o se canceló). El nodo no guardó el servicio cortado. Inténtalo de nuevo.';
+
+  @override
+  String get celautSendMissingTitle => 'El servicio no está en estos nodos';
+
+  @override
+  String celautSendFromNode(String from, String to) {
+    return 'Enviarlo de $from a $to';
+  }
+
+  @override
+  String celautSendFromFile(String to) {
+    return 'Elegir un fichero .celaut.bee y enviarlo a $to';
+  }
+
+  @override
+  String get celautSendNoHolder =>
+      'Ningún nodo de tu lista tiene este servicio. Puedes dárselo a un nodo desde un fichero .celaut.bee.';
+
+  @override
+  String get celautSendConfirmTitle => '¿Enviar el servicio?';
+
+  @override
+  String get celautSendConfirmBody =>
+      'Todo el servicio pasa por este teléfono hasta el nodo, y un servicio puede ser grande. El nodo lo guarda, así que los siguientes lanzamientos en ese nodo no lo envían otra vez.';
+
+  @override
+  String get celautSendMetered =>
+      'Estás con datos móviles: esto puede gastar muchos datos.';
+
+  @override
+  String get celautSendConfirm => 'Enviar';
+
+  @override
+  String get celautSendCancel => 'Cancelar';
+
+  @override
+  String get celautSendFetching => 'Obteniendo el servicio del nodo…';
+
+  @override
+  String get celautSendSending => 'Entregando el servicio al nodo…';
+
+  @override
+  String get celautSendStarting => 'Empezando la transferencia…';
+
+  @override
+  String celautSendProgress(String done, String total, String percent) {
+    return '$done de $total ($percent %)';
+  }
+
+  @override
+  String celautSendSoFar(String done) {
+    return '$done hasta ahora';
+  }
+
+  @override
+  String get celautSendDone => 'El nodo ya tiene el servicio. Iniciándolo…';
+
+  @override
+  String get celautSendFailedTitle => 'El servicio no se envió';
+
+  @override
+  String get celautSendOtherService => 'Este fichero contiene otro servicio.';
+
+  @override
+  String get celautSendNoServicePart =>
+      'Este fichero no contiene ningún servicio.';
+
+  @override
+  String get celautSendNoDirectory =>
+      'La app no tiene dónde guardar el servicio.';
 }

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../bridge/api/celaut.dart';
+import '../../bridge/api/celaut_service.dart';
 import '../../celaut/celaut_format.dart';
 import '../../celaut/celaut_strings.dart';
 import '../../celaut/launch_problems.dart';
 import '../../celaut/launcher.dart';
+import '../../celaut/service_transfer.dart';
 import '../../l10n/l10n.dart';
 import '../home/home_style.dart';
 
@@ -14,6 +16,7 @@ Future<void> showLaunchFailureSheet(
   BuildContext context,
   LaunchFailure failure, {
   VoidCallback? onDeposit,
+  ValueChanged<TransferOffer>? onSendService,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -27,18 +30,33 @@ Future<void> showLaunchFailureSheet(
               Navigator.of(context).pop();
               onDeposit();
             },
+      onSendService: onSendService == null
+          ? null
+          : (offer) {
+              Navigator.of(context).pop();
+              onSendService(offer);
+            },
     ),
   );
 }
 
 /// The content of the sheet of a failed launch.
 class LaunchFailureSheet extends StatelessWidget {
-  const LaunchFailureSheet({super.key, required this.failure, this.onDeposit});
+  const LaunchFailureSheet({
+    super.key,
+    required this.failure,
+    this.onDeposit,
+    this.onSendService,
+  });
 
   final LaunchFailure failure;
 
   /// Open the deposit screen. The button is shown only for a credit problem.
   final VoidCallback? onDeposit;
+
+  /// Give the service to a node that does not have it (`docs/celaut/package.md`). The
+  /// section is shown only when some node said that it lacks the service.
+  final ValueChanged<TransferOffer>? onSendService;
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +69,7 @@ class LaunchFailureSheet extends StatelessWidget {
       LaunchFailureKind.allFailed => l.celautRunFailedAll,
     };
     final needsDeposit = problems.any((p) => p.action == ProblemAction.addDeposit);
+    final offer = onSendService == null ? null : transferOfferOf(failure);
     return SafeArea(
       child: SingleChildScrollView(
         key: const Key('launch-failure'),
@@ -64,6 +83,11 @@ class LaunchFailureSheet extends StatelessWidget {
             const SizedBox(height: 12),
             for (final p in problems) ...[
               _ProblemTile(problem: p),
+              const SizedBox(height: 10),
+            ],
+            if (offer != null) ...[
+              const SizedBox(height: 4),
+              _MissingSection(offer: offer, onSend: () => onSendService!(offer)),
               const SizedBox(height: 10),
             ],
             if (needsDeposit && onDeposit != null) ...[
@@ -83,6 +107,47 @@ class LaunchFailureSheet extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+String _hostPort(NodeAddress a) => '${a.host}:${a.port}';
+
+/// The nodes that do not have the service, and the way to give it to one of them.
+class _MissingSection extends StatelessWidget {
+  const _MissingSection({required this.offer, required this.onSend});
+
+  final TransferOffer offer;
+  final VoidCallback onSend;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final t = HomeText.of(context);
+    final to = _hostPort(offer.to);
+    final fromNode = offer.source == TransferSource.node && offer.from != null;
+    return Column(
+      key: const Key('launch-missing'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // The list above says which nodes lack it.
+        Text(l.celautSendMissingTitle, style: t.label),
+        if (!fromNode) ...[
+          const SizedBox(height: 6),
+          Text(l.celautSendNoHolder, style: t.secondary),
+        ],
+        const SizedBox(height: 8),
+        FilledButton(
+          key: const Key('launch-send-service'),
+          onPressed: onSend,
+          child: Text(
+            fromNode
+                ? l.celautSendFromNode(_hostPort(offer.from!), to)
+                : l.celautSendFromFile(to),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ],
     );
   }
 }

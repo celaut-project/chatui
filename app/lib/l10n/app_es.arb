@@ -1679,5 +1679,61 @@
     }
   },
   "celautRunPreviewLoading": "Buscando el mejor nodo…",
-  "celautErrorTransferFailed": "La transferencia del servicio se detuvo (no se pudo leer el fichero, está cortado o se canceló). El nodo no guardó el servicio cortado. Inténtalo de nuevo."
+  "celautErrorTransferFailed": "La transferencia del servicio se detuvo (no se pudo leer el fichero, está cortado o se canceló). El nodo no guardó el servicio cortado. Inténtalo de nuevo.",
+  "celautSendMissingTitle": "El servicio no está en estos nodos",
+  "celautSendFromNode": "Enviarlo de {from} a {to}",
+  "@celautSendFromNode": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "celautSendFromFile": "Elegir un fichero .celaut.bee y enviarlo a {to}",
+  "@celautSendFromFile": {
+    "placeholders": {
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "celautSendNoHolder": "Ningún nodo de tu lista tiene este servicio. Puedes dárselo a un nodo desde un fichero .celaut.bee.",
+  "celautSendConfirmTitle": "¿Enviar el servicio?",
+  "celautSendConfirmBody": "Todo el servicio pasa por este teléfono hasta el nodo, y un servicio puede ser grande. El nodo lo guarda, así que los siguientes lanzamientos en ese nodo no lo envían otra vez.",
+  "celautSendMetered": "Estás con datos móviles: esto puede gastar muchos datos.",
+  "celautSendConfirm": "Enviar",
+  "celautSendCancel": "Cancelar",
+  "celautSendFetching": "Obteniendo el servicio del nodo…",
+  "celautSendSending": "Entregando el servicio al nodo…",
+  "celautSendStarting": "Empezando la transferencia…",
+  "celautSendProgress": "{done} de {total} ({percent} %)",
+  "@celautSendProgress": {
+    "placeholders": {
+      "done": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "celautSendSoFar": "{done} hasta ahora",
+  "@celautSendSoFar": {
+    "placeholders": {
+      "done": {
+        "type": "String"
+      }
+    }
+  },
+  "celautSendDone": "El nodo ya tiene el servicio. Iniciándolo…",
+  "celautSendFailedTitle": "El servicio no se envió",
+  "celautSendOtherService": "Este fichero contiene otro servicio.",
+  "celautSendNoServicePart": "Este fichero no contiene ningún servicio.",
+  "celautSendNoDirectory": "La app no tiene dónde guardar el servicio."
 }

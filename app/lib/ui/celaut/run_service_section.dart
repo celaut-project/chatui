@@ -7,14 +7,17 @@ import '../../bridge/api/celaut_service.dart';
 import '../../celaut/celaut_format.dart';
 import '../../celaut/celaut_strings.dart';
 import '../../celaut/launcher.dart';
+import '../../celaut/package_channel.dart';
 import '../../celaut/payers.dart';
 import '../../celaut/service_strings.dart';
+import '../../celaut/service_transfer.dart';
 import '../../l10n/l10n.dart';
 import '../home/home_style.dart';
 import 'chat_screen.dart';
 import 'client_unknown_dialog.dart';
 import 'deposit_screen.dart';
 import 'launch_failure_sheet.dart';
+import 'service_transfer_dialog.dart';
 import 'skill_services_sheet.dart';
 
 /// Start a service: the ids and the settings go to the launcher.
@@ -41,6 +44,8 @@ class RunServiceSection extends StatefulWidget {
     this.openTunnel,
     this.chatBuilder,
     this.openDeposit,
+    this.transfer,
+    this.packages,
   });
 
   /// The full wallets: Run needs one that is open. Tests give their own.
@@ -72,6 +77,12 @@ class RunServiceSection extends StatefulWidget {
 
   /// Open the deposit screen. Tests give their own.
   final VoidCallback? openDeposit;
+
+  /// The transfer of a service to a node that does not have it. Tests give their own.
+  final ServiceTransfer? transfer;
+
+  /// The file picker and the metered check of Android. Tests give their own.
+  final PackageChannel? packages;
 
   @override
   State<RunServiceSection> createState() => _RunServiceSectionState();
@@ -171,7 +182,7 @@ class _RunServiceSectionState extends State<RunServiceSection> {
     } on LaunchFailure catch (failure) {
       if (!mounted) return;
       setState(() => _running = false);
-      await _showFailure(failure);
+      await _showFailure(failure, serviceId);
     } on CelautError catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -227,7 +238,8 @@ class _RunServiceSectionState extends State<RunServiceSection> {
   Widget _defaultChat(String instanceId, int port) =>
       ChatScreen(instanceId: instanceId, port: port, wallets: widget.wallets);
 
-  Future<void> _showFailure(LaunchFailure failure) async {
+  Future<void> _showFailure(LaunchFailure failure, String serviceId) async {
+    TransferOffer? chosen;
     await showLaunchFailureSheet(
       context,
       failure,
@@ -235,7 +247,13 @@ class _RunServiceSectionState extends State<RunServiceSection> {
           () => Navigator.of(context).push<void>(
             MaterialPageRoute(builder: (_) => const DepositScreen()),
           ),
+      onSendService: (offer) => chosen = offer,
     );
+    final offer = chosen;
+    if (offer != null && mounted) {
+      await _sendService(offer, serviceId);
+      return;
+    }
     // A node that forgot the client id: the user chooses. The app never makes a new
     // client by itself.
     final forgot = failure.clientUnknown;
@@ -247,6 +265,39 @@ class _RunServiceSectionState extends State<RunServiceSection> {
         newClient: widget.newClient,
       );
     }
+  }
+
+  /// Give the service to the node of [offer] that does not have it, then launch again: the
+  /// balancer now sees that node (`docs/celaut/package.md`).
+  Future<void> _sendService(TransferOffer offer, String serviceId) async {
+    final packages = widget.packages ?? const AndroidPackageChannel();
+    final transfer = widget.transfer ?? ServiceTransfer();
+    final metered = await packages.isMetered();
+    if (!mounted) return;
+    if (!await confirmServiceTransfer(context, metered: metered) || !mounted) return;
+    String? path;
+    if (offer.source == TransferSource.file) {
+      final picked = await packages.pick();
+      if (picked == null || !mounted) return;
+      path = picked.path;
+    }
+    final result = await showServiceTransfer(
+      context,
+      transfer: transfer,
+      work: () => offer.source == TransferSource.node
+          ? transfer.fromNode(offer, serviceId, ServiceStrings.initialDefault)
+          : transfer.fromFile(offer.to, serviceId, ServiceStrings.initialDefault, path!),
+    );
+    if (!mounted) return;
+    final error = result.error;
+    if (error != null) {
+      await showTransferFailure(context, error);
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.celautSendDone)),
+    );
+    await _run(serviceId);
   }
 
   List<SkillView> _filtered() {
