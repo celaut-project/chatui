@@ -122,11 +122,6 @@ Future<String> generateMnemonic({required int strength}) =>
 Future<bool> validateErgoAddress({required String address}) =>
     RustLib.instance.api.crateApiValidateErgoAddress(address: address);
 
-/// Accept a checksummed address or an exact compressed P2PK key/tree hex.
-/// Raw keys have no network marker; Argus imports them as mainnet addresses.
-Future<String?> normalizeWatchInput({required String input}) =>
-    RustLib.instance.api.crateApiNormalizeWatchInput(input: input);
-
 Future<String> getBalance({required String address, String? nodeUrl}) =>
     RustLib.instance.api.crateApiGetBalance(address: address, nodeUrl: nodeUrl);
 
@@ -461,91 +456,4 @@ Future<String> prepareSendMulti({
   feeNano: feeNano,
   inputBoxIds: inputBoxIds,
   babelTokenId: babelTokenId,
-);
-
-/// Derive public payment addresses from an Ergo Wallet App hex extended key.
-Future<List<String>> deriveWatchAddresses({
-  required String input,
-  required int start,
-  required int count,
-}) => RustLib.instance.api.crateApiDeriveWatchAddresses(
-  input: input,
-  start: start,
-  count: count,
-);
-
-/// Create an offline CSR scan, retained in memory for 30 minutes.
-Future<String> coldStart() => RustLib.instance.api.crateApiColdStart();
-
-Future<void> coldDiscard({required String session}) =>
-    RustLib.instance.api.crateApiColdDiscard(session: session);
-
-Future<void> coldReset({required String session}) =>
-    RustLib.instance.api.crateApiColdReset(session: session);
-
-Future<String> coldAddPage({required String session, required String page}) =>
-    RustLib.instance.api.crateApiColdAddPage(session: session, page: page);
-
-Future<String> coldReview({
-  required String session,
-  required BigInt handleId,
-}) => RustLib.instance.api.crateApiColdReview(
-  session: session,
-  handleId: handleId,
-);
-
-/// Explicit user confirmation of the previously returned review is required.
-Future<void> coldSign({required String session, required BigInt handleId}) =>
-    RustLib.instance.api.crateApiColdSign(session: session, handleId: handleId);
-
-Future<List<String>> coldQrPages({
-  required String session,
-  required bool lowDensity,
-}) => RustLib.instance.api.crateApiColdQrPages(
-  session: session,
-  lowDensity: lowDensity,
-);
-
-Future<String> coldVerify({required String session}) =>
-    RustLib.instance.api.crateApiColdVerify(session: session);
-
-/// Only the session's cryptographically verified bytes can reach submission.
-Future<String> coldBroadcast({required String session}) =>
-    RustLib.instance.api.crateApiColdBroadcast(session: session);
-
-Future<String> coldPrepareWatch({
-  required String key,
-  required int addressCount,
-  required int changeIndex,
-  required String recipient,
-  required PlatformInt64 amountNano,
-  String? tokenId,
-  BigInt? tokenAmount,
-  required String nodeUrl,
-}) => RustLib.instance.api.crateApiColdPrepareWatch(
-  key: key,
-  addressCount: addressCount,
-  changeIndex: changeIndex,
-  recipient: recipient,
-  amountNano: amountNano,
-  tokenId: tokenId,
-  tokenAmount: tokenAmount,
-  nodeUrl: nodeUrl,
-);
-
-/// Prepare a public P2PK address payment; change always returns to that address.
-Future<String> coldPrepareAddress({
-  required String address,
-  required String recipient,
-  required PlatformInt64 amountNano,
-  String? tokenId,
-  BigInt? tokenAmount,
-  required String nodeUrl,
-}) => RustLib.instance.api.crateApiColdPrepareAddress(
-  address: address,
-  recipient: recipient,
-  amountNano: amountNano,
-  tokenId: tokenId,
-  tokenAmount: tokenAmount,
-  nodeUrl: nodeUrl,
 );

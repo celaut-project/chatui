@@ -13,7 +13,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 use ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox;
-use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
 use once_cell::sync::Lazy;
 use wallet_net::client::{address_to_ergo_tree, BoxStatus, ErgoNodeClient};
 use wallet_net::mempool::{AddressRead, Spendable};
@@ -87,24 +86,6 @@ pub(crate) async fn gather_spendable(
 ) -> Result<Spendable, String> {
     let spendable = read_spendable(handle_id, client, addresses, spend_unconfirmed()).await?;
     record_held_back(handle_id, &spendable.held_back);
-    Ok(spendable)
-}
-
-/// The same gathering for addresses this device cannot sign for (a watched
-/// account preparing an offline signature): no handle, so no ownership
-/// check, but the same policy and the same spent-box rule.
-pub(crate) async fn gather_watched(
-    client: &ErgoNodeClient,
-    addresses: &[String],
-) -> Result<Spendable, String> {
-    let mut reads = Vec::with_capacity(addresses.len());
-    for address in addresses.iter().filter(|a| !a.is_empty()) {
-        reads.push(client.read_for_spending(address).await?);
-    }
-    let mut spendable = wallet_net::mempool::spendable_across(reads, spend_unconfirmed());
-    client
-        .drop_spent_unconfirmed(&mut spendable, GATHER_ADDRESS_CONCURRENCY)
-        .await;
     Ok(spendable)
 }
 
@@ -244,12 +225,6 @@ pub(crate) fn shortfall_error(handle_id: u64, error: impl std::fmt::Display) -> 
         handle_id,
         ArgusError::TxBuildFailed(error.to_string()).to_json_string(),
     )
-}
-
-/// [`explain_shortfall`] for a gathering that has no wallet handle (a
-/// watched account), given what it held back.
-pub(crate) fn explain_held(held_back: &[ergo_tx::Eip12InputBox], error: String) -> String {
-    explain_with(&held_back_of(held_back), error)
 }
 
 /// Errors arrive either as the app's JSON (`{code, message}`) or as plain

@@ -13,7 +13,6 @@ citadel-core = { workspace = true }
 ergo-tx = { workspace = true, features = ["ergo-lib"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
-base64 = "0.23"
 thiserror = { workspace = true }
 hex = { workspace = true }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
