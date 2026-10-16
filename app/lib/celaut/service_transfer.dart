@@ -163,7 +163,26 @@ class ServiceTransfer {
     final dir = await _privateDir();
     if (dir == null || dir.isEmpty) throw const PackageRefused(PackageRefusal.noDirectory);
     final package = await _fetch(from, serviceId, dir);
-    return _send(offer.to, serviceId, initialMu, package.path);
+    try {
+      return await _send(offer.to, serviceId, initialMu, package.path);
+    } finally {
+      // A service can be large: its copy does not stay on the phone.
+      await _deleteQuietly(package.path);
+    }
+  }
+
+  /// Delete the file at [path], if it is there. A failure is not an error of the
+  /// transfer.
+  ///
+  /// Synchronous on purpose: a delete is quick, and it then works in the fake time of the
+  /// widget tests too.
+  static Future<void> _deleteQuietly(String path) async {
+    try {
+      final file = File(path);
+      if (file.existsSync()) file.deleteSync();
+    } on FileSystemException {
+      // The file stays; the next transfer of the same service writes it again.
+    }
   }
 
   /// Give the service in the file at [path] to [to]. The file must hold [serviceId] (when
@@ -180,6 +199,11 @@ class ServiceTransfer {
     if (id != null && id.toLowerCase() != serviceId.toLowerCase()) {
       throw const PackageRefused(PackageRefusal.otherService);
     }
-    return _send(to, serviceId, initialMu, path);
+    try {
+      return await _send(to, serviceId, initialMu, path);
+    } finally {
+      // The picked file is a copy of the app (Android cache); the original stays.
+      await _deleteQuietly(path);
+    }
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:argus_wallet/bridge/api/celaut.dart';
 import 'package:argus_wallet/bridge/api/celaut_package.dart';
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
@@ -220,6 +222,90 @@ void main() {
         transfer.fromFile(_a, _id, null, '/p.bee'),
         throwsA(isA<CelautError>().having((e) => e.kind, 'kind', CelautErrorKind.transferFailed)),
       );
+    });
+  });
+
+  group('the copy of the service', () {
+    late Directory dir;
+    setUp(() => dir = Directory.systemTemp.createTempSync('celaut-transfer-'));
+    tearDown(() {
+      if (dir.existsSync()) dir.deleteSync(recursive: true);
+    });
+
+    File copy(String name) => File('${dir.path}/$name')..writeAsBytesSync([1, 2, 3]);
+
+    ServiceTransfer make(File file, {required bool sendWorks}) => ServiceTransfer(
+      fetch: (source, id, d) async => PackageView(
+        path: file.path,
+        bytes: BigInt.from(3),
+        serviceId: id,
+        hasService: true,
+        nodoExport: false,
+      ),
+      inspect: (path) async => PackageView(
+        path: path,
+        bytes: BigInt.from(3),
+        serviceId: _id,
+        hasService: true,
+        nodoExport: true,
+      ),
+      send: (node, id, initialMu, path) async {
+        expect(File(path).existsSync(), isTrue, reason: 'the file is there while it is sent');
+        if (!sendWorks) {
+          throw const CelautError(kind: CelautErrorKind.transferFailed, message: 'cut');
+        }
+        return _quote(node);
+      },
+      progress: () => TransferView(stage: TransferStage.idle, bytes: BigInt.zero),
+      cancel: () {},
+      privateDir: () async => dir.path,
+    );
+
+    for (final works in [true, false]) {
+      test('a service from a node is deleted after the send (send works: $works)', () async {
+        final file = copy('fetched.bee');
+        final offer = TransferOffer(source: TransferSource.node, from: _b, to: _a, missing: const [_a]);
+        final run = make(file, sendWorks: works).fromNode(offer, _id, null);
+        if (works) {
+          await run;
+        } else {
+          await expectLater(run, throwsA(isA<CelautError>()));
+        }
+        expect(file.existsSync(), isFalse);
+      });
+
+      test('a picked copy is deleted after the send (send works: $works)', () async {
+        final file = copy('picked.bee');
+        final run = make(file, sendWorks: works).fromFile(_a, _id, null, file.path);
+        if (works) {
+          await run;
+        } else {
+          await expectLater(run, throwsA(isA<CelautError>()));
+        }
+        expect(file.existsSync(), isFalse);
+      });
+    }
+
+    test('a refused package is not deleted: nothing was sent', () async {
+      final file = copy('other.bee');
+      final transfer = ServiceTransfer(
+        inspect: (path) async => PackageView(
+          path: path,
+          bytes: BigInt.from(3),
+          serviceId: 'ff' * 32,
+          hasService: true,
+          nodoExport: true,
+        ),
+        send: (node, id, initialMu, path) async => fail('nothing is sent'),
+        progress: () => TransferView(stage: TransferStage.idle, bytes: BigInt.zero),
+        cancel: () {},
+        privateDir: () async => dir.path,
+      );
+      await expectLater(
+        transfer.fromFile(_a, _id, null, file.path),
+        throwsA(isA<PackageRefused>()),
+      );
+      expect(file.existsSync(), isTrue);
     });
   });
 
