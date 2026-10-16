@@ -17,6 +17,7 @@ Future<void> showLaunchFailureSheet(
   LaunchFailure failure, {
   VoidCallback? onDeposit,
   ValueChanged<TransferOffer>? onSendService,
+  String? libraryPath,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -24,6 +25,7 @@ Future<void> showLaunchFailureSheet(
     showDragHandle: true,
     builder: (_) => LaunchFailureSheet(
       failure: failure,
+      libraryPath: libraryPath,
       onDeposit: onDeposit == null
           ? null
           : () {
@@ -47,9 +49,14 @@ class LaunchFailureSheet extends StatelessWidget {
     required this.failure,
     this.onDeposit,
     this.onSendService,
+    this.libraryPath,
   });
 
   final LaunchFailure failure;
+
+  /// The file of this service in the library of the app, if the user loaded it. The offer
+  /// to send the service then uses that file.
+  final String? libraryPath;
 
   /// Open the deposit screen. The button is shown only for a credit problem.
   final VoidCallback? onDeposit;
@@ -69,7 +76,9 @@ class LaunchFailureSheet extends StatelessWidget {
       LaunchFailureKind.allFailed => l.celautRunFailedAll,
     };
     final needsDeposit = problems.any((p) => p.action == ProblemAction.addDeposit);
-    final offer = onSendService == null ? null : transferOfferOf(failure);
+    final offer = onSendService == null
+        ? null
+        : transferOfferOf(failure, libraryPath: libraryPath);
     return SafeArea(
       child: SingleChildScrollView(
         key: const Key('launch-failure'),
@@ -126,13 +135,14 @@ class _MissingSection extends StatelessWidget {
     final t = HomeText.of(context);
     final to = _hostPort(offer.to);
     final fromNode = offer.source == TransferSource.node && offer.from != null;
+    final fromLibrary = offer.source == TransferSource.library;
     return Column(
       key: const Key('launch-missing'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // The list above says which nodes lack it.
         Text(l.celautSendMissingTitle, style: t.label),
-        if (!fromNode) ...[
+        if (!fromNode && !fromLibrary) ...[
           const SizedBox(height: 6),
           Text(l.celautSendNoHolder, style: t.secondary),
         ],
@@ -141,9 +151,11 @@ class _MissingSection extends StatelessWidget {
           key: const Key('launch-send-service'),
           onPressed: onSend,
           child: Text(
-            fromNode
-                ? l.celautSendFromNode(_hostPort(offer.from!), to)
-                : l.celautSendFromFile(to),
+            fromLibrary
+                ? l.celautSendFromLibrary(to)
+                : fromNode
+                    ? l.celautSendFromNode(_hostPort(offer.from!), to)
+                    : l.celautSendFromFile(to),
             textAlign: TextAlign.center,
           ),
         ),

@@ -263,3 +263,96 @@ async fn a_package_without_the_service_id_says_so() {
     assert!(info.has_service);
     std::fs::remove_dir_all(d).unwrap();
 }
+
+#[tokio::test]
+async fn a_package_is_loaded_into_the_library_under_its_service_id() {
+    use celaut_client::package::{import, library_path};
+    let d = dir();
+    let source = d.join("picked.bee");
+    let content = vec![5u8; 2 * 1024 * 1024];
+    save(stream(get_service_answer(&content)), &source, &Cancel::new()).await.unwrap();
+    let size = std::fs::metadata(&source).unwrap().len();
+
+    let imported = import(&source, &d).await.unwrap();
+    assert_eq!(imported.service_id, SERVICE_ID);
+    assert_eq!(imported.path, library_path(&d, &SERVICE_ID));
+    assert_eq!(imported.path, d.join("packages/library").join(format!("{}.bee", hex::encode(SERVICE_ID))));
+    assert_eq!(imported.info.bytes, size);
+    // Moved, not copied: the picked file is gone and the library holds all of it.
+    assert!(!source.exists());
+    assert_eq!(std::fs::metadata(&imported.path).unwrap().len(), size);
+    assert!(!d.join("packages/library").join("1111.partial").exists());
+    // What is in the library can be read for a node.
+    let parts = parse(collect(read(imported.path.clone(), imported.info.layout, Cancel::new())).await.unwrap());
+    assert_eq!(parts.iter().map(|p| p.index).collect::<Vec<_>>(), [4, 5, 6]);
+    std::fs::remove_dir_all(d).unwrap();
+}
+
+#[tokio::test]
+async fn a_nodo_export_is_loaded_and_a_second_load_of_the_same_service_replaces_it() {
+    use celaut_client::package::import;
+    let d = dir();
+    let make = |name: &str, fs: &[u8]| {
+        let path = d.join(name);
+        let mut file: Vec<Buffer> = serialize_part(&Part::new(1, metadata())).collect();
+        file.extend(service_buffers(2, fs));
+        let mut raw = Vec::new();
+        bee_rpc::bee_file::write_bee(&mut raw, file).unwrap();
+        std::fs::write(&path, raw).unwrap();
+        path
+    };
+    let first = import(&make("one.celaut.bee", b"first"), &d).await.unwrap();
+    assert_eq!(first.info.layout, Layout::NodoExport);
+    let first_size = std::fs::metadata(&first.path).unwrap().len();
+    let second = import(&make("two.celaut.bee", b"a longer filesystem than the first"), &d)
+        .await
+        .unwrap();
+    assert_eq!(second.path, first.path);
+    assert!(std::fs::metadata(&second.path).unwrap().len() > first_size, "replaced");
+    std::fs::remove_dir_all(d).unwrap();
+}
+
+#[tokio::test]
+async fn a_file_that_is_not_a_service_is_refused_and_stays_where_it_is() {
+    use celaut_client::package::import;
+    let d = dir();
+    // No service id.
+    let no_id = d.join("no-id.bee");
+    let mut file: Vec<Buffer> = serialize_part(&Part::new(1, Metadata::default().encode_to_vec())).collect();
+    file.extend(service_buffers(2, b"fs"));
+    let mut raw = Vec::new();
+    bee_rpc::bee_file::write_bee(&mut raw, file).unwrap();
+    std::fs::write(&no_id, raw).unwrap();
+    let error = import(&no_id, &d).await.unwrap_err();
+    assert!(matches!(&error, PackageError::Invalid(t) if t.contains("which service")), "{error}");
+    assert!(no_id.exists());
+
+    // No Service part: only the Metadata.
+    let only_metadata = d.join("meta.bee");
+    let mut raw = Vec::new();
+    bee_rpc::bee_file::write_bee(&mut raw, serialize_part(&Part::new(1, metadata()))).unwrap();
+    std::fs::write(&only_metadata, raw).unwrap();
+    let error = import(&only_metadata, &d).await.unwrap_err();
+    assert!(matches!(&error, PackageError::Invalid(t) if t.contains("no Service")), "{error}");
+
+    // Not a .bee file at all, and a missing file.
+    let junk = d.join("junk.bee");
+    std::fs::write(&junk, b"hello, this is text").unwrap();
+    assert!(import(&junk, &d).await.is_err());
+    assert!(junk.exists());
+    assert!(matches!(import(&d.join("missing.bee"), &d).await, Err(PackageError::Io(_))));
+    assert!(!d.join("packages/library").exists() || std::fs::read_dir(d.join("packages/library")).unwrap().count() == 0);
+    std::fs::remove_dir_all(d).unwrap();
+}
+
+#[tokio::test]
+async fn removing_a_package_file_that_is_gone_is_not_an_error() {
+    use celaut_client::package::remove_file;
+    let d = dir();
+    let path = d.join("x.bee");
+    std::fs::write(&path, b"x").unwrap();
+    remove_file(&path).await.unwrap();
+    assert!(!path.exists());
+    remove_file(&path).await.unwrap();
+    std::fs::remove_dir_all(d).unwrap();
+}

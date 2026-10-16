@@ -338,3 +338,73 @@ pub fn read(path: PathBuf, layout: Layout, cancel: Cancel) -> Buffers {
     });
     Box::pin(tokio_stream::wrappers::ReceiverStream::new(rx))
 }
+
+/// The folder of the library inside `dir`, a private directory of the app.
+pub fn library_dir(dir: &Path) -> PathBuf {
+    dir.join("packages").join("library")
+}
+
+/// The file of the service `service_id` in the library.
+pub fn library_path(dir: &Path, service_id: &[u8; 32]) -> PathBuf {
+    library_dir(dir).join(format!("{}.bee", hex::encode(service_id)))
+}
+
+/// A package that was loaded into the library.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Imported {
+    /// The id of the service.
+    pub service_id: [u8; 32],
+    /// Where the file is now.
+    pub path: PathBuf,
+    pub info: PackageInfo,
+}
+
+/// Load the package at `source` into the library under `dir`: check it, then move it to
+/// `<dir>/packages/library/<service id>.bee`. A file that is not a package of a service,
+/// or that does not say which service it is, is refused and left where it is. The id comes
+/// from the Metadata or from a hash part: the app does not hash a whole service on the
+/// phone. A package of a service that the library already has replaces it.
+///
+/// The file is moved when `source` is on the same disk (the copy of the file picker is in
+/// the cache of the app), and copied otherwise, so a large service is never in memory and
+/// is not on the phone twice for long.
+pub async fn import(source: &Path, dir: &Path) -> Result<Imported, PackageError> {
+    let info = inspect(source).await?;
+    if !info.has_service {
+        return Err(PackageError::Invalid("the file has no Service part".into()));
+    }
+    let service_id = info.service_id.ok_or_else(|| {
+        PackageError::Invalid("the file does not say which service it is".into())
+    })?;
+    let folder = library_dir(dir);
+    tokio::fs::create_dir_all(&folder).await?;
+    let target = library_path(dir, &service_id);
+    // The new file is written next to the target and renamed, so the library never holds
+    // a cut file, also if the phone stops in the middle.
+    let partial = partial_path(&target);
+    let _ = tokio::fs::remove_file(&partial).await;
+    match tokio::fs::rename(source, &partial).await {
+        Ok(()) => {}
+        Err(_) => {
+            tokio::fs::copy(source, &partial).await.inspect_err(|_| {
+                let _ = std::fs::remove_file(&partial);
+            })?;
+            let _ = tokio::fs::remove_file(source).await;
+        }
+    }
+    tokio::fs::rename(&partial, &target).await?;
+    Ok(Imported {
+        service_id,
+        path: target,
+        info,
+    })
+}
+
+/// Delete the file of a package in the library. A file that is not there is not an error.
+pub async fn remove_file(path: &Path) -> Result<(), PackageError> {
+    match tokio::fs::remove_file(path).await {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e.into()),
+    }
+}

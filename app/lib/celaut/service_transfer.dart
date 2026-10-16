@@ -10,18 +10,31 @@ import 'launcher.dart';
 
 /// Where the app can get a service that a node does not have (`docs/celaut/package.md`).
 enum TransferSource {
+  /// A service file that the user loaded into the app before.
+  library,
+
   /// A node of the list that has it.
   node,
 
-  /// A `.celaut.bee` file that the user picks.
+  /// A `.celaut.bee` file that the user picks now. The app loads it into the library
+  /// first.
   file,
 }
 
 /// What the app can offer after a launch where some nodes do not have the service.
 class TransferOffer {
-  const TransferOffer({required this.source, this.from, required this.to, required this.missing});
+  const TransferOffer({
+    required this.source,
+    this.from,
+    this.libraryPath,
+    required this.to,
+    required this.missing,
+  });
 
   final TransferSource source;
+
+  /// The file of the loaded service, for [TransferSource.library].
+  final String? libraryPath;
 
   /// The node that has the service, for [TransferSource.node].
   final NodeAddress? from;
@@ -55,7 +68,10 @@ String _key(NodeAddress a) => '${a.host}:${a.port}';
 /// - The nodes that have it: every node that gave a quote (a skip that is not
 ///   serviceMissing), and the quote failures with a reason that nodo gives only for a
 ///   service that it has. Not the unreachable ones: nothing is known of them.
-TransferOffer? transferOfferOf(LaunchFailure failure) {
+///
+/// If the user loaded the service into the app ([libraryPath] is the file), the offer is
+/// to send that file: it needs no other node, and no choice of a file.
+TransferOffer? transferOfferOf(LaunchFailure failure, {String? libraryPath}) {
   final missing = <NodeAddress>[];
   final holders = <NodeAddress>[];
   void add(List<NodeAddress> list, NodeAddress a) {
@@ -77,6 +93,14 @@ TransferOffer? transferOfferOf(LaunchFailure failure) {
     }
   }
   if (missing.isEmpty) return null;
+  if (libraryPath != null) {
+    return TransferOffer(
+      source: TransferSource.library,
+      libraryPath: libraryPath,
+      to: missing.first,
+      missing: missing,
+    );
+  }
   final from = holders.where((h) => !missing.any((m) => _key(m) == _key(h)));
   return TransferOffer(
     source: from.isEmpty ? TransferSource.file : TransferSource.node,
@@ -111,7 +135,6 @@ class PackageRefused implements Exception {
 class ServiceTransfer {
   ServiceTransfer({
     Future<PackageView> Function(NodeAddress source, String serviceId, String dir)? fetch,
-    Future<PackageView> Function(String path)? inspect,
     Future<QuoteView> Function(NodeAddress node, String serviceId, String? initialMu, String path)?
         send,
     TransferView Function()? progress,
@@ -120,7 +143,6 @@ class ServiceTransfer {
   }) : _fetch = fetch ??
            ((source, id, dir) =>
                celautFetchService(source: source, serviceIdHex: id, dir: dir)),
-       _inspect = inspect ?? ((path) => celautInspectPackage(path: path)),
        _send = send ??
            ((node, id, initialMu, path) => celautSendService(
              node: node,
@@ -133,7 +155,6 @@ class ServiceTransfer {
        _privateDir = privateDir ?? _appPrivateDir;
 
   final Future<PackageView> Function(NodeAddress, String, String) _fetch;
-  final Future<PackageView> Function(String) _inspect;
   final Future<QuoteView> Function(NodeAddress, String, String?, String) _send;
   final Future<String?> Function() _privateDir;
 
@@ -185,25 +206,13 @@ class ServiceTransfer {
     }
   }
 
-  /// Give the service in the file at [path] to [to]. The file must hold [serviceId] (when
-  /// it says its id) and its Service part. Throws [CelautError] or [PackageRefused].
-  Future<QuoteView> fromFile(
+  /// Give the service of a file of the library to [to]. The file stays: the user loaded
+  /// it to keep it. Throws [CelautError].
+  Future<QuoteView> fromLibrary(
     NodeAddress to,
     String serviceId,
     String? initialMu,
     String path,
-  ) async {
-    final package = await _inspect(path);
-    if (!package.hasService) throw const PackageRefused(PackageRefusal.noService);
-    final id = package.serviceId;
-    if (id != null && id.toLowerCase() != serviceId.toLowerCase()) {
-      throw const PackageRefused(PackageRefusal.otherService);
-    }
-    try {
-      return await _send(to, serviceId, initialMu, path);
-    } finally {
-      // The picked file is a copy of the app (Android cache); the original stays.
-      await _deleteQuietly(path);
-    }
-  }
+  ) =>
+      _send(to, serviceId, initialMu, path);
 }

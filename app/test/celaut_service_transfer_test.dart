@@ -43,6 +43,29 @@ PackageView _package({String? id, bool hasService = true}) => PackageView(
 
 void main() {
   group('the offer of a failed launch', () {
+    test('a service that the user loaded into the app is sent from the library', () {
+      final failure = LaunchFailure(
+        LaunchFailureKind.noQuotes,
+        quoteFailures: [
+          _failure(_a, CelautErrorKind.serviceMissing),
+          _failure(_b, CelautErrorKind.nodeClosed),
+        ],
+      );
+      // Even when another node has it, the file of the library is the first choice: it
+      // needs no download.
+      final offer = transferOfferOf(failure, libraryPath: '/library/ab.bee')!;
+      expect(offer.source, TransferSource.library);
+      expect(offer.libraryPath, '/library/ab.bee');
+      expect(offer.from, isNull);
+      expect(offer.to, _a);
+      // No node lacks it: nothing to send, with or without the library.
+      final fine = LaunchFailure(
+        LaunchFailureKind.noQuotes,
+        quoteFailures: [_failure(_b, CelautErrorKind.nodeClosed)],
+      );
+      expect(transferOfferOf(fine, libraryPath: '/library/ab.bee'), isNull);
+    });
+
     test('a node that has it and a node that does not: send from one to the other', () {
       final offer = transferOfferOf(
         LaunchFailure(
@@ -140,17 +163,12 @@ void main() {
 
   group('the transfer', () {
     late List<String> calls;
-    PackageView inspected = _package();
     String? dir = '/data/app';
 
     ServiceTransfer make() => ServiceTransfer(
       fetch: (source, id, d) async {
         calls.add('fetch ${source.host} $id $d');
         return _package(id: id);
-      },
-      inspect: (path) async {
-        calls.add('inspect $path');
-        return inspected;
       },
       send: (node, id, initialMu, path) async {
         calls.add('send ${node.host} $id $initialMu $path');
@@ -163,7 +181,6 @@ void main() {
 
     setUp(() {
       calls = [];
-      inspected = _package();
       dir = '/data/app';
     });
 
@@ -187,39 +204,21 @@ void main() {
       expect(calls, isEmpty);
     });
 
-    test('from a file of this service, or that does not say its id: it is sent', () async {
-      inspected = _package(id: _id.toUpperCase());
-      await make().fromFile(_a, _id, null, '/picked.bee');
-      inspected = _package();
-      await make().fromFile(_a, _id, null, '/picked.bee');
-      expect(calls.where((c) => c.startsWith('send')), hasLength(2));
-      expect(calls.first, 'inspect /picked.bee');
-    });
-
-    test('a file of another service, or with no Service part, is refused before any send', () async {
-      inspected = _package(id: 'cd' * 32);
-      await expectLater(
-        make().fromFile(_a, _id, null, '/picked.bee'),
-        throwsA(isA<PackageRefused>().having((e) => e.reason, 'reason', PackageRefusal.otherService)),
-      );
-      inspected = _package(id: _id, hasService: false);
-      await expectLater(
-        make().fromFile(_a, _id, null, '/picked.bee'),
-        throwsA(isA<PackageRefused>().having((e) => e.reason, 'reason', PackageRefusal.noService)),
-      );
-      expect(calls.where((c) => c.startsWith('send')), isEmpty);
+    test('from the library: the file is sent as it is, and it stays', () async {
+      final quote = await make().fromLibrary(_a, _id, '5', '/library/x.bee');
+      expect(quote.address, _a);
+      expect(calls, ['send a.example $_id 5 /library/x.bee']);
     });
 
     test('an error of the node goes to the caller', () async {
       final transfer = ServiceTransfer(
-        inspect: (path) async => _package(),
         send: (node, id, initialMu, path) async =>
             throw const CelautError(kind: CelautErrorKind.transferFailed, message: 'cut'),
         progress: () => TransferView(stage: TransferStage.idle, bytes: BigInt.zero),
         cancel: () {},
       );
       await expectLater(
-        transfer.fromFile(_a, _id, null, '/p.bee'),
+        transfer.fromLibrary(_a, _id, null, '/p.bee'),
         throwsA(isA<CelautError>().having((e) => e.kind, 'kind', CelautErrorKind.transferFailed)),
       );
     });
@@ -241,13 +240,6 @@ void main() {
         serviceId: id,
         hasService: true,
         nodoExport: false,
-      ),
-      inspect: (path) async => PackageView(
-        path: path,
-        bytes: BigInt.from(3),
-        serviceId: _id,
-        hasService: true,
-        nodoExport: true,
       ),
       send: (node, id, initialMu, path) async {
         expect(File(path).existsSync(), isTrue, reason: 'the file is there while it is sent');
@@ -274,39 +266,17 @@ void main() {
         expect(file.existsSync(), isFalse);
       });
 
-      test('a picked copy is deleted after the send (send works: $works)', () async {
-        final file = copy('picked.bee');
-        final run = make(file, sendWorks: works).fromFile(_a, _id, null, file.path);
+      test('a file of the library is kept after the send (send works: $works)', () async {
+        final file = copy('library.bee');
+        final run = make(file, sendWorks: works).fromLibrary(_a, _id, null, file.path);
         if (works) {
           await run;
         } else {
           await expectLater(run, throwsA(isA<CelautError>()));
         }
-        expect(file.existsSync(), isFalse);
+        expect(file.existsSync(), isTrue, reason: 'the user loaded it to keep it');
       });
     }
-
-    test('a refused package is not deleted: nothing was sent', () async {
-      final file = copy('other.bee');
-      final transfer = ServiceTransfer(
-        inspect: (path) async => PackageView(
-          path: path,
-          bytes: BigInt.from(3),
-          serviceId: 'ff' * 32,
-          hasService: true,
-          nodoExport: true,
-        ),
-        send: (node, id, initialMu, path) async => fail('nothing is sent'),
-        progress: () => TransferView(stage: TransferStage.idle, bytes: BigInt.zero),
-        cancel: () {},
-        privateDir: () async => dir.path,
-      );
-      await expectLater(
-        transfer.fromFile(_a, _id, null, file.path),
-        throwsA(isA<PackageRefused>()),
-      );
-      expect(file.existsSync(), isTrue);
-    });
   });
 
   group('the Android channel', () {

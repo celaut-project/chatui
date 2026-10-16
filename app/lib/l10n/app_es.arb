@@ -1735,5 +1735,43 @@
   "celautSendFailedTitle": "El servicio no se envió",
   "celautSendOtherService": "Este fichero contiene otro servicio.",
   "celautSendNoServicePart": "Este fichero no contiene ningún servicio.",
-  "celautSendNoDirectory": "La app no tiene dónde guardar el servicio."
+  "celautSendNoDirectory": "La app no tiene dónde guardar el servicio.",
+  "celautPkgTitle": "Tus servicios",
+  "celautPkgImport": "Importar un fichero de servicio",
+  "celautPkgEmpty": "No hay ningún fichero de servicio cargado. Importa un fichero .celaut.bee para ejecutar un servicio que ningún nodo tiene todavía.",
+  "celautPkgRemove": "Quitar",
+  "celautPkgRemoveTitle": "¿Quitar este fichero de servicio?",
+  "celautPkgRemoveBody": "{name} se borra de esta app. Los nodos que tienen el servicio lo conservan.",
+  "@celautPkgRemoveBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "celautPkgLoaded": "Cargado {name}.",
+  "@celautPkgLoaded": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "celautPkgBadFile": "Este fichero no es un paquete de servicio: {reason}",
+  "@celautPkgBadFile": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "celautPkgMissing": "El fichero ya no está. Impórtalo de nuevo.",
+  "celautSendFromLibrary": "Envía tu fichero cargado a {to}",
+  "@celautSendFromLibrary": {
+    "placeholders": {
+      "to": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -7,7 +7,9 @@ import 'package:argus_wallet/bridge/api/celaut_package.dart';
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
 import 'package:argus_wallet/celaut/launcher.dart';
 import 'package:argus_wallet/celaut/package_channel.dart';
+import 'package:argus_wallet/celaut/package_library.dart';
 import 'package:argus_wallet/celaut/payers.dart';
+import 'package:argus_wallet/celaut/service_strings.dart';
 import 'package:argus_wallet/celaut/service_transfer.dart';
 import 'package:argus_wallet/l10n/l10n.dart';
 import 'package:argus_wallet/ui/celaut/launch_failure_sheet.dart';
@@ -72,6 +74,43 @@ class _Wallets implements FullWallets {
   }
 }
 
+/// The service files loaded into the app, in memory.
+class _Lib {
+  final calls = <String>[];
+  var stored = <LibraryPackageView>[];
+  Object? importError;
+
+  /// The service that an imported file holds.
+  String imports = _best;
+
+  LibraryPackageView view({String? id, String name = 'echo', bool present = true}) =>
+      LibraryPackageView(
+        serviceId: id ?? _best,
+        name: name,
+        path: '/data/packages/library/${id ?? _best}.bee',
+        bytes: BigInt.from(4096),
+        importedAt: 1,
+        nodoExport: true,
+        present: present,
+      );
+
+  PackageLibrary get library => PackageLibrary(
+    importPackage: (path, name, dir) async {
+      calls.add('import $path $name');
+      if (importError != null) throw importError!;
+      final v = view(id: imports, name: name.replaceAll('.celaut.bee', ''));
+      stored = [...stored.where((p) => p.serviceId != v.serviceId), v];
+      return v;
+    },
+    list: () => stored,
+    remove: (id) async {
+      calls.add('remove $id');
+      stored = [for (final p in stored) if (p.serviceId != id) p];
+    },
+    privateDir: () async => '/data',
+  );
+}
+
 class _Packages implements PackageChannel {
   bool metered = false;
   PickedPackage? picked;
@@ -104,6 +143,7 @@ void main() {
     List<SkillServiceView>? services,
     ServiceTransfer? transfer,
     PackageChannel? packages,
+    _Lib? lib,
   }) async {
     tester.view.physicalSize = const Size(390, 2400);
     tester.view.devicePixelRatio = 1;
@@ -136,6 +176,7 @@ void main() {
               openDeposit: () => deposits++,
               transfer: transfer,
               packages: packages,
+              library: (lib ?? _Lib()).library,
             ),
           ),
         ),
@@ -340,6 +381,107 @@ void main() {
     expect(find.byKey(const Key('client-unknown-dialog')), findsOneWidget);
   });
 
+  group('the service files that the user loaded', () {
+    late _Packages packages;
+    late _Lib lib;
+
+    setUp(() {
+      packages = _Packages();
+      lib = _Lib();
+    });
+
+    testWidgets('with none loaded, the section says how to load one', (tester) async {
+      await open(tester, packages: packages, lib: lib);
+      expect(find.byKey(const Key('pkg-empty')), findsOneWidget);
+      expect(find.text(appL10n.celautPkgEmpty), findsOneWidget);
+      expect(find.byKey(const Key('pkg-import')), findsOneWidget);
+    });
+
+    testWidgets('a file is picked, loaded into the app and listed', (tester) async {
+      packages.picked = const PickedPackage(path: '/cache/picked.bee', bytes: 10, name: 'echo.celaut.bee');
+      await open(tester, packages: packages, lib: lib);
+      await tester.tap(find.byKey(const Key('pkg-import')));
+      await tester.pumpAndSettle();
+      expect(lib.calls, ['import /cache/picked.bee echo.celaut.bee']);
+      expect(find.text(appL10n.celautPkgLoaded('echo')), findsOneWidget);
+      expect(find.byKey(Key('pkg-$_best')), findsOneWidget);
+      expect(find.text('echo'), findsOneWidget);
+      expect(find.byKey(const Key('pkg-empty')), findsNothing);
+      // Nothing was sent or launched: loading a file only keeps it.
+      expect(launched, isEmpty);
+    });
+
+    testWidgets('closing the picker loads nothing', (tester) async {
+      await open(tester, packages: packages, lib: lib);
+      await tester.tap(find.byKey(const Key('pkg-import')));
+      await tester.pumpAndSettle();
+      expect(packages.picks, 1);
+      expect(lib.calls, isEmpty);
+      expect(find.byKey(const Key('pkg-empty')), findsOneWidget);
+    });
+
+    testWidgets('a file that is not a service package is refused with the reason', (tester) async {
+      packages.picked = const PickedPackage(path: '/cache/junk.bee', bytes: 10, name: 'junk.bee');
+      lib.importError = const CelautError(
+        kind: CelautErrorKind.invalidInput,
+        message: 'the file does not say which service it is',
+      );
+      await open(tester, packages: packages, lib: lib);
+      await tester.tap(find.byKey(const Key('pkg-import')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(appL10n.celautPkgBadFile('the file does not say which service it is')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('pkg-empty')), findsOneWidget);
+    });
+
+    testWidgets('Run launches the loaded service by its id', (tester) async {
+      lib.stored = [lib.view()];
+      await open(tester, packages: packages, lib: lib);
+      await tester.tap(find.byKey(Key('pkg-run-$_best')));
+      await tester.pumpAndSettle();
+      expect(launched, ['$_best ${ServiceStrings.initialDefault}']);
+      expect(changed, greaterThan(0));
+    });
+
+    testWidgets('a service whose file is gone cannot run and says so', (tester) async {
+      lib.stored = [lib.view(present: false)];
+      await open(tester, packages: packages, lib: lib);
+      expect(find.text(appL10n.celautPkgMissing), findsOneWidget);
+      expect(tester.widget<OutlinedButton>(find.byKey(Key('pkg-run-$_best'))).onPressed, isNull);
+      expect(launched, isEmpty);
+    });
+
+    testWidgets('Remove asks first, then deletes it; Cancel keeps it', (tester) async {
+      lib.stored = [lib.view(name: 'echo')];
+      await open(tester, packages: packages, lib: lib);
+      await tester.tap(find.byKey(Key('pkg-remove-$_best')));
+      await tester.pumpAndSettle();
+      expect(find.text(appL10n.celautPkgRemoveBody('echo')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('pkg-remove-cancel')));
+      await tester.pumpAndSettle();
+      expect(lib.calls, isEmpty);
+      expect(find.byKey(Key('pkg-$_best')), findsOneWidget);
+
+      await tester.tap(find.byKey(Key('pkg-remove-$_best')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('pkg-remove-confirm')));
+      await tester.pumpAndSettle();
+      expect(lib.calls, ['remove $_best']);
+      expect(find.byKey(Key('pkg-$_best')), findsNothing);
+      expect(find.byKey(const Key('pkg-empty')), findsOneWidget);
+    });
+
+    testWidgets('the loaded services are shown by name with their size and a short id', (tester) async {
+      lib.stored = [lib.view(name: 'echo'), lib.view(id: _other, name: 'translate')];
+      await open(tester, packages: packages, lib: lib);
+      expect(find.text('echo'), findsOneWidget);
+      expect(find.text('translate'), findsOneWidget);
+      expect(find.textContaining('4.0 KiB · ${_best.substring(0, 8)}'), findsOneWidget);
+    });
+  });
+
   group('a service that a node does not have', () {
     late List<String> transfers;
     late _Packages packages;
@@ -358,13 +500,6 @@ void main() {
           nodoExport: false,
         );
       },
-      inspect: (path) async => PackageView(
-        path: path,
-        bytes: BigInt.from(10),
-        serviceId: _best,
-        hasService: true,
-        nodoExport: true,
-      ),
       send: (node, id, initialMu, path) async {
         transfers.add('send ${node.host} $path');
         await hold?.future;
@@ -422,10 +557,11 @@ void main() {
       expect(packages.picks, 0);
     });
 
-    testWidgets('no node has it: a .celaut.bee file is picked and sent', (tester) async {
+    testWidgets('no node has it: a .celaut.bee file is picked, loaded into the app and sent', (tester) async {
       launchError = missingOn(holder: false);
       packages.picked = const PickedPackage(path: '/cache/picked.bee', bytes: 10, name: 'echo.celaut.bee');
-      await open(tester, transfer: transfer(), packages: packages);
+      final lib = _Lib();
+      await open(tester, transfer: transfer(), packages: packages, lib: lib);
       await run(tester);
       expect(find.text(appL10n.celautSendNoHolder), findsOneWidget);
       expect(find.text(appL10n.celautSendFromFile('q.example:9')), findsOneWidget);
@@ -436,8 +572,12 @@ void main() {
       await tester.tap(find.byKey(const Key('send-confirm-ok')));
       await tester.pumpAndSettle();
       expect(packages.picks, 1);
-      expect(transfers, ['send q.example /cache/picked.bee']);
+      // The file is loaded into the library first, and the service is sent from there.
+      expect(lib.calls, ['import /cache/picked.bee echo.celaut.bee']);
+      expect(transfers, ['send q.example /data/packages/library/$_best.bee']);
       expect(launched, hasLength(2));
+      // And it stays in the app, listed with the services of the user.
+      expect(find.byKey(Key('pkg-$_best')), findsOneWidget);
     });
 
     testWidgets('a cancelled confirmation or pick sends nothing', (tester) async {
@@ -487,28 +627,36 @@ void main() {
       expect(find.text(appL10n.celautErrorUnsupportedArchitecture), findsOneWidget);
     });
 
-    testWidgets('a file of another service is refused with its reason', (tester) async {
+    testWidgets('a file of another service is loaded but not sent, and the reason is shown', (tester) async {
       launchError = missingOn(holder: false);
       packages.picked = const PickedPackage(path: '/cache/other.bee', bytes: 10, name: 'other');
-      final other = ServiceTransfer(
-        inspect: (path) async => PackageView(
-          path: path,
-          bytes: BigInt.from(10),
-          serviceId: _other,
-          hasService: true,
-          nodoExport: true,
-        ),
-        send: (node, id, initialMu, path) async => throw StateError('must not send'),
-        progress: () => progress,
-        cancel: () {},
-      );
-      await open(tester, transfer: other, packages: packages);
+      final lib = _Lib()..imports = _other;
+      await open(tester, transfer: transfer(), packages: packages, lib: lib);
       await run(tester);
       await tester.tap(find.byKey(const Key('launch-send-service')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('send-confirm-ok')));
       await tester.pumpAndSettle();
       expect(find.text(appL10n.celautSendOtherService), findsOneWidget);
+      expect(transfers, isEmpty);
+      expect(find.byKey(Key('pkg-$_other')), findsOneWidget, reason: 'it stays in the library');
+    });
+
+    testWidgets('a service that the user loaded is sent from the library, with no file to pick', (tester) async {
+      launchError = missingOn();
+      final lib = _Lib()..stored = [_Lib().view()];
+      await open(tester, transfer: transfer(), packages: packages, lib: lib);
+      await run(tester);
+      expect(find.text(appL10n.celautSendFromLibrary('q.example:9')), findsOneWidget);
+      expect(find.text(appL10n.celautSendNoHolder), findsNothing);
+      await tester.tap(find.byKey(const Key('launch-send-service')));
+      await tester.pumpAndSettle();
+      launchError = null;
+      await tester.tap(find.byKey(const Key('send-confirm-ok')));
+      await tester.pumpAndSettle();
+      expect(packages.picks, 0);
+      expect(transfers, ['send q.example /data/packages/library/$_best.bee'], reason: 'no fetch from a node');
+      expect(launched, hasLength(2));
     });
 
     testWidgets('the progress shows the bytes and the percent, and Cancel stops the transfer', (tester) async {

@@ -13,7 +13,10 @@
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use celaut_client::package::{inspect, read, save, Cancel, Layout, PackageError, PackageInfo};
+use celaut_client::db::PackageRecord;
+use celaut_client::package::{
+    import, inspect, read, remove_file, save, Cancel, Layout, PackageError, PackageInfo,
+};
 
 use super::celaut::{error_of, invalid, CelautError, CelautErrorKind};
 use super::celaut_db::{db, now_seconds};
@@ -35,6 +38,139 @@ pub struct PackageView {
     pub has_service: bool,
     /// True for a file of `nodo export` (its parts get the indices of a node).
     pub nodo_export: bool,
+}
+
+/// A service file that the user loaded into the app (the library of `celaut_packages`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LibraryPackageView {
+    /// The id of the service: 64 lowercase hexadecimal characters.
+    pub service_id: String,
+    /// The name to show.
+    pub name: String,
+    /// The file of the app that holds the package.
+    pub path: String,
+    /// The size of the file, in bytes.
+    pub bytes: u64,
+    /// The time of the load, in Unix seconds.
+    pub imported_at: i64,
+    /// True for a file of `nodo export`.
+    pub nodo_export: bool,
+    /// False if the file is gone (the user or the system deleted it): the record stays so
+    /// that the screen can say it, and the user can load the file again.
+    pub present: bool,
+}
+
+/// The longest name that the library keeps, in characters.
+const MAX_NAME: usize = 80;
+
+/// The name to show for a file: the name of the file without `.celaut.bee` or `.bee`, with
+/// no control characters, and no more than [`MAX_NAME`] characters. An empty name is the
+/// first 8 characters of the service id.
+fn clean_name(name: &str, service_id: &str) -> String {
+    let base = name.rsplit(['/', '\\']).next().unwrap_or(name).trim();
+    let lower = base.to_ascii_lowercase();
+    let base = if lower.ends_with(".celaut.bee") {
+        &base[..base.len() - ".celaut.bee".len()]
+    } else if lower.ends_with(".bee") {
+        &base[..base.len() - ".bee".len()]
+    } else {
+        base
+    };
+    let cleaned: String = base
+        .chars()
+        .filter(|c| !c.is_control())
+        .take(MAX_NAME)
+        .collect();
+    let cleaned = cleaned.trim().to_string();
+    if cleaned.is_empty() {
+        service_id.chars().take(8).collect()
+    } else {
+        cleaned
+    }
+}
+
+fn library_view(service_id: &str, r: &PackageRecord) -> LibraryPackageView {
+    LibraryPackageView {
+        service_id: service_id.to_string(),
+        name: r.name.clone(),
+        path: r.path.clone(),
+        bytes: r.bytes,
+        imported_at: r.imported_at,
+        nodo_export: r.nodo_export,
+        present: std::path::Path::new(&r.path).is_file(),
+    }
+}
+
+/// Load the service file at `path` (a copy of the file that the user chose, in the cache of
+/// the app) into the library of the app, which keeps it in a private directory `dir` under
+/// the id of its service. The file is moved, not copied. `name` is the name of the file
+/// that the user chose. A file that is not a package of a service, or that does not say
+/// which service it is, is refused (kind `invalidInput`) and stays where it is. A second
+/// load of the same service replaces the first.
+#[flutter_rust_bridge::frb]
+pub async fn celaut_import_package(
+    path: String,
+    name: String,
+    dir: String,
+) -> Result<LibraryPackageView, CelautError> {
+    if dir.trim().is_empty() {
+        return Err(invalid("the app has no directory for the package"));
+    }
+    let imported = import(&PathBuf::from(&path), &PathBuf::from(dir))
+        .await
+        .map_err(package_error)?;
+    let id = hex::encode(imported.service_id);
+    let record = PackageRecord {
+        name: clean_name(&name, &id),
+        path: imported.path.display().to_string(),
+        bytes: imported.info.bytes,
+        imported_at: now_seconds(),
+        nodo_export: imported.info.layout == Layout::NodoExport,
+    };
+    let view = library_view(&id, &record);
+    db().update(|d| {
+        d.packages.insert(id.clone(), record);
+    })
+    .map_err(super::celaut_db::storage_error)?;
+    Ok(view)
+}
+
+/// The service files that the user loaded into the app, by name. It makes no connection.
+#[flutter_rust_bridge::frb(sync)]
+pub fn celaut_packages() -> Vec<LibraryPackageView> {
+    let mut list: Vec<LibraryPackageView> = db().read(|d| {
+        d.packages
+            .iter()
+            .map(|(id, r)| library_view(id, r))
+            .collect()
+    });
+    list.sort_by(|a, b| {
+        a.name
+            .to_lowercase()
+            .cmp(&b.name.to_lowercase())
+            .then_with(|| a.service_id.cmp(&b.service_id))
+    });
+    list
+}
+
+/// Remove a service file from the library: the file is deleted and the record is dropped.
+/// The nodes that have the service keep it. Nothing happens for a service that is not in
+/// the library.
+#[flutter_rust_bridge::frb]
+pub async fn celaut_remove_package(service_id_hex: String) -> Result<(), CelautError> {
+    let id = hex::encode(service_id(&service_id_hex)?);
+    let record = db().read(|d| d.packages.get(&id).cloned());
+    let Some(record) = record else {
+        return Ok(());
+    };
+    remove_file(&PathBuf::from(&record.path))
+        .await
+        .map_err(package_error)?;
+    db().update(|d| {
+        d.packages.remove(&id);
+    })
+    .map_err(super::celaut_db::storage_error)?;
+    Ok(())
 }
 
 /// What a transfer does now.
@@ -246,6 +382,51 @@ pub fn celaut_cancel_transfer() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_name_of_a_file_is_cleaned() {
+        let id = "ab".repeat(32);
+        for (raw, want) in [
+            ("echo.celaut.bee", "echo"),
+            ("ECHO.CELAUT.BEE", "ECHO"),
+            ("my service.bee", "my service"),
+            ("plain", "plain"),
+            ("/storage/emulated/0/Download/echo.celaut.bee", "echo"),
+            ("C:\\Users\\x\\echo.celaut.bee", "echo"),
+            ("  spaced  .celaut.bee", "spaced"),
+            ("tab\there\u{7}.bee", "tabhere"),
+            ("", "abababab"),
+            (".celaut.bee", "abababab"),
+            ("   ", "abababab"),
+        ] {
+            assert_eq!(clean_name(raw, &id), want, "{raw:?}");
+        }
+        let long = format!("{}.celaut.bee", "x".repeat(300));
+        assert_eq!(clean_name(&long, &id).chars().count(), MAX_NAME);
+        // A name in another alphabet is not cut in the middle of a character.
+        let wide = format!("{}.bee", "é".repeat(200));
+        assert_eq!(clean_name(&wide, &id).chars().count(), MAX_NAME);
+    }
+
+    #[test]
+    fn a_record_is_a_view_and_a_missing_file_is_not_present() {
+        let id = "cd".repeat(32);
+        let record = PackageRecord {
+            name: "echo".into(),
+            path: "/no/such/file.bee".into(),
+            bytes: 9,
+            imported_at: 3,
+            nodo_export: true,
+        };
+        let view = library_view(&id, &record);
+        assert_eq!((view.name.as_str(), view.bytes, view.nodo_export), ("echo", 9, true));
+        assert!(!view.present);
+        let here = std::env::temp_dir().join(format!("celaut-view-{}", std::process::id()));
+        std::fs::write(&here, b"x").unwrap();
+        let present = library_view(&id, &PackageRecord { path: here.display().to_string(), ..record });
+        assert!(present.present);
+        std::fs::remove_file(here).unwrap();
+    }
 
     #[test]
     fn one_transfer_at_a_time_and_its_progress() {

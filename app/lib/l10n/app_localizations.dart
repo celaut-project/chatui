@@ -9706,6 +9706,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The app has no place to keep the service.'**
   String get celautSendNoDirectory;
+
+  /// No description provided for @celautPkgTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your services'**
+  String get celautPkgTitle;
+
+  /// No description provided for @celautPkgImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import a service file'**
+  String get celautPkgImport;
+
+  /// No description provided for @celautPkgEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No service file is loaded. Import a .celaut.bee file to run a service that no node has yet.'**
+  String get celautPkgEmpty;
+
+  /// No description provided for @celautPkgRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get celautPkgRemove;
+
+  /// No description provided for @celautPkgRemoveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this service file?'**
+  String get celautPkgRemoveTitle;
+
+  /// No description provided for @celautPkgRemoveBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is deleted from this app. The nodes that have the service keep it.'**
+  String celautPkgRemoveBody(String name);
+
+  /// No description provided for @celautPkgLoaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Loaded {name}.'**
+  String celautPkgLoaded(String name);
+
+  /// No description provided for @celautPkgBadFile.
+  ///
+  /// In en, this message translates to:
+  /// **'This file is not a service package: {reason}'**
+  String celautPkgBadFile(String reason);
+
+  /// No description provided for @celautPkgMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The file is gone. Import it again.'**
+  String get celautPkgMissing;
+
+  /// No description provided for @celautSendFromLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Send your loaded file to {to}'**
+  String celautSendFromLibrary(String to);
 }
 
 class _AppLocalizationsDelegate

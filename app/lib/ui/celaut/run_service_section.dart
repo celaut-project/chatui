@@ -7,7 +7,9 @@ import '../../bridge/api/celaut_service.dart';
 import '../../celaut/celaut_format.dart';
 import '../../celaut/celaut_strings.dart';
 import '../../celaut/launcher.dart';
+import '../../bridge/api/celaut_package.dart';
 import '../../celaut/package_channel.dart';
+import '../../celaut/package_library.dart';
 import '../../celaut/payers.dart';
 import '../../celaut/service_strings.dart';
 import '../../celaut/service_transfer.dart';
@@ -46,6 +48,7 @@ class RunServiceSection extends StatefulWidget {
     this.openDeposit,
     this.transfer,
     this.packages,
+    this.library,
   });
 
   /// The full wallets: Run needs one that is open. Tests give their own.
@@ -84,6 +87,9 @@ class RunServiceSection extends StatefulWidget {
   /// The file picker and the metered check of Android. Tests give their own.
   final PackageChannel? packages;
 
+  /// The service files that the user loaded into the app. Tests give their own.
+  final PackageLibrary? library;
+
   @override
   State<RunServiceSection> createState() => _RunServiceSectionState();
 }
@@ -94,6 +100,8 @@ class _RunServiceSectionState extends State<RunServiceSection> {
   bool _loading = true;
   bool _failed = false;
   bool _running = false;
+  List<LibraryPackageView> _packages = const [];
+  late final PackageLibrary _library = widget.library ?? PackageLibrary();
 
   /// The most skills shown at once: the search narrows the list.
   static const _shown = 6;
@@ -101,7 +109,17 @@ class _RunServiceSectionState extends State<RunServiceSection> {
   @override
   void initState() {
     super.initState();
+    _readPackages();
     _read();
+  }
+
+  void _readPackages() {
+    try {
+      _packages = _library.list();
+    } catch (_) {
+      // The library is not there (no database yet): the section shows no service.
+      _packages = const [];
+    }
   }
 
   @override
@@ -243,6 +261,7 @@ class _RunServiceSectionState extends State<RunServiceSection> {
     await showLaunchFailureSheet(
       context,
       failure,
+      libraryPath: _library.find(serviceId)?.path,
       onDeposit: widget.openDeposit ??
           () => Navigator.of(context).push<void>(
             MaterialPageRoute(builder: (_) => const DepositScreen()),
@@ -267,26 +286,118 @@ class _RunServiceSectionState extends State<RunServiceSection> {
     }
   }
 
+  /// Pick a `.celaut.bee` file and load it into the library of the app. Gives the loaded
+  /// service, or null if the user did not pick a file or the file is refused (the user
+  /// has been told).
+  Future<LibraryPackageView?> _loadPickedFile() async {
+    final packages = widget.packages ?? const AndroidPackageChannel();
+    final PickedPackage? picked;
+    try {
+      picked = await packages.pick();
+    } catch (_) {
+      return null;
+    }
+    if (picked == null || !mounted) return null;
+    try {
+      final loaded = await _library.importPicked(picked);
+      if (mounted) setState(_readPackages);
+      return loaded;
+    } on CelautError catch (e) {
+      if (mounted) await _showBadFile(e);
+    } on PackageRefused {
+      if (mounted) await showTransferFailure(context, const PackageRefused(PackageRefusal.noDirectory));
+    }
+    return null;
+  }
+
+  Future<void> _showBadFile(CelautError e) async {
+    final l = context.l10n;
+    final text = e.kind == CelautErrorKind.invalidInput
+        ? l.celautPkgBadFile(e.message)
+        : CelautStrings.errorText(e.kind);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  /// Load a service file into the app, from the "Import" button.
+  Future<void> _import() async {
+    final loaded = await _loadPickedFile();
+    if (loaded == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.celautPkgLoaded(loaded.name))),
+    );
+  }
+
+  Future<void> _removePackage(LibraryPackageView package) async {
+    final l = context.l10n;
+    final sure = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l.celautPkgRemoveTitle),
+        content: Text(l.celautPkgRemoveBody(package.name)),
+        actions: [
+          TextButton(
+            key: const Key('pkg-remove-cancel'),
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l.celautSendCancel),
+          ),
+          FilledButton(
+            key: const Key('pkg-remove-confirm'),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l.celautPkgRemove),
+          ),
+        ],
+      ),
+    );
+    if (sure != true || !mounted) return;
+    try {
+      await _library.remove(package.serviceId);
+    } on CelautError catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(CelautStrings.errorText(e.kind))),
+        );
+      }
+    }
+    if (mounted) setState(_readPackages);
+  }
+
+  Future<void> _runPackage(LibraryPackageView package) async {
+    if (!package.present) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.celautPkgMissing)),
+      );
+      return;
+    }
+    await _run(package.serviceId);
+  }
+
   /// Give the service to the node of [offer] that does not have it, then launch again: the
-  /// balancer now sees that node (`docs/celaut/package.md`).
+  /// balancer now sees that node (`docs/celaut/package.md`). The service comes from a file
+  /// of the library, from another node (a copy that is deleted after the send), or from a
+  /// file that the user picks now (it is loaded into the library first).
   Future<void> _sendService(TransferOffer offer, String serviceId) async {
     final packages = widget.packages ?? const AndroidPackageChannel();
     final transfer = widget.transfer ?? ServiceTransfer();
     final metered = await packages.isMetered();
     if (!mounted) return;
     if (!await confirmServiceTransfer(context, metered: metered) || !mounted) return;
-    String? path;
+    String? path = offer.libraryPath;
     if (offer.source == TransferSource.file) {
-      final picked = await packages.pick();
-      if (picked == null || !mounted) return;
-      path = picked.path;
+      final loaded = await _loadPickedFile();
+      if (loaded == null || !mounted) return;
+      if (loaded.serviceId != serviceId.toLowerCase()) {
+        // The file holds another service: it stays in the library, but it is not this one.
+        await showTransferFailure(context, const PackageRefused(PackageRefusal.otherService));
+        return;
+      }
+      path = loaded.path;
     }
     final result = await showServiceTransfer(
       context,
       transfer: transfer,
       work: () => offer.source == TransferSource.node
           ? transfer.fromNode(offer, serviceId, ServiceStrings.initialDefault)
-          : transfer.fromFile(offer.to, serviceId, ServiceStrings.initialDefault, path!),
+          : transfer.fromLibrary(offer.to, serviceId, ServiceStrings.initialDefault, path!),
     );
     if (!mounted) return;
     final error = result.error;
@@ -380,6 +491,57 @@ class _RunServiceSectionState extends State<RunServiceSection> {
                   ),
                 ),
               ),
+          const SizedBox(height: 16),
+          Text(l.celautPkgTitle.toUpperCase(), style: t.label),
+          const SizedBox(height: 6),
+          if (_packages.isEmpty)
+            Text(l.celautPkgEmpty, key: const Key('pkg-empty'), style: t.secondary)
+          else
+            for (final package in _packages)
+              Padding(
+                key: Key('pkg-${package.serviceId}'),
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(package.name, style: t.primary),
+                          Text(
+                            package.present
+                                ? '${CelautStrings.bytes(package.bytes.toInt())} · '
+                                    '${package.serviceId.substring(0, 8)}'
+                                : l.celautPkgMissing,
+                            style: t.secondary,
+                          ),
+                        ],
+                      ),
+                    ),
+                    OutlinedButton(
+                      key: Key('pkg-run-${package.serviceId}'),
+                      onPressed: _running || !package.present ? null : () => _runPackage(package),
+                      child: Text(l.celautRunButton),
+                    ),
+                    IconButton(
+                      key: Key('pkg-remove-${package.serviceId}'),
+                      tooltip: l.celautPkgRemove,
+                      onPressed: _running ? null : () => _removePackage(package),
+                      icon: const Icon(Icons.delete_outline, size: 20),
+                    ),
+                  ],
+                ),
+              ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              key: const Key('pkg-import'),
+              onPressed: _running ? null : _import,
+              icon: const Icon(Icons.upload_file_outlined, size: 18),
+              label: Text(l.celautPkgImport),
+            ),
+          ),
           if (_running) ...[
             const SizedBox(height: 8),
             const LinearProgressIndicator(key: Key('run-progress')),

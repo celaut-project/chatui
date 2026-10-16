@@ -8,9 +8,37 @@ import 'celaut.dart';
 import 'celaut_service.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `begin`, `end`, `package_error`, `transfer`, `view_of`
+// These functions are ignored because they are not marked as `pub`: `begin`, `clean_name`, `end`, `library_view`, `package_error`, `transfer`, `view_of`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Running`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`
+
+/// Load the service file at `path` (a copy of the file that the user chose, in the cache of
+/// the app) into the library of the app, which keeps it in a private directory `dir` under
+/// the id of its service. The file is moved, not copied. `name` is the name of the file
+/// that the user chose. A file that is not a package of a service, or that does not say
+/// which service it is, is refused (kind `invalidInput`) and stays where it is. A second
+/// load of the same service replaces the first.
+Future<LibraryPackageView> celautImportPackage({
+  required String path,
+  required String name,
+  required String dir,
+}) => RustLib.instance.api.crateApiCelautPackageCelautImportPackage(
+  path: path,
+  name: name,
+  dir: dir,
+);
+
+/// The service files that the user loaded into the app, by name. It makes no connection.
+List<LibraryPackageView> celautPackages() =>
+    RustLib.instance.api.crateApiCelautPackageCelautPackages();
+
+/// Remove a service file from the library: the file is deleted and the record is dropped.
+/// The nodes that have the service keep it. Nothing happens for a service that is not in
+/// the library.
+Future<void> celautRemovePackage({required String serviceIdHex}) => RustLib
+    .instance
+    .api
+    .crateApiCelautPackageCelautRemovePackage(serviceIdHex: serviceIdHex);
 
 /// Get the service from `source`, a node that has it, into a file in `dir` (a
 /// directory of the app), and say what the file holds. A node that does not have the
@@ -55,6 +83,64 @@ TransferView celautTransferProgress() =>
 /// Stop the transfer that runs, if any. The node refuses the cut service.
 void celautCancelTransfer() =>
     RustLib.instance.api.crateApiCelautPackageCelautCancelTransfer();
+
+/// A service file that the user loaded into the app (the library of `celaut_packages`).
+class LibraryPackageView {
+  /// The id of the service: 64 lowercase hexadecimal characters.
+  final String serviceId;
+
+  /// The name to show.
+  final String name;
+
+  /// The file of the app that holds the package.
+  final String path;
+
+  /// The size of the file, in bytes.
+  final BigInt bytes;
+
+  /// The time of the load, in Unix seconds.
+  final PlatformInt64 importedAt;
+
+  /// True for a file of `nodo export`.
+  final bool nodoExport;
+
+  /// False if the file is gone (the user or the system deleted it): the record stays so
+  /// that the screen can say it, and the user can load the file again.
+  final bool present;
+
+  const LibraryPackageView({
+    required this.serviceId,
+    required this.name,
+    required this.path,
+    required this.bytes,
+    required this.importedAt,
+    required this.nodoExport,
+    required this.present,
+  });
+
+  @override
+  int get hashCode =>
+      serviceId.hashCode ^
+      name.hashCode ^
+      path.hashCode ^
+      bytes.hashCode ^
+      importedAt.hashCode ^
+      nodoExport.hashCode ^
+      present.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LibraryPackageView &&
+          runtimeType == other.runtimeType &&
+          serviceId == other.serviceId &&
+          name == other.name &&
+          path == other.path &&
+          bytes == other.bytes &&
+          importedAt == other.importedAt &&
+          nodoExport == other.nodoExport &&
+          present == other.present;
+}
 
 /// What a package file holds.
 class PackageView {

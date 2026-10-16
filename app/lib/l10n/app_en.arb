@@ -4609,5 +4609,43 @@
   "celautSendFailedTitle": "The service was not sent",
   "celautSendOtherService": "This file holds another service.",
   "celautSendNoServicePart": "This file has no service in it.",
-  "celautSendNoDirectory": "The app has no place to keep the service."
+  "celautSendNoDirectory": "The app has no place to keep the service.",
+  "celautPkgTitle": "Your services",
+  "celautPkgImport": "Import a service file",
+  "celautPkgEmpty": "No service file is loaded. Import a .celaut.bee file to run a service that no node has yet.",
+  "celautPkgRemove": "Remove",
+  "celautPkgRemoveTitle": "Remove this service file?",
+  "celautPkgRemoveBody": "{name} is deleted from this app. The nodes that have the service keep it.",
+  "@celautPkgRemoveBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "celautPkgLoaded": "Loaded {name}.",
+  "@celautPkgLoaded": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "celautPkgBadFile": "This file is not a service package: {reason}",
+  "@celautPkgBadFile": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "celautPkgMissing": "The file is gone. Import it again.",
+  "celautSendFromLibrary": "Send your loaded file to {to}",
+  "@celautSendFromLibrary": {
+    "placeholders": {
+      "to": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -111,6 +111,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   KnownNodeView dco_decode_known_node_view(dynamic raw);
 
   @protected
+  LibraryPackageView dco_decode_library_package_view(dynamic raw);
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
@@ -124,6 +127,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<KnownNodeView> dco_decode_list_known_node_view(dynamic raw);
+
+  @protected
+  List<LibraryPackageView> dco_decode_list_library_package_view(dynamic raw);
 
   @protected
   List<NodeAddress> dco_decode_list_node_address(dynamic raw);
@@ -364,6 +370,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   KnownNodeView sse_decode_known_node_view(SseDeserializer deserializer);
 
   @protected
+  LibraryPackageView sse_decode_library_package_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
@@ -383,6 +394,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<KnownNodeView> sse_decode_list_known_node_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<LibraryPackageView> sse_decode_list_library_package_view(
     SseDeserializer deserializer,
   );
 
@@ -681,6 +697,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_known_node_view(KnownNodeView self, SseSerializer serializer);
 
   @protected
+  void sse_encode_library_package_view(
+    LibraryPackageView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
@@ -704,6 +726,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_known_node_view(
     List<KnownNodeView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_library_package_view(
+    List<LibraryPackageView> self,
     SseSerializer serializer,
   );
 
