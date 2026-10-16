@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../bridge/api/celaut_home.dart';
 import '../../bridge/api/celaut_service.dart';
 import '../../celaut/payers.dart';
 import '../../l10n/l10n.dart';
