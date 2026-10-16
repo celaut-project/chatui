@@ -5,6 +5,7 @@
 
 use super::*;
 use crate::api::{err_str, register_handle, wallet_lock};
+use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
 use std::io::{Read, Write};
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
@@ -752,28 +753,6 @@ async fn ergopay_requests_cannot_double_spend_or_spend_confirming_funds_while_wa
                 assert!(message(&error).contains("still confirming"), "{error}");
             }
         }
-    }
-}
-
-#[tokio::test]
-async fn a_watched_account_gathers_under_the_same_rules() {
-    let w = Sent::new(18);
-    let node = Node::start(w.chain.clone());
-    let client = node.client().await;
-    for allow in [true, false] {
-        let _policy = policy(allow);
-        let s = gather_watched(&client, &[w.address.clone()]).await.unwrap();
-        let mut expected = vec![Sent::id(&w.free)];
-        if allow {
-            expected.push(Sent::id(&w.change));
-        }
-        assert_eq!(ids(&s.inputs), expected, "allow={allow}");
-        assert_eq!(s.held_back.len(), usize::from(!allow));
-        let explained = explain_held(
-            &s.held_back,
-            "Insufficient ERG: need 500000000 nanoERG, have 50000000".into(),
-        );
-        assert_eq!(explained.contains("0.6989 ERG is still confirming"), !allow, "{explained}");
     }
 }
 

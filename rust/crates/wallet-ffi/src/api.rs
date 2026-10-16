@@ -504,50 +504,6 @@ pub fn validate_ergo_address(address: String) -> bool {
     address_to_ergo_tree(&address).is_ok()
 }
 
-/// Accept a checksummed address or an exact compressed P2PK key/tree hex.
-/// Raw keys have no network marker; Argus imports them as mainnet addresses.
-#[flutter_rust_bridge::frb]
-pub fn normalize_watch_input(input: String) -> Option<String> {
-    let input = input.trim();
-    if address_to_ergo_tree(input).is_ok() {
-        return Some(input.to_owned());
-    }
-    let lower = input.to_ascii_lowercase();
-    let key = match lower.len() {
-        66 => lower.as_str(),
-        72 if lower.starts_with("0008cd") => &lower[6..],
-        _ => return None,
-    };
-    if !(key.starts_with("02") || key.starts_with("03"))
-        || !key.bytes().all(|b| b.is_ascii_hexdigit())
-    {
-        return None;
-    }
-    let tree = format!("0008cd{key}");
-    let address = ergo_tx::address::ergo_tree_to_address(&tree).ok()?;
-    // Require a canonical, fully consumed P2PK tree and a valid curve point.
-    (address_to_ergo_tree(&address).ok()? == tree).then_some(address)
-}
-
-#[cfg(test)]
-mod watch_input_tests {
-    use super::*;
-
-    #[test]
-    fn normalizes_public_keys_and_preserves_addresses() {
-        let address = "9hY16vzHmmfyVBwKeFGHvb2bMFsG94A1u7To1QWtUokACyFVENQ";
-        let tree = address_to_ergo_tree(address).unwrap();
-        for input in [address.to_owned(), tree.clone(), tree[6..].to_owned(), tree.to_uppercase()] {
-            assert_eq!(normalize_watch_input(format!(" {input} ")), Some(address.to_owned()));
-        }
-        for input in ["".to_owned(), "not an address".to_owned(), format!("{tree}00"),
-            format!("04{}", &tree[8..]), format!("02{}", "ff".repeat(32)),
-            format!("0x{}", &tree[6..]), "00".repeat(32)] {
-            assert_eq!(normalize_watch_input(input.clone()), None, "{input}");
-        }
-    }
-}
-
 #[flutter_rust_bridge::frb]
 pub async fn get_balance(address: String, node_url: Option<String>) -> Result<String, String> {
     let client = node_client(node_url).await?;
@@ -2959,45 +2915,3 @@ mod tests {
 #[cfg(test)]
 #[path = "sync_tests.rs"]
 mod sync_tests;
-
-/// Derive public payment addresses from an Ergo Wallet App hex extended key.
-#[flutter_rust_bridge::frb]
-pub fn derive_watch_addresses(input: String, start: u32, count: u32) -> Result<Vec<String>, String> {
-    wallet_core::watch_xpub::addresses(&input, start, count)
-}
-
-
-#[path = "api_cold_impl.rs"]
-mod cold;
-
-/// Create an offline CSR scan, retained in memory for 30 minutes.
-#[flutter_rust_bridge::frb]
-pub fn cold_start() -> Result<String, String> { cold::start() }
-#[flutter_rust_bridge::frb]
-pub fn cold_discard(session: String) { cold::discard(session) }
-#[flutter_rust_bridge::frb]
-pub fn cold_reset(session: String) -> Result<(), String> { cold::reset(session) }
-#[flutter_rust_bridge::frb]
-pub fn cold_add_page(session: String, page: String) -> Result<String, String> { cold::add(session, page) }
-#[flutter_rust_bridge::frb]
-pub fn cold_review(session: String, handle_id: u64) -> Result<String, String> { cold::review(session, handle_id) }
-/// Explicit user confirmation of the previously returned review is required.
-#[flutter_rust_bridge::frb]
-pub fn cold_sign(session: String, handle_id: u64) -> Result<(), String> { cold::sign(session, handle_id) }
-#[flutter_rust_bridge::frb]
-pub fn cold_qr_pages(session: String, low_density: bool) -> Result<Vec<String>, String> { cold::qr(session, low_density) }
-#[flutter_rust_bridge::frb]
-pub fn cold_verify(session: String) -> Result<String, String> { cold::verify(session) }
-/// Only the session's cryptographically verified bytes can reach submission.
-#[flutter_rust_bridge::frb]
-pub async fn cold_broadcast(session: String) -> Result<String, String> { cold::broadcast(session).await }
-#[flutter_rust_bridge::frb]
-pub async fn cold_prepare_watch(key: String, address_count: u32, change_index: u32, recipient: String, amount_nano: i64, token_id: Option<String>, token_amount: Option<u64>, node_url: String) -> Result<String, String> {
-    cold::prepare(key, address_count, change_index, recipient, amount_nano, token_id, token_amount, node_url).await
-}
-
-/// Prepare a public P2PK address payment; change always returns to that address.
-#[flutter_rust_bridge::frb]
-pub async fn cold_prepare_address(address: String, recipient: String, amount_nano: i64, token_id: Option<String>, token_amount: Option<u64>, node_url: String) -> Result<String, String> {
-    cold::prepare_address(address, recipient, amount_nano, token_id, token_amount, node_url).await
-}
