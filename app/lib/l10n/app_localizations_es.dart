@@ -6203,4 +6203,43 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get celautSendNoDirectory =>
       'La app no tiene dónde guardar el servicio.';
+
+  @override
+  String get celautPkgTitle => 'Tus servicios';
+
+  @override
+  String get celautPkgImport => 'Importar un fichero de servicio';
+
+  @override
+  String get celautPkgEmpty =>
+      'No hay ningún fichero de servicio cargado. Importa un fichero .celaut.bee para ejecutar un servicio que ningún nodo tiene todavía.';
+
+  @override
+  String get celautPkgRemove => 'Quitar';
+
+  @override
+  String get celautPkgRemoveTitle => '¿Quitar este fichero de servicio?';
+
+  @override
+  String celautPkgRemoveBody(String name) {
+    return '$name se borra de esta app. Los nodos que tienen el servicio lo conservan.';
+  }
+
+  @override
+  String celautPkgLoaded(String name) {
+    return 'Cargado $name.';
+  }
+
+  @override
+  String celautPkgBadFile(String reason) {
+    return 'Este fichero no es un paquete de servicio: $reason';
+  }
+
+  @override
+  String get celautPkgMissing => 'El fichero ya no está. Impórtalo de nuevo.';
+
+  @override
+  String celautSendFromLibrary(String to) {
+    return 'Envía tu fichero cargado a $to';
+  }
 }

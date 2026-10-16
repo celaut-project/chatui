@@ -250,6 +250,30 @@ pub struct CelautData {
     /// The event log, the oldest first.
     #[serde(default)]
     pub events: Vec<EventRecord>,
+    /// The service files that the user loaded into the app, by service id (64 lowercase
+    /// hexadecimal characters). `docs/celaut/package.md`.
+    #[serde(default)]
+    pub packages: BTreeMap<String, PackageRecord>,
+}
+
+/// A service file that the user loaded into the app.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PackageRecord {
+    /// The name to show: the name of the file that the user chose, without `.celaut.bee`.
+    #[serde(default)]
+    pub name: String,
+    /// The file of the app that holds the package.
+    #[serde(default)]
+    pub path: String,
+    /// The size of the file, in bytes.
+    #[serde(default)]
+    pub bytes: u64,
+    /// The time of the load, in Unix seconds.
+    #[serde(default)]
+    pub imported_at: i64,
+    /// True for a file of `nodo export` (its parts get the indices of a node).
+    #[serde(default)]
+    pub nodo_export: bool,
 }
 
 impl CelautData {
@@ -619,6 +643,30 @@ mod tests {
             kind: EventKind::PaymentCommunicated,
             at: 3,
         });
+        data.packages.insert(
+            "dd".repeat(32),
+            PackageRecord {
+                name: "echo".into(),
+                path: "/data/packages/library/dd.bee".into(),
+                bytes: 4096,
+                imported_at: 4,
+                nodo_export: true,
+            },
+        );
+    }
+
+    #[test]
+    fn an_old_database_has_no_packages_and_a_new_one_keeps_them() {
+        let old: CelautData = serde_json::from_str(r#"{"version": 1}"#).unwrap();
+        assert!(old.packages.is_empty());
+        let mut data = CelautData::default();
+        sample(&mut data);
+        let text = serde_json::to_string(&data).unwrap();
+        let back: CelautData = serde_json::from_str(&text).unwrap();
+        assert_eq!(back.packages, data.packages);
+        // A record with only some fields loads, with defaults for the rest.
+        let r: PackageRecord = serde_json::from_str(r#"{"name": "x"}"#).unwrap();
+        assert_eq!((r.name.as_str(), r.bytes, r.nodo_export), ("x", 0, false));
     }
 
     #[test]

@@ -6,6 +6,31 @@ does not contain it". The request can contain it: `StartService` and
 `GetServiceEstimatedCost` take the service in their indices 4 (hashes), 5 (Metadata) and
 6 (Service, with its blocks). This note says how the app does it.
 
+## The library: load a service file once
+
+The user can load a `.celaut.bee` file into the app at any time, with **Import a service
+file** in the section "Run a service" of the home screen (the system file picker; any
+type, because the file has no MIME type of its own). The app then:
+
+1. checks it: the file must be a package of a service, with a Service part, and it must say
+   which service it is, in its Metadata or in a hash part. The app does not hash a whole
+   service on the phone, so a file with no id is refused, with that reason;
+2. **moves** it (the picker's copy is in the cache of the app) to
+   `<private dir>/packages/library/<service id>.bee`, through a partial file that is
+   renamed when it is complete, so the library never holds a cut file;
+3. records it in the Celaut database (`packages`: name, size, time, layout). The name is
+   the name of the file without `.celaut.bee`. Loading the same service again replaces it.
+
+"Your services" lists the loaded files with Run and Remove. Run launches the service by
+its id, like a service of the catalog. If no node has it, the failure sheet offers to send
+**the loaded file** to the first node that lacks it, with no file to pick; the file stays
+in the library after the send. Remove deletes the file and the record; the nodes that
+have the service keep it. A record whose file was deleted shows "The file is gone" and
+cannot run until the file is loaded again.
+
+Only a copy that the app made for one transfer is deleted after it: the service that it
+fetched from another node (`celaut_fetch_service`).
+
 ## Where the app gets a service
 
 1. **A node that has it.** `GetService` gives the indices 4, 5 and 6, the same as
@@ -66,8 +91,8 @@ when the node refuses the markers before its first answer, as nodo does.
 | Where | What |
 |---|---|
 | `rust/crates/celaut-wire` | `Transport::call_buffers` and `call_raw`; `gateway::get_service_raw` and `get_service_estimated_cost_with_service`; `WireError::Relay` |
-| `rust/crates/celaut-client/src/package.rs` | Save the answer of `GetService` to a `.bee` file, inspect a file (layout, service id), read it for a node, and cancel |
-| `rust/crates/wallet-ffi/src/api/celaut_package.rs` | `celaut_fetch_service`, `celaut_inspect_package`, `celaut_send_service`, `celaut_transfer_progress`, `celaut_cancel_transfer` |
+| `rust/crates/celaut-client/src/package.rs` | Save the answer of `GetService` to a `.bee` file, inspect a file (layout, service id), read it for a node, cancel, and load a file into the library (`import`) |
+| `rust/crates/wallet-ffi/src/api/celaut_package.rs` | `celaut_fetch_service`, `celaut_inspect_package`, `celaut_send_service`, `celaut_transfer_progress`, `celaut_cancel_transfer`; the library: `celaut_import_package`, `celaut_packages`, `celaut_remove_package` |
 
 ## Checks
 
