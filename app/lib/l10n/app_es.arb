@@ -137,7 +137,7 @@
   "aboutVersionBuild": "{version} · compilación {build}",
   "aboutUpdatesGroup": "Actualizaciones",
   "aboutCheckForUpdates": "Buscar actualizaciones",
-  "aboutCheckForUpdatesSubtitle": "Consulta a GitHub una vez al día. GitHub ve tu dirección IP.",
+  "aboutCheckForUpdatesSubtitle": "Consulta a GitHub una vez al día. GitHub ve tu dirección IP, o una salida de Tor si Tor está activado.",
   "aboutCheckNow": "Comprobar ahora",
   "aboutUpdatesNote": "Desactivado por defecto. Si está activado, Celaut pide a api.github.com la última versión una vez al día al iniciarse. \"Comprobar ahora\" hace lo mismo cuando lo pides, aunque esto esté desactivado. No se envía nada más: ni cuenta, ni token, ni versión de la app, ni identificador del dispositivo. Una descarga viene de github.com y se comprueba con la clave de firma de esta app antes de pedir a Android que la instale.",
   "aboutThisBuild": "Esta compilación",
@@ -292,6 +292,7 @@
   "updateNoticeDismiss": "Descartar",
   "updateErrorTimeout": "GitHub no respondió a tiempo.",
   "updateErrorUnreachable": "No se pudo conectar con GitHub. Comprueba tu conexión.",
+  "updateErrorRouteBlocked": "Tor está activado y no está listo, así que la app no se conecta a GitHub. Inténtalo de nuevo cuando Tor esté listo (Ajustes, Desarrollador, Tor).",
   "updateErrorStatus": "GitHub respondió con un error ({status}).",
   "updateErrorBadRedirect": "GitHub envió una redirección que no se entendió.",
   "updateErrorRedirectedAway": "La solicitud se redirigió fuera de GitHub, así que se detuvo.",
@@ -1267,9 +1268,9 @@
   "homeLockedCaps": "BLOQUEADA",
   "formatUnconfirmed": "Sin confirmar",
   "celautDepositRowTitle": "Depósito en Celaut",
-  "celautDepositRowSubtitle": "Paga a un nodo en ERG desde una billetera completa",
+  "celautDepositRowSubtitle": "Paga a un nodo en ERG desde la billetera",
   "celautDepositScreenTitle": "Depósito en Celaut",
-  "celautDepositIntro": "Paga ERG a un nodo para obtener MU, la unidad de cuenta del nodo. Tú eliges la billetera completa que paga; las billeteras de solo lectura no pueden pagar. El nodo recibe un pago simple y puede quedárselo, así que deposita cantidades pequeñas. El saldo queda con el ID de cliente de la app en ese nodo, que la app guarda en su base de datos cifrada de Celaut para todas las billeteras.",
+  "celautDepositIntro": "Paga ERG a un nodo para obtener MU, la unidad de cuenta del nodo. Paga la billetera de la app. El nodo recibe un pago simple y puede quedárselo, así que deposita cantidades pequeñas. El saldo queda con el ID de cliente de la app en ese nodo, que la app guarda en su base de datos cifrada de Celaut.",
   "celautDepositNodeLabel": "Dirección del nodo",
   "celautDepositNodeHint": "host:puerto",
   "celautDepositCheck": "Comprobar el nodo",
@@ -1369,6 +1370,7 @@
   "chatInputHint": "Escribe un mensaje",
   "chatSend": "Enviar",
   "chatEmpty": "Escribe algo para empezar la conversación.",
+  "chatStarting": "El servicio se está iniciando. Puede tardar un minuto en responder.",
   "chatCost": "Coste hasta ahora: {mu}",
   "@chatCost": {
     "placeholders": {
@@ -1527,6 +1529,16 @@
     }
   },
   "celautRunPreviewLoading": "Buscando el mejor nodo…",
+  "celautRunConfirmTitle": "¿Ejecutar {name}?",
+  "@celautRunConfirmTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "celautRunConfirmBody": "El servicio se ejecuta en un nodo y usa tu crédito allí hasta que se detiene. Detenlo en la pantalla de inicio, o al salir de la conversación.",
+  "celautRunConfirmNoQuote": "Ningún nodo ha dado un precio todavía. Ejecutar pregunta a todos los nodos de la lista.",
   "celautErrorTransferFailed": "La transferencia del servicio se detuvo (no se pudo leer el fichero, está cortado o se canceló). El nodo no guardó el servicio cortado. Inténtalo de nuevo.",
   "celautSendMissingTitle": "El servicio no está en estos nodos",
   "celautSendFromNode": "Enviarlo de {from} a {to}",

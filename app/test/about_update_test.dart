@@ -90,7 +90,7 @@ void main() {
       await openAbout(tester, stub);
       expect(toggle(tester).value, isFalse);
       expect(find.text('Check for updates'), findsOneWidget);
-      expect(find.text('Asks GitHub once a day. GitHub sees your IP address.'), findsOneWidget);
+      expect(find.text('Asks GitHub once a day. GitHub sees your IP address, or a Tor exit when Tor is on.'), findsOneWidget);
       expect(find.textContaining('api.github.com'), findsOneWidget);
       expect(find.textContaining('Off by default'), findsOneWidget);
     });

@@ -508,7 +508,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutCheckForUpdatesSubtitle =>
-      'Asks GitHub once a day. GitHub sees your IP address.';
+      'Asks GitHub once a day. GitHub sees your IP address, or a Tor exit when Tor is on.';
 
   @override
   String get aboutCheckNow => 'Check now';
@@ -1061,6 +1061,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get updateErrorUnreachable =>
       'Could not reach GitHub. Check your connection.';
+
+  @override
+  String get updateErrorRouteBlocked =>
+      'Tor is on and not ready, so the app does not connect to GitHub. Try again when Tor is ready (Settings, Developer, Tor).';
 
   @override
   String updateErrorStatus(String status) {
@@ -4884,14 +4888,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get celautDepositRowTitle => 'Celaut deposit';
 
   @override
-  String get celautDepositRowSubtitle => 'Pay a node in ERG from a full wallet';
+  String get celautDepositRowSubtitle => 'Pay a node in ERG from the wallet';
 
   @override
   String get celautDepositScreenTitle => 'Celaut deposit';
 
   @override
   String get celautDepositIntro =>
-      'Pay ERG to a node to get MU, the unit of account of the node. You choose the full wallet that pays; read-only wallets cannot pay. The node gets a plain payment and can keep it, so deposit small amounts. The balance stays with the client id of the app on that node, which the app keeps in its encrypted Celaut database for all wallets.';
+      'Pay ERG to a node to get MU, the unit of account of the node. The wallet of the app pays. The node gets a plain payment and can keep it, so deposit small amounts. The balance stays with the client id of the app on that node, which the app keeps in its encrypted Celaut database.';
 
   @override
   String get celautDepositNodeLabel => 'Node address';
@@ -5269,6 +5273,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatEmpty => 'Say something to start the conversation.';
 
   @override
+  String get chatStarting =>
+      'The service is starting. It can take a minute before it answers.';
+
+  @override
   String chatCost(String mu) {
     return 'Cost so far: $mu';
   }
@@ -5483,6 +5491,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get celautRunPreviewLoading => 'Looking for the best node…';
+
+  @override
+  String celautRunConfirmTitle(String name) {
+    return 'Run $name?';
+  }
+
+  @override
+  String get celautRunConfirmBody =>
+      'The service runs on a node and uses your credit there until it stops. Stop it on the home screen, or when you leave the conversation.';
+
+  @override
+  String get celautRunConfirmNoQuote =>
+      'No node gave a price yet. Run asks every node of the list.';
 
   @override
   String get celautErrorTransferFailed =>

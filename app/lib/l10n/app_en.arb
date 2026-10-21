@@ -348,7 +348,7 @@
   },
   "aboutUpdatesGroup": "Updates",
   "aboutCheckForUpdates": "Check for updates",
-  "aboutCheckForUpdatesSubtitle": "Asks GitHub once a day. GitHub sees your IP address.",
+  "aboutCheckForUpdatesSubtitle": "Asks GitHub once a day. GitHub sees your IP address, or a Tor exit when Tor is on.",
   "aboutCheckNow": "Check now",
   "aboutUpdatesNote": "Off by default. When on, Celaut asks api.github.com for the latest release once a day as it starts. \"Check now\" does the same on request, even with this off. Nothing else is sent: no account, token, app version or device identifier. A download comes from github.com and is checked against this app's signing key before Android is asked to install it.",
   "aboutThisBuild": "This build",
@@ -646,6 +646,7 @@
   "updateNoticeDismiss": "Dismiss",
   "updateErrorTimeout": "GitHub did not answer in time.",
   "updateErrorUnreachable": "Could not reach GitHub. Check your connection.",
+  "updateErrorRouteBlocked": "Tor is on and not ready, so the app does not connect to GitHub. Try again when Tor is ready (Settings, Developer, Tor).",
   "updateErrorStatus": "GitHub answered with an error ({status}).",
   "@updateErrorStatus": {
     "placeholders": {
@@ -3752,9 +3753,9 @@
   "homeLockedCaps": "LOCKED",
   "formatUnconfirmed": "Unconfirmed",
   "celautDepositRowTitle": "Celaut deposit",
-  "celautDepositRowSubtitle": "Pay a node in ERG from a full wallet",
+  "celautDepositRowSubtitle": "Pay a node in ERG from the wallet",
   "celautDepositScreenTitle": "Celaut deposit",
-  "celautDepositIntro": "Pay ERG to a node to get MU, the unit of account of the node. You choose the full wallet that pays; read-only wallets cannot pay. The node gets a plain payment and can keep it, so deposit small amounts. The balance stays with the client id of the app on that node, which the app keeps in its encrypted Celaut database for all wallets.",
+  "celautDepositIntro": "Pay ERG to a node to get MU, the unit of account of the node. The wallet of the app pays. The node gets a plain payment and can keep it, so deposit small amounts. The balance stays with the client id of the app on that node, which the app keeps in its encrypted Celaut database.",
   "celautDepositNodeLabel": "Node address",
   "celautDepositNodeHint": "host:port",
   "celautDepositCheck": "Check the node",
@@ -4046,6 +4047,7 @@
   "chatInputHint": "Write a message",
   "chatSend": "Send",
   "chatEmpty": "Say something to start the conversation.",
+  "chatStarting": "The service is starting. It can take a minute before it answers.",
   "chatCost": "Cost so far: {mu}",
   "@chatCost": {
     "placeholders": {
@@ -4204,6 +4206,16 @@
     }
   },
   "celautRunPreviewLoading": "Looking for the best node…",
+  "celautRunConfirmTitle": "Run {name}?",
+  "@celautRunConfirmTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "celautRunConfirmBody": "The service runs on a node and uses your credit there until it stops. Stop it on the home screen, or when you leave the conversation.",
+  "celautRunConfirmNoQuote": "No node gave a price yet. Run asks every node of the list.",
   "celautErrorTransferFailed": "The transfer of the service stopped (the file could not be read, it is cut, or it was cancelled). The node did not keep the cut service. Try again.",
   "celautSendMissingTitle": "The service is not on these nodes",
   "celautSendFromNode": "Send it from {from} to {to}",
