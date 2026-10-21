@@ -1317,8 +1317,8 @@
   "celautDepositSentTitle": "Depósitos enviados",
   "celautDepositSentRow": "{amount} ({mu} MU) a {node}",
   "celautDepositSentExpired": "El token de depósito expiró. El nodo rechaza este depósito ahora.",
-  "celautComputeHomeRowTitle": "Inicio de cómputo",
-  "celautComputeHomeRowSubtitle": "La pantalla de inicio muestra primero el cómputo de tus nodos. Es lo predeterminado. Desactívalo para ver primero la lista de billeteras.",
+  "celautComputeHomeRowTitle": "Inicio de conversaciones",
+  "celautComputeHomeRowSubtitle": "La app se abre en la lista de conversaciones. Es lo predeterminado. Desactívalo para ver primero la lista de billeteras.",
   "celautHomeComputeTitle": "Cómputo ofrecido",
   "celautHomeOfferedNote": "Sumas de lo que anuncian los nodos alcanzables: ofrecido, no libre.",
   "celautHomeNodes": "Nodos contados: {counted}. No alcanzables: {unreachable}.",
@@ -1366,7 +1366,6 @@
   "celautDepositAuthNeeded": "El depósito necesita el PIN o la huella de la billetera que paga. No se envió nada.",
   "celautNodesRowSubtitle": "Añade y quita los nodos de las sumas de la pantalla de inicio",
   "celautNodesScan": "Escanear un código QR",
-  "chatTitle": "Conversación",
   "chatInputHint": "Escribe un mensaje",
   "chatSend": "Enviar",
   "chatEmpty": "Escribe algo para empezar la conversación.",
@@ -1379,11 +1378,7 @@
       }
     }
   },
-  "chatLeaveTitle": "¿Salir de la conversación?",
-  "chatLeaveBody": "Si detienes la instancia, la conversación termina y el nodo devuelve lo que queda. Si la dejas corriendo, el nodo sigue cobrando por ella.",
   "chatStop": "Detener la instancia",
-  "chatLeaveRunning": "Dejarla corriendo",
-  "chatStay": "Quedarme",
   "chatErrorUnreachable": "El servicio no respondió. Puede que tu mensaje no haya llegado. Inténtalo de nuevo.",
   "chatErrorBadAnswer": "El servicio respondió de una forma que esta app no entiende.",
   "chatErrorHistoryFull": "Esta conversación está llena. Inicia una instancia nueva para una conversación nueva.",
@@ -1397,6 +1392,81 @@
       }
     }
   },
+  "chatsMenu": "Menú",
+  "chatsMenuMore": "Más",
+  "chatsNewTitle": "Nueva conversación",
+  "chatsServicesTitle": "Servicios",
+  "chatsOtherTitle": "Otras instancias",
+  "chatsOtherEmpty": "No hay otras instancias. Aquí aparece, mientras corre, un servicio que no tiene conversación.",
+  "chatsEmptyTitle": "Aún no hay conversaciones",
+  "chatsEmptyBody": "Cada conversación es un servicio que corre en un nodo. Empieza una con el botón del lápiz.",
+  "chatsDrawerWallet": "Billetera",
+  "chatsDrawerNoWallet": "Aún no hay billetera",
+  "chatsDrawerDeposit": "Depositar en un nodo",
+  "chatsDrawerCompute": "Cómputo y crédito",
+  "chatsDrawerNetwork": "Red y Tor",
+  "chatsStateChecking": "Comprobando…",
+  "chatsStateStarting": "Iniciando",
+  "chatsStateRunning": "En marcha",
+  "chatsStateUnreachable": "No responde",
+  "chatsStateStopped": "Detenida",
+  "chatsNoPreview": "Ningún mensaje visto desde que se abrió la app",
+  "chatsNoChatSlot": "Sin conversación: este servicio no tiene ranura de chat",
+  "chatsPreviewYou": "Tú: {text}",
+  "@chatsPreviewYou": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsActionInfo": "Información",
+  "chatsRemove": "Quitar de la lista",
+  "chatsStopTitle": "¿Detener {name}?",
+  "@chatsStopTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsStopBody": "La conversación termina y el nodo devuelve lo que le queda a la instancia.",
+  "chatsForgetTitle": "¿Quitar {name} de la lista?",
+  "@chatsForgetTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsForgetBody": "El nodo no responde por esta instancia. Si la quitas, la app olvida su token y no puede detenerla después. Si el nodo aún la ejecuta, sigue cobrando hasta que se acabe su saldo.",
+  "chatsStartedOther": "El servicio se inició en {node}. No tiene conversación: búscalo en Otras instancias, en el menú.",
+  "@chatsStartedOther": {
+    "placeholders": {
+      "node": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsInfoTitle": "Instancia",
+  "chatsInfoStatus": "Estado",
+  "chatsInfoNode": "Nodo",
+  "chatsInfoPeer": "ID de par del nodo",
+  "chatsInfoServiceId": "ID del servicio",
+  "chatsInfoSlot": "Ranura",
+  "chatsInfoChatSlot": "Puerto {port}, chat",
+  "@chatsInfoChatSlot": {
+    "placeholders": {
+      "port": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsInfoNoChatSlot": "Sin ranura de chat",
+  "chatsInfoStarted": "Inicio",
+  "chatsInfoCost": "Coste hasta ahora",
+  "chatsInfoRefund": "Reembolso al detenerla",
+  "chatsInfoStopNote": "Detener termina la conversación. El nodo devuelve lo que le queda a la instancia.",
   "celautErrorNodeClosed": "El nodo está cerrado ahora: su operador solo acepta trabajo nuevo en ciertas horas. Inténtalo más tarde o elige otro nodo.",
   "celautErrorNoRoom": "El nodo no tiene recursos libres suficientes para este servicio ahora. Inténtalo más tarde o elige otro nodo.",
   "celautErrorServiceMissing": "El nodo no tiene este servicio. Elige un nodo que lo tenga.",

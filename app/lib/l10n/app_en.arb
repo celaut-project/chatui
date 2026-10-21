@@ -3906,8 +3906,8 @@
     }
   },
   "celautDepositSentExpired": "The deposit token expired. The node refuses this deposit now.",
-  "celautComputeHomeRowTitle": "Compute home",
-  "celautComputeHomeRowSubtitle": "The home screen shows the compute of your nodes first. This is the default. Turn it off to see the wallets list first.",
+  "celautComputeHomeRowTitle": "Chats home",
+  "celautComputeHomeRowSubtitle": "The app opens on the list of conversations. This is the default. Turn it off to see the wallets list first.",
   "celautHomeComputeTitle": "Offered compute",
   "celautHomeOfferedNote": "Sums of what the reachable nodes advertise: offered, not free.",
   "celautHomeNodes": "Nodes counted: {counted}. Not reachable: {unreachable}.",
@@ -4043,7 +4043,6 @@
   "celautDepositAuthNeeded": "The deposit needs the PIN or fingerprint of the paying wallet. Nothing was sent.",
   "celautNodesRowSubtitle": "Add and remove the nodes in the sums of the home screen",
   "celautNodesScan": "Scan a QR code",
-  "chatTitle": "Conversation",
   "chatInputHint": "Write a message",
   "chatSend": "Send",
   "chatEmpty": "Say something to start the conversation.",
@@ -4056,11 +4055,7 @@
       }
     }
   },
-  "chatLeaveTitle": "Leave the conversation?",
-  "chatLeaveBody": "If you stop the instance, the conversation ends and the node refunds what is left. If you leave it running, the node keeps charging for it.",
   "chatStop": "Stop the instance",
-  "chatLeaveRunning": "Leave it running",
-  "chatStay": "Stay",
   "chatErrorUnreachable": "The service did not answer. Your message may not have arrived. Try again.",
   "chatErrorBadAnswer": "The service answered in a way that this app does not understand.",
   "chatErrorHistoryFull": "This conversation is full. Start a new instance for a new conversation.",
@@ -4074,6 +4069,81 @@
       }
     }
   },
+  "chatsMenu": "Menu",
+  "chatsMenuMore": "More",
+  "chatsNewTitle": "New conversation",
+  "chatsServicesTitle": "Services",
+  "chatsOtherTitle": "Other instances",
+  "chatsOtherEmpty": "No other instances. A service that has no conversation shows here while it runs.",
+  "chatsEmptyTitle": "No conversations yet",
+  "chatsEmptyBody": "Each conversation is a service that runs on a node. Start one with the pencil button.",
+  "chatsDrawerWallet": "Wallet",
+  "chatsDrawerNoWallet": "No wallet yet",
+  "chatsDrawerDeposit": "Deposit to a node",
+  "chatsDrawerCompute": "Compute and credit",
+  "chatsDrawerNetwork": "Network and Tor",
+  "chatsStateChecking": "Checking…",
+  "chatsStateStarting": "Starting",
+  "chatsStateRunning": "Running",
+  "chatsStateUnreachable": "Not answering",
+  "chatsStateStopped": "Stopped",
+  "chatsNoPreview": "No message seen since the app opened",
+  "chatsNoChatSlot": "No conversation: this service has no chat slot",
+  "chatsPreviewYou": "You: {text}",
+  "@chatsPreviewYou": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsActionInfo": "Info",
+  "chatsRemove": "Remove from the list",
+  "chatsStopTitle": "Stop {name}?",
+  "@chatsStopTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsStopBody": "The conversation ends, and the node refunds what is left of the instance.",
+  "chatsForgetTitle": "Remove {name} from the list?",
+  "@chatsForgetTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsForgetBody": "The node does not answer for this instance. If you remove it, the app forgets its token and cannot stop it later. If the node still runs it, the node keeps charging until its balance ends.",
+  "chatsStartedOther": "The service started on {node}. It has no conversation: find it in Other instances, in the menu.",
+  "@chatsStartedOther": {
+    "placeholders": {
+      "node": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsInfoTitle": "Instance",
+  "chatsInfoStatus": "State",
+  "chatsInfoNode": "Node",
+  "chatsInfoPeer": "Peer id of the node",
+  "chatsInfoServiceId": "Service id",
+  "chatsInfoSlot": "Slot",
+  "chatsInfoChatSlot": "Port {port}, chat",
+  "@chatsInfoChatSlot": {
+    "placeholders": {
+      "port": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsInfoNoChatSlot": "No chat slot",
+  "chatsInfoStarted": "Started",
+  "chatsInfoCost": "Cost so far",
+  "chatsInfoRefund": "Refund at the stop",
+  "chatsInfoStopNote": "Stop ends the conversation. The node refunds what is left of the instance.",
   "celautErrorNodeClosed": "The node is closed now: its operator accepts new work only at certain hours. Try later or choose another node.",
   "celautErrorNoRoom": "The node has not enough free resources for this service now. Try later or choose another node.",
   "celautErrorServiceMissing": "The node does not have this service. Choose a node that has it.",

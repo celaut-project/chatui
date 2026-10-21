@@ -5139,11 +5139,11 @@ class AppLocalizationsEs extends AppLocalizations {
       'El token de depósito expiró. El nodo rechaza este depósito ahora.';
 
   @override
-  String get celautComputeHomeRowTitle => 'Inicio de cómputo';
+  String get celautComputeHomeRowTitle => 'Inicio de conversaciones';
 
   @override
   String get celautComputeHomeRowSubtitle =>
-      'La pantalla de inicio muestra primero el cómputo de tus nodos. Es lo predeterminado. Desactívalo para ver primero la lista de billeteras.';
+      'La app se abre en la lista de conversaciones. Es lo predeterminado. Desactívalo para ver primero la lista de billeteras.';
 
   @override
   String get celautHomeComputeTitle => 'Cómputo ofrecido';
@@ -5330,9 +5330,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get celautNodesScan => 'Escanear un código QR';
 
   @override
-  String get chatTitle => 'Conversación';
-
-  @override
   String get chatInputHint => 'Escribe un mensaje';
 
   @override
@@ -5351,20 +5348,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get chatLeaveTitle => '¿Salir de la conversación?';
-
-  @override
-  String get chatLeaveBody =>
-      'Si detienes la instancia, la conversación termina y el nodo devuelve lo que queda. Si la dejas corriendo, el nodo sigue cobrando por ella.';
-
-  @override
   String get chatStop => 'Detener la instancia';
-
-  @override
-  String get chatLeaveRunning => 'Dejarla corriendo';
-
-  @override
-  String get chatStay => 'Quedarme';
 
   @override
   String get chatErrorUnreachable =>
@@ -5389,6 +5373,142 @@ class AppLocalizationsEs extends AppLocalizations {
   String chatStopped(String refund) {
     return 'La instancia se detuvo. Reembolso: $refund';
   }
+
+  @override
+  String get chatsMenu => 'Menú';
+
+  @override
+  String get chatsMenuMore => 'Más';
+
+  @override
+  String get chatsNewTitle => 'Nueva conversación';
+
+  @override
+  String get chatsServicesTitle => 'Servicios';
+
+  @override
+  String get chatsOtherTitle => 'Otras instancias';
+
+  @override
+  String get chatsOtherEmpty =>
+      'No hay otras instancias. Aquí aparece, mientras corre, un servicio que no tiene conversación.';
+
+  @override
+  String get chatsEmptyTitle => 'Aún no hay conversaciones';
+
+  @override
+  String get chatsEmptyBody =>
+      'Cada conversación es un servicio que corre en un nodo. Empieza una con el botón del lápiz.';
+
+  @override
+  String get chatsDrawerWallet => 'Billetera';
+
+  @override
+  String get chatsDrawerNoWallet => 'Aún no hay billetera';
+
+  @override
+  String get chatsDrawerDeposit => 'Depositar en un nodo';
+
+  @override
+  String get chatsDrawerCompute => 'Cómputo y crédito';
+
+  @override
+  String get chatsDrawerNetwork => 'Red y Tor';
+
+  @override
+  String get chatsStateChecking => 'Comprobando…';
+
+  @override
+  String get chatsStateStarting => 'Iniciando';
+
+  @override
+  String get chatsStateRunning => 'En marcha';
+
+  @override
+  String get chatsStateUnreachable => 'No responde';
+
+  @override
+  String get chatsStateStopped => 'Detenida';
+
+  @override
+  String get chatsNoPreview => 'Ningún mensaje visto desde que se abrió la app';
+
+  @override
+  String get chatsNoChatSlot =>
+      'Sin conversación: este servicio no tiene ranura de chat';
+
+  @override
+  String chatsPreviewYou(String text) {
+    return 'Tú: $text';
+  }
+
+  @override
+  String get chatsActionInfo => 'Información';
+
+  @override
+  String get chatsRemove => 'Quitar de la lista';
+
+  @override
+  String chatsStopTitle(String name) {
+    return '¿Detener $name?';
+  }
+
+  @override
+  String get chatsStopBody =>
+      'La conversación termina y el nodo devuelve lo que le queda a la instancia.';
+
+  @override
+  String chatsForgetTitle(String name) {
+    return '¿Quitar $name de la lista?';
+  }
+
+  @override
+  String get chatsForgetBody =>
+      'El nodo no responde por esta instancia. Si la quitas, la app olvida su token y no puede detenerla después. Si el nodo aún la ejecuta, sigue cobrando hasta que se acabe su saldo.';
+
+  @override
+  String chatsStartedOther(String node) {
+    return 'El servicio se inició en $node. No tiene conversación: búscalo en Otras instancias, en el menú.';
+  }
+
+  @override
+  String get chatsInfoTitle => 'Instancia';
+
+  @override
+  String get chatsInfoStatus => 'Estado';
+
+  @override
+  String get chatsInfoNode => 'Nodo';
+
+  @override
+  String get chatsInfoPeer => 'ID de par del nodo';
+
+  @override
+  String get chatsInfoServiceId => 'ID del servicio';
+
+  @override
+  String get chatsInfoSlot => 'Ranura';
+
+  @override
+  String chatsInfoChatSlot(String port) {
+    return 'Puerto $port, chat';
+  }
+
+  @override
+  String get chatsInfoNoChatSlot => 'Sin ranura de chat';
+
+  @override
+  String get chatsInfoStarted => 'Inicio';
+
+  @override
+  String get chatsInfoCost => 'Coste hasta ahora';
+
+  @override
+  String get chatsInfoRefund => 'Reembolso al detenerla';
+
+  @override
+  String get chatsInfoStopNote =>
+      'Detener termina la conversación. El nodo devuelve lo que le queda a la instancia.';
 
   @override
   String get celautErrorNodeClosed =>
