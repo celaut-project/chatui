@@ -28,7 +28,12 @@ class ChatScreen extends StatefulWidget {
     this.loadStatus,
     this.stopInstance,
     this.keepAlive,
+    this.starting = false,
   });
+
+  /// The instance has just started: the screen waits until the service answers
+  /// (`ChatClient.syncWhenStarted`), and says that it starts.
+  final bool starting;
 
   /// The local id of the instance (`InstanceView.instanceId`).
   final String instanceId;
@@ -69,6 +74,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   bool _sending = false;
   bool _stopping = false;
+  late bool _waitingStart = widget.starting;
   ChatErrorKind? _error;
   String? _costMu;
   String? _walletError;
@@ -83,11 +89,11 @@ class _ChatScreenState extends State<ChatScreen> {
   /// A running instance can have messages already: read them, then the cost.
   Future<void> _open() async {
     try {
-      await _chat.sync();
+      await (widget.starting ? _chat.syncWhenStarted() : _chat.sync());
     } on ChatException catch (e) {
       if (mounted) setState(() => _error = e.kind);
     }
-    if (mounted) setState(() {});
+    if (mounted) setState(() => _waitingStart = false);
     await _refreshCost();
     _scrollToEnd();
   }
@@ -252,7 +258,17 @@ class _ChatScreenState extends State<ChatScreen> {
                   ? Center(
                       child: Padding(
                         padding: const EdgeInsets.all(24),
-                        child: Text(l10n.chatEmpty, textAlign: TextAlign.center),
+                        child: _waitingStart
+                            ? Column(
+                                key: const Key('chat-starting'),
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const CircularProgressIndicator(),
+                                  const SizedBox(height: 16),
+                                  Text(l10n.chatStarting, textAlign: TextAlign.center),
+                                ],
+                              )
+                            : Text(l10n.chatEmpty, textAlign: TextAlign.center),
                       ),
                     )
                   : ListView.builder(

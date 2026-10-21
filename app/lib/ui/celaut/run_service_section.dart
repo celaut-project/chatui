@@ -316,7 +316,7 @@ class _RunServiceSectionState extends State<RunServiceSection> {
   }
 
   Widget _defaultChat(String instanceId, int port) =>
-      ChatScreen(instanceId: instanceId, port: port, wallets: widget.wallets);
+      ChatScreen(instanceId: instanceId, port: port, wallets: widget.wallets, starting: true);
 
   Future<void> _showFailure(LaunchFailure failure, String serviceId) async {
     TransferOffer? chosen;
