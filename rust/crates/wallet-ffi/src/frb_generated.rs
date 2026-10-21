@@ -3517,6 +3517,8 @@ impl SseDecode for crate::api::celaut_service::InstanceListView {
         let mut var_startedAt = <i64>::sse_decode(deserializer);
         let mut var_startChargeMu = <String>::sse_decode(deserializer);
         let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_stoppedAt = <Option<i64>>::sse_decode(deserializer);
+        let mut var_refundMu = <String>::sse_decode(deserializer);
         return crate::api::celaut_service::InstanceListView {
             instance_id: var_instanceId,
             peer_id: var_peerId,
@@ -3527,6 +3529,8 @@ impl SseDecode for crate::api::celaut_service::InstanceListView {
             started_at: var_startedAt,
             start_charge_mu: var_startChargeMu,
             name: var_name,
+            stopped_at: var_stoppedAt,
+            refund_mu: var_refundMu,
         };
     }
 }
@@ -4965,6 +4969,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::celaut_service::InstanceListV
             self.started_at.into_into_dart().into_dart(),
             self.start_charge_mu.into_into_dart().into_dart(),
             self.name.into_into_dart().into_dart(),
+            self.stopped_at.into_into_dart().into_dart(),
+            self.refund_mu.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -5897,6 +5903,8 @@ impl SseEncode for crate::api::celaut_service::InstanceListView {
         <i64>::sse_encode(self.started_at, serializer);
         <String>::sse_encode(self.start_charge_mu, serializer);
         <String>::sse_encode(self.name, serializer);
+        <Option<i64>>::sse_encode(self.stopped_at, serializer);
+        <String>::sse_encode(self.refund_mu, serializer);
     }
 }
 

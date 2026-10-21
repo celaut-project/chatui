@@ -83,6 +83,7 @@ final _echo = InstanceListView(
   chatSlots: Uint16List.fromList([8080]),
   startedAt: 1760000000,
   startChargeMu: '1000',
+  refundMu: '',
   name: 'Echo chat',
 );
 
@@ -226,7 +227,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(stops, ['i1']);
     expect(closed, isTrue);
-    expect(notes.stopped.single.instance.instanceId, 'i1');
+    expect(notes.isStarting('i1'), isFalse);
   });
 
   testWidgets('a new instance shows that the service starts, until it answers', (tester) async {

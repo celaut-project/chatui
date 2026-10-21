@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'celaut.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `address_of_key`, `check`, `configuration`, `cost_so_far`, `forget_if_broken`, `instance`, `key`, `n`, `new_client_session`, `open_session`, `quote_view`, `service_id`, `session`, `state`, `unknown_instance`
+// These functions are ignored because they are not marked as `pub`: `address_of_key`, `check`, `configuration`, `cost_so_far`, `forget_if_broken`, `instance`, `key`, `n`, `new_client_session`, `open_session`, `quote_view`, `service_id`, `session`, `state`, `stopped_instance`, `unknown_instance`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `State`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
@@ -43,7 +43,8 @@ Future<InstanceView> celautStartService({
   initialMu: initialMu,
 );
 
-/// The instances that the app started and did not stop, whichever wallet was open.
+/// The instances that the app started, whichever wallet was open: the ones that run,
+/// and the stopped ones that the user did not delete.
 List<InstanceListView> celautInstances() =>
     RustLib.instance.api.crateApiCelautServiceCelautInstances();
 
@@ -55,10 +56,10 @@ void celautNameInstance({required String instanceId, required String name}) =>
       name: name,
     );
 
-/// Take the instance out of the database without a stop: the node is not asked. The
-/// app forgets the token, so it cannot stop the instance later. The list of
-/// conversations offers this only for an instance whose node does not answer or does
-/// not report it.
+/// Delete a stopped instance: take it out of the database. The user asks for it on a
+/// stopped row of the list. An instance that was not stopped is refused and kept: the
+/// app never forgets the token of an instance that may still run, even if its node
+/// does not answer (`docs/celaut/decisions.md`).
 void celautForgetInstance({required String instanceId}) => RustLib.instance.api
     .crateApiCelautServiceCelautForgetInstance(instanceId: instanceId);
 
@@ -77,8 +78,9 @@ Future<InstanceStatusView> celautInstanceStatus({required String instanceId}) =>
       instanceId: instanceId,
     );
 
-/// Close the local ports of the instance and stop it on the node. The instance leaves
-/// the database when the node confirms the stop.
+/// Close the local ports of the instance and stop it on the node. When the node
+/// confirms the stop, the database marks the instance stopped, with the refund; it
+/// stays there until the user deletes it ([`celaut_forget_instance`]).
 Future<StopView> celautStopService({required String instanceId}) => RustLib
     .instance
     .api
@@ -106,6 +108,12 @@ class InstanceListView {
   /// The name of the skill or the service file at the start (empty if unknown).
   final String name;
 
+  /// The time of the stop, in Unix seconds; none while the instance runs.
+  final PlatformInt64? stoppedAt;
+
+  /// What the node gave back at the stop, in MU (empty if unknown or not stopped).
+  final String refundMu;
+
   const InstanceListView({
     required this.instanceId,
     required this.peerId,
@@ -116,6 +124,8 @@ class InstanceListView {
     required this.startedAt,
     required this.startChargeMu,
     required this.name,
+    this.stoppedAt,
+    required this.refundMu,
   });
 
   @override
@@ -128,7 +138,9 @@ class InstanceListView {
       chatSlots.hashCode ^
       startedAt.hashCode ^
       startChargeMu.hashCode ^
-      name.hashCode;
+      name.hashCode ^
+      stoppedAt.hashCode ^
+      refundMu.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -143,7 +155,9 @@ class InstanceListView {
           chatSlots == other.chatSlots &&
           startedAt == other.startedAt &&
           startChargeMu == other.startChargeMu &&
-          name == other.name;
+          name == other.name &&
+          stoppedAt == other.stoppedAt &&
+          refundMu == other.refundMu;
 }
 
 /// The state of an instance.

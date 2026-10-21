@@ -3684,8 +3684,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   InstanceListView dco_decode_instance_list_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 9)
-      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
     return InstanceListView(
       instanceId: dco_decode_String(arr[0]),
       peerId: dco_decode_String(arr[1]),
@@ -3696,6 +3696,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       startedAt: dco_decode_i_64(arr[6]),
       startChargeMu: dco_decode_String(arr[7]),
       name: dco_decode_String(arr[8]),
+      stoppedAt: dco_decode_opt_box_autoadd_i_64(arr[9]),
+      refundMu: dco_decode_String(arr[10]),
     );
   }
 
@@ -4580,6 +4582,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_startedAt = sse_decode_i_64(deserializer);
     var var_startChargeMu = sse_decode_String(deserializer);
     var var_name = sse_decode_String(deserializer);
+    var var_stoppedAt = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_refundMu = sse_decode_String(deserializer);
     return InstanceListView(
       instanceId: var_instanceId,
       peerId: var_peerId,
@@ -4590,6 +4594,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       startedAt: var_startedAt,
       startChargeMu: var_startChargeMu,
       name: var_name,
+      stoppedAt: var_stoppedAt,
+      refundMu: var_refundMu,
     );
   }
 
@@ -5647,6 +5653,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.startedAt, serializer);
     sse_encode_String(self.startChargeMu, serializer);
     sse_encode_String(self.name, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.stoppedAt, serializer);
+    sse_encode_String(self.refundMu, serializer);
   }
 
   @protected

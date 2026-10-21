@@ -433,6 +433,7 @@ void main() {
         chatSlots: Uint16List(0),
         startedAt: 1,
         startChargeMu: '',
+        refundMu: '',
         name: '',
       ),
     ];
@@ -469,6 +470,7 @@ void main() {
         chatSlots: Uint16List(0),
         startedAt: 1,
         startChargeMu: '1000000',
+        refundMu: '',
         name: '',
       ),
     ];
@@ -500,6 +502,7 @@ void main() {
         chatSlots: Uint16List(0),
         startedAt: 1,
         startChargeMu: '1000000',
+        refundMu: '',
         name: '',
       ),
     ];
@@ -523,6 +526,7 @@ void main() {
         chatSlots: Uint16List(0),
         startedAt: 1,
         startChargeMu: '1000000',
+        refundMu: '',
         name: '',
       ),
     ];

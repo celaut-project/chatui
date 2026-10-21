@@ -96,7 +96,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
     if (!mounted) return;
     setState(() {
       _gate = fullWalletGate(payers);
-      _appInstances = celautInstances();
+      _appInstances = _runningInstances();
     });
   }
 
@@ -138,7 +138,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
       if (mounted) {
         setState(() {
           _stoppingId = null;
-          _appInstances = celautInstances();
+          _appInstances = _runningInstances();
         });
       }
     }
@@ -250,7 +250,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
       _ports.clear();
       _status = null;
       _answer = null;
-      _appInstances = celautInstances();
+      _appInstances = _runningInstances();
     });
   }
 
@@ -304,7 +304,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
         _ports.clear();
         _status = null;
         _answer = null;
-        _appInstances = celautInstances();
+        _appInstances = _runningInstances();
       });
     } on CelautError catch (e) {
       if (mounted) setState(() => _error = e);
@@ -358,6 +358,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
       chatSlots: instance.chatSlots,
       startedAt: 0,
       startChargeMu: '',
+      refundMu: '',
       name: '',
     );
   }
@@ -376,7 +377,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
       ),
     );
     if (!mounted) return;
-    final running = celautInstances();
+    final running = _runningInstances();
     final stopped = running.every((i) => i.instanceId != instance.instanceId);
     setState(() {
       _appInstances = running;
@@ -421,7 +422,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
         _ports.clear();
         _status = null;
         _answer = null;
-        _appInstances = celautInstances();
+        _appInstances = _runningInstances();
       });
     } on CelautError catch (e) {
       if (mounted) setState(() => _error = e);
@@ -846,3 +847,10 @@ class _ServiceScreenState extends State<ServiceScreen> {
     );
   }
 }
+
+/// The instances of the app that run: the database also keeps the stopped ones until
+/// the user deletes them.
+List<InstanceListView> _runningInstances() => [
+      for (final i in celautInstances())
+        if (i.stoppedAt == null) i,
+    ];

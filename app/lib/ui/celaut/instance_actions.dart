@@ -22,7 +22,7 @@ enum InstanceState {
   /// The node does not answer, or does not report the instance.
   unreachable,
 
-  /// The instance stopped in this run of the app.
+  /// The instance stopped. It stays in the list until the user deletes it.
   stopped,
 }
 
@@ -38,9 +38,10 @@ String instanceStateText(BuildContext context, InstanceState state) {
 }
 
 /// Stop [instance] after the user confirms it. Stopping needs the wallet open
-/// (`docs/celaut/ui.md`, section 1). The stopped instance stays in the list of this
-/// run ([ConversationNotes.markStopped]). Gives the answer of the node, or null if
-/// nothing was stopped; the user has been told why.
+/// (`docs/celaut/ui.md`, section 1). The stopped instance stays in the database, and in
+/// the list, until the user deletes it. If the node does not answer, the user sees why
+/// and the instance stays as it was. Gives the answer of the node, or null if nothing
+/// was stopped.
 Future<StopView?> confirmAndStopInstance(
   BuildContext context,
   InstanceListView instance, {
@@ -77,7 +78,7 @@ Future<StopView?> confirmAndStopInstance(
   }
   try {
     final done = await (stop ?? (id) => celautStopService(instanceId: id))(instance.instanceId);
-    (notes ?? conversationNotes).markStopped(instance, done.refundMu);
+    (notes ?? conversationNotes).stopped(instance.instanceId);
     messenger.showSnackBar(SnackBar(content: Text(l.chatStopped(muOrUnknown(done.refundMu)))));
     return done;
   } on CelautError catch (e) {
@@ -86,39 +87,33 @@ Future<StopView?> confirmAndStopInstance(
   }
 }
 
-/// Take [instance] out of the list. A stopped instance only leaves the notes of this
-/// run. An instance that the database still has is forgotten after the user confirms
-/// it: the app loses its token, and cannot stop it later. Gives true if it left the
-/// list.
-Future<bool> confirmAndRemoveInstance(
+/// Delete a stopped [instance] after the user confirms it: it leaves the database and
+/// the list. Only a stopped instance can be deleted; the app never forgets an instance
+/// that was not stopped (`docs/celaut/decisions.md`). Gives true if it left the list.
+Future<bool> confirmAndDeleteInstance(
   BuildContext context,
   InstanceListView instance, {
-  required bool stopped,
   void Function(String instanceId)? forget,
   ConversationNotes? notes,
 }) async {
-  final memory = notes ?? conversationNotes;
-  if (stopped) {
-    memory.remove(instance.instanceId);
-    return true;
-  }
+  if (instance.stoppedAt == null) return false;
   final l = context.l10n;
   final sure = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
-      key: const Key('forget-confirm'),
-      title: Text(l.chatsForgetTitle(instanceTitle(instance))),
-      content: Text(l.chatsForgetBody),
+      key: const Key('delete-confirm'),
+      title: Text(l.chatsDeleteTitle(instanceTitle(instance))),
+      content: Text(l.chatsDeleteBody),
       actions: [
         TextButton(
-          key: const Key('forget-cancel'),
+          key: const Key('delete-cancel'),
           onPressed: () => Navigator.pop(context, false),
           child: Text(l.celautSendCancel),
         ),
         FilledButton(
-          key: const Key('forget-ok'),
+          key: const Key('delete-ok'),
           onPressed: () => Navigator.pop(context, true),
-          child: Text(l.chatsRemove),
+          child: Text(l.chatsDelete),
         ),
       ],
     ),
@@ -132,6 +127,6 @@ Future<bool> confirmAndRemoveInstance(
     );
     return false;
   }
-  memory.remove(instance.instanceId);
+  (notes ?? conversationNotes).remove(instance.instanceId);
   return true;
 }

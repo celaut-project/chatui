@@ -449,6 +449,8 @@ pub async fn celaut_start_service(
             _ => None,
         },
         name: None,
+        stopped_at: None,
+        refund_mu: None,
     };
     let view = InstanceView {
         instance_id: instance_id.clone(),
@@ -465,14 +467,22 @@ pub async fn celaut_start_service(
 }
 
 fn unknown_instance() -> CelautError {
-    invalid("This instance is not known. It was stopped.")
+    invalid("This instance is not known. It was deleted.")
 }
 
-/// The instance `instance_id` from the database, and a session on its node.
+fn stopped_instance() -> CelautError {
+    invalid("This instance was stopped.")
+}
+
+/// The instance `instance_id` from the database, and a session on its node. A stopped
+/// instance has none: the node does not run it.
 async fn instance(instance_id: &str) -> Result<(Session, InstanceRecord), CelautError> {
     let record = db()
         .read(|d| d.instances.get(instance_id).cloned())
         .ok_or_else(unknown_instance)?;
+    if record.stopped_at.is_some() {
+        return Err(stopped_instance());
+    }
     let address = address_of_key(&record.address).ok_or_else(|| CelautError {
         kind: CelautErrorKind::Storage,
         message: format!(
@@ -512,9 +522,14 @@ pub struct InstanceListView {
     pub start_charge_mu: String,
     /// The name of the skill or the service file at the start (empty if unknown).
     pub name: String,
+    /// The time of the stop, in Unix seconds; none while the instance runs.
+    pub stopped_at: Option<i64>,
+    /// What the node gave back at the stop, in MU (empty if unknown or not stopped).
+    pub refund_mu: String,
 }
 
-/// The instances that the app started and did not stop, whichever wallet was open.
+/// The instances that the app started, whichever wallet was open: the ones that run,
+/// and the stopped ones that the user did not delete.
 #[flutter_rust_bridge::frb(sync)]
 pub fn celaut_instances() -> Vec<InstanceListView> {
     db().read(|d| {
@@ -530,6 +545,8 @@ pub fn celaut_instances() -> Vec<InstanceListView> {
                 started_at: r.started_at,
                 start_charge_mu: r.start_charge_mu.clone().unwrap_or_default(),
                 name: r.name.clone().unwrap_or_default(),
+                stopped_at: r.stopped_at,
+                refund_mu: r.refund_mu.clone().unwrap_or_default(),
             })
             .collect()
     })
@@ -556,21 +573,27 @@ pub fn celaut_name_instance(instance_id: String, name: String) -> Result<(), Cel
     }
 }
 
-/// Take the instance out of the database without a stop: the node is not asked. The
-/// app forgets the token, so it cannot stop the instance later. The list of
-/// conversations offers this only for an instance whose node does not answer or does
-/// not report it.
+/// Delete a stopped instance: take it out of the database. The user asks for it on a
+/// stopped row of the list. An instance that was not stopped is refused and kept: the
+/// app never forgets the token of an instance that may still run, even if its node
+/// does not answer (`docs/celaut/decisions.md`).
 #[flutter_rust_bridge::frb(sync)]
 pub fn celaut_forget_instance(instance_id: String) -> Result<(), CelautError> {
-    drop(state()?.ports.remove(&instance_id));
-    let known = db()
-        .update(|d| d.instances.remove(&instance_id).is_some())
+    let removed = db()
+        .update(|d| match d.instances.get(&instance_id) {
+            None => Err(unknown_instance()),
+            Some(r) if r.stopped_at.is_none() => Err(invalid(
+                "This instance was not stopped. Stop it before you delete it.",
+            )),
+            Some(_) => {
+                d.instances.remove(&instance_id);
+                Ok(())
+            }
+        })
         .map_err(storage_error)?;
-    if known {
-        Ok(())
-    } else {
-        Err(unknown_instance())
-    }
+    removed?;
+    drop(state()?.ports.remove(&instance_id));
+    Ok(())
 }
 
 /// A port on 127.0.0.1 for the slot of the instance. The same port while the
@@ -659,15 +682,19 @@ pub struct StopView {
     pub client_balance_mu: String,
 }
 
-/// Close the local ports of the instance and stop it on the node. The instance leaves
-/// the database when the node confirms the stop.
+/// Close the local ports of the instance and stop it on the node. When the node
+/// confirms the stop, the database marks the instance stopped, with the refund; it
+/// stays there until the user deletes it ([`celaut_forget_instance`]).
 #[flutter_rust_bridge::frb]
 pub async fn celaut_stop_service(instance_id: String) -> Result<StopView, CelautError> {
     let (session, record) = instance(&instance_id).await?;
     drop(state()?.ports.remove(&instance_id));
     let refund = session.stop(&record.token).await.map_err(error_of)?;
     db().update(|d| {
-        d.instances.remove(&instance_id);
+        if let Some(r) = d.instances.get_mut(&instance_id) {
+            r.stopped_at = Some(now_seconds());
+            r.refund_mu = Some(refund.to_string());
+        }
     })
     .map_err(storage_error)?;
     let balance = session
@@ -721,7 +748,7 @@ mod tests {
     }
 
     #[test]
-    fn an_instance_keeps_its_name_and_can_be_forgotten() {
+    fn an_instance_keeps_its_name() {
         let id = "name-test-instance".to_string();
         db().update(|d| {
             d.instances.insert(
@@ -747,11 +774,77 @@ mod tests {
         assert_eq!(name_of(&id).as_deref(), Some(""));
         let err = celaut_name_instance("nope".into(), "x".into()).unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);
+        drop(db().update(|d| d.instances.remove(&id)));
+    }
 
+    #[test]
+    fn only_a_stopped_instance_can_be_deleted() {
+        let id = "delete-test-instance".to_string();
+        db().update(|d| {
+            d.instances.insert(
+                id.clone(),
+                InstanceRecord {
+                    peer_id: "ab".repeat(32),
+                    token: "token".into(),
+                    ..Default::default()
+                },
+            );
+        })
+        .unwrap();
+        let listed = |id: &str| celaut_instances().into_iter().find(|i| i.instance_id == id);
+
+        // A running instance, or one whose node does not answer: refused, and kept with
+        // its token.
+        let err = celaut_forget_instance(id.clone()).unwrap_err();
+        assert_eq!(err.kind, CelautErrorKind::InvalidInput);
+        assert!(err.message.contains("not stopped"), "{}", err.message);
+        assert_eq!(listed(&id).unwrap().stopped_at, None);
+        assert_eq!(
+            db().read(|d| d.instances[&id].token.clone()),
+            "token".to_string()
+        );
+
+        // Stopped: it stays in the list, with the refund, until the user deletes it.
+        db().update(|d| {
+            let r = d.instances.get_mut(&id).unwrap();
+            r.stopped_at = Some(42);
+            r.refund_mu = Some("700".into());
+        })
+        .unwrap();
+        let view = listed(&id).unwrap();
+        assert_eq!((view.stopped_at, view.refund_mu.as_str()), (Some(42), "700"));
         celaut_forget_instance(id.clone()).unwrap();
-        assert_eq!(name_of(&id), None);
+        assert!(listed(&id).is_none());
         let err = celaut_forget_instance(id).unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);
+    }
+
+    #[tokio::test]
+    async fn a_stopped_instance_is_not_asked_for() {
+        let id = "stopped-test-instance".to_string();
+        db().update(|d| {
+            d.instances.insert(
+                id.clone(),
+                InstanceRecord {
+                    peer_id: "ab".repeat(32),
+                    address: "127.0.0.1:1".into(),
+                    token: "token".into(),
+                    slots: vec![8080],
+                    stopped_at: Some(1),
+                    ..Default::default()
+                },
+            );
+        })
+        .unwrap();
+        for err in [
+            celaut_stop_service(id.clone()).await.unwrap_err(),
+            celaut_instance_status(id.clone()).await.unwrap_err(),
+            celaut_open_tunnel(id.clone(), 8080).await.unwrap_err(),
+        ] {
+            assert_eq!(err.kind, CelautErrorKind::InvalidInput);
+            assert_eq!(err.message, "This instance was stopped.");
+        }
+        celaut_forget_instance(id).unwrap();
     }
 
     #[test]

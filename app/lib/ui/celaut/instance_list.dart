@@ -42,6 +42,7 @@ InstanceListView instanceOfLaunch(LaunchOutcome outcome, String serviceId, Strin
     startedAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
     startChargeMu: '',
     name: name ?? '',
+    refundMu: '',
   );
 }
 
@@ -49,12 +50,15 @@ InstanceListView instanceOfLaunch(LaunchOutcome outcome, String serviceId, Strin
 /// (`docs/celaut/ui-chat-first.md`): the instances whose interface has a chat slot
 /// ([chats] true, the home screen), or the others ([chats] false, "Other instances").
 ///
-/// The rows come from the database at once ([load]), with the instances that stopped in
-/// this run ([ConversationNotes]). Then the list asks each node for its instance, which
-/// gives the state (running or not answering) and the cost so far.
+/// The rows come from the database at once ([load]): the instances that run and the
+/// stopped ones that the user did not delete. The list asks each node for its running
+/// instances when it opens, when the user comes back to it, and on a pull; it does not
+/// poll. The answer gives the state (running or not answering) and the cost so far.
 ///
 /// A tap opens the conversation, or the info page of an instance without a chat slot or
-/// that stopped. A long press gives the actions: info, stop, remove from the list.
+/// that stopped. A long press gives the actions: info and stop, or info and delete for
+/// a stopped instance. An instance whose node does not answer stays in the list: only
+/// a stopped instance can be deleted, and only by the user.
 class InstanceList extends StatefulWidget {
   const InstanceList({
     super.key,
@@ -89,7 +93,7 @@ class InstanceList extends StatefulWidget {
   /// Stop an instance. Tests give their own.
   final Future<StopView> Function(String instanceId)? stop;
 
-  /// Take an instance out of the database. Tests give their own.
+  /// Delete a stopped instance from the database. Tests give their own.
   final void Function(String instanceId)? forget;
 
   /// A local port for the chat slot. Tests give their own.
@@ -140,27 +144,37 @@ class InstanceListState extends State<InstanceList> {
       all = const [];
       _failed = true;
     }
+    // The running ones by start, the newest first; then the stopped ones, the last stop
+    // first.
     final mine = [
       for (final i in all)
         if (_wanted(i)) i,
-    ]..sort((a, b) => b.startedAt.compareTo(a.startedAt));
+    ]..sort((a, b) {
+        final sa = a.stoppedAt, sb = b.stoppedAt;
+        if ((sa == null) != (sb == null)) return sa == null ? -1 : 1;
+        if (sa != null && sb != null && sa != sb) return sb.compareTo(sa);
+        return b.startedAt.compareTo(a.startedAt);
+      });
     if (!mounted) return;
     setState(() {
       _instances = mine;
-      _checks.removeWhere((id, _) => !mine.any((i) => i.instanceId == id));
+      _checks.removeWhere(
+        (id, _) => !mine.any((i) => i.instanceId == id && i.stoppedAt == null),
+      );
     });
     final load = widget.loadStatus ?? (id) => celautInstanceStatus(instanceId: id);
     await Future.wait([
       for (final i in mine)
-        load(i.instanceId).then(
-          (s) => _set(i.instanceId, _Check.ok(s)),
-          onError: (Object e) => _set(
-            i.instanceId,
-            _Check.failed(
-              e is CelautError ? e : CelautError(kind: CelautErrorKind.protocol, message: '$e'),
+        if (i.stoppedAt == null)
+          load(i.instanceId).then(
+            (s) => _set(i.instanceId, _Check.ok(s)),
+            onError: (Object e) => _set(
+              i.instanceId,
+              _Check.failed(
+                e is CelautError ? e : CelautError(kind: CelautErrorKind.protocol, message: '$e'),
+              ),
             ),
           ),
-        ),
     ]);
   }
 
@@ -169,6 +183,7 @@ class InstanceListState extends State<InstanceList> {
   }
 
   InstanceState _stateOf(InstanceListView i) {
+    if (i.stoppedAt != null) return InstanceState.stopped;
     if (_notes.isStarting(i.instanceId)) return InstanceState.starting;
     final check = _checks[i.instanceId];
     if (check == null) return InstanceState.checking;
@@ -216,7 +231,7 @@ class InstanceListState extends State<InstanceList> {
     if (mounted) await refresh();
   }
 
-  Future<void> _openInfo(InstanceListView i, InstanceState state, {String? refundMu}) async {
+  Future<void> _openInfo(InstanceListView i, InstanceState state) async {
     final stopped = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => InstanceInfoScreen(
@@ -224,9 +239,9 @@ class InstanceListState extends State<InstanceList> {
           state: state,
           costMu: _costOf(i.instanceId),
           reason: _reasonOf(i.instanceId),
-          refundMu: refundMu,
           wallets: widget.wallets,
           stop: widget.stop,
+          forget: widget.forget,
           notes: _notes,
         ),
       ),
@@ -234,17 +249,16 @@ class InstanceListState extends State<InstanceList> {
     if (stopped == true && mounted) await refresh();
   }
 
-  Future<void> _tap(InstanceListView i, InstanceState state, {String? refundMu}) async {
+  Future<void> _tap(InstanceListView i, InstanceState state) async {
     if (state == InstanceState.stopped || i.chatSlots.isEmpty) {
-      await _openInfo(i, state, refundMu: refundMu);
+      await _openInfo(i, state);
     } else {
       await openChat(i);
     }
   }
 
-  Future<void> _actions(InstanceListView i, InstanceState state, {String? refundMu}) async {
+  Future<void> _actions(InstanceListView i, InstanceState state) async {
     final l = context.l10n;
-    final canRemove = state == InstanceState.stopped || state == InstanceState.unreachable;
     final action = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
@@ -266,12 +280,12 @@ class InstanceListState extends State<InstanceList> {
                 title: Text(l.chatStop),
                 onTap: () => Navigator.pop(context, 'stop'),
               ),
-            if (canRemove)
+            if (state == InstanceState.stopped)
               ListTile(
-                key: const Key('chats-action-remove'),
+                key: const Key('chats-action-delete'),
                 leading: const Icon(Icons.delete_outline),
-                title: Text(l.chatsRemove),
-                onTap: () => Navigator.pop(context, 'remove'),
+                title: Text(l.chatsDelete),
+                onTap: () => Navigator.pop(context, 'delete'),
               ),
           ],
         ),
@@ -280,7 +294,7 @@ class InstanceListState extends State<InstanceList> {
     if (!mounted) return;
     switch (action) {
       case 'info':
-        await _openInfo(i, state, refundMu: refundMu);
+        await _openInfo(i, state);
       case 'stop':
         final done = await confirmAndStopInstance(
           context,
@@ -290,25 +304,19 @@ class InstanceListState extends State<InstanceList> {
           notes: _notes,
         );
         if (done != null && mounted) await refresh();
-      case 'remove':
-        final removed = await confirmAndRemoveInstance(
+      case 'delete':
+        final deleted = await confirmAndDeleteInstance(
           context,
           i,
-          stopped: state == InstanceState.stopped,
           forget: widget.forget,
           notes: _notes,
         );
-        if (removed && mounted) await refresh();
+        if (deleted && mounted) await refresh();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final stopped = [
-      for (final s in _notes.stopped)
-        if (_wanted(s.instance) && !_instances.any((i) => i.instanceId == s.instance.instanceId))
-          s,
-    ];
     final rows = <Widget>[
       for (final i in _instances)
         _InstanceRow(
@@ -318,15 +326,6 @@ class InstanceListState extends State<InstanceList> {
           last: _notes.lastMessage(i.instanceId),
           onTap: () => _tap(i, _stateOf(i)),
           onLongPress: () => _actions(i, _stateOf(i)),
-        ),
-      for (final s in stopped)
-        _InstanceRow(
-          instance: s.instance,
-          state: InstanceState.stopped,
-          costMu: null,
-          last: _notes.lastMessage(s.instance.instanceId),
-          onTap: () => _tap(s.instance, InstanceState.stopped, refundMu: s.refundMu),
-          onLongPress: () => _actions(s.instance, InstanceState.stopped, refundMu: s.refundMu),
         ),
     ];
     return RefreshIndicator(

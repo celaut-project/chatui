@@ -11,8 +11,8 @@ import '../home/home_style.dart';
 import 'instance_actions.dart';
 
 /// The page of one instance, as the info page of a chat in a messenger: the service,
-/// the node, the chat slot, the cost so far, the start time, and Stop
-/// (`docs/celaut/ui-chat-first.md`). It opens from the title of the conversation, from
+/// the node, the chat slot, the cost so far, the start time, and Stop; for a stopped
+/// instance, the refund and Delete (`docs/celaut/ui-chat-first.md`). It opens from the title of the conversation, from
 /// its ⋮ menu, and from a long press in the list.
 class InstanceInfoScreen extends StatefulWidget {
   const InstanceInfoScreen({
@@ -21,9 +21,9 @@ class InstanceInfoScreen extends StatefulWidget {
     required this.state,
     this.costMu,
     this.reason,
-    this.refundMu,
     this.wallets = const AppFullWallets(),
     this.stop,
+    this.forget,
     this.notes,
   });
 
@@ -36,13 +36,13 @@ class InstanceInfoScreen extends StatefulWidget {
   /// Why the node does not report the instance, for [InstanceState.unreachable].
   final String? reason;
 
-  /// What the node gave back at the stop, for [InstanceState.stopped].
-  final String? refundMu;
-
   final FullWallets wallets;
 
   /// Stop the instance. Tests give their own.
   final Future<StopView> Function(String instanceId)? stop;
+
+  /// Delete the stopped instance. Tests give their own.
+  final void Function(String instanceId)? forget;
 
   final ConversationNotes? notes;
 
@@ -68,6 +68,17 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
     if (done != null) Navigator.of(context).pop(true);
   }
 
+  Future<void> _delete() async {
+    final deleted = await confirmAndDeleteInstance(
+      context,
+      widget.instance,
+      forget: widget.forget,
+      notes: widget.notes,
+    );
+    // The caller reads the list again: the instance left it.
+    if (deleted && mounted) Navigator.of(context).pop(true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
@@ -88,7 +99,7 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
       ),
       (l.chatsInfoStarted, started.isEmpty ? l.celautUnknown : started, const Key('info-started')),
       if (widget.state == InstanceState.stopped)
-        (l.chatsInfoRefund, muOrUnknown(widget.refundMu), const Key('info-refund'))
+        (l.chatsInfoRefund, muOrUnknown(i.refundMu), const Key('info-refund'))
       else
         (l.chatsInfoCost, muOrUnknown(widget.costMu), const Key('info-cost')),
     ];
@@ -147,6 +158,16 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
             ),
             const SizedBox(height: 8),
             Text(l.chatsInfoStopNote, style: t.secondary),
+          ] else ...[
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              key: const Key('info-delete'),
+              onPressed: _delete,
+              icon: const Icon(Icons.delete_outline),
+              label: Text(l.chatsDelete),
+            ),
+            const SizedBox(height: 8),
+            Text(l.chatsInfoDeleteNote, style: t.secondary),
           ],
         ],
       ),
