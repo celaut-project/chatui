@@ -47,6 +47,21 @@ Future<InstanceView> celautStartService({
 List<InstanceListView> celautInstances() =>
     RustLib.instance.api.crateApiCelautServiceCelautInstances();
 
+/// Keep the name that the user saw at the start (the skill or the service file), so
+/// that the list of conversations shows it after a restart. An empty name removes it.
+void celautNameInstance({required String instanceId, required String name}) =>
+    RustLib.instance.api.crateApiCelautServiceCelautNameInstance(
+      instanceId: instanceId,
+      name: name,
+    );
+
+/// Take the instance out of the database without a stop: the node is not asked. The
+/// app forgets the token, so it cannot stop the instance later. The list of
+/// conversations offers this only for an instance whose node does not answer or does
+/// not report it.
+void celautForgetInstance({required String instanceId}) => RustLib.instance.api
+    .crateApiCelautServiceCelautForgetInstance(instanceId: instanceId);
+
 /// A port on 127.0.0.1 for the slot of the instance. The same port while the
 /// instance runs. Each TCP connection to it opens one `ServiceTunnel` stream, which
 /// the node charges (`TUNNEL_OPEN_MU`): keep HTTP connections alive.
@@ -88,6 +103,9 @@ class InstanceListView {
   /// What the start took from the balance of the client, in MU (empty if unknown).
   final String startChargeMu;
 
+  /// The name of the skill or the service file at the start (empty if unknown).
+  final String name;
+
   const InstanceListView({
     required this.instanceId,
     required this.peerId,
@@ -97,6 +115,7 @@ class InstanceListView {
     required this.chatSlots,
     required this.startedAt,
     required this.startChargeMu,
+    required this.name,
   });
 
   @override
@@ -108,7 +127,8 @@ class InstanceListView {
       slots.hashCode ^
       chatSlots.hashCode ^
       startedAt.hashCode ^
-      startChargeMu.hashCode;
+      startChargeMu.hashCode ^
+      name.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -122,7 +142,8 @@ class InstanceListView {
           slots == other.slots &&
           chatSlots == other.chatSlots &&
           startedAt == other.startedAt &&
-          startChargeMu == other.startChargeMu;
+          startChargeMu == other.startChargeMu &&
+          name == other.name;
 }
 
 /// The state of an instance.

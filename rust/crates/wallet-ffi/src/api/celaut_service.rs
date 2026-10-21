@@ -448,6 +448,7 @@ pub async fn celaut_start_service(
             (Some(b), Some(a)) if b >= a => Some((b - a).to_string()),
             _ => None,
         },
+        name: None,
     };
     let view = InstanceView {
         instance_id: instance_id.clone(),
@@ -509,6 +510,8 @@ pub struct InstanceListView {
     pub started_at: i64,
     /// What the start took from the balance of the client, in MU (empty if unknown).
     pub start_charge_mu: String,
+    /// The name of the skill or the service file at the start (empty if unknown).
+    pub name: String,
 }
 
 /// The instances that the app started and did not stop, whichever wallet was open.
@@ -526,9 +529,48 @@ pub fn celaut_instances() -> Vec<InstanceListView> {
                 chat_slots: r.chat_slots.clone(),
                 started_at: r.started_at,
                 start_charge_mu: r.start_charge_mu.clone().unwrap_or_default(),
+                name: r.name.clone().unwrap_or_default(),
             })
             .collect()
     })
+}
+
+/// Keep the name that the user saw at the start (the skill or the service file), so
+/// that the list of conversations shows it after a restart. An empty name removes it.
+#[flutter_rust_bridge::frb(sync)]
+pub fn celaut_name_instance(instance_id: String, name: String) -> Result<(), CelautError> {
+    let name = name.trim().to_string();
+    let known = db()
+        .update(|d| match d.instances.get_mut(&instance_id) {
+            Some(r) => {
+                r.name = (!name.is_empty()).then_some(name);
+                true
+            }
+            None => false,
+        })
+        .map_err(storage_error)?;
+    if known {
+        Ok(())
+    } else {
+        Err(unknown_instance())
+    }
+}
+
+/// Take the instance out of the database without a stop: the node is not asked. The
+/// app forgets the token, so it cannot stop the instance later. The list of
+/// conversations offers this only for an instance whose node does not answer or does
+/// not report it.
+#[flutter_rust_bridge::frb(sync)]
+pub fn celaut_forget_instance(instance_id: String) -> Result<(), CelautError> {
+    drop(state()?.ports.remove(&instance_id));
+    let known = db()
+        .update(|d| d.instances.remove(&instance_id).is_some())
+        .map_err(storage_error)?;
+    if known {
+        Ok(())
+    } else {
+        Err(unknown_instance())
+    }
 }
 
 /// A port on 127.0.0.1 for the slot of the instance. The same port while the
@@ -675,6 +717,40 @@ mod tests {
         let err = celaut_open_tunnel("nope".into(), 80).await.unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);
         let err = celaut_stop_service("nope".into()).await.unwrap_err();
+        assert_eq!(err.kind, CelautErrorKind::InvalidInput);
+    }
+
+    #[test]
+    fn an_instance_keeps_its_name_and_can_be_forgotten() {
+        let id = "name-test-instance".to_string();
+        db().update(|d| {
+            d.instances.insert(
+                id.clone(),
+                InstanceRecord {
+                    peer_id: "ab".repeat(32),
+                    token: "token".into(),
+                    ..Default::default()
+                },
+            );
+        })
+        .unwrap();
+        let name_of = |id: &str| {
+            celaut_instances()
+                .into_iter()
+                .find(|i| i.instance_id == id)
+                .map(|i| i.name)
+        };
+        assert_eq!(name_of(&id).as_deref(), Some(""));
+        celaut_name_instance(id.clone(), " Echo chat ".into()).unwrap();
+        assert_eq!(name_of(&id).as_deref(), Some("Echo chat"));
+        celaut_name_instance(id.clone(), " ".into()).unwrap();
+        assert_eq!(name_of(&id).as_deref(), Some(""));
+        let err = celaut_name_instance("nope".into(), "x".into()).unwrap_err();
+        assert_eq!(err.kind, CelautErrorKind::InvalidInput);
+
+        celaut_forget_instance(id.clone()).unwrap();
+        assert_eq!(name_of(&id), None);
+        let err = celaut_forget_instance(id).unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);
     }
 

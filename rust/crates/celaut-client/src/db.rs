@@ -162,6 +162,10 @@ pub struct InstanceRecord {
     /// app could read the balance before and after the start.
     #[serde(default)]
     pub start_charge_mu: Option<String>,
+    /// The name that the user saw when the instance started: the skill or the service
+    /// file. The list of conversations shows it. An old record has none.
+    #[serde(default)]
+    pub name: Option<String>,
 }
 
 /// Where a deposit is.
@@ -620,6 +624,7 @@ mod tests {
                 chat_slots: vec![3030],
                 started_at: 1,
                 start_charge_mu: Some("100".into()),
+                name: Some("Echo".into()),
             },
         );
         data.deposits.insert(
@@ -667,6 +672,19 @@ mod tests {
         // A record with only some fields loads, with defaults for the rest.
         let r: PackageRecord = serde_json::from_str(r#"{"name": "x"}"#).unwrap();
         assert_eq!((r.name.as_str(), r.bytes, r.nodo_export), ("x", 0, false));
+    }
+
+    #[test]
+    fn an_old_instance_has_no_name_and_a_new_one_keeps_it() {
+        let old: InstanceRecord =
+            serde_json::from_str(r#"{"peer_id": "p", "address": "a:1", "token": "t", "service_id": "s", "started_at": 1}"#)
+                .unwrap();
+        assert_eq!(old.name, None);
+        let mut data = CelautData::default();
+        sample(&mut data);
+        let text = serde_json::to_string(&data).unwrap();
+        let back: CelautData = serde_json::from_str(&text).unwrap();
+        assert_eq!(back.instances["i1"].name.as_deref(), Some("Echo"));
     }
 
     #[test]
