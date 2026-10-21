@@ -22,8 +22,8 @@ class EchoService {
   /// The next GET gets this body with status 200.
   String? nextHistoryBody;
 
-  static Future<EchoService> start() async {
-    final s = EchoService._(await HttpServer.bind(InternetAddress.loopbackIPv4, 0));
+  static Future<EchoService> start({int port = 0}) async {
+    final s = EchoService._(await HttpServer.bind(InternetAddress.loopbackIPv4, port));
     s.server.listen(s._handle);
     return s;
   }
@@ -123,6 +123,63 @@ void main() {
     await Future.wait([chat.send('a'), chat.send('b'), chat.send('c')]);
     expect(chat.messages.map((m) => m.seq), [0, 1, 2, 3, 4, 5]);
     expect(chat.messages.where((m) => m.fromUser).map((m) => m.text), ['a', 'b', 'c']);
+  });
+
+  group('an instance that has just started', () {
+    Future<int> freePort() async {
+      final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final port = socket.port;
+      await socket.close();
+      return port;
+    }
+
+    test('is read again, with longer waits, until the service answers', () async {
+      final port = await freePort();
+      final late = ChatClient(port: port, http: http);
+      final waits = <Duration>[];
+      EchoService? started;
+      await late.syncWhenStarted(
+        wait: (d) async {
+          waits.add(d);
+          if (waits.length == 2) started = await EchoService.start(port: port);
+        },
+      );
+      addTearDown(() => started?.close());
+      expect(waits, const [Duration(seconds: 2), Duration(seconds: 3)]);
+      expect(late.count, 0);
+      await late.send('hi');
+      expect(late.messages.map((m) => m.text), ['hi', 'hi']);
+    });
+
+    test('gives up after the limit as unreachable', () async {
+      final late = ChatClient(port: await freePort(), http: http);
+      final waits = <Duration>[];
+      await expectLater(
+        late.syncWhenStarted(limit: const Duration(seconds: 10), wait: (d) async => waits.add(d)),
+        throwsA(isA<ChatException>().having((e) => e.kind, 'kind', ChatErrorKind.unreachable)),
+      );
+      expect(waits, const [Duration(seconds: 2), Duration(seconds: 3), Duration(seconds: 5)]);
+    });
+
+    test('the waits stay at 10 seconds after the first ones', () async {
+      final late = ChatClient(port: await freePort(), http: http);
+      final waits = <Duration>[];
+      await expectLater(
+        late.syncWhenStarted(limit: const Duration(seconds: 45), wait: (d) async => waits.add(d)),
+        throwsA(isA<ChatException>()),
+      );
+      expect(waits.map((d) => d.inSeconds), [2, 3, 5, 8, 10, 10, 10]);
+    });
+
+    test('an answer that does not follow the convention is not read again', () async {
+      service.nextHistoryBody = 'not json';
+      final waits = <Duration>[];
+      await expectLater(
+        chat.syncWhenStarted(wait: (d) async => waits.add(d)),
+        throwsA(isA<ChatException>().having((e) => e.kind, 'kind', ChatErrorKind.badAnswer)),
+      );
+      expect(waits, isEmpty);
+    });
   });
 
   test('sync reads the history of a running instance', () async {

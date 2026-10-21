@@ -6,13 +6,14 @@ class NetworkStrings {
 
   // Settings
   static const rowTitle = 'Tor';
-  static const rowSubtitle = 'Send the node and explorer connections through Tor';
+  static const rowSubtitle = 'Send the node, explorer and update connections through Tor';
 
   // Screen
   static const screenTitle = 'Tor';
   static const intro =
-      'With Tor on, the connections to Celaut nodes and to the Ergo explorer go through '
-      'Tor, so they do not see the IP address of this phone. If Tor is not ready, those '
+      'With Tor on, the connections to Celaut nodes, to the Ergo explorer and to GitHub '
+      '(the update check) go through Tor, so they do not see the IP address of this '
+      'phone. If Tor is not ready, those '
       'connections fail: the app never connects directly. A node in a private network '
       '(for example 10.0.2.2 or 192.168.1.5) cannot be reached through Tor.';
   static const optionOff = 'Off: direct connections';

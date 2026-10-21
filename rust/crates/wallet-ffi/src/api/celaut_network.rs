@@ -121,6 +121,85 @@ pub fn celaut_network_status() -> NetworkStatusView {
     view_of(manager().status())
 }
 
+/// How a connection goes out now.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NetworkProxyKind {
+    /// A TCP connection from the phone.
+    Direct,
+    /// Through the SOCKS5 proxy of the view.
+    Socks,
+    /// No connection.
+    Blocked,
+}
+
+/// The route of the connections now, for the code of the Dart side that makes its own
+/// connections (the updater of the app). The core uses the same route.
+#[derive(Clone, PartialEq, Eq)]
+pub struct NetworkProxyView {
+    pub kind: NetworkProxyKind,
+    /// The IP address of the proxy. Only for `Socks`.
+    pub host: String,
+    /// The port of the proxy. Only for `Socks`.
+    pub port: u16,
+    /// The user name and the password for the proxy, or empty if it asks for none. The
+    /// proxy of the Tor client inside the app has a random pair, so that another app on
+    /// the phone cannot use it.
+    pub user: String,
+    pub password: String,
+    /// Why there is no connection, in English. Only for `Blocked`.
+    pub reason: String,
+}
+
+impl std::fmt::Debug for NetworkProxyView {
+    /// The password is not in the text.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NetworkProxyView")
+            .field("kind", &self.kind)
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("user", &self.user)
+            .field("reason", &self.reason)
+            .finish()
+    }
+}
+
+/// The route of the connections now. With Tor on, it is `Blocked` until the proxy is
+/// ready, and again if it fails: never `Direct`.
+#[flutter_rust_bridge::frb(sync)]
+pub fn celaut_network_proxy() -> NetworkProxyView {
+    proxy_of(celaut_net::route())
+}
+
+fn proxy_of(route: celaut_net::Route) -> NetworkProxyView {
+    let empty = NetworkProxyView {
+        kind: NetworkProxyKind::Direct,
+        host: String::new(),
+        port: 0,
+        user: String::new(),
+        password: String::new(),
+        reason: String::new(),
+    };
+    match route {
+        celaut_net::Route::Direct => empty,
+        celaut_net::Route::Socks(proxy) => {
+            let (user, password) = proxy.auth.unwrap_or_default();
+            NetworkProxyView {
+                kind: NetworkProxyKind::Socks,
+                host: proxy.addr.ip().to_string(),
+                port: proxy.addr.port(),
+                user,
+                password,
+                ..empty
+            }
+        }
+        celaut_net::Route::Blocked(reason) => NetworkProxyView {
+            kind: NetworkProxyKind::Blocked,
+            reason,
+            ..empty
+        },
+    }
+}
+
 fn view_of(status: celaut_tor::Status) -> NetworkStatusView {
     let choice = match status.mode {
         ModeKind::Off => NetworkChoice::Off,
@@ -190,5 +269,31 @@ mod tests {
         assert_eq!((ready.choice, ready.state), (NetworkChoice::Socks, NetworkState::Ready));
         let failed = view(ModeKind::Embedded, State::Failed("no network".into()));
         assert_eq!((failed.state, failed.error.as_str()), (NetworkState::Failed, "no network"));
+    }
+
+    #[test]
+    fn the_proxy_of_each_route() {
+        let direct = proxy_of(celaut_net::Route::Direct);
+        assert_eq!((direct.kind, direct.host.as_str(), direct.port), (NetworkProxyKind::Direct, "", 0));
+
+        let socks = proxy_of(celaut_net::Route::Socks(celaut_net::Socks5 {
+            addr: "127.0.0.1:9150".parse().unwrap(),
+            auth: Some(("u1".into(), "p1".into())),
+        }));
+        assert_eq!(socks.kind, NetworkProxyKind::Socks);
+        assert_eq!((socks.host.as_str(), socks.port), ("127.0.0.1", 9150));
+        assert_eq!((socks.user.as_str(), socks.password.as_str()), ("u1", "p1"));
+        assert!(!format!("{socks:?}").contains("p1"), "the password is not in the text");
+
+        let orbot = proxy_of(celaut_net::Route::Socks(celaut_net::Socks5 {
+            addr: "[::1]:9050".parse().unwrap(),
+            auth: None,
+        }));
+        assert_eq!((orbot.host.as_str(), orbot.user.as_str()), ("::1", ""));
+
+        let blocked = proxy_of(celaut_net::Route::Blocked("Tor is starting".into()));
+        assert_eq!(blocked.kind, NetworkProxyKind::Blocked);
+        assert_eq!(blocked.reason, "Tor is starting");
+        assert_eq!(blocked.host, "");
     }
 }

@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
 import 'package:argus_wallet/celaut/chat_client.dart';
 import 'package:argus_wallet/celaut/conversation_keep_alive.dart';
 import 'package:argus_wallet/celaut/payers.dart';
 import 'package:argus_wallet/celaut/tunnel_http.dart';
+import 'package:argus_wallet/l10n/l10n.dart';
 import 'package:argus_wallet/ui/celaut/chat_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,8 +26,15 @@ class _FakeChat extends ChatClient {
   @override
   int get count => _messages.length;
 
+  /// Holds [syncWhenStarted] until it completes.
+  Completer<void>? starting;
+
   @override
   Future<void> sync() async {}
+
+  @override
+  Future<void> syncWhenStarted({Duration limit = const Duration(minutes: 2), Future<void> Function(Duration)? wait}) =>
+      starting?.future ?? Future.value();
 
   @override
   Future<void> send(String text) async {
@@ -67,7 +77,7 @@ void main() {
   late bool closed;
   late _FakeKeepAlive keepAlive;
 
-  Future<void> open(WidgetTester tester, {bool fullWallet = true}) async {
+  Future<void> open(WidgetTester tester, {bool fullWallet = true, bool starting = false}) async {
     stops = [];
     closed = false;
     keepAlive = _FakeKeepAlive();
@@ -87,6 +97,7 @@ void main() {
                       http: TunnelHttp(),
                       wallets: _Wallets(full: fullWallet),
                       keepAlive: keepAlive,
+                      starting: starting,
                       loadStatus: (_) async => InstanceStatusView(
                         instanceBalanceMu: '900',
                         costSoFarMu: '100',
@@ -108,7 +119,13 @@ void main() {
       ),
     );
     await tester.tap(find.byKey(const Key('open')));
-    await tester.pumpAndSettle();
+    if (starting) {
+      // The progress indicator turns until the service answers: no settle.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+    } else {
+      await tester.pumpAndSettle();
+    }
   }
 
   setUp(() => chat = _FakeChat());
@@ -123,6 +140,28 @@ void main() {
     expect(find.text('echo: one'), findsOneWidget);
     expect(find.byKey(const Key('chat-cost')), findsOneWidget);
     expect(find.textContaining('100'), findsOneWidget);
+  });
+
+  testWidgets('a new instance shows that the service starts, until it answers', (tester) async {
+    chat.starting = Completer<void>();
+    await open(tester, starting: true);
+    expect(find.byKey(const Key('chat-starting')), findsOneWidget);
+    expect(find.text(appL10n.chatStarting), findsOneWidget);
+    expect(find.text(appL10n.chatEmpty), findsNothing);
+    chat.starting!.complete();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('chat-starting')), findsNothing);
+    expect(find.text(appL10n.chatEmpty), findsOneWidget);
+    expect(find.byKey(const Key('chat-error')), findsNothing);
+  });
+
+  testWidgets('a service that never starts shows the error', (tester) async {
+    chat.starting = Completer<void>();
+    await open(tester, starting: true);
+    chat.starting!.completeError(const ChatException(ChatErrorKind.unreachable));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('chat-starting')), findsNothing);
+    expect(find.text(appL10n.chatErrorUnreachable), findsOneWidget);
   });
 
   testWidgets('an empty conversation asks the user to write', (tester) async {

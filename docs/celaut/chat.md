@@ -119,6 +119,14 @@ failed.
 - The client keeps the history in memory only. It writes no message to the Celaut
   database. The app keeps the instance and its token as before (`docs/celaut/ui.md`).
 - When the user opens a running instance, the client reads the history from 0.
+- A service listens some seconds after `StartService` (the echo service: about 20 to 60
+  seconds), and until then the node cannot connect a tunnel to it. So after a start the
+  screen says that the service starts, and the client reads the history again while the
+  service cannot be reached: after 2, 3, 5, 8 and then every 10 seconds, for 2 minutes at
+  most (`ChatClient.syncWhenStarted`). Each read opens one tunnel stream and pays
+  `TUNNEL_OPEN_MU`, also when the service is not there yet: about 14 reads (140 000 MU at
+  the default rate) if the service never answers. A message that the user sends meanwhile
+  waits for the first read.
 - When the user leaves the screen, the client asks: "Stop the instance" or "Leave it
   running". "Stop" calls `StopService` and the node refunds the balance of the instance.
   The conversation is lost. "Leave it running" keeps the instance, and the node continues

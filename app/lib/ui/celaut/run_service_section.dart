@@ -30,7 +30,8 @@ typedef LaunchCall = Future<LaunchOutcome> Function({
 
 /// "Run a service" on the home screen (`docs/celaut/ui.md`, section 2): the skills of the
 /// catalog with a search field. A skill opens a sheet with its ranked services. Run starts
-/// the best node by the balancer (`launchService`). If the service has a chat slot, the
+/// the best node by the balancer (`launchService`) after the user confirms it, with the
+/// best node and its start cost. If the service has a chat slot, the
 /// conversation opens; if not, the instance shows in the list of the home screen.
 /// If no node starts it, a sheet says why for each node.
 class RunServiceSection extends StatefulWidget {
@@ -107,9 +108,6 @@ class _RunServiceSectionState extends State<RunServiceSection> {
   List<LibraryPackageView> _packages = const [];
   late final PackageLibrary _library = widget.library ?? PackageLibrary();
 
-  /// The most skills shown at once: the search narrows the list.
-  static const _shown = 6;
-
   @override
   void initState() {
     super.initState();
@@ -176,10 +174,70 @@ class _RunServiceSectionState extends State<RunServiceSection> {
         wallets: widget.wallets,
       ),
     );
-    if (serviceId != null && mounted) await _run(serviceId);
+    if (serviceId != null && mounted) await _run(serviceId, name: skill.name);
   }
 
-  Future<void> _run(String serviceId) async {
+  /// Ask before a launch: an instance uses credit until it stops. The dialog shows the
+  /// node that the balancer would use now, with its start cost.
+  Future<bool> _confirm(String serviceId, String name) async {
+    final l = context.l10n;
+    final quote = _preview(serviceId);
+    final sure = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        final t = HomeText.of(context);
+        return AlertDialog(
+          key: const Key('run-confirm'),
+          title: Text(l.celautRunConfirmTitle(name)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l.celautRunConfirmBody),
+              const SizedBox(height: 12),
+              FutureBuilder<QuoteView?>(
+                future: quote,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return Text(l.celautRunPreviewLoading, style: t.secondary);
+                  }
+                  final best = snapshot.hasError ? null : snapshot.data;
+                  return Text(
+                    best == null
+                        ? l.celautRunConfirmNoQuote
+                        : l.celautRunPreview(
+                            '${best.address.host}:${best.address.port}',
+                            muOrUnknown(best.costMu),
+                          ),
+                    key: const Key('run-confirm-quote'),
+                    style: t.secondary,
+                  );
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              key: const Key('run-confirm-cancel'),
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(l.celautSendCancel),
+            ),
+            FilledButton(
+              key: const Key('run-confirm-ok'),
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(l.celautRunButton),
+            ),
+          ],
+        );
+      },
+    );
+    return sure == true;
+  }
+
+  /// Launch [serviceId]. [name] is what the confirmation calls it; with no name the user
+  /// has already confirmed (the launch again after a transfer).
+  Future<void> _run(String serviceId, {String? name}) async {
+    if (name != null && (!await _confirm(serviceId, name) || !mounted)) return;
     if (!await ensureOpenFullWallet(context, widget.wallets) || !mounted) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -258,7 +316,7 @@ class _RunServiceSectionState extends State<RunServiceSection> {
   }
 
   Widget _defaultChat(String instanceId, int port) =>
-      ChatScreen(instanceId: instanceId, port: port, wallets: widget.wallets);
+      ChatScreen(instanceId: instanceId, port: port, wallets: widget.wallets, starting: true);
 
   Future<void> _showFailure(LaunchFailure failure, String serviceId) async {
     TransferOffer? chosen;
@@ -372,7 +430,7 @@ class _RunServiceSectionState extends State<RunServiceSection> {
       );
       return;
     }
-    await _run(package.serviceId);
+    await _run(package.serviceId, name: package.name);
   }
 
   /// Give the service to the node of [offer] that does not have it, then launch again: the
@@ -418,13 +476,11 @@ class _RunServiceSectionState extends State<RunServiceSection> {
   List<SkillView> _filtered() {
     final query = _search.text.trim().toLowerCase();
     final all = _skills ?? const <SkillView>[];
-    final found = query.isEmpty
-        ? all
-        : [
-            for (final s in all)
-              if (s.name.toLowerCase().contains(query)) s,
-          ];
-    return found.take(_shown).toList();
+    if (query.isEmpty) return all;
+    return [
+      for (final s in all)
+        if (s.name.toLowerCase().contains(query)) s,
+    ];
   }
 
   @override
@@ -526,6 +582,8 @@ class _RunServiceSectionState extends State<RunServiceSection> {
                     ),
                     OutlinedButton(
                       key: Key('pkg-run-${package.serviceId}'),
+                      // The theme asks for the full width, which a row cannot give.
+                      style: OutlinedButton.styleFrom(minimumSize: const Size(0, 40)),
                       onPressed: _running || !package.present ? null : () => _runPackage(package),
                       child: Text(l.celautRunButton),
                     ),

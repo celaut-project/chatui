@@ -7,8 +7,8 @@ import '../frb_generated.dart';
 import 'celaut.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `invalid`, `mode_of`, `view_of`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `invalid`, `mode_of`, `proxy_of`, `view_of`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Change the network route. With `Embedded` or `Socks`, every connection is blocked
 /// from the moment that this returns until the proxy is ready: see
@@ -32,6 +32,11 @@ Future<void> celautSetNetwork({
 NetworkStatusView celautNetworkStatus() =>
     RustLib.instance.api.crateApiCelautNetworkCelautNetworkStatus();
 
+/// The route of the connections now. With Tor on, it is `Blocked` until the proxy is
+/// ready, and again if it fails: never `Direct`.
+NetworkProxyView celautNetworkProxy() =>
+    RustLib.instance.api.crateApiCelautNetworkCelautNetworkProxy();
+
 /// What the user chose.
 enum NetworkChoice {
   /// Direct connections.
@@ -42,6 +47,69 @@ enum NetworkChoice {
 
   /// An external SOCKS5 proxy.
   socks,
+}
+
+/// How a connection goes out now.
+enum NetworkProxyKind {
+  /// A TCP connection from the phone.
+  direct,
+
+  /// Through the SOCKS5 proxy of the view.
+  socks,
+
+  /// No connection.
+  blocked,
+}
+
+/// The route of the connections now, for the code of the Dart side that makes its own
+/// connections (the updater of the app). The core uses the same route.
+class NetworkProxyView {
+  final NetworkProxyKind kind;
+
+  /// The IP address of the proxy. Only for `Socks`.
+  final String host;
+
+  /// The port of the proxy. Only for `Socks`.
+  final int port;
+
+  /// The user name and the password for the proxy, or empty if it asks for none. The
+  /// proxy of the Tor client inside the app has a random pair, so that another app on
+  /// the phone cannot use it.
+  final String user;
+  final String password;
+
+  /// Why there is no connection, in English. Only for `Blocked`.
+  final String reason;
+
+  const NetworkProxyView({
+    required this.kind,
+    required this.host,
+    required this.port,
+    required this.user,
+    required this.password,
+    required this.reason,
+  });
+
+  @override
+  int get hashCode =>
+      kind.hashCode ^
+      host.hashCode ^
+      port.hashCode ^
+      user.hashCode ^
+      password.hashCode ^
+      reason.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NetworkProxyView &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          host == other.host &&
+          port == other.port &&
+          user == other.user &&
+          password == other.password &&
+          reason == other.reason;
 }
 
 /// Where the proxy is.

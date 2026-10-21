@@ -512,7 +512,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get aboutCheckForUpdatesSubtitle =>
-      'Consulta a GitHub una vez al día. GitHub ve tu dirección IP.';
+      'Consulta a GitHub una vez al día. GitHub ve tu dirección IP, o una salida de Tor si Tor está activado.';
 
   @override
   String get aboutCheckNow => 'Comprobar ahora';
@@ -1077,6 +1077,10 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get updateErrorUnreachable =>
       'No se pudo conectar con GitHub. Comprueba tu conexión.';
+
+  @override
+  String get updateErrorRouteBlocked =>
+      'Tor está activado y no está listo, así que la app no se conecta a GitHub. Inténtalo de nuevo cuando Tor esté listo (Ajustes, Desarrollador, Tor).';
 
   @override
   String updateErrorStatus(String status) {
@@ -4953,14 +4957,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautDepositRowSubtitle =>
-      'Paga a un nodo en ERG desde una billetera completa';
+      'Paga a un nodo en ERG desde la billetera';
 
   @override
   String get celautDepositScreenTitle => 'Depósito en Celaut';
 
   @override
   String get celautDepositIntro =>
-      'Paga ERG a un nodo para obtener MU, la unidad de cuenta del nodo. Tú eliges la billetera completa que paga; las billeteras de solo lectura no pueden pagar. El nodo recibe un pago simple y puede quedárselo, así que deposita cantidades pequeñas. El saldo queda con el ID de cliente de la app en ese nodo, que la app guarda en su base de datos cifrada de Celaut para todas las billeteras.';
+      'Paga ERG a un nodo para obtener MU, la unidad de cuenta del nodo. Paga la billetera de la app. El nodo recibe un pago simple y puede quedárselo, así que deposita cantidades pequeñas. El saldo queda con el ID de cliente de la app en ese nodo, que la app guarda en su base de datos cifrada de Celaut.';
 
   @override
   String get celautDepositNodeLabel => 'Dirección del nodo';
@@ -5338,6 +5342,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get chatEmpty => 'Escribe algo para empezar la conversación.';
 
   @override
+  String get chatStarting =>
+      'El servicio se está iniciando. Puede tardar un minuto en responder.';
+
+  @override
   String chatCost(String mu) {
     return 'Coste hasta ahora: $mu';
   }
@@ -5556,6 +5564,19 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautRunPreviewLoading => 'Buscando el mejor nodo…';
+
+  @override
+  String celautRunConfirmTitle(String name) {
+    return '¿Ejecutar $name?';
+  }
+
+  @override
+  String get celautRunConfirmBody =>
+      'El servicio se ejecuta en un nodo y usa tu crédito allí hasta que se detiene. Detenlo en la pantalla de inicio, o al salir de la conversación.';
+
+  @override
+  String get celautRunConfirmNoQuote =>
+      'Ningún nodo ha dado un precio todavía. Ejecutar pregunta a todos los nodos de la lista.';
 
   @override
   String get celautErrorTransferFailed =>

@@ -1,7 +1,8 @@
 # Network route and Tor (M5)
 
-By default the app connects to Celaut nodes and to the Ergo explorer from the phone, so
-each of them sees the IP address of the phone. With Tor on, they see a Tor exit.
+By default the app connects to Celaut nodes, to the Ergo explorer and to GitHub (the
+updater) from the phone, so each of them sees the IP address of the phone. With Tor on,
+they see a Tor exit.
 
 ## What the user can choose (Settings, Developer, Tor)
 
@@ -22,9 +23,15 @@ Everything that the Rust core connects to:
   the same on every route, so a node proves its identity through Tor too.
 - Every HTTP request of the core (`wallet-net`'s `http::client_builder`): the Ergo explorer,
   the Ergo nodes, the catalog, token metadata. The environment proxies are never used.
+- The updater of the app, the one part of the Dart side that makes its own HTTP requests
+  (the check of the latest release and the download of the APK on GitHub). Its client is
+  `routedHttpClient` (`app/lib/celaut/routed_http.dart`): it reads the route of the core
+  (`celaut_network_proxy`) when it is built, and then connects directly, opens the
+  connection through the SOCKS5 proxy (the proxy looks up the name, and the TLS of GitHub
+  goes inside), or fails with the reason. Through the proxy it accepts HTTPS only.
 
-What does not go through Tor: the code of the Dart side that makes its own HTTP requests
-(the updater of the app) and the system.
+What does not go through Tor: the system (for example the DNS of Android and the
+connections of other apps).
 
 ## The rule: never direct
 
@@ -59,8 +66,9 @@ With Tor on, the app never falls back to a direct connection.
 | `rust/crates/celaut-tor` | `Manager`: the modes, the state, the Arti client and its SOCKS5 port. The port has a random user name and password, so another app on the phone cannot use it |
 | `rust/crates/celaut-wire` | The TCP dial of a node goes through `celaut_net::connect` |
 | `rust/crates/wallet-net` | `http::client_builder` follows the route |
-| `rust/crates/wallet-ffi/src/api/celaut_network.rs` | `celaut_set_network` and `celaut_network_status` |
+| `rust/crates/wallet-ffi/src/api/celaut_network.rs` | `celaut_set_network`, `celaut_network_status`, and `celaut_network_proxy` (the route for the Dart side) |
 | `app/lib/celaut/network_route.dart`, `app/lib/ui/celaut/network_screen.dart` | The setting, and the screen |
+| `app/lib/celaut/routed_http.dart` | The HTTP client of the updater on the route: direct, a SOCKS5 client (RFC 1928 and 1929) under TLS, or blocked |
 
 ## Checks
 
@@ -71,5 +79,9 @@ With Tor on, the app never falls back to a direct connection.
   `cargo test -p celaut-tor --test real_tor -- --ignored --nocapture`. On 2026-10-15 it
   started Arti in 15 seconds, and a request through the HTTP client of the app got
   `{"IsTor":true}` from `check.torproject.org`.
+- The client of the updater has tests with a local HTTPS server and a local SOCKS5 proxy
+  with a password: direct, through the proxy, a wrong password, no proxy, blocked, and
+  plain HTTP refused; in each failure nothing reaches the server
+  (`app/test/celaut_routed_http_test.dart`).
 - Not checked: a phone, Android (the Arti client builds for the Android targets in the CI,
   but it was not run there), the battery use, and a Celaut node through Tor.

@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../build_info.dart';
+import '../celaut/routed_http.dart';
 import '../l10n/l10n.dart';
 import 'apk_signature.dart';
 import 'update_channel.dart';
@@ -22,11 +23,13 @@ import 'update_channel.dart';
 //    "Check now" is tapped (that works with the setting off, because the tap
 //    is the request): one HTTPS GET of [latestReleaseUri]. It carries a
 //    generic User-Agent and nothing else of ours: no token, no app version,
-//    no device or install identifier. GitHub sees the phone's IP address.
+//    no device or install identifier. GitHub sees the phone's IP address, or
+//    a Tor exit when Tor is on.
 //  * When the user taps "Download and verify": one HTTPS GET of the APK, to
 //    github.com and the GitHub CDN it redirects to. Same headers.
 // Nothing is sent at any other time, and nothing about the wallet is ever
-// part of either request.
+// part of either request. Both requests follow the network route of the app
+// (`routedHttpClient`): with Tor on, they go through Tor or they fail.
 
 /// GitHub's "latest release" for chatui: the newest release that is neither a
 /// draft nor a prerelease.
@@ -331,9 +334,11 @@ class _Cancelled implements Exception {
   const _Cancelled();
 }
 
-UpdateException _networkFailure(Object e) => e is TimeoutException
-    ? UpdateException(appL10n.updateErrorTimeout)
-    : UpdateException(appL10n.updateErrorUnreachable);
+UpdateException _networkFailure(Object e) => switch (e) {
+      TimeoutException() => UpdateException(appL10n.updateErrorTimeout),
+      RouteBlocked() => UpdateException(appL10n.updateErrorRouteBlocked),
+      _ => UpdateException(appL10n.updateErrorUnreachable),
+    };
 
 const _maxRedirects = 5;
 
@@ -1035,4 +1040,4 @@ class UpdateService extends ChangeNotifier {
   }
 }
 
-final updateService = UpdateService();
+final updateService = UpdateService(clientFactory: routedHttpClient);

@@ -5,53 +5,52 @@ in `docs/celaut/` (decisions, ui, wire, balancer, catalog). This plan follows th
 decisions and does not change them. Each milestone ends with a check that a reviewer
 can run.
 
-## 0. Status and next tasks
+## 0. Final status
 
-Updated on 2026-10-13, master at `2bf69ba` plus the PR for the answers on PR #15.
+Final status on 2026-10-21: master at `2584cf7` (release 0.1.8, 2026-10-16) and the PR
+that closes the plan. **The plan is complete; next work: the chat-first UI
+(Telegram/WhatsApp-like), separate PR.**
 
 | Item | Status |
 |---|---|
-| M0: build from source, CI on master, debug APK in CI | Done. Merged in `5c3b2b3` (PR #1). CI run 38156157458 on master passed (rust, flutter, android) |
-| `celaut-proto` and the design notes (`docs/celaut/`) | Done. Merged from `celaut-crates` in `160d24c`. Make new PRs into master. Do not use `celaut-crates` again |
-| M0b: trimmed wallet and new identity | Done. Merged in PR #3 (section 5). Spanish is a separate PR after it |
-| `bee-rpc-over-grpc-rs` | M1a done. Tag `v0.1.0` (`a832abc`) has the whole API: frames, blocks, signal, skip, hashes and the generic bidi call over tonic. `celaut-wire` uses it as a git dependency. Its license is GPL-3.0-only, and chatui is GPL-3.0-only too (section 7, question 10) |
-| M1: connect to a node and show its advertisement | Done. Merged in PR #9 |
-| M2: quote, start, tunnel, stop on free credit | Done. Merged in PR #11. `celaut-wire` (the M2 calls and `ServiceTunnel`), `celaut-balancer`, `celaut-client` (node sessions, quotes, the local port), the FFI functions in `api/celaut_service.rs` and the debug screen (Settings, Developer). Checked on our own node, from the client crate and from the app in the Android emulator (see M2 in section 5). Not tested: a phone, a node on the internet, more than one node |
-| M3: deposit with the wallet | Implemented; e2e done on mainnet on 2026-10-13 (PR #13). `GenerateDepositToken`, the deposit transaction with the token in R4, the confirmation sheet of the wallet, the wait for the box on the explorer of nodo, one `Payable`, and a limit of 1 ERG per node (Settings, Developer, Celaut deposit). The deposit screen asks for the PIN or fingerprint of the paying wallet. Reworked on 2026-10-13 for `docs/celaut/ui.md` (PR #14): the user chooses one full wallet to pay, read-only wallets are never payers, a default payer in the settings, and one encrypted Celaut database for the app (client ids, advertisements, instances and tokens, deposits, quotes, event log), so a deposit is not lost at a restart. Unit, FFI and widget tests, a read-only check on our own node, and one deposit of 0.01 ERG from the app in the emulator to our node: the node accepted it and the client got 10 000 000 MU (`docs/celaut/deposit-e2e.md`) |
-| Home screen (ui.md, section 2) | Merged in PR #15 (after #13 was merged): the compute home is the default home, in the design of the `celaut-design` landing page (answers of Josemi, 2026-10-13). Settings, Developer, Compute home turns it off. Partial sums read "at least X (N nodes unknown)", USD from the oracle pool price, full and watched wallets as two figures, paid and free credit apart, an explicit node list (Settings, Developer, Nodes, and the Nodes button), start and stop with an open full wallet only, and a choice when a node forgets the client id. The next PR applies answers 2 and 7 on PR #15: the largest entry of a node is the one with the most memory, then cores, then disk; and the Nodes screen adds a node by address or by QR code (`docs/celaut/wire.md`, section 6) |
-| M4: conversation screen | Implemented and merged, not yet checked on a node or a phone. The convention is `docs/celaut/chat.md` (PR #17), `ChatClient` (PR #18), `ChatScreen` with the history, the cost so far and the question to stop the instance or leave it running (PR #19), the detector of the chat slot (`chat_slots`, PR #20), "Launch on the best node" (PR #22), the skill catalog and the picker (PR #25, `docs/celaut/catalog.md`), the filter on the advertised resources (PR #24, ready, it skips nothing until a caller has the resources of the service), and an Android foreground service while a conversation is open (PR #23). Not done: the check on a node with the echo service (`echo-chat`, public, to be packaged by hand) and a check of the foreground service on a phone |
-| Run by skill from the home screen, availability of the nodes, reasons of a refusal | Merged (PR #30, #32, #31); not yet checked on a phone. The home screen has a "Run a service" section (skills with a search, the ranked services of a skill, the node that the balancer would use, and Run). A service with a chat slot opens the conversation; any other stays as an instance card. Each node is checked in the background (when the app opens and every minute while the home is open; a node that fails is checked later and later, 30 s up to 15 min, three times longer through Tor) and the result is kept in the Celaut database and shown on its card, with Check now. A node that failed its last two checks is left out of a launch, unless that would leave no node. A launch checks the credit of the client against the price before it asks the node to start, and a refusal of a node is classified from the texts of nodo (closed hours, no room, service missing, network policy, architecture, rate limit, recursion, launch failed) with the reason and a suggested action for each node and the original text under Details. nodo has no error codes, so a change of wording in nodo gives a less precise reason, never a wrong one: structured codes in nodo would remove this dependency (nodo work). Not done: a confirmation step before Run, more than the first 6 skills at once on the home screen, and a check on a phone |
-| M5: privacy (Tor) | Implemented, not yet checked on a phone. Settings, Developer, Tor: off (the default), the Arti client inside the app, or an external SOCKS5 proxy such as Orbot. It covers the connections to Celaut nodes and every HTTP request of the Rust core (the explorer, the Ergo nodes, the catalog). With Tor on, the app never connects directly: the connections fail until the proxy is ready, and again if it fails, also with settings that cannot be used. Design, limits and checks in `docs/celaut/network.md`. A real run on 2026-10-15 started Arti in 15 seconds and got `IsTor: true` through the HTTP client of the app. Not done: a check on a phone, the updater of the app (Dart HTTP) is not routed, a node in a private network cannot be reached through Tor, and onion addresses for nodes (nodo work) |
-| One wallet (ui.md, section 1) | Decision of 2026-10-16. The app holds one Ergo wallet; watch-only wallets, offline signing and the default payer are removed. At each start the app removes the watched wallets and every wallet after the first of the user order, with its seed |
-| Open questions (section 7) | Answered on 2026-10-11 and 2026-10-12 |
+| M0: build from source, CI, debug APK in CI | Done (PR #1). CI runs rust, flutter and android on each pull request |
+| `celaut-proto` and the design notes (`docs/celaut/`) | Done (merged from `celaut-crates` in `160d24c`) |
+| M0b: trimmed wallet and new identity | Done (PR #3). English and Spanish (PR #12) |
+| `bee-rpc-over-grpc-rs` (M1a) | Done. Tag `v0.1.0` (`a832abc`), a git dependency of `celaut-wire`. GPL-3.0-only, as chatui (section 7, decision 10) |
+| M1: connect to a node and show its advertisement | Done (PR #9) |
+| M2: quote, start, tunnel, stop on free credit | Done (PR #11). Checked on our own node from the client crate and from the app in the emulator (M2 in section 5). A phone, a node on the internet and more than one node: section 0.1 |
+| M3: deposit with the wallet | Done (PR #13, #15). The wallet of the app pays; the deposit asks for its PIN or fingerprint. One deposit of 0.01 ERG on mainnet from the app in the emulator to our node on 2026-10-13: the node accepted it and the client got 10 000 000 MU (`docs/celaut/deposit-e2e.md`) |
+| Home screen (ui.md, section 2) | Done (PR #15, #16, #31, #38). Running instances, "Run a service" and one card of state (decision of 2026-10-16). The Nodes screen adds a node by address or QR code (`docs/celaut/wire.md`, section 6) |
+| One wallet (ui.md, section 1) | Done (PR #40, #41). The app holds one Ergo wallet with its seed. There are no watch-only wallets, no offline signing and no default payer. At each start the app removes the watched wallets and every wallet after the first of the user order, with its seed |
+| M4: conversation screen | Done (PR #17 to #25, and the closing PR). Checked on 2026-10-21 on our node with `echo-chat` v1 from the app in the emulator: launch, conversation, history after a lost connection, cost so far, stop (M4 in section 5). A phone: section 0.1 |
+| Run by skill, availability of the nodes, reasons of a refusal | Done (PR #30, #31, #32, #35, #36, #37, and the closing PR). Run asks first, with the best node and its start cost; the screen lists every skill of the catalog. Checked in the emulator on 2026-10-21. A phone: section 0.1 |
+| M5: privacy (Tor) | Done (PR #29, and the closing PR). Off by default, Arti inside the app, or an external SOCKS5 proxy, for the nodes, every HTTP request of the Rust core and the updater of the app (`docs/celaut/network.md`). Checked in the emulator on 2026-10-21 (M5 in section 5). A phone and onion addresses: section 0.1 |
+| Open questions (section 7) | Answered on 2026-10-11 to 2026-10-16 |
 
-Do the next tasks in this order. Each task is one PR into master.
+### 0.1 Open after the plan
 
-1. **M0b**, see section 5. Done (PR #3).
-2. **wire.md corrections:** section 8. Done (PR #2). The M1 PR adds the `ts` rule and
-   the signature scheme to wire.md.
-3. **bee-rpc in Rust** (M1a): the repo
-   [bee-rpc-protocol/bee-rpc-over-grpc-rs](https://github.com/bee-rpc-protocol/bee-rpc-over-grpc-rs).
-   Done: tag `v0.1.0`.
-4. **M1**: done (PR #9). **M2**: done (PR #11).
-5. **M3**: implemented (PR #13); the end-to-end deposit on mainnet passed on
-   2026-10-13. Then **M4** and **M5**.
+These items need a device, a second node or nodo work. They are not part of this plan.
 
-Josemi answered all the open questions on 2026-10-11 and 2026-10-12 (section 7).
+| Item | Who |
+|---|---|
+| Check the app on a phone (GrapheneOS, no Play Services): a conversation with `echo-chat`, the foreground service with the screen off, Tor inside the app, the QR scan | Josemi or Nate, with a phone |
+| A node on the internet, and a list of more than one node (the choice of the balancer, the nodes left out of a launch) | Josemi or Nate, with a second node that has a public address |
+| Onion addresses for nodes. Through Tor, the app cannot reach a node in a private network (`10.0.2.2`, `192.168.x.x`) | nodo work (decision 7 in section 7) |
+| Error codes in the answers of nodo, so that the app does not classify the texts | nodo work |
+| A tunnel stream to a stopped instance stays open on the node while the client keeps the TCP connection (seen in `nodo tunnels --inbound` after a phone lost its network) | nodo work |
+| `GET /chat/messages?from=²` (a digit that is not ASCII) closes the connection instead of status 400 | `echo-chat` in celaut-basics |
+| Open the conversation of a running instance again. The lock of the app when it goes to the background closes the conversation screen; the instance runs on, and the home screen can only stop it | The chat-first UI PR |
 
-Measured by the author of PR #1 on 2026-10-11, master at `802dd55`, macOS arm64,
-Rust 1.99.0, Flutter 3.41.2, NDK 28.2.13676358:
+Checks of the closing PR, on 2026-10-21, on Ubuntu 22.04 x86_64 (WSL2 with KVM), Rust
+1.99.0, Flutter 3.41.2, NDK 28.2.13676358:
 
 | Check | Result |
 |---|---|
-| `cargo test --workspace` | pass: 1042 passed, 0 failed, 15 ignored |
-| `cargo clippy --workspace` | pass (14 warnings) |
-| `cargo clippy --workspace --all-targets` | 1 error in a test of vendored `ergo-tx` (`babel.rs:663`, the empty range `2..1` is on purpose) |
+| `cargo test --workspace` | pass: 649 passed, 0 failed, 15 ignored |
 | `flutter analyze` | no issues |
-| `flutter test` | pass: 1704 passed, 3 skipped |
+| `flutter test` | pass: 1389 passed, 2 skipped |
+| `flutter_rust_bridge_codegen generate` and `flutter gen-l10n` | no diff |
 | `flutter build apk --debug` | pass; the APK has `libwallet_ffi.so` for arm64-v8a and x86_64 |
-| `celaut-crates`: `cargo build -p celaut-proto` | pass; `cargo run -p gen-protos` gives no diff |
-| nodo protos since `b5c1e8a5` | no change up to nodo dev `e3d12301` |
 
 ## 1. Goal
 
@@ -143,7 +142,7 @@ Services; `flutter test` and `cargo test` pass.
 Start M0b from master. A partial trim exists on the machine of Josemi, but it will
 not be pushed. Do not wait for it.
 
-Items that are not done yet (master at `160d24c`):
+The items of M0b, as master had them at `160d24c` (all done in PR #3; Spanish in PR #12):
 
 - `namespace` and `applicationId` are `com.argus.argus_wallet`
   (`app/android/app/build.gradle.kts`). Change both to `org.celaut.chatui`, and move
@@ -298,7 +297,7 @@ port came through an SSH port-forward, with no new firewall rule.
   and `config.yaml` as before; no instance or tunnel of the check left. What stays on
   the node: the built container of `tiny`, and the test clients in its database.
 
-**M3: deposit with the wallet.** The deposit uses one full wallet that the user chooses; read-only wallets cannot pay (`docs/celaut/ui.md`, section 1). GenerateDepositToken, an Ergo transaction with one
+**M3: deposit with the wallet.** The wallet of the app pays (`docs/celaut/ui.md`, section 1). GenerateDepositToken, an Ergo transaction with one
 output to the node script and the token in R4 (the send path in `ergo-tx/src/send.rs`
 writes no registers today), the existing confirmation and sign screens, wait until the
 box is on the explorer, then Payable once. The node needs no confirmation: the box can
@@ -352,16 +351,12 @@ Facts from nodo dev `ee5af5bc` (details in wire.md, section 4):
   mainnet (`https://api.ergoplatform.com`), and checks only the first box with the
   token.
 
-Changes for `docs/celaut/ui.md` (2026-10-13):
+Changes for `docs/celaut/ui.md` (2026-10-13), with the one wallet of 2026-10-16:
 
-- Payer: the deposit screen offers only the full wallets of the app (a seed on the
-  device). Read-only wallets (watched addresses and accounts) are never payers. The user
-  chooses the payer at each deposit; the screen and the confirmation sheet show its
-  name, its balance ("unknown" if the app does not know it), the ERG and the MU. Only the
-  open (unlocked) wallet can sign, so a locked payer must be opened first. A default
-  payer is saved in the settings (Settings, Developer, Default payer; a wallet id in
-  `SharedPreferences`, no secret). With no full wallet, the screen says so and does not
-  start, and the start and stop of the service screen are off with the same message.
+- Payer: the wallet of the app (a seed on the device) pays. The screen and the
+  confirmation sheet show its name, its balance ("unknown" if the app does not know it),
+  the ERG and the MU. With no wallet, the screen says so and does not start, and the
+  start and stop of the service screen are off with the same message.
 - One Celaut database for the app (`celaut-client/src/db.rs`, FFI `api/celaut_db.rs`):
   the client id and addresses of each node (key: peer_id), the last advertisements, the
   instances with their tokens, the deposits, the last quotes and the event log of local
@@ -376,10 +371,12 @@ Changes for `docs/celaut/ui.md` (2026-10-13):
   a deposit "sent" before the broadcast, with the transaction id that is known before
   the signature, and the screen lists the sent deposits that wait for `Payable`. A
   deposit that was only prepared is dropped at the next start.
-- The limit of a node counts every deposit of the app to it, from any wallet, and is
-  kept in the database.
+- The limit of a node counts every deposit of the app to it, also from a wallet that the
+  user removed, and is kept in the database.
 - Compute home (ui.md, section 2), the default home screen (Settings, Developer,
-  Compute home turns it off). `celaut_compute_overview` asks every node of the node list
+  Compute home turns it off). Since 2026-10-16 the home screen shows only what the user
+  acts on (ui.md, section 2), and the figures below are one tap away.
+  `celaut_compute_overview` asks every node of the node list
   at the same time:
   the offered resources (CPU, memory, disk; advertised, not free) summed once per
   peer_id, the reachable and unreachable nodes, the credit of the app on each node in
@@ -391,8 +388,7 @@ Changes for `docs/celaut/ui.md` (2026-10-13):
   values from different entries. The screen follows the `celaut-design` landing page
   (palette, Playfair Display and Lato, the CELAUT wordmark, spaced capital labels,
   hairlines) and has Wallets and Nodes entries.
-- Money on the home screen: the ERG of the full wallets and the ERG of the watched
-  addresses and accounts are two figures with their own labels; the credit on the nodes
+- Money: the ERG of the wallet; the credit on the nodes
   is split into paid credit and free credit (the free credit counts as spent first);
   each figure has a USD value from the ERG/USD oracle pool price that the wallet
   already reads on-chain (`TokenPricer`), or "USD unknown".
@@ -402,10 +398,9 @@ Changes for `docs/celaut/ui.md` (2026-10-13):
 - A node that forgets the client id gives the error kind `ClientUnknown`. The app shows
   the error and asks: "New client" (`celaut_new_client`; the old balance is lost) or
   "Retry later". It never makes a new client by itself.
-- Start and stop need an open full wallet. With only locked full wallets, the action
-  first asks for the PIN or fingerprint of one. The deposit asks for the PIN or
-  fingerprint of the paying wallet, also when it is open, with the unlock flow of the
-  app.
+- Start and stop need the wallet open. If it is locked, the action first asks for its
+  PIN or fingerprint. The deposit asks for the PIN or fingerprint of the wallet, also
+  when it is open, with the unlock flow of the app.
 - Missing values on the node and service screens show "unknown" (they were left out,
   or 0).
 
@@ -418,10 +413,57 @@ it through the tunnel. Show the cost so far, and stop the instance when the user
 leaves. First write the "chat" convention (HTTP with JSON, decision 3 in section 7).
 Check: a conversation with a simple echo service that follows it.
 
+What M4 has (PR #17 to #25, and the closing PR): the convention (`docs/celaut/chat.md`),
+`ChatClient`, `ChatScreen` with the history, the cost so far and the question to stop
+the instance or leave it running, the detector of the chat slot, the launch on the best
+node, the skill catalog and its picker, the filter on the advertised resources, and an
+Android foreground service while a conversation is open. After a launch, the screen
+says that the service starts and reads the history again until the service answers
+(`ChatClient.syncWhenStarted`, chat.md section 5).
+
+Check on 2026-10-21, on our node (x86_64 with KVM, nodo `ec1274d`, default config), from
+the debug APK of the closing PR in the x86_64 emulator (Android 15, AOSP), the node at
+`10.0.2.2`. Service: `echo-chat` v1 of celaut-basics
+(`653cdd2913898145836e8472e33097e558b43b3d93830366951c61f112bc1091`), already in the
+registry and built on the node. A new wallet with no ERG; the new client had the free
+credit of 4 500 000 MU. No transaction.
+
+- The file `653cdd.celaut.bee` (117 MiB) loaded into the app with "Import a service
+  file". Run asked first: "Run 653cdd?", "Best node now: 10.0.2.2:53460 · start cost
+  1,000,000 MU". After the PIN, the node started the instance and the conversation
+  opened.
+- The service listened about 25 seconds after the start. Meanwhile the node refused 4
+  tunnels ("Connection refused" on port 8080), and the fifth read of the history
+  worked. A second run had 5 refusals. Before the closing PR, the screen stopped at the
+  first refusal with "The service did not answer".
+- "one", "two" and "hello from the emulator": each one and its echo, in order, on one
+  tunnel stream (`nodo tunnels --inbound`).
+- Flight mode, then a send of "three": the screen said "The service did not answer" and
+  kept the text. After flight mode, the same send: "three" and its echo once each, on a
+  new stream.
+- The cost so far went up with each answer (204 268, 530 904, 762 687 MU). "Stop the
+  instance" stopped it; the credit of the client went from 4 500 000 to 3 694 034 MU.
+- The second run: the foreground service of the conversation was on
+  (`ConversationService`, `isForeground=true`, an ongoing notification), and after 60
+  seconds in the background the process still ran. The app was locked when it came back,
+  and the conversation screen was closed (section 0.1). The home screen showed the
+  instance with its cost so far, and its Stop gave a refund of 463 595 MU.
+- After the check: no instance and no tunnel on the node, the config and the process of
+  nodo as before, and only the two base rules of nodo in its firewall table (gateway port
+  and established connections), with no rule of an instance.
+
 **M5: privacy** (after M4). Optional Tor (Arti, off by default) for outbound connections,
 so that a node does not see the IP address of the phone. It does not hide the node;
 onion addresses for nodes are nodo work (decision 7 in section 7).
-Done: see `docs/celaut/network.md`. The user can choose Arti inside the app or an external SOCKS5 proxy, for the nodes and the explorer; with Tor on, the app blocks the connections instead of going direct.
+Done: see `docs/celaut/network.md`. The user can choose Arti inside the app or an
+external SOCKS5 proxy, for the nodes, the explorer and the updater of the app. With Tor
+on, the app blocks the connections instead of going direct.
+
+Check on 2026-10-21, in the emulator of the M4 check: Arti inside the app was ready in
+about 7 seconds. "Check now" of the updater then got "GitHub is limiting requests from
+this network", the answer of GitHub to a shared Tor exit, while the same request from
+the host got 404 (no latest release) and its GitHub counter did not move. With Tor off,
+"Check now" got "GitHub has no release to offer", the same 404.
 
 ## 6. Risks
 
@@ -444,7 +486,7 @@ Done: see `docs/celaut/network.md`. The user can choose Arti inside the app or a
 1. **Role:** the app is a light client only. It never acts as a peer. The repository
    description is now "Android light client for Celaut, with an Ergo wallet".
 2. **Order of work:** `celaut-crates` is merged into master, and all new work comes
-   as PRs into master. The order is in section 0.
+   as PRs into master.
 3. **First service for M4:** a simple echo (or translation) service over HTTP with
    JSON, with a small "chat" convention that a later LLM service also follows.
    Write the convention down in M4 before the screen.
@@ -459,7 +501,8 @@ Done: see `docs/celaut/network.md`. The user can choose Arti inside the app or a
 6. **Package upload:** import a `.celaut.bee` that already exists, through
    StartService indices 5 and 6, for a node that does not have the service. Show the
    size and warn on mobile data. This needs the send side of blocks in
-   `bee-rpc-over-grpc-rs`, which is not in its current plan.
+   `bee-rpc-over-grpc-rs`, which is not in its current plan. (Done in PR #35 to #37:
+   `docs/celaut/package.md`.)
 7. **Tor:** optional, with Arti (Rust), off by default, in M5 after M4.
 8. **Node directory:** no bootstrap list in the app. Only on-chain node boxes and
    nodes that the user adds by address or QR code.
@@ -480,7 +523,7 @@ Done: see `docs/celaut/network.md`. The user can choose Arti inside the app or a
 11. **Wallets, storage and home screen (decided, 2026-10-13):** full wallets (seed,
     can sign) manage instances and pay nodes. Read-only wallets only view balances and
     history. All Celaut data is in one database, none per wallet. A deposit uses one
-    full wallet.
+    full wallet. (Decision 14 replaces the two types of wallet.)
     The home screen shows the compute that the connected nodes offer (the sum of their
     resources) and the money for compute first; the ERG of each wallet is second level.
     The full rules are in `docs/celaut/ui.md`. New screens must follow them.
@@ -495,7 +538,7 @@ Done: see `docs/celaut/network.md`. The user can choose Arti inside the app or a
     limit is 1 ERG per node over all deposits of the app, kept across restarts; the
     explorer stays fixed to the nodo default; the e2e deposit of 0.01 ERG was approved
     and done. The nodo deposit check is issue celaut-project/nodo#541. The answers are
-    implemented in PR #15.
+    implemented in PR #15. (Decision 14 replaces "full and watched ERG".)
 
 13. **Answers on PR #15 (2026-10-13):** answer 2: the largest architecture entry of a
     node is the one with the most memory, then the most cores, then the most disk (not
@@ -504,6 +547,12 @@ Done: see `docs/celaut/network.md`. The user can choose Arti inside the app or a
     beside the address field. A scanned address goes through the same node check as a
     typed one. The QR format is in `docs/celaut/wire.md`, section 6; Josemi accepted it
     on 2026-10-13. Other answers on PR #15 keep the defaults of the code.
+
+14. **One wallet and the home screen (decided, 2026-10-16):** the app holds one Ergo
+    wallet with its seed; there are no watch-only wallets, no offline signing and no
+    default payer (PR #40, #41). The home screen shows only what the user acts on: the
+    running instances, "Run a service" and one card of state (PR #38). The rules are in
+    `docs/celaut/ui.md`, sections 1 and 2.
 
 ## 8. Notes for `docs/celaut/wire.md`
 

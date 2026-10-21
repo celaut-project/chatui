@@ -12,6 +12,7 @@ import 'package:argus_wallet/celaut/payers.dart';
 import 'package:argus_wallet/celaut/service_strings.dart';
 import 'package:argus_wallet/celaut/service_transfer.dart';
 import 'package:argus_wallet/l10n/l10n.dart';
+import 'package:argus_wallet/theme/argus_theme.dart';
 import 'package:argus_wallet/ui/celaut/launch_failure_sheet.dart';
 import 'package:argus_wallet/ui/celaut/run_service_section.dart';
 import 'package:flutter/material.dart';
@@ -141,12 +142,14 @@ void main() {
     ServiceTransfer? transfer,
     PackageChannel? packages,
     _Lib? lib,
+    ThemeData? theme,
   }) async {
     tester.view.physicalSize = const Size(390, 2400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       MaterialApp(
+        theme: theme,
         home: Scaffold(
           body: SingleChildScrollView(
             child: RunServiceSection(
@@ -202,6 +205,8 @@ void main() {
     }
     await tester.tap(find.byKey(const Key('skill-sheet-run')));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('run-confirm-ok')));
+    await tester.pumpAndSettle();
   }
 
   testWidgets('it lists the skills and the search narrows them', (tester) async {
@@ -216,6 +221,16 @@ void main() {
     await tester.enterText(find.byKey(const Key('run-search')), 'zzz');
     await tester.pump();
     expect(find.byKey(const Key('run-empty')), findsOneWidget);
+  });
+
+  testWidgets('every skill of the catalog is listed, not only the first ones', (tester) async {
+    skills = [
+      for (var i = 0; i < 9; i++) SkillView(boxId: 'skill-$i', name: 'Skill $i', prose: '', tags: const []),
+    ];
+    await open(tester);
+    for (var i = 0; i < 9; i++) {
+      expect(find.byKey(Key('run-skill-skill-$i')), findsOneWidget);
+    }
   });
 
   testWidgets('a failure to read the catalog shows a retry that reads it again', (tester) async {
@@ -255,6 +270,50 @@ void main() {
     await open(tester);
     await run(tester);
     expect(launched, ['$_best 1000000']);
+  });
+
+  testWidgets('Run asks first, with the best node and its start cost', (tester) async {
+    await open(tester, preview: _quote());
+    await tester.tap(find.byKey(const Key('run-skill-skill-sat')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('skill-sheet-run')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('run-confirm')), findsOneWidget);
+    expect(find.text(appL10n.celautRunConfirmTitle('Boolean SAT Solver')), findsOneWidget);
+    expect(find.text(appL10n.celautRunConfirmBody), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(const Key('run-confirm-quote'))).data,
+      appL10n.celautRunPreview('127.0.0.1:18460', '1,000,000 MU'),
+    );
+    expect(launched, isEmpty, reason: 'nothing starts before the user confirms');
+    await tester.tap(find.byKey(const Key('run-confirm-ok')));
+    await tester.pumpAndSettle();
+    expect(launched, ['$_best 1000000']);
+  });
+
+  testWidgets('Cancel in the confirmation starts nothing', (tester) async {
+    await open(tester, preview: _quote());
+    await tester.tap(find.byKey(const Key('run-skill-skill-sat')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('skill-sheet-run')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('run-confirm-cancel')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('run-confirm')), findsNothing);
+    expect(launched, isEmpty);
+    expect(find.byKey(const Key('run-progress')), findsNothing);
+  });
+
+  testWidgets('with no price yet, the confirmation says so and Run still asks the nodes', (tester) async {
+    await open(tester);
+    await tester.tap(find.byKey(const Key('run-skill-skill-sat')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('skill-sheet-run')));
+    await tester.pumpAndSettle();
+    expect(find.text(appL10n.celautRunConfirmNoQuote), findsOneWidget);
+    await tester.tap(find.byKey(const Key('run-confirm-ok')));
+    await tester.pumpAndSettle();
+    expect(launched, hasLength(1));
   });
 
   testWidgets('Run starts the service that the user chose', (tester) async {
@@ -438,8 +497,25 @@ void main() {
       await open(tester, packages: packages, lib: lib);
       await tester.tap(find.byKey(Key('pkg-run-$_best')));
       await tester.pumpAndSettle();
+      expect(find.text(appL10n.celautRunConfirmTitle('echo')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('run-confirm-ok')));
+      await tester.pumpAndSettle();
       expect(launched, ['$_best ${ServiceStrings.initialDefault}']);
       expect(changed, greaterThan(0));
+    });
+
+    testWidgets('with the theme of the app, a loaded service and the confirmation lay out', (tester) async {
+      lib.stored = [lib.view(name: 'echo')];
+      await open(tester, packages: packages, lib: lib, theme: argusTheme(watchful: false), preview: _quote());
+      expect(tester.takeException(), isNull);
+      expect(tester.getSize(find.byKey(Key('pkg-run-$_best'))).width, lessThan(300));
+      await tester.tap(find.byKey(Key('pkg-run-$_best')));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const Key('run-confirm')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('run-confirm-ok')));
+      await tester.pumpAndSettle();
+      expect(launched, hasLength(1));
     });
 
     testWidgets('a service whose file is gone cannot run and says so', (tester) async {
@@ -551,6 +627,7 @@ void main() {
       expect(transfers, ['fetch h.example', 'send q.example /data/packages/$_best.bee']);
       expect(find.text(appL10n.celautSendDone), findsOneWidget);
       expect(launched, hasLength(2), reason: 'the launch runs again');
+      expect(find.byKey(const Key('run-confirm')), findsNothing, reason: 'it does not ask a second time');
       expect(packages.picks, 0);
     });
 

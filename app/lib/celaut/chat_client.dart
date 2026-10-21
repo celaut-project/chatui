@@ -80,6 +80,42 @@ class ChatClient {
   /// Use it when the screen opens a running instance and to repair a lost answer.
   Future<void> sync() => _serial(_sync);
 
+  /// The waits between the reads of [syncWhenStarted]: they get longer, then stay at
+  /// 10 seconds.
+  static const startWaits = [
+    Duration(seconds: 2),
+    Duration(seconds: 3),
+    Duration(seconds: 5),
+    Duration(seconds: 8),
+    Duration(seconds: 10),
+  ];
+
+  /// [sync] for an instance that has just started. The service starts to listen some
+  /// seconds after `StartService` (the echo service of M4: 18 to 60 seconds), and until
+  /// then the node cannot connect the tunnel. So the client reads again while the
+  /// service is not reachable, with longer waits ([startWaits]), until it has waited
+  /// [limit]. Then it throws `unreachable`. Each read opens one tunnel stream, and the
+  /// node charges each one (`TUNNEL_OPEN_MU`): about 14 reads in the 2 minutes.
+  Future<void> syncWhenStarted({
+    Duration limit = const Duration(minutes: 2),
+    Future<void> Function(Duration wait)? wait,
+  }) =>
+      _serial(() async {
+        final pause = wait ?? (d) => Future<void>.delayed(d);
+        var waited = Duration.zero;
+        for (var i = 0;; i++) {
+          try {
+            await _sync();
+            return;
+          } on ChatException catch (e) {
+            if (e.kind != ChatErrorKind.unreachable || waited >= limit) rethrow;
+          }
+          final next = startWaits[i < startWaits.length ? i : startWaits.length - 1];
+          await pause(next);
+          waited += next;
+        }
+      });
+
   /// Send [text] and add the user message and the answer to [messages].
   ///
   /// If the service says that the client is out of sync (409), or the connection

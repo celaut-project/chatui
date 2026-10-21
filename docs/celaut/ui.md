@@ -99,12 +99,19 @@ Rules for the numbers:
 - ERG and MU are different units. Show both where money is shown, with the rate of the
   node that the value uses (see M3 in the plan).
 
-### Run a service from the home screen
+### Run a service
 
-The home screen has a section "Run a service" between the compute figures and the money
-(`app/lib/ui/celaut/run_service_section.dart`). It lists the skills of the catalog with a
+The button "Run a service" of the home screen opens its screen
+(`app/lib/ui/celaut/run_service_screen.dart`, with the section
+`app/lib/ui/celaut/run_service_section.dart`). It lists the skills of the catalog with a
 search field. A skill opens a sheet with its services, best first, and the node that the
-balancer would use with its start cost. Run needs an open full wallet.
+balancer would use with its start cost. Run needs the wallet open.
+
+- The screen lists every skill of the catalog; the search narrows the list.
+- Run asks first: "Run <name>?", with what a running instance costs and the node that the
+  balancer would use now with its start cost (or that no node gave a price yet). Run in
+  the list of the service files of the user asks in the same way. The launch again after
+  a transfer of the service does not ask a second time.
 
 - Run asks every node of the Nodes list for a quote and starts the service on the first
   node that works (`launchService`). Nodes whose last checks failed twice in a row are not
