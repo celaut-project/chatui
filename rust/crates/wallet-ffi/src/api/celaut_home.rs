@@ -225,7 +225,11 @@ pub async fn celaut_compute_overview() -> Result<ComputeOverviewView, CelautErro
         .nodes
         .iter()
         .filter(|(peer_id, node)| {
-            node.listed || data.instances.values().any(|i| &i.peer_id == *peer_id)
+            node.listed
+                || data
+                    .instances
+                    .values()
+                    .any(|i| i.stopped_at.is_none() && &i.peer_id == *peer_id)
         })
         .map(|(peer_id, node)| async move {
             let mut addresses = node.addresses.clone();
@@ -305,7 +309,9 @@ pub async fn celaut_compute_overview() -> Result<ComputeOverviewView, CelautErro
     let credit_parts = u32::try_from(credits.len()).unwrap_or(u32::MAX);
 
     let mut instances = Vec::new();
-    for (instance_id, record) in &data.instances {
+    // A stopped instance stays in the database until the user deletes it; it costs
+    // nothing and is not shown here.
+    for (instance_id, record) in data.instances.iter().filter(|(_, r)| r.stopped_at.is_none()) {
         let found = reached
             .iter()
             .find(|(p, _)| *p == record.peer_id)

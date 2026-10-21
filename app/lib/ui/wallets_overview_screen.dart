@@ -35,7 +35,12 @@ class WalletsOverviewScreen extends StatelessWidget {
     this.notice,
     this.noticeIsError = false,
     this.onAction,
+    this.extra,
   });
+
+  /// A row under the wallet, such as "Deposit to a node" in the Wallet tab of the home
+  /// screen.
+  final Widget? extra;
 
   final WalletsOverviewModel model;
 
@@ -95,6 +100,7 @@ class WalletsOverviewScreen extends StatelessWidget {
           notice: notice,
           noticeIsError: noticeIsError,
           onAction: onAction,
+          extra: extra,
         );
       },
     );

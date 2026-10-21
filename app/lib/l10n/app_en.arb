@@ -3906,8 +3906,8 @@
     }
   },
   "celautDepositSentExpired": "The deposit token expired. The node refuses this deposit now.",
-  "celautComputeHomeRowTitle": "Compute home",
-  "celautComputeHomeRowSubtitle": "The home screen shows the compute of your nodes first. This is the default. Turn it off to see the wallets list first.",
+  "celautComputeHomeRowTitle": "Chats home",
+  "celautComputeHomeRowSubtitle": "The app opens on the list of conversations. This is the default. Turn it off to see the wallets list first.",
   "celautHomeComputeTitle": "Offered compute",
   "celautHomeOfferedNote": "Sums of what the reachable nodes advertise: offered, not free.",
   "celautHomeNodes": "Nodes counted: {counted}. Not reachable: {unreachable}.",
@@ -4043,24 +4043,11 @@
   "celautDepositAuthNeeded": "The deposit needs the PIN or fingerprint of the paying wallet. Nothing was sent.",
   "celautNodesRowSubtitle": "Add and remove the nodes in the sums of the home screen",
   "celautNodesScan": "Scan a QR code",
-  "chatTitle": "Conversation",
   "chatInputHint": "Write a message",
   "chatSend": "Send",
   "chatEmpty": "Say something to start the conversation.",
   "chatStarting": "The service is starting. It can take a minute before it answers.",
-  "chatCost": "Cost so far: {mu}",
-  "@chatCost": {
-    "placeholders": {
-      "mu": {
-        "type": "String"
-      }
-    }
-  },
-  "chatLeaveTitle": "Leave the conversation?",
-  "chatLeaveBody": "If you stop the instance, the conversation ends and the node refunds what is left. If you leave it running, the node keeps charging for it.",
   "chatStop": "Stop the instance",
-  "chatLeaveRunning": "Leave it running",
-  "chatStay": "Stay",
   "chatErrorUnreachable": "The service did not answer. Your message may not have arrived. Try again.",
   "chatErrorBadAnswer": "The service answered in a way that this app does not understand.",
   "chatErrorHistoryFull": "This conversation is full. Start a new instance for a new conversation.",
@@ -4074,6 +4061,84 @@
       }
     }
   },
+  "chatsMenuMore": "More",
+  "chatsNewTitle": "New conversation",
+  "chatsServicesTitle": "Services",
+  "chatsOtherTitle": "Other instances",
+  "chatsOtherEmpty": "No other instances. A service that has no conversation shows here while it runs.",
+  "chatsEmptyTitle": "No conversations yet",
+  "chatsEmptyBody": "Each conversation is a service that runs on a node. Start one with the pencil button.",
+  "chatsTabChats": "Chats",
+  "chatsTabWallet": "Wallet",
+  "chatsTabCompute": "Compute",
+  "chatsDepositRow": "Deposit to a node",
+  "chatsDepositRowSubtitle": "Credit on a node for its services, paid from the wallet",
+  "chatsNodesRowSubtitle": "Add a node by its address or a QR code",
+  "chatsServicesRowSubtitle": "Import a service file, or run a service",
+  "chatsOtherRowSubtitle": "Instances without a conversation",
+  "chatsStateChecking": "Checking…",
+  "chatsStateStarting": "Starting",
+  "chatsStateRunning": "Running",
+  "chatsStateUnreachable": "Not answering",
+  "chatsStateStopped": "Stopped",
+  "chatsNoPreview": "No message seen since the app opened",
+  "chatsNoChatSlot": "No conversation: this service has no chat slot",
+  "chatsPreviewYou": "You: {text}",
+  "@chatsPreviewYou": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsActionInfo": "Info",
+  "chatsDelete": "Delete",
+  "chatsStopTitle": "Stop {name}?",
+  "@chatsStopTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsStopBody": "The conversation ends, and the node refunds what is left of the instance.",
+  "chatsDeleteTitle": "Delete {name}?",
+  "@chatsDeleteTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsDeleteBody": "The instance is stopped. Delete takes it out of the app, with its token.",
+  "chatsStartedOther": "The service started on {node}. It has no conversation: find it in Compute, under Other instances.",
+  "@chatsStartedOther": {
+    "placeholders": {
+      "node": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsInfoTitle": "Instance",
+  "chatsInfoStatus": "State",
+  "chatsInfoNode": "Node",
+  "chatsInfoPeer": "Peer id of the node",
+  "chatsInfoServiceId": "Service id",
+  "chatsInfoSlot": "Slot",
+  "chatsInfoChatSlot": "Port {port}, chat",
+  "@chatsInfoChatSlot": {
+    "placeholders": {
+      "port": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsInfoNoChatSlot": "No chat slot",
+  "chatsInfoStarted": "Started",
+  "chatsInfoCost": "Cost so far",
+  "chatsInfoRefund": "Refund at the stop",
+  "chatsInfoStopNote": "Stop ends the conversation. The node refunds what is left of the instance.",
+  "chatsInfoDeleteNote": "Only a stopped instance can be deleted. The app keeps every other instance, even if its node does not answer.",
   "celautErrorNodeClosed": "The node is closed now: its operator accepts new work only at certain hours. Try later or choose another node.",
   "celautErrorNoRoom": "The node has not enough free resources for this service now. Try later or choose another node.",
   "celautErrorServiceMissing": "The node does not have this service. Choose a node that has it.",
@@ -4214,7 +4279,7 @@
       }
     }
   },
-  "celautRunConfirmBody": "The service runs on a node and uses your credit there until it stops. Stop it on the home screen, or when you leave the conversation.",
+  "celautRunConfirmBody": "The service runs on a node and uses your credit there until it stops. Stop it from its conversation, its info page or the list of conversations.",
   "celautRunConfirmNoQuote": "No node gave a price yet. Run asks every node of the list.",
   "celautErrorTransferFailed": "The transfer of the service stopped (the file could not be read, it is cut, or it was cancelled). The node did not keep the cut service. Try again.",
   "celautSendMissingTitle": "The service is not on these nodes",

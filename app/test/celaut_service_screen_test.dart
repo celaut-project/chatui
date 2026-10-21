@@ -433,6 +433,8 @@ void main() {
         chatSlots: Uint16List(0),
         startedAt: 1,
         startChargeMu: '',
+        refundMu: '',
+        name: '',
       ),
     ];
     await pump(tester, fullWallet: false);
@@ -468,6 +470,8 @@ void main() {
         chatSlots: Uint16List(0),
         startedAt: 1,
         startChargeMu: '1000000',
+        refundMu: '',
+        name: '',
       ),
     ];
     // The full wallet is locked and the user does not give the PIN: nothing stops.
@@ -498,6 +502,8 @@ void main() {
         chatSlots: Uint16List(0),
         startedAt: 1,
         startChargeMu: '1000000',
+        refundMu: '',
+        name: '',
       ),
     ];
     final wallets = await pump(tester, open: false);
@@ -520,6 +526,8 @@ void main() {
         chatSlots: Uint16List(0),
         startedAt: 1,
         startChargeMu: '1000000',
+        refundMu: '',
+        name: '',
       ),
     ];
     await pump(tester);

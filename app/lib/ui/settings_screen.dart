@@ -159,6 +159,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: context.l10n.aboutTitle,
                     children: [
                       SettingsRow(
+                        key: const Key('settings-about'),
                         icon: Icons.info_outline,
                         title: context.l10n.settingsAboutRowTitle,
                         subtitle: context.l10n.settingsAboutRowSubtitle,

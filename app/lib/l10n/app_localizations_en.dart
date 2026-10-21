@@ -5070,11 +5070,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'The deposit token expired. The node refuses this deposit now.';
 
   @override
-  String get celautComputeHomeRowTitle => 'Compute home';
+  String get celautComputeHomeRowTitle => 'Chats home';
 
   @override
   String get celautComputeHomeRowSubtitle =>
-      'The home screen shows the compute of your nodes first. This is the default. Turn it off to see the wallets list first.';
+      'The app opens on the list of conversations. This is the default. Turn it off to see the wallets list first.';
 
   @override
   String get celautHomeComputeTitle => 'Offered compute';
@@ -5261,9 +5261,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get celautNodesScan => 'Scan a QR code';
 
   @override
-  String get chatTitle => 'Conversation';
-
-  @override
   String get chatInputHint => 'Write a message';
 
   @override
@@ -5277,25 +5274,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'The service is starting. It can take a minute before it answers.';
 
   @override
-  String chatCost(String mu) {
-    return 'Cost so far: $mu';
-  }
-
-  @override
-  String get chatLeaveTitle => 'Leave the conversation?';
-
-  @override
-  String get chatLeaveBody =>
-      'If you stop the instance, the conversation ends and the node refunds what is left. If you leave it running, the node keeps charging for it.';
-
-  @override
   String get chatStop => 'Stop the instance';
-
-  @override
-  String get chatLeaveRunning => 'Leave it running';
-
-  @override
-  String get chatStay => 'Stay';
 
   @override
   String get chatErrorUnreachable =>
@@ -5320,6 +5299,154 @@ class AppLocalizationsEn extends AppLocalizations {
   String chatStopped(String refund) {
     return 'The instance stopped. Refund: $refund';
   }
+
+  @override
+  String get chatsMenuMore => 'More';
+
+  @override
+  String get chatsNewTitle => 'New conversation';
+
+  @override
+  String get chatsServicesTitle => 'Services';
+
+  @override
+  String get chatsOtherTitle => 'Other instances';
+
+  @override
+  String get chatsOtherEmpty =>
+      'No other instances. A service that has no conversation shows here while it runs.';
+
+  @override
+  String get chatsEmptyTitle => 'No conversations yet';
+
+  @override
+  String get chatsEmptyBody =>
+      'Each conversation is a service that runs on a node. Start one with the pencil button.';
+
+  @override
+  String get chatsTabChats => 'Chats';
+
+  @override
+  String get chatsTabWallet => 'Wallet';
+
+  @override
+  String get chatsTabCompute => 'Compute';
+
+  @override
+  String get chatsDepositRow => 'Deposit to a node';
+
+  @override
+  String get chatsDepositRowSubtitle =>
+      'Credit on a node for its services, paid from the wallet';
+
+  @override
+  String get chatsNodesRowSubtitle => 'Add a node by its address or a QR code';
+
+  @override
+  String get chatsServicesRowSubtitle =>
+      'Import a service file, or run a service';
+
+  @override
+  String get chatsOtherRowSubtitle => 'Instances without a conversation';
+
+  @override
+  String get chatsStateChecking => 'Checking…';
+
+  @override
+  String get chatsStateStarting => 'Starting';
+
+  @override
+  String get chatsStateRunning => 'Running';
+
+  @override
+  String get chatsStateUnreachable => 'Not answering';
+
+  @override
+  String get chatsStateStopped => 'Stopped';
+
+  @override
+  String get chatsNoPreview => 'No message seen since the app opened';
+
+  @override
+  String get chatsNoChatSlot =>
+      'No conversation: this service has no chat slot';
+
+  @override
+  String chatsPreviewYou(String text) {
+    return 'You: $text';
+  }
+
+  @override
+  String get chatsActionInfo => 'Info';
+
+  @override
+  String get chatsDelete => 'Delete';
+
+  @override
+  String chatsStopTitle(String name) {
+    return 'Stop $name?';
+  }
+
+  @override
+  String get chatsStopBody =>
+      'The conversation ends, and the node refunds what is left of the instance.';
+
+  @override
+  String chatsDeleteTitle(String name) {
+    return 'Delete $name?';
+  }
+
+  @override
+  String get chatsDeleteBody =>
+      'The instance is stopped. Delete takes it out of the app, with its token.';
+
+  @override
+  String chatsStartedOther(String node) {
+    return 'The service started on $node. It has no conversation: find it in Compute, under Other instances.';
+  }
+
+  @override
+  String get chatsInfoTitle => 'Instance';
+
+  @override
+  String get chatsInfoStatus => 'State';
+
+  @override
+  String get chatsInfoNode => 'Node';
+
+  @override
+  String get chatsInfoPeer => 'Peer id of the node';
+
+  @override
+  String get chatsInfoServiceId => 'Service id';
+
+  @override
+  String get chatsInfoSlot => 'Slot';
+
+  @override
+  String chatsInfoChatSlot(String port) {
+    return 'Port $port, chat';
+  }
+
+  @override
+  String get chatsInfoNoChatSlot => 'No chat slot';
+
+  @override
+  String get chatsInfoStarted => 'Started';
+
+  @override
+  String get chatsInfoCost => 'Cost so far';
+
+  @override
+  String get chatsInfoRefund => 'Refund at the stop';
+
+  @override
+  String get chatsInfoStopNote =>
+      'Stop ends the conversation. The node refunds what is left of the instance.';
+
+  @override
+  String get chatsInfoDeleteNote =>
+      'Only a stopped instance can be deleted. The app keeps every other instance, even if its node does not answer.';
 
   @override
   String get celautErrorNodeClosed =>
@@ -5499,7 +5626,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get celautRunConfirmBody =>
-      'The service runs on a node and uses your credit there until it stops. Stop it on the home screen, or when you leave the conversation.';
+      'The service runs on a node and uses your credit there until it stops. Stop it from its conversation, its info page or the list of conversations.';
 
   @override
   String get celautRunConfirmNoQuote =>

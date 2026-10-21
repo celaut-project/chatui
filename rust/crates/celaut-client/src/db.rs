@@ -162,6 +162,18 @@ pub struct InstanceRecord {
     /// app could read the balance before and after the start.
     #[serde(default)]
     pub start_charge_mu: Option<String>,
+    /// The name that the user saw when the instance started: the skill or the service
+    /// file. The list of conversations shows it. An old record has none.
+    #[serde(default)]
+    pub name: Option<String>,
+    /// The time of the stop, in Unix seconds. A stopped instance stays in the database
+    /// until the user deletes it (`docs/celaut/ui-chat-first.md`). An old record has
+    /// none: it runs.
+    #[serde(default)]
+    pub stopped_at: Option<i64>,
+    /// What the node gave back at the stop, in MU, if the app knows it.
+    #[serde(default)]
+    pub refund_mu: Option<String>,
 }
 
 /// Where a deposit is.
@@ -620,6 +632,9 @@ mod tests {
                 chat_slots: vec![3030],
                 started_at: 1,
                 start_charge_mu: Some("100".into()),
+                name: Some("Echo".into()),
+                stopped_at: None,
+                refund_mu: None,
             },
         );
         data.deposits.insert(
@@ -667,6 +682,35 @@ mod tests {
         // A record with only some fields loads, with defaults for the rest.
         let r: PackageRecord = serde_json::from_str(r#"{"name": "x"}"#).unwrap();
         assert_eq!((r.name.as_str(), r.bytes, r.nodo_export), ("x", 0, false));
+    }
+
+    #[test]
+    fn an_old_instance_has_no_name_and_a_new_one_keeps_it() {
+        let old: InstanceRecord =
+            serde_json::from_str(r#"{"peer_id": "p", "address": "a:1", "token": "t", "service_id": "s", "started_at": 1}"#)
+                .unwrap();
+        assert_eq!(old.name, None);
+        let mut data = CelautData::default();
+        sample(&mut data);
+        let text = serde_json::to_string(&data).unwrap();
+        let back: CelautData = serde_json::from_str(&text).unwrap();
+        assert_eq!(back.instances["i1"].name.as_deref(), Some("Echo"));
+    }
+
+    #[test]
+    fn an_old_instance_runs_and_a_stop_is_kept() {
+        let old: InstanceRecord =
+            serde_json::from_str(r#"{"peer_id": "p", "address": "a:1", "token": "t", "service_id": "s", "started_at": 1}"#)
+                .unwrap();
+        assert_eq!((old.stopped_at, old.refund_mu), (None, None));
+        let mut data = CelautData::default();
+        sample(&mut data);
+        let record = data.instances.get_mut("i1").unwrap();
+        record.stopped_at = Some(7);
+        record.refund_mu = Some("700".into());
+        let back: CelautData = serde_json::from_str(&serde_json::to_string(&data).unwrap()).unwrap();
+        assert_eq!(back.instances["i1"].stopped_at, Some(7));
+        assert_eq!(back.instances["i1"].refund_mu.as_deref(), Some("700"));
     }
 
     #[test]

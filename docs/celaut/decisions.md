@@ -31,7 +31,20 @@
   wallet). See [ui.md](ui.md), section 1.
 - **Home screen (2026-10-13):** it shows the compute that the connected nodes offer
   (sum of their resources) and the money for compute first. The ERG of each wallet is
-  second level. See [ui.md](ui.md).
+  second level. See [ui.md](ui.md). **Proposed on 2026-10-21, for Josemi to confirm:** the
+  first screen is the Chats tab, and the compute view is the Compute tab
+  ([ui-chat-first.md](ui-chat-first.md)).
+- **Navigation (2026-10-21, Josemi):** a bottom bar with four tabs: Chats, Wallet,
+  Compute, Settings. Each tab keeps its state; back on another tab goes to Chats. The
+  conversation and the info page of an instance open over the bar. See
+  [ui-chat-first.md](ui-chat-first.md), section 2.
+- **Checks of the list of conversations (2026-10-21, Josemi):** the list asks the nodes
+  when it opens, when the user comes back to it, and on a pull. It does not poll.
+- **Instances are kept (2026-10-21, Josemi):** the app never forgets an instance or its
+  token on its own, or because its node does not answer. A stopped instance stays in the
+  database until the user deletes it; only a stopped instance can be deleted
+  (`celaut_forget_instance` refuses the others). See
+  [ui-chat-first.md](ui-chat-first.md), section 3.
 - **Payments:** a deposit per node. A separate client id per node, not linked to the
   others.
 - **Access to instances:** `ServiceTunnel` through the node.

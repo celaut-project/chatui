@@ -96,7 +96,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
     if (!mounted) return;
     setState(() {
       _gate = fullWalletGate(payers);
-      _appInstances = celautInstances();
+      _appInstances = _runningInstances();
     });
   }
 
@@ -138,7 +138,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
       if (mounted) {
         setState(() {
           _stoppingId = null;
-          _appInstances = celautInstances();
+          _appInstances = _runningInstances();
         });
       }
     }
@@ -250,7 +250,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
       _ports.clear();
       _status = null;
       _answer = null;
-      _appInstances = celautInstances();
+      _appInstances = _runningInstances();
     });
   }
 
@@ -304,7 +304,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
         _ports.clear();
         _status = null;
         _answer = null;
-        _appInstances = celautInstances();
+        _appInstances = _runningInstances();
       });
     } on CelautError catch (e) {
       if (mounted) setState(() => _error = e);
@@ -344,13 +344,32 @@ class _ServiceScreenState extends State<ServiceScreen> {
 
   /// The conversation with the instance on [port] (`docs/celaut/chat.md`). It shares
   /// the kept-alive connection of this screen. The user can stop the instance there.
+  /// The instance as the database has it, for the bar of the conversation.
+  InstanceListView _listed(InstanceView instance) {
+    for (final i in _appInstances) {
+      if (i.instanceId == instance.instanceId) return i;
+    }
+    return InstanceListView(
+      instanceId: instance.instanceId,
+      peerId: instance.peerId,
+      address: '',
+      serviceId: _serviceCtrl.text.trim().toLowerCase(),
+      slots: instance.slots,
+      chatSlots: instance.chatSlots,
+      startedAt: 0,
+      startChargeMu: '',
+      refundMu: '',
+      name: '',
+    );
+  }
+
   Future<void> _openChat(int port) async {
     final instance = _instance;
     if (instance == null) return;
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => ChatScreen(
-          instanceId: instance.instanceId,
+          instance: _listed(instance),
           port: port,
           http: _http,
           wallets: widget.wallets,
@@ -358,7 +377,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
       ),
     );
     if (!mounted) return;
-    final running = celautInstances();
+    final running = _runningInstances();
     final stopped = running.every((i) => i.instanceId != instance.instanceId);
     setState(() {
       _appInstances = running;
@@ -403,7 +422,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
         _ports.clear();
         _status = null;
         _answer = null;
-        _appInstances = celautInstances();
+        _appInstances = _runningInstances();
       });
     } on CelautError catch (e) {
       if (mounted) setState(() => _error = e);
@@ -828,3 +847,10 @@ class _ServiceScreenState extends State<ServiceScreen> {
     );
   }
 }
+
+/// The instances of the app that run: the database also keeps the stopped ones until
+/// the user deletes them.
+List<InstanceListView> _runningInstances() => [
+      for (final i in celautInstances())
+        if (i.stoppedAt == null) i,
+    ];

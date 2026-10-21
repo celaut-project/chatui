@@ -1317,8 +1317,8 @@
   "celautDepositSentTitle": "Depósitos enviados",
   "celautDepositSentRow": "{amount} ({mu} MU) a {node}",
   "celautDepositSentExpired": "El token de depósito expiró. El nodo rechaza este depósito ahora.",
-  "celautComputeHomeRowTitle": "Inicio de cómputo",
-  "celautComputeHomeRowSubtitle": "La pantalla de inicio muestra primero el cómputo de tus nodos. Es lo predeterminado. Desactívalo para ver primero la lista de billeteras.",
+  "celautComputeHomeRowTitle": "Inicio de conversaciones",
+  "celautComputeHomeRowSubtitle": "La app se abre en la lista de conversaciones. Es lo predeterminado. Desactívalo para ver primero la lista de billeteras.",
   "celautHomeComputeTitle": "Cómputo ofrecido",
   "celautHomeOfferedNote": "Sumas de lo que anuncian los nodos alcanzables: ofrecido, no libre.",
   "celautHomeNodes": "Nodos contados: {counted}. No alcanzables: {unreachable}.",
@@ -1366,24 +1366,11 @@
   "celautDepositAuthNeeded": "El depósito necesita el PIN o la huella de la billetera que paga. No se envió nada.",
   "celautNodesRowSubtitle": "Añade y quita los nodos de las sumas de la pantalla de inicio",
   "celautNodesScan": "Escanear un código QR",
-  "chatTitle": "Conversación",
   "chatInputHint": "Escribe un mensaje",
   "chatSend": "Enviar",
   "chatEmpty": "Escribe algo para empezar la conversación.",
   "chatStarting": "El servicio se está iniciando. Puede tardar un minuto en responder.",
-  "chatCost": "Coste hasta ahora: {mu}",
-  "@chatCost": {
-    "placeholders": {
-      "mu": {
-        "type": "String"
-      }
-    }
-  },
-  "chatLeaveTitle": "¿Salir de la conversación?",
-  "chatLeaveBody": "Si detienes la instancia, la conversación termina y el nodo devuelve lo que queda. Si la dejas corriendo, el nodo sigue cobrando por ella.",
   "chatStop": "Detener la instancia",
-  "chatLeaveRunning": "Dejarla corriendo",
-  "chatStay": "Quedarme",
   "chatErrorUnreachable": "El servicio no respondió. Puede que tu mensaje no haya llegado. Inténtalo de nuevo.",
   "chatErrorBadAnswer": "El servicio respondió de una forma que esta app no entiende.",
   "chatErrorHistoryFull": "Esta conversación está llena. Inicia una instancia nueva para una conversación nueva.",
@@ -1397,6 +1384,84 @@
       }
     }
   },
+  "chatsMenuMore": "Más",
+  "chatsNewTitle": "Nueva conversación",
+  "chatsServicesTitle": "Servicios",
+  "chatsOtherTitle": "Otras instancias",
+  "chatsOtherEmpty": "No hay otras instancias. Aquí aparece, mientras corre, un servicio que no tiene conversación.",
+  "chatsEmptyTitle": "Aún no hay conversaciones",
+  "chatsEmptyBody": "Cada conversación es un servicio que corre en un nodo. Empieza una con el botón del lápiz.",
+  "chatsTabChats": "Chats",
+  "chatsTabWallet": "Billetera",
+  "chatsTabCompute": "Cómputo",
+  "chatsDepositRow": "Depositar en un nodo",
+  "chatsDepositRowSubtitle": "Crédito en un nodo para sus servicios, pagado con la billetera",
+  "chatsNodesRowSubtitle": "Añade un nodo por su dirección o un código QR",
+  "chatsServicesRowSubtitle": "Importa un archivo de servicio, o ejecuta un servicio",
+  "chatsOtherRowSubtitle": "Instancias sin conversación",
+  "chatsStateChecking": "Comprobando…",
+  "chatsStateStarting": "Iniciando",
+  "chatsStateRunning": "En marcha",
+  "chatsStateUnreachable": "No responde",
+  "chatsStateStopped": "Detenida",
+  "chatsNoPreview": "Ningún mensaje visto desde que se abrió la app",
+  "chatsNoChatSlot": "Sin conversación: este servicio no tiene ranura de chat",
+  "chatsPreviewYou": "Tú: {text}",
+  "@chatsPreviewYou": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsActionInfo": "Información",
+  "chatsDelete": "Eliminar",
+  "chatsStopTitle": "¿Detener {name}?",
+  "@chatsStopTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsStopBody": "La conversación termina y el nodo devuelve lo que le queda a la instancia.",
+  "chatsDeleteTitle": "¿Eliminar {name}?",
+  "@chatsDeleteTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsDeleteBody": "La instancia está detenida. Eliminar la quita de la app, con su token.",
+  "chatsStartedOther": "El servicio se inició en {node}. No tiene conversación: búscalo en Cómputo, en Otras instancias.",
+  "@chatsStartedOther": {
+    "placeholders": {
+      "node": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsInfoTitle": "Instancia",
+  "chatsInfoStatus": "Estado",
+  "chatsInfoNode": "Nodo",
+  "chatsInfoPeer": "ID de par del nodo",
+  "chatsInfoServiceId": "ID del servicio",
+  "chatsInfoSlot": "Ranura",
+  "chatsInfoChatSlot": "Puerto {port}, chat",
+  "@chatsInfoChatSlot": {
+    "placeholders": {
+      "port": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsInfoNoChatSlot": "Sin ranura de chat",
+  "chatsInfoStarted": "Inicio",
+  "chatsInfoCost": "Coste hasta ahora",
+  "chatsInfoRefund": "Reembolso al detenerla",
+  "chatsInfoStopNote": "Detener termina la conversación. El nodo devuelve lo que le queda a la instancia.",
+  "chatsInfoDeleteNote": "Solo se puede eliminar una instancia detenida. La app guarda todas las demás, aunque su nodo no responda.",
   "celautErrorNodeClosed": "El nodo está cerrado ahora: su operador solo acepta trabajo nuevo en ciertas horas. Inténtalo más tarde o elige otro nodo.",
   "celautErrorNoRoom": "El nodo no tiene recursos libres suficientes para este servicio ahora. Inténtalo más tarde o elige otro nodo.",
   "celautErrorServiceMissing": "El nodo no tiene este servicio. Elige un nodo que lo tenga.",
@@ -1537,7 +1602,7 @@
       }
     }
   },
-  "celautRunConfirmBody": "El servicio se ejecuta en un nodo y usa tu crédito allí hasta que se detiene. Detenlo en la pantalla de inicio, o al salir de la conversación.",
+  "celautRunConfirmBody": "El servicio se ejecuta en un nodo y usa tu crédito allí hasta que se detiene. Detenlo desde su conversación, su página de información o la lista de conversaciones.",
   "celautRunConfirmNoQuote": "Ningún nodo ha dado un precio todavía. Ejecutar pregunta a todos los nodos de la lista.",
   "celautErrorTransferFailed": "La transferencia del servicio se detuvo (no se pudo leer el fichero, está cortado o se canceló). El nodo no guardó el servicio cortado. Inténtalo de nuevo.",
   "celautSendMissingTitle": "El servicio no está en estos nodos",

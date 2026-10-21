@@ -89,22 +89,49 @@ void main() {
       await disposeHome(tester);
     });
 
-    testWidgets('the Wallet line of the compute home opens the wallet', (tester) async {
+    testWidgets('the Wallet tab is the wallet, with Deposit, and the wallet opens over the bar', (
+      tester,
+    ) async {
       FakeKeystore(wallets: ['w-only']).install(tester);
       await tester.runAsync(() => saveWallet('w-only', name: 'Only'));
       await pumpHome(tester, computeHome: true);
-      await tester.tap(find.byKey(const Key('compute-home-wallets')));
+      expect(find.byKey(const Key('home-tabs')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('tab-wallet')));
       await tester.pumpAndSettle();
-      // The page of the wallet, behind its gate: no wallets list in between.
+      expect(find.byKey(const ValueKey('overview-row-seed-w-only')), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const Key('place-deposit')));
+      expect(find.byKey(const Key('place-deposit')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('overview-row-seed-w-only')));
+      await tester.pumpAndSettle();
+      // The page of the wallet, behind its gate, over the bar.
       expect(find.byKey(const Key('gate-unlock')), findsOneWidget);
-      expect(find.byKey(const Key('overview-list')), findsNothing);
+      expect(find.byKey(const Key('home-tabs')), findsNothing);
+      // Back is the Wallet tab.
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('home-tabs')), findsOneWidget);
+      expect(find.byKey(const ValueKey('overview-row-seed-w-only')), findsOneWidget);
       await disposeHome(tester);
     });
 
-    testWidgets('with no wallet, the Wallet line offers to create or restore one', (tester) async {
+    testWidgets('the Wallets line of the Compute tab shows the Wallet tab', (tester) async {
+      FakeKeystore(wallets: ['w-only']).install(tester);
+      await tester.runAsync(() => saveWallet('w-only', name: 'Only'));
+      await pumpHome(tester, computeHome: true);
+      await tester.tap(find.byKey(const Key('tab-compute')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const Key('compute-home-wallets')));
+      await tester.tap(find.byKey(const Key('compute-home-wallets')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('compute-home-wallets')), findsNothing);
+      expect(find.byKey(const ValueKey('overview-row-seed-w-only')), findsOneWidget);
+      await disposeHome(tester);
+    });
+
+    testWidgets('with no wallet, the Wallet tab offers to create or restore one', (tester) async {
       FakeKeystore(wallets: const []).install(tester);
       await pumpHome(tester, computeHome: true);
-      await tester.tap(find.byKey(const Key('compute-home-wallets')));
+      await tester.tap(find.byKey(const Key('tab-wallet')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('overview-create')), findsOneWidget);
       expect(find.byKey(const Key('overview-restore')), findsOneWidget);

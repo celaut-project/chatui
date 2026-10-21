@@ -1,0 +1,211 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+
+import '../../bridge/api/celaut_service.dart';
+import '../../celaut/conversations.dart';
+import '../../celaut/launcher.dart';
+import '../../celaut/payers.dart';
+import '../../l10n/l10n.dart';
+import '../../theme/argus_theme.dart';
+import '../home/home_style.dart';
+import 'instance_list.dart';
+import 'run_service_screen.dart';
+import 'run_service_section.dart' show StartedCall;
+
+/// The Chats tab of the home screen, chat first, as Telegram and WhatsApp
+/// (`docs/celaut/ui-chat-first.md`):
+///
+/// - the list of conversations: each row is an instance whose interface has a chat slot
+///   (`docs/celaut/chat.md`, section 2);
+/// - the pencil button opens "New conversation": the skills of the catalog and the
+///   service files, then the confirmation, the wallet, the launch, and the conversation.
+///
+/// The other tabs of the bottom bar ([HomeTabs]) hold the rest of the app.
+class ChatsScreen extends StatefulWidget {
+  const ChatsScreen({
+    super.key,
+    this.wallets = const AppFullWallets(),
+    this.notes,
+    this.newClient,
+    this.list,
+    this.runPage,
+    this.onConversation,
+  });
+
+  final FullWallets wallets;
+  final ConversationNotes? notes;
+
+  /// Make a new client on a node that forgot the client id.
+  final Future<NewClientView> Function(NodeAddress node)? newClient;
+
+  /// The list. Tests give their own, with fake calls.
+  final InstanceList Function(GlobalKey<InstanceListState> key, Widget empty)? list;
+
+  /// The picker of "New conversation" and "Services". Tests give their own; it gets the
+  /// title and what to do after a start.
+  final Widget Function(String title, StartedCall onStarted)? runPage;
+
+  /// A conversation opens after a start: the home screen shows this tab under it.
+  final VoidCallback? onConversation;
+
+  @override
+  State<ChatsScreen> createState() => ChatsScreenState();
+}
+
+class ChatsScreenState extends State<ChatsScreen> {
+  final _list = GlobalKey<InstanceListState>();
+  late final ConversationNotes _notes = widget.notes ?? conversationNotes;
+
+  /// Read the list again (after a change on another screen).
+  Future<void> refresh() async => _list.currentState?.refresh();
+
+  /// The picker of services, for "New conversation", "Services" and the Run button of
+  /// the Compute tab.
+  Widget runPage(String title) =>
+      widget.runPage?.call(title, _started) ??
+      RunServiceScreen(
+        title: title,
+        wallets: widget.wallets,
+        newClient: widget.newClient,
+        onStarted: _started,
+      );
+
+  /// A service started from the picker: back to the list, and into the conversation,
+  /// as a messenger does after "New chat". An instance without a chat slot is in
+  /// Compute, under "Other instances".
+  Future<void> _started(LaunchOutcome outcome, String serviceId, String? name) async {
+    final instance = outcome.instance;
+    final chat = instance.chatSlots.isNotEmpty;
+    if (chat) _notes.markStarting(instance.instanceId);
+    if (!mounted) return;
+    Navigator.of(context).popUntil((r) => r.isFirst);
+    await refresh();
+    if (!mounted) return;
+    if (!chat) {
+      final quote = outcome.quote;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.l10n.chatsStartedOther(
+              '${quote.address.host}:${quote.address.port}',
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+    widget.onConversation?.call();
+    await _list.currentState?.openChat(
+      instanceOfLaunch(outcome, serviceId, name),
+      starting: true,
+    );
+  }
+
+  Future<void> _newChat() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => runPage(context.l10n.chatsNewTitle)),
+    );
+    if (mounted) await refresh();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final t = HomeText.of(context);
+    final empty = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 40),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.forum_outlined, size: 56, color: t.muted),
+          const SizedBox(height: 16),
+          Text(l.chatsEmptyTitle, style: t.title, textAlign: TextAlign.center),
+          const SizedBox(height: 6),
+          Text(l.chatsEmptyBody, style: t.secondary, textAlign: TextAlign.center),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            key: const Key('chats-empty-new'),
+            onPressed: _newChat,
+            icon: const Icon(Icons.edit_outlined),
+            label: Text(l.chatsNewTitle),
+          ),
+        ],
+      ),
+    );
+    return Scaffold(
+      appBar: AppBar(
+        titleSpacing: 16,
+        title: Semantics(
+          header: true,
+          label: 'Celaut',
+          excludeSemantics: true,
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CellMark(size: 28),
+              SizedBox(width: 10),
+              CelautWordmark(size: 20),
+            ],
+          ),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        key: const Key('chats-new'),
+        tooltip: l.chatsNewTitle,
+        onPressed: _newChat,
+        child: const Icon(Icons.edit_outlined),
+      ),
+      body: widget.list?.call(_list, empty) ??
+          InstanceList(
+            key: _list,
+            chats: true,
+            empty: empty,
+            wallets: widget.wallets,
+            notes: _notes,
+            bottomPadding: 88,
+          ),
+    );
+  }
+}
+
+/// The instances whose interface has no chat slot (`docs/celaut/chat.md`, section 2).
+/// They have no conversation: a row opens the info page of the instance.
+class OtherInstancesScreen extends StatelessWidget {
+  const OtherInstancesScreen({
+    super.key,
+    this.wallets = const AppFullWallets(),
+    this.notes,
+    this.list,
+  });
+
+  final FullWallets wallets;
+  final ConversationNotes? notes;
+
+  /// The list. Tests give their own.
+  final InstanceList? list;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final t = HomeText.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(l.chatsOtherTitle)),
+      body: list ??
+          InstanceList(
+            chats: false,
+            wallets: wallets,
+            notes: notes,
+            empty: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Text(
+                l.chatsOtherEmpty,
+                key: const Key('other-empty'),
+                style: t.secondary,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+    );
+  }
+}

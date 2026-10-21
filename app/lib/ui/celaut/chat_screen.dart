@@ -7,20 +7,26 @@ import '../../bridge/api/celaut_service.dart';
 import '../../celaut/celaut_format.dart';
 import '../../celaut/chat_client.dart';
 import '../../celaut/conversation_keep_alive.dart';
+import '../../celaut/conversations.dart';
 import '../../celaut/payers.dart';
 import '../../celaut/tunnel_http.dart';
 import '../../l10n/l10n.dart';
+import 'instance_actions.dart';
+import 'instance_info_screen.dart';
 
 /// The conversation with a running instance that follows the chat convention
-/// (`docs/celaut/chat.md`). The service keeps the history; this screen keeps a copy in
-/// memory and writes nothing to the Celaut database.
+/// (`docs/celaut/chat.md`), as a chat in a messenger (`docs/celaut/ui-chat-first.md`).
+/// The service keeps the history; this screen reads it from the start each time it
+/// opens, keeps a copy in memory, and writes nothing to the Celaut database. The last
+/// message goes to the notes of the list of conversations, in memory.
 ///
-/// When the user leaves, the screen asks: stop the instance (the node refunds the
-/// balance and the conversation ends) or leave it running (the node keeps charging).
+/// The bar has the name of the service, and under it the state, the node and the cost so
+/// far. A tap on the name, or ⋮ then Info, opens the info page of the instance; ⋮ also has
+/// Stop. Back goes to the list: the instance runs on, and the list keeps it.
 class ChatScreen extends StatefulWidget {
   const ChatScreen({
     super.key,
-    required this.instanceId,
+    required this.instance,
     required this.port,
     this.http,
     this.chat,
@@ -29,14 +35,15 @@ class ChatScreen extends StatefulWidget {
     this.stopInstance,
     this.keepAlive,
     this.starting = false,
+    this.notes,
   });
 
   /// The instance has just started: the screen waits until the service answers
   /// (`ChatClient.syncWhenStarted`), and says that it starts.
   final bool starting;
 
-  /// The local id of the instance (`InstanceView.instanceId`).
-  final String instanceId;
+  /// The instance, from the database of the app (`celautInstances`).
+  final InstanceListView instance;
 
   /// The local port of the chat slot of the instance (`celautOpenTunnel`).
   final int port;
@@ -60,6 +67,9 @@ class ChatScreen extends StatefulWidget {
   /// own.
   final ConversationKeepAlive? keepAlive;
 
+  /// The notes of the list of conversations. Null: the notes of the app.
+  final ConversationNotes? notes;
+
   @override
   State<ChatScreen> createState() => _ChatScreenState();
 }
@@ -71,13 +81,15 @@ class _ChatScreenState extends State<ChatScreen> {
   late final ChatClient _chat = widget.chat ?? ChatClient(port: widget.port, http: _http);
   late final ConversationKeepAlive _keepAlive =
       widget.keepAlive ?? ChannelConversationKeepAlive();
+  late final ConversationNotes _notes = widget.notes ?? conversationNotes;
 
   bool _sending = false;
   bool _stopping = false;
   late bool _waitingStart = widget.starting;
   ChatErrorKind? _error;
   String? _costMu;
-  String? _walletError;
+
+  String get _id => widget.instance.instanceId;
 
   @override
   void initState() {
@@ -93,6 +105,10 @@ class _ChatScreenState extends State<ChatScreen> {
     } on ChatException catch (e) {
       if (mounted) setState(() => _error = e.kind);
     }
+    // Answered or not, the wait of the start is over: the list shows the check of the
+    // node again.
+    _notes.answered(_id);
+    _notes.saw(_id, _chat.messages);
     if (mounted) setState(() => _waitingStart = false);
     await _refreshCost();
     _scrollToEnd();
@@ -101,7 +117,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _refreshCost() async {
     try {
       final load = widget.loadStatus ?? ((id) => celautInstanceStatus(instanceId: id));
-      final status = await load(widget.instanceId);
+      final status = await load(_id);
       if (mounted) setState(() => _costMu = status.costSoFarMu);
     } on CelautError {
       // The cost stays as it was: the conversation does not depend on it.
@@ -122,6 +138,7 @@ class _ChatScreenState extends State<ChatScreen> {
       // The text stays in the field, so the user can send it again.
       if (mounted) setState(() => _error = e.kind);
     } finally {
+      _notes.saw(_id, _chat.messages);
       if (mounted) setState(() => _sending = false);
     }
     await _refreshCost();
@@ -145,73 +162,47 @@ class _ChatScreenState extends State<ChatScreen> {
     };
   }
 
-  /// Ask what to do with the instance. Returns true if the screen can close.
-  Future<bool> _confirmLeave() async {
-    final l10n = context.l10n;
-    final choice = await showDialog<_LeaveChoice>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.chatLeaveTitle),
-        content: Text(l10n.chatLeaveBody),
-        actions: [
-          TextButton(
-            key: const Key('chat-stay'),
-            onPressed: () => Navigator.pop(context, _LeaveChoice.stay),
-            child: Text(l10n.chatStay),
-          ),
-          TextButton(
-            key: const Key('chat-leave-running'),
-            onPressed: () => Navigator.pop(context, _LeaveChoice.leaveRunning),
-            child: Text(l10n.chatLeaveRunning),
-          ),
-          FilledButton(
-            key: const Key('chat-stop'),
-            onPressed: () => Navigator.pop(context, _LeaveChoice.stop),
-            child: Text(l10n.chatStop),
-          ),
-        ],
-      ),
-    );
-    switch (choice) {
-      case _LeaveChoice.leaveRunning:
-        // The instance goes on at the node. Only the phone side is released.
-        unawaited(_keepAlive.stop());
-        return true;
-      case _LeaveChoice.stop:
-        return _stop();
-      case _LeaveChoice.stay || null:
-        return false;
-    }
+  InstanceState get _state => _waitingStart
+      ? InstanceState.starting
+      : _error == ChatErrorKind.unreachable
+          ? InstanceState.unreachable
+          : InstanceState.running;
+
+  /// The instance stopped: the local port is closed, so drop the kept-alive connection
+  /// too, and go back to the list.
+  void _closeStopped() {
+    _http.close();
+    unawaited(_keepAlive.stop());
+    if (mounted) Navigator.of(context).pop();
   }
 
-  /// Stop the instance. Stopping needs an open full wallet (`docs/celaut/ui.md`).
-  Future<bool> _stop() async {
-    if (!await ensureOpenFullWallet(context, widget.wallets) || !mounted) {
-      if (mounted) setState(() => _walletError = context.l10n.celautOpenFullWalletNeeded);
-      return false;
-    }
-    setState(() {
-      _stopping = true;
-      _walletError = null;
-    });
-    try {
-      final stop = widget.stopInstance ?? ((id) => celautStopService(instanceId: id));
-      final stopped = await stop(widget.instanceId);
-      // The local port is closed: drop the kept-alive connection too.
-      _http.close();
-      unawaited(_keepAlive.stop());
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.chatStopped(muOrUnknown(stopped.refundMu)))),
-        );
-      }
-      return true;
-    } on CelautError catch (e) {
-      if (mounted) setState(() => _walletError = e.message);
-      return false;
-    } finally {
-      if (mounted) setState(() => _stopping = false);
-    }
+  Future<void> _stop() async {
+    setState(() => _stopping = true);
+    final done = await confirmAndStopInstance(
+      context,
+      widget.instance,
+      wallets: widget.wallets,
+      stop: widget.stopInstance,
+      notes: _notes,
+    );
+    if (mounted) setState(() => _stopping = false);
+    if (done != null) _closeStopped();
+  }
+
+  Future<void> _info() async {
+    final stopped = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => InstanceInfoScreen(
+          instance: widget.instance,
+          state: _state,
+          costMu: _costMu,
+          wallets: widget.wallets,
+          stop: widget.stopInstance,
+          notes: _notes,
+        ),
+      ),
+    );
+    if (stopped == true) _closeStopped();
   }
 
   @override
@@ -228,123 +219,181 @@ class _ChatScreenState extends State<ChatScreen> {
     final l10n = context.l10n;
     final scheme = Theme.of(context).colorScheme;
     final messages = _chat.messages;
-    final error = _walletError ?? (_error == null ? null : _errorText(_error!));
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop || _stopping) return;
-        final navigator = Navigator.of(context);
-        if (await _confirmLeave()) navigator.pop();
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(l10n.chatTitle),
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(24),
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                key: const Key('chat-cost'),
-                l10n.chatCost(muOrUnknown(_costMu)),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+    final error = _error == null ? null : _errorText(_error!);
+    final title = instanceTitle(widget.instance);
+    final subtitle = [
+      instanceStateText(context, _state),
+      widget.instance.address,
+      muOrUnknown(_costMu),
+    ].join(' · ');
+    return Scaffold(
+      appBar: AppBar(
+        titleSpacing: 0,
+        title: InkWell(
+          key: const Key('chat-title'),
+          onTap: _info,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                InstanceAvatar(title: title, size: 38),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        key: const Key('chat-name'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        subtitle,
+                        key: const Key('chat-cost'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-        body: Column(
-          children: [
-            Expanded(
-              child: messages.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: _waitingStart
-                            ? Column(
-                                key: const Key('chat-starting'),
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const CircularProgressIndicator(),
-                                  const SizedBox(height: 16),
-                                  Text(l10n.chatStarting, textAlign: TextAlign.center),
-                                ],
-                              )
-                            : Text(l10n.chatEmpty, textAlign: TextAlign.center),
-                      ),
-                    )
-                  : ListView.builder(
-                      key: const Key('chat-messages'),
-                      controller: _scroll,
-                      padding: const EdgeInsets.all(16),
-                      itemCount: messages.length,
-                      itemBuilder: (context, i) {
-                        final message = messages[i];
-                        return Align(
-                          alignment: message.fromUser
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(vertical: 4),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            constraints: BoxConstraints(
-                              maxWidth: MediaQuery.sizeOf(context).width * 0.8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: message.fromUser
-                                  ? scheme.primaryContainer
-                                  : scheme.surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: SelectableText(message.text),
-                          ),
-                        );
-                      },
-                    ),
-            ),
-            if (error != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: Text(
-                  error,
-                  key: const Key('chat-error'),
-                  style: TextStyle(color: scheme.error),
-                ),
+        actions: [
+          PopupMenuButton<String>(
+            key: const Key('chat-menu'),
+            tooltip: l10n.chatsMenuMore,
+            enabled: !_stopping,
+            onSelected: (choice) => choice == 'stop' ? _stop() : _info(),
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                key: const Key('chat-menu-info'),
+                value: 'info',
+                child: Text(l10n.chatsActionInfo),
               ),
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        key: const Key('chat-input'),
-                        controller: _input,
-                        minLines: 1,
-                        maxLines: 4,
-                        textInputAction: TextInputAction.newline,
-                        decoration: InputDecoration(hintText: l10n.chatInputHint),
-                      ),
-                    ),
-                    IconButton(
-                      key: const Key('chat-send'),
-                      tooltip: l10n.chatSend,
-                      onPressed: _sending || _stopping ? null : _send,
-                      icon: _sending
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+              PopupMenuItem(
+                key: const Key('chat-menu-stop'),
+                value: 'stop',
+                child: Text(l10n.chatStop),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: messages.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: _waitingStart
+                          ? Column(
+                              key: const Key('chat-starting'),
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const CircularProgressIndicator(),
+                                const SizedBox(height: 16),
+                                Text(l10n.chatStarting, textAlign: TextAlign.center),
+                              ],
                             )
-                          : const Icon(Icons.send),
+                          : Text(l10n.chatEmpty, textAlign: TextAlign.center),
                     ),
-                  ],
-                ),
+                  )
+                : ListView.builder(
+                    key: const Key('chat-messages'),
+                    controller: _scroll,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: messages.length,
+                    itemBuilder: (context, i) => _Bubble(message: messages[i], scheme: scheme),
+                  ),
+          ),
+          if (error != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Text(
+                error,
+                key: const Key('chat-error'),
+                style: TextStyle(color: scheme.error),
               ),
             ),
-          ],
-        ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      key: const Key('chat-input'),
+                      controller: _input,
+                      minLines: 1,
+                      maxLines: 4,
+                      textInputAction: TextInputAction.newline,
+                      decoration: InputDecoration(hintText: l10n.chatInputHint),
+                    ),
+                  ),
+                  IconButton(
+                    key: const Key('chat-send'),
+                    tooltip: l10n.chatSend,
+                    onPressed: _sending || _stopping ? null : _send,
+                    icon: _sending
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.send),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-enum _LeaveChoice { stay, leaveRunning, stop }
+/// A message as a bubble: the user on the right, the service on the left, with a small
+/// tail corner on the side of the sender.
+class _Bubble extends StatelessWidget {
+  const _Bubble({required this.message, required this.scheme});
+
+  final ChatMessage message;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final mine = message.fromUser;
+    const r = Radius.circular(16);
+    const tail = Radius.circular(4);
+    return Align(
+      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        key: Key('chat-bubble-${message.seq}'),
+        margin: const EdgeInsets.symmetric(vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.8),
+        decoration: BoxDecoration(
+          color: mine ? scheme.primaryContainer : scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.only(
+            topLeft: r,
+            topRight: r,
+            bottomLeft: mine ? r : tail,
+            bottomRight: mine ? tail : r,
+          ),
+        ),
+        child: SelectableText(
+          message.text,
+          style: TextStyle(
+            color: mine ? scheme.onPrimaryContainer : scheme.onSurface,
+          ),
+        ),
+      ),
+    );
+  }
+}
