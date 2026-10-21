@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:argus_wallet/bridge/api/celaut.dart';
 import 'package:argus_wallet/bridge/api/celaut_catalog.dart';
+import 'package:argus_wallet/bridge/api/celaut_home.dart';
 import 'package:argus_wallet/bridge/api/celaut_package.dart';
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
 import 'package:argus_wallet/celaut/chat_client.dart';
@@ -14,11 +15,14 @@ import 'package:argus_wallet/celaut/wallet_money.dart';
 import 'package:argus_wallet/l10n/l10n.dart';
 import 'package:argus_wallet/theme/argus_theme.dart';
 import 'package:argus_wallet/ui/celaut/chats_screen.dart';
+import 'package:argus_wallet/ui/celaut/home_tabs.dart';
 import 'package:argus_wallet/ui/celaut/instance_list.dart';
 import 'package:argus_wallet/ui/celaut/run_service_screen.dart';
 import 'package:argus_wallet/ui/celaut/run_service_section.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 final _echoId = '65' * 32;
 
@@ -28,6 +32,8 @@ InstanceListView _instance(
   bool chat = true,
   int startedAt = 100,
   String address = 'node.example:53460',
+  int? stoppedAt,
+  String refundMu = '',
 }) =>
     InstanceListView(
       instanceId: id,
@@ -39,6 +45,38 @@ InstanceListView _instance(
       startedAt: startedAt,
       startChargeMu: '1000',
       name: name,
+      stoppedAt: stoppedAt,
+      refundMu: refundMu,
+    );
+
+InstanceListView _stopped(InstanceListView i, String refundMu) => InstanceListView(
+      instanceId: i.instanceId,
+      peerId: i.peerId,
+      address: i.address,
+      serviceId: i.serviceId,
+      slots: i.slots,
+      chatSlots: i.chatSlots,
+      startedAt: i.startedAt,
+      startChargeMu: i.startChargeMu,
+      name: i.name,
+      stoppedAt: 500,
+      refundMu: refundMu,
+    );
+
+const _noTotal = NanoErgTotalView(total: null, known: '0', unknownNodes: 0, atLeast: false);
+const _noBytes = BytesTotalView(total: null, known: 0, unknownNodes: 0, atLeast: false);
+
+ComputeOverviewView _noNodes() => const ComputeOverviewView(
+      nodesCounted: 0,
+      nodesUnreachable: 0,
+      cpuCores: CoresTotalView(total: null, known: 0, unknownNodes: 0, atLeast: false),
+      memBytes: _noBytes,
+      diskBytes: _noBytes,
+      creditNanoErg: _noTotal,
+      paidNanoErg: _noTotal,
+      freeNanoErg: _noTotal,
+      nodes: [],
+      instances: [],
     );
 
 InstanceStatusView _status(String cost) =>
@@ -75,13 +113,21 @@ class _Node {
     throw a ?? const CelautError(kind: CelautErrorKind.unreachable, message: 'no route');
   }
 
+  /// The node stops the instance: the database keeps it, stopped, with the refund.
   Future<StopView> stop(String id) async {
+    final down = answers[id];
+    if (down is CelautError) throw down;
     stops.add(id);
-    db.removeWhere((i) => i.instanceId == id);
+    db = [for (final i in db) i.instanceId == id ? _stopped(i, '700') : i];
     return const StopView(refundMu: '700', clientBalanceMu: '5000');
   }
 
+  /// As `celaut_forget_instance`: only a stopped instance leaves the database.
   void forget(String id) {
+    final i = db.firstWhere((i) => i.instanceId == id);
+    if (i.stoppedAt == null) {
+      throw const CelautError(kind: CelautErrorKind.invalidInput, message: 'not stopped');
+    }
     forgotten.add(id);
     db.removeWhere((i) => i.instanceId == id);
   }
@@ -92,28 +138,64 @@ class _Node {
   }
 }
 
-/// The page of a section of the drawer, in tests.
-class _Section extends StatelessWidget {
-  const _Section(this.section);
+/// The page of a place of a tab, in tests.
+class _Place extends StatelessWidget {
+  const _Place(this.place);
 
-  final ChatsSection section;
+  final HomePlace place;
 
   @override
-  Widget build(BuildContext context) =>
-      Scaffold(appBar: AppBar(), body: Text('page ${section.name}'));
+  Widget build(BuildContext context) => Scaffold(appBar: AppBar(), body: Text('page ${place.name}'));
+}
+
+/// The Wallet tab, in tests: a counter shows that the tab keeps its state.
+class _WalletTab extends StatefulWidget {
+  const _WalletTab(this.deposit);
+
+  final Widget deposit;
+
+  @override
+  State<_WalletTab> createState() => _WalletTabState();
+}
+
+class _WalletTabState extends State<_WalletTab> {
+  int _taps = 0;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('the wallet')),
+        body: ListView(
+          children: [
+            TextButton(
+              key: const Key('wallet-count'),
+              onPressed: () => setState(() => _taps++),
+              child: Text('taps $_taps'),
+            ),
+            widget.deposit,
+          ],
+        ),
+      );
 }
 
 void main() {
   late _Node node;
   late ConversationNotes notes;
-  late List<String> wallet;
+  late List<String> tabs;
+  late int computeLoads;
   late List<String> named;
   late List<String> launched;
 
   setUp(() {
+    // The Settings tab is the settings screen of the app.
+    SharedPreferences.setMockInitialValues({});
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('com.argus.wallet/secure_storage'),
+      (call) async => call.method == 'listWalletIds' ? const <String>[] : null,
+    );
     node = _Node();
     notes = ConversationNotes();
-    wallet = [];
+    tabs = [];
+    computeLoads = 0;
     named = [];
     launched = [];
   });
@@ -192,17 +274,22 @@ void main() {
         // The theme of the app: its buttons ask for the full width, which a row cannot
         // give (the bug of the Run screen). The layout is checked with it.
         theme: argusTheme(watchful: false),
-        home: ChatsScreen(
+        home: HomeTabs(
           money: const WalletMoney(
             full: WalletSum(count: 1, unknown: 0, knownNano: 1500000000),
             gate: FullWalletGate.open,
           ),
-          onWallet: () => wallet.add('open'),
+          onTab: (t) => tabs.add(t.name),
           notes: notes,
           wallets: _Wallets(full: full),
           list: (key, empty) => list(key, empty, full: full),
           runPage: picker,
-          page: (s) => s == ChatsSection.wallet ? null : _Section(s),
+          loadCompute: () async {
+            computeLoads++;
+            return _noNodes();
+          },
+          wallet: (context, deposit) => _WalletTab(deposit),
+          page: _Place.new,
         ),
       ),
     );
@@ -261,12 +348,12 @@ void main() {
         _instance('run', startedAt: 5),
         _instance('down', startedAt: 4),
         _instance('new', startedAt: 3),
+        _instance('gone', startedAt: 9, stoppedAt: 50, refundMu: '700'),
       ];
       node.answers['run'] = _status('1');
       node.answers['down'] = const CelautError(kind: CelautErrorKind.timeout, message: 'late');
       node.answers['new'] = _status('1');
       notes.markStarting('new');
-      notes.markStopped(_instance('gone', startedAt: 9), '700');
       await open(tester);
       String state(String id) => tester.widget<Text>(find.byKey(Key('chats-state-$id'))).data!;
       expect(state('run'), startsWith(appL10n.chatsStateRunning));
@@ -359,8 +446,10 @@ void main() {
       expect(find.byType(SnackBar), findsOneWidget);
     });
 
-    testWidgets('a tap on a stopped instance opens its info page, with the refund', (tester) async {
-      notes.markStopped(_instance('gone'), '700');
+    testWidgets('a tap on a stopped instance opens its info page, with the refund and Delete', (
+      tester,
+    ) async {
+      node.db = [_instance('gone', stoppedAt: 50, refundMu: '700')];
       await open(tester);
       await tester.tap(find.byKey(const Key('chats-row-gone')));
       await tester.pumpAndSettle();
@@ -368,11 +457,32 @@ void main() {
       expect(tester.widget<SelectableText>(find.byKey(const Key('info-refund'))).data, '700 MU');
       expect(find.byKey(const Key('info-stop')), findsNothing);
       expect(node.tunnels, isEmpty);
+      // The node is not asked for a stopped instance.
+      expect(node.stops, isEmpty);
+      await tester.ensureVisible(find.byKey(const Key('info-delete')));
+      await tester.tap(find.byKey(const Key('info-delete')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('delete-ok')));
+      await tester.pumpAndSettle();
+      expect(node.forgotten, ['gone']);
+      expect(find.byKey(const Key('chats-row-gone')), findsNothing);
+      expect(find.byKey(const Key('chats-empty')), findsOneWidget);
+    });
+
+    testWidgets('a stopped instance stays in the list when the list is read again', (tester) async {
+      node.db = [_instance('gone', stoppedAt: 50, refundMu: '700')];
+      await open(tester);
+      await tester.fling(find.byKey(const Key('chats-list')), const Offset(0, 400), 1000);
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<Text>(find.byKey(const Key('chats-state-gone'))).data,
+        startsWith(appL10n.chatsStateStopped),
+      );
     });
   });
 
   group('long press', () {
-    testWidgets('a running instance: Info and Stop, no Remove', (tester) async {
+    testWidgets('a running instance: Info and Stop, no Delete', (tester) async {
       node.db = [_instance('i1')];
       node.answers['i1'] = _status('1');
       await open(tester);
@@ -380,7 +490,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('chats-action-info')), findsOneWidget);
       expect(find.byKey(const Key('chats-action-stop')), findsOneWidget);
-      expect(find.byKey(const Key('chats-action-remove')), findsNothing);
+      expect(find.byKey(const Key('chats-action-delete')), findsNothing);
     });
 
     testWidgets('Info opens the info page', (tester) async {
@@ -395,7 +505,9 @@ void main() {
       expect(tester.widget<SelectableText>(find.byKey(const Key('info-service'))).data, _echoId);
     });
 
-    testWidgets('Stop asks, stops, and the row stays as stopped until it is removed', (tester) async {
+    testWidgets('Stop asks, stops, and the row stays as stopped until the user deletes it', (
+      tester,
+    ) async {
       node.db = [_instance('i1')];
       node.answers['i1'] = _status('1');
       notes.saw('i1', const [ChatMessage(seq: 1, role: 'assistant', text: 'bye')]);
@@ -413,14 +525,26 @@ void main() {
         startsWith(appL10n.chatsStateStopped),
       );
       expect(find.text('bye'), findsOneWidget);
-      // Remove takes a stopped row out without a question: the node has nothing.
+      expect(node.db.single.stoppedAt, isNotNull);
+      // A stopped row: Info and Delete. Delete asks first.
       await tester.longPress(find.byKey(const Key('chats-row-i1')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('chats-action-stop')), findsNothing);
-      await tester.tap(find.byKey(const Key('chats-action-remove')));
+      await tester.tap(find.byKey(const Key('chats-action-delete')));
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('chats-row-i1')), findsNothing);
+      expect(find.byKey(const Key('delete-confirm')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('delete-cancel')));
+      await tester.pumpAndSettle();
       expect(node.forgotten, isEmpty);
+      expect(find.byKey(const Key('chats-row-i1')), findsOneWidget);
+      await tester.longPress(find.byKey(const Key('chats-row-i1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('chats-action-delete')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('delete-ok')));
+      await tester.pumpAndSettle();
+      expect(node.forgotten, ['i1']);
+      expect(find.byKey(const Key('chats-row-i1')), findsNothing);
     });
 
     testWidgets('Stop with no wallet stops nothing and says why', (tester) async {
@@ -437,79 +561,168 @@ void main() {
       expect(find.text(appL10n.celautOpenFullWalletNeeded), findsOneWidget);
     });
 
-    testWidgets('an instance that the node does not answer for can be removed, after a warning', (
+    testWidgets('a row whose node does not answer has Info and Stop, and no way to delete it', (
       tester,
     ) async {
       node.db = [_instance('i1')];
       await open(tester);
+      expect(
+        tester.widget<Text>(find.byKey(const Key('chats-state-i1'))).data,
+        startsWith(appL10n.chatsStateUnreachable),
+      );
       await tester.longPress(find.byKey(const Key('chats-row-i1')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('chats-action-remove')));
+      expect(find.byKey(const Key('chats-action-info')), findsOneWidget);
+      expect(find.byKey(const Key('chats-action-stop')), findsOneWidget);
+      expect(find.byKey(const Key('chats-action-delete')), findsNothing);
+      expect(find.text(appL10n.chatsDelete), findsNothing);
+      // Stop asks; the node does not answer: the user sees why, and the row stays.
+      node.answers['i1'] = const CelautError(kind: CelautErrorKind.unreachable, message: 'no route');
+      await tester.tap(find.byKey(const Key('chats-action-stop')));
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('forget-confirm')), findsOneWidget);
-      expect(find.text(appL10n.chatsForgetBody), findsOneWidget);
-      await tester.tap(find.byKey(const Key('forget-cancel')));
+      expect(find.byKey(const Key('stop-confirm')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('stop-ok')));
       await tester.pumpAndSettle();
+      expect(find.byType(SnackBar), findsOneWidget);
+      expect(node.stops, isEmpty);
       expect(node.forgotten, isEmpty);
-      expect(find.byKey(const Key('chats-row-i1')), findsOneWidget);
+      expect(node.db.single.stoppedAt, isNull);
+      expect(
+        tester.widget<Text>(find.byKey(const Key('chats-state-i1'))).data,
+        startsWith(appL10n.chatsStateUnreachable),
+      );
+      // The info page has Stop, and no Delete.
       await tester.longPress(find.byKey(const Key('chats-row-i1')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('chats-action-remove')));
+      await tester.tap(find.byKey(const Key('chats-action-info')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('forget-ok')));
-      await tester.pumpAndSettle();
-      expect(node.forgotten, ['i1']);
-      expect(find.byKey(const Key('chats-row-i1')), findsNothing);
+      expect(find.byKey(const Key('info-stop')), findsOneWidget);
+      expect(find.byKey(const Key('info-delete')), findsNothing);
     });
   });
 
-  group('the drawer', () {
-    Future<void> openDrawer(WidgetTester tester) async {
-      await tester.tap(find.byKey(const Key('chats-menu')));
+  group('the bottom bar', () {
+    Future<void> show(WidgetTester tester, HomeTab tab) async {
+      await tester.tap(find.byKey(Key('tab-${tab.name}')));
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('chats-drawer')), findsOneWidget);
     }
 
-    testWidgets('its head has the wallet with its ERG', (tester) async {
+    testWidgets('each tab shows its page', (tester) async {
       await open(tester);
-      await openDrawer(tester);
-      expect(find.text('1.5 ERG'), findsOneWidget);
+      expect(find.byKey(const Key('home-tabs')), findsOneWidget);
+      expect(find.byKey(const Key('chats-empty')), findsOneWidget);
+      await show(tester, HomeTab.wallet);
+      expect(find.text('the wallet'), findsOneWidget);
+      expect(find.byKey(const Key('place-deposit')), findsOneWidget);
+      await show(tester, HomeTab.compute);
+      expect(find.byKey(const Key('compute-home-run')), findsOneWidget);
+      expect(find.byKey(const Key('compute-home-settings')), findsNothing);
+      await show(tester, HomeTab.settings);
+      expect(find.byKey(const Key('settings-tor')), findsOneWidget);
+      await show(tester, HomeTab.chats);
+      expect(find.byKey(const Key('chats-empty')), findsOneWidget);
+      expect(tabs, ['wallet', 'compute', 'settings', 'chats']);
     });
 
-    for (final section in ChatsSection.values.where((s) => s != ChatsSection.wallet)) {
-      testWidgets('${section.name} opens its page, and back is the list', (tester) async {
+    testWidgets('the pencil button is only on Chats', (tester) async {
+      await open(tester);
+      expect(find.byKey(const Key('chats-new')), findsOneWidget);
+      for (final tab in [HomeTab.wallet, HomeTab.compute, HomeTab.settings]) {
+        await show(tester, tab);
+        expect(find.byKey(const Key('chats-new')), findsNothing, reason: tab.name);
+        expect(find.byType(FloatingActionButton), findsNothing, reason: tab.name);
+      }
+    });
+
+    // Every page of the drawer of the first chat-first build has a place in a tab.
+    for (final (tab, place) in [
+      (HomeTab.wallet, HomePlace.deposit),
+      (HomeTab.compute, HomePlace.nodes),
+      (HomeTab.compute, HomePlace.services),
+      (HomeTab.compute, HomePlace.otherInstances),
+    ]) {
+      testWidgets('${place.name} opens from ${tab.name} over the bar, and back is the tab', (
+        tester,
+      ) async {
         await open(tester);
-        await openDrawer(tester);
-        await tester.ensureVisible(find.byKey(Key('drawer-${section.name}')));
-        await tester.tap(find.byKey(Key('drawer-${section.name}')));
+        await show(tester, tab);
+        await tester.ensureVisible(find.byKey(Key('place-${place.name}')));
+        await tester.tap(find.byKey(Key('place-${place.name}')));
         await tester.pumpAndSettle();
-        expect(find.text('page ${section.name}'), findsOneWidget);
-        expect(find.byKey(const Key('chats-drawer')), findsNothing);
+        expect(find.text('page ${place.name}'), findsOneWidget);
+        expect(find.byKey(const Key('home-tabs')), findsNothing);
         await tester.pageBack();
         await tester.pumpAndSettle();
-        expect(find.byKey(const Key('chats-new')), findsOneWidget);
+        expect(find.byKey(Key('place-${place.name}')), findsOneWidget);
       });
     }
 
-    testWidgets('Wallet and the head open the wallet of the app', (tester) async {
+    testWidgets('Settings has Network and Tor, Developer and About', (tester) async {
       await open(tester);
-      await openDrawer(tester);
-      await tester.tap(find.byKey(const Key('drawer-wallet')));
-      await tester.pumpAndSettle();
-      expect(wallet, ['open']);
-      expect(find.byKey(const Key('chats-drawer')), findsNothing);
-      await openDrawer(tester);
-      await tester.tap(find.byKey(const Key('drawer-head')));
-      await tester.pumpAndSettle();
-      expect(wallet, ['open', 'open']);
+      await show(tester, HomeTab.settings);
+      expect(find.byKey(const Key('settings-tor')), findsOneWidget);
+      expect(find.byKey(const Key('settings-nodes')), findsOneWidget);
+      // settings-nodes is a row of the Developer group.
+      await tester.dragUntilVisible(
+        find.byKey(const Key('settings-about')),
+        find.byType(ListView),
+        const Offset(0, -300),
+      );
+      expect(find.byKey(const Key('settings-about')), findsOneWidget);
     });
 
-    testWidgets('the rows are in Spanish too', (tester) async {
+    testWidgets('the Wallets line of Compute shows the Wallet tab', (tester) async {
+      await open(tester);
+      await show(tester, HomeTab.compute);
+      await tester.ensureVisible(find.byKey(const Key('compute-home-wallets')));
+      await tester.tap(find.byKey(const Key('compute-home-wallets')));
+      await tester.pumpAndSettle();
+      expect(find.text('the wallet'), findsOneWidget);
+    });
+
+    testWidgets('a tab keeps its state while another one shows', (tester) async {
+      await open(tester);
+      await show(tester, HomeTab.wallet);
+      await tester.tap(find.byKey(const Key('wallet-count')));
+      await tester.pump();
+      expect(find.text('taps 1'), findsOneWidget);
+      await show(tester, HomeTab.compute);
+      expect(computeLoads, 1);
+      await show(tester, HomeTab.chats);
+      await show(tester, HomeTab.wallet);
+      expect(find.text('taps 1'), findsOneWidget);
+      // Compute shows the same page, and asks the nodes again.
+      await show(tester, HomeTab.compute);
+      expect(computeLoads, 2);
+    });
+
+    testWidgets('back on another tab goes to Chats', (tester) async {
+      await open(tester);
+      await show(tester, HomeTab.compute);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chats-new')), findsOneWidget);
+      expect(tabs.last, 'chats');
+    });
+
+    testWidgets('a conversation opens over the bar', (tester) async {
+      node.db = [_instance('i1')];
+      node.answers['i1'] = _status('1');
+      await open(tester);
+      await tester.tap(find.byKey(const Key('chats-row-i1')));
+      await tester.pumpAndSettle();
+      expect(find.text('chat i1 Echo chat 4321 running'), findsOneWidget);
+      expect(find.byKey(const Key('home-tabs')), findsNothing);
+    });
+
+    testWidgets('the tabs are in Spanish too', (tester) async {
       setAppLocale(const Locale('es'));
       addTearDown(() => setAppLocale(const Locale('en')));
       await open(tester);
-      await openDrawer(tester);
       expect(find.text('Billetera'), findsOneWidget);
+      expect(find.text('Cómputo'), findsOneWidget);
+      await show(tester, HomeTab.compute);
+      await tester.ensureVisible(find.byKey(const Key('place-otherInstances')));
       expect(find.text('Otras instancias'), findsOneWidget);
     });
   });

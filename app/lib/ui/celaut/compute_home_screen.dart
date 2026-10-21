@@ -18,8 +18,8 @@ import 'client_unknown_dialog.dart';
 import 'run_service_screen.dart';
 
 /// The compute view (`docs/celaut/ui.md`, section 2), in the look of the Celaut landing
-/// page: the page "Compute and credit" of the drawer of the list of conversations
-/// (`docs/celaut/ui-chat-first.md`). It shows only what the user acts on, in this order:
+/// page: the Compute tab of the home screen (`docs/celaut/ui-chat-first.md`). It shows
+/// only what the user acts on, in this order:
 ///
 /// 1. the running instances, if there are some: they cost money now, and can be stopped;
 /// 2. the button that opens "Run a service";
@@ -45,7 +45,12 @@ class ComputeHomeScreen extends StatefulWidget {
     this.newClient,
     this.refreshPrice,
     this.runScreen,
+    this.sections = const [],
   });
+
+  /// The rows under the state: the pages of the Compute tab (Nodes, Services, Other
+  /// instances).
+  final List<Widget> sections;
 
   /// The screen of "Run a service". Tests give their own.
   final WidgetBuilder? runScreen;
@@ -254,6 +259,12 @@ class ComputeHomeScreenState extends State<ComputeHomeScreen> {
             const HomeRule(),
             const SizedBox(height: 12),
             ..._state(context, data),
+            if (widget.sections.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const HomeRule(),
+              const SizedBox(height: 4),
+              ...widget.sections,
+            ],
           ],
         ),
       ),

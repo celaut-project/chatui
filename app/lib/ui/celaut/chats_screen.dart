@@ -6,67 +6,32 @@ import '../../bridge/api/celaut_service.dart';
 import '../../celaut/conversations.dart';
 import '../../celaut/launcher.dart';
 import '../../celaut/payers.dart';
-import '../../celaut/wallet_money.dart';
 import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
 import '../home/home_style.dart';
-import '../settings/about_page.dart';
-import '../settings_screen.dart';
-import 'deposit_screen.dart';
 import 'instance_list.dart';
-import 'known_nodes_screen.dart';
-import 'network_screen.dart';
 import 'run_service_screen.dart';
 import 'run_service_section.dart' show StartedCall;
 
-/// The places of the secondary menu (the drawer) of the home screen.
-enum ChatsSection {
-  wallet,
-  deposit,
-  compute,
-  nodes,
-  services,
-  otherInstances,
-  network,
-  settings,
-  about,
-}
-
-/// The home screen of the app, chat first, as Telegram (`docs/celaut/ui-chat-first.md`):
+/// The Chats tab of the home screen, chat first, as Telegram and WhatsApp
+/// (`docs/celaut/ui-chat-first.md`):
 ///
 /// - the list of conversations: each row is an instance whose interface has a chat slot
 ///   (`docs/celaut/chat.md`, section 2);
 /// - the pencil button opens "New conversation": the skills of the catalog and the
-///   service files, then the confirmation, the wallet, the launch, and the conversation;
-/// - the drawer (the button at the top left) holds the rest of the app: the wallet, the
-///   deposit, the compute and the credit, the nodes, the services, the other instances,
-///   the network, the settings, and the about page.
+///   service files, then the confirmation, the wallet, the launch, and the conversation.
+///
+/// The other tabs of the bottom bar ([HomeTabs]) hold the rest of the app.
 class ChatsScreen extends StatefulWidget {
   const ChatsScreen({
     super.key,
-    this.money = WalletMoney.none,
-    this.onWallet,
-    this.computePage,
-    this.page,
     this.wallets = const AppFullWallets(),
     this.notes,
     this.newClient,
     this.list,
     this.runPage,
+    this.onConversation,
   });
-
-  /// The ERG of the wallet, for the head of the drawer.
-  final WalletMoney money;
-
-  /// Open the page of the wallet (or create or restore one).
-  final VoidCallback? onWallet;
-
-  /// The compute and the credit of the nodes. The dashboard gives it, with the money.
-  final WidgetBuilder? computePage;
-
-  /// The page of a section of the drawer. Tests give their own; null for a section
-  /// keeps the page of the app.
-  final Widget? Function(ChatsSection section)? page;
 
   final FullWallets wallets;
   final ConversationNotes? notes;
@@ -81,6 +46,9 @@ class ChatsScreen extends StatefulWidget {
   /// title and what to do after a start.
   final Widget Function(String title, StartedCall onStarted)? runPage;
 
+  /// A conversation opens after a start: the home screen shows this tab under it.
+  final VoidCallback? onConversation;
+
   @override
   State<ChatsScreen> createState() => ChatsScreenState();
 }
@@ -93,7 +61,7 @@ class ChatsScreenState extends State<ChatsScreen> {
   Future<void> refresh() async => _list.currentState?.refresh();
 
   /// The picker of services, for "New conversation", "Services" and the Run button of
-  /// the compute page.
+  /// the Compute tab.
   Widget runPage(String title) =>
       widget.runPage?.call(title, _started) ??
       RunServiceScreen(
@@ -104,8 +72,8 @@ class ChatsScreenState extends State<ChatsScreen> {
       );
 
   /// A service started from the picker: back to the list, and into the conversation,
-  /// as a messenger does after "New chat". An instance without a chat slot is in "Other
-  /// instances".
+  /// as a messenger does after "New chat". An instance without a chat slot is in
+  /// Compute, under "Other instances".
   Future<void> _started(LaunchOutcome outcome, String serviceId, String? name) async {
     final instance = outcome.instance;
     final chat = instance.chatSlots.isNotEmpty;
@@ -127,6 +95,7 @@ class ChatsScreenState extends State<ChatsScreen> {
       );
       return;
     }
+    widget.onConversation?.call();
     await _list.currentState?.openChat(
       instanceOfLaunch(outcome, serviceId, name),
       starting: true,
@@ -136,36 +105,6 @@ class ChatsScreenState extends State<ChatsScreen> {
   Future<void> _newChat() async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute(builder: (_) => runPage(context.l10n.chatsNewTitle)),
-    );
-    if (mounted) await refresh();
-  }
-
-  Widget _defaultPage(ChatsSection section) {
-    final l = context.l10n;
-    return switch (section) {
-      ChatsSection.deposit => const DepositScreen(),
-      ChatsSection.compute => widget.computePage?.call(context) ?? const SizedBox.shrink(),
-      ChatsSection.nodes => KnownNodesScreen(newClient: widget.newClient),
-      ChatsSection.services => runPage(l.chatsServicesTitle),
-      ChatsSection.otherInstances => OtherInstancesScreen(wallets: widget.wallets, notes: _notes),
-      ChatsSection.network => const NetworkScreen(),
-      ChatsSection.settings => const SettingsScreen(),
-      ChatsSection.about => const AboutPage(),
-      // The dashboard opens the wallet in place (see [_open]).
-      ChatsSection.wallet => const SizedBox.shrink(),
-    };
-  }
-
-  Future<void> _open(ChatsSection section) async {
-    // Close the drawer first, as Telegram does.
-    Navigator.of(context).pop();
-    final custom = widget.page?.call(section);
-    if (section == ChatsSection.wallet && custom == null) {
-      widget.onWallet?.call();
-      return;
-    }
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => custom ?? _defaultPage(section)),
     );
     if (mounted) await refresh();
   }
@@ -195,17 +134,8 @@ class ChatsScreenState extends State<ChatsScreen> {
       ),
     );
     return Scaffold(
-      drawer: ChatsDrawer(money: widget.money, onOpen: _open),
       appBar: AppBar(
-        leading: Builder(
-          builder: (context) => IconButton(
-            key: const Key('chats-menu'),
-            tooltip: l.chatsMenu,
-            icon: const Icon(Icons.menu),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
-        titleSpacing: 4,
+        titleSpacing: 16,
         title: Semantics(
           header: true,
           label: 'Celaut',
@@ -235,66 +165,6 @@ class ChatsScreenState extends State<ChatsScreen> {
             notes: _notes,
             bottomPadding: 88,
           ),
-    );
-  }
-}
-
-/// The secondary menu of the home screen, as the drawer of Telegram: the wallet on top
-/// (as the account of Telegram), then one row for each part of the app.
-class ChatsDrawer extends StatelessWidget {
-  const ChatsDrawer({super.key, required this.money, required this.onOpen});
-
-  final WalletMoney money;
-  final void Function(ChatsSection section) onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = context.l10n;
-    final t = HomeText.of(context);
-    Widget row(ChatsSection section, IconData icon, String title) => ListTile(
-          key: Key('drawer-${section.name}'),
-          leading: Icon(icon),
-          title: Text(title),
-          onTap: () => onOpen(section),
-        );
-    final walletLine = money.full.count == 0 ? l.chatsDrawerNoWallet : money.full.text;
-    return Drawer(
-      key: const Key('chats-drawer'),
-      child: SafeArea(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            InkWell(
-              key: const Key('drawer-head'),
-              onTap: () => onOpen(ChatsSection.wallet),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(homeGutter, 24, homeGutter, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const CellMark(size: 48),
-                    const SizedBox(height: 14),
-                    const CelautWordmark(size: 22),
-                    const SizedBox(height: 4),
-                    Text(walletLine, key: const Key('drawer-wallet-erg'), style: t.secondary),
-                  ],
-                ),
-              ),
-            ),
-            const Divider(height: 1),
-            row(ChatsSection.wallet, Icons.account_balance_wallet_outlined, l.chatsDrawerWallet),
-            row(ChatsSection.deposit, Icons.savings_outlined, l.chatsDrawerDeposit),
-            row(ChatsSection.compute, Icons.memory_outlined, l.chatsDrawerCompute),
-            row(ChatsSection.nodes, Icons.hub_outlined, l.celautNodesTitle),
-            row(ChatsSection.services, Icons.widgets_outlined, l.chatsServicesTitle),
-            row(ChatsSection.otherInstances, Icons.layers_outlined, l.chatsOtherTitle),
-            const Divider(height: 1),
-            row(ChatsSection.network, Icons.shield_outlined, l.chatsDrawerNetwork),
-            row(ChatsSection.settings, Icons.settings_outlined, l.commonSettings),
-            row(ChatsSection.about, Icons.info_outline, l.aboutTitle),
-          ],
-        ),
-      ),
     );
   }
 }

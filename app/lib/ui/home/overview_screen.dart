@@ -36,10 +36,15 @@ class OverviewScreen extends StatelessWidget {
     this.notice,
     this.noticeIsError = false,
     this.onAction,
+    this.extra,
   });
 
   final OverviewData data;
   final ValueChanged<WalletRef>? onOpenWallet;
+
+  /// A row under the wallet, such as "Deposit to a node" in the Wallet tab of the home
+  /// screen. The welcome does not show it.
+  final Widget? extra;
 
   /// Create or restore, on the welcome: the app has no wallet yet.
   final ValueChanged<AddWalletChoice>? onAdd;
@@ -130,6 +135,7 @@ class OverviewScreen extends StatelessWidget {
         notice: notice,
         noticeIsError: noticeIsError,
         onAction: onAction,
+        extra: extra,
       ),
     );
     if (data.isEmpty) return scaffold;
@@ -165,6 +171,7 @@ class OverviewView extends StatelessWidget {
     this.notice,
     this.noticeIsError = false,
     this.onAction,
+    this.extra,
   });
 
   final OverviewData data;
@@ -179,6 +186,9 @@ class OverviewView extends StatelessWidget {
   final String? notice;
   final bool noticeIsError;
   final ValueChanged<WalletAction>? onAction;
+
+  /// A row under the wallet ([OverviewScreen.extra]).
+  final Widget? extra;
 
   Widget _row(WalletSummary w) => OverviewWalletRow(
         wallet: w,
@@ -263,6 +273,7 @@ class OverviewView extends StatelessWidget {
               ],
             ),
           ),
+        ?extra,
         if (footnote != null)
           Padding(
             padding: const EdgeInsetsDirectional.fromSTEB(homeGutter, 16, homeGutter, 0),

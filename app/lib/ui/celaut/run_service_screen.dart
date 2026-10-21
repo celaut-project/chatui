@@ -20,7 +20,7 @@ class RunServiceScreen extends StatelessWidget {
   });
 
   /// The title of the bar: "New conversation" from the pencil button, "Services" from
-  /// the drawer. Null: "Run a service".
+  /// the Compute tab. Null: "Run a service".
   final String? title;
 
   /// What to do after a start (see [RunServiceSection.onStarted]).
