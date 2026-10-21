@@ -182,6 +182,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   NetworkChoice dco_decode_network_choice(dynamic raw);
 
   @protected
+  NetworkProxyKind dco_decode_network_proxy_kind(dynamic raw);
+
+  @protected
+  NetworkProxyView dco_decode_network_proxy_view(dynamic raw);
+
+  @protected
   NetworkState dco_decode_network_state(dynamic raw);
 
   @protected
@@ -465,6 +471,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NetworkChoice sse_decode_network_choice(SseDeserializer deserializer);
+
+  @protected
+  NetworkProxyKind sse_decode_network_proxy_kind(SseDeserializer deserializer);
+
+  @protected
+  NetworkProxyView sse_decode_network_proxy_view(SseDeserializer deserializer);
 
   @protected
   NetworkState sse_decode_network_state(SseDeserializer deserializer);
@@ -826,6 +838,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_network_choice(NetworkChoice self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_network_proxy_kind(
+    NetworkProxyKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_network_proxy_view(
+    NetworkProxyView self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_network_state(NetworkState self, SseSerializer serializer);
