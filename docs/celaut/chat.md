@@ -18,7 +18,7 @@ and the service must share.
 | Discovery | The service declares the convention in its interface (section 2). There is no discovery endpoint |
 | Version | The tag has no version. The convention only grows with new optional fields (section 6) |
 | Storage in the app | The history is only in memory. The app writes no message to the Celaut database |
-| Leaving the screen | Back goes to the list of conversations without a question. The instance runs on and stays in the list; Stop is a separate action (section 5). This replaces the question "stop or leave running" of 2026-10-14, for Josemi to confirm ([ui-chat-first.md](ui-chat-first.md), section 4) |
+| Leaving the screen | Back goes to the list of conversations without a question. The instance runs on and stays in the list; Stop is a separate action (section 5). This replaces the question "stop or leave running" of 2026-10-14, for Josemi to confirm ([ui-chat-first.md](ui-chat-first.md), section 5) |
 
 ## 2. Declaration in the service interface
 
@@ -132,7 +132,8 @@ failed.
   for it, and its row shows the cost so far. A tap on the row opens the conversation again.
 - Stop is in ⋮ of the screen, on the info page of the instance and in the long press of its
   row. The app asks first. Stop calls `StopService` and the node refunds the balance of the
-  instance. The conversation is lost.
+  instance. The conversation is lost. The row stays as stopped until the user deletes it
+  ([ui-chat-first.md](ui-chat-first.md), section 3).
 - The screen shows the cost so far while the user talks to the service (the charge of
   the start less the balance that the instance still has).
 - Each TCP connection through the local port is one `ServiceTunnel` stream and costs
@@ -163,4 +164,5 @@ Check, on a node that we run:
    again. The screen reads the history and shows each message once.
 4. Go back to the list. The row shows the instance as running, with the last message. Open
    it again from the list. The screen shows the four messages.
-5. Stop the instance. The node gives the refund.
+5. Stop the instance. The node gives the refund, and the row shows "Stopped".
+6. Delete the stopped row. It leaves the list.
