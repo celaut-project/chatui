@@ -47,8 +47,10 @@ Rules:
 
 ## 2. Home screen: what the user acts on
 
-The compute view is the default home screen. The landing page of Celaut (branch
-`celaut-design`) is the visual reference.
+**Chat-first UI (2026-10-21, for Josemi to confirm):** the first screen is the list of
+conversations, and the compute view of this section is the page "Compute and credit" of the
+drawer ([ui-chat-first.md](ui-chat-first.md)). The view itself is as this section describes
+it. The landing page of Celaut (branch `celaut-design`) is the visual reference.
 
 **Decision of 2026-10-16 (Josemi), which replaces the order of 2026-10-13 ("compute
 first"):** the home screen shows only what the user acts on. The figures and the detail of
@@ -101,7 +103,8 @@ Rules for the numbers:
 
 ### Run a service
 
-The button "Run a service" of the home screen opens its screen
+The pencil button of the list of conversations ("New conversation"), "Services" in the
+drawer and the button "Run a service" of the compute page open this screen
 (`app/lib/ui/celaut/run_service_screen.dart`, with the section
 `app/lib/ui/celaut/run_service_section.dart`). It lists the skills of the catalog with a
 search field. A skill opens a sheet with its services, best first, and the node that the
@@ -117,8 +120,9 @@ balancer would use with its start cost. Run needs the wallet open.
   node that works (`launchService`). Nodes whose last checks failed twice in a row are not
   asked, unless that would leave no node. A node where the credit of the app is less than
   the price is not asked to start.
-- If the service has a chat slot, the conversation opens. If not, a message shows and the
-  instance appears in the list of the home screen.
+- If the service has a chat slot, the app goes back to the list of conversations and opens
+  the conversation. If not, a message shows and the instance appears in "Other instances"
+  and on the compute page.
 - If no node starts it, a sheet says why for each node: the reason and what to do (the text
   of the error kind), the numbers for a credit problem with a button to the deposit screen,
   "left out" for the nodes that were not asked, and the original text of the node under

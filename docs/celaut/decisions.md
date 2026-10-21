@@ -31,7 +31,9 @@
   wallet). See [ui.md](ui.md), section 1.
 - **Home screen (2026-10-13):** it shows the compute that the connected nodes offer
   (sum of their resources) and the money for compute first. The ERG of each wallet is
-  second level. See [ui.md](ui.md).
+  second level. See [ui.md](ui.md). **Proposed on 2026-10-21, for Josemi to confirm:** the
+  first screen is the list of conversations, and the compute view is a page of its drawer
+  ([ui-chat-first.md](ui-chat-first.md)).
 - **Payments:** a deposit per node. A separate client id per node, not linked to the
   others.
 - **Access to instances:** `ServiceTunnel` through the node.

@@ -7,9 +7,8 @@ can run.
 
 ## 0. Final status
 
-Final status on 2026-10-21: master at `2584cf7` (release 0.1.8, 2026-10-16) and the PR
-that closes the plan. **The plan is complete; next work: the chat-first UI
-(Telegram/WhatsApp-like), separate PR.**
+Final status on 2026-10-21: master at `2584cf7` (release 0.1.8, 2026-10-16), the PR
+that closes the plan (#43), and the chat-first UI on top of it. **The plan is complete.**
 
 | Item | Status |
 |---|---|
@@ -26,6 +25,7 @@ that closes the plan. **The plan is complete; next work: the chat-first UI
 | Run by skill, availability of the nodes, reasons of a refusal | Done (PR #30, #31, #32, #35, #36, #37, and the closing PR). Run asks first, with the best node and its start cost; the screen lists every skill of the catalog. Checked in the emulator on 2026-10-21. A phone: section 0.1 |
 | M5: privacy (Tor) | Done (PR #29, and the closing PR). Off by default, Arti inside the app, or an external SOCKS5 proxy, for the nodes, every HTTP request of the Rust core and the updater of the app (`docs/celaut/network.md`). Checked in the emulator on 2026-10-21 (M5 in section 5). A phone and onion addresses: section 0.1 |
 | Open questions (section 7) | Answered on 2026-10-11 to 2026-10-16 |
+| Chat-first UI (`docs/celaut/ui-chat-first.md`) | Done (the chat-first UI PR, stacked on #43). The first screen is the list of conversations; a drawer holds the wallet, the deposit, the compute and credit, the nodes, the services, the other instances, the network, the settings and the about page. A row opens its conversation again. Checked in the emulator on 2026-10-21 with `echo-chat` v1. The changed decisions (section 4 of the note) wait for Josemi |
 
 ### 0.1 Open after the plan
 
@@ -39,7 +39,6 @@ These items need a device, a second node or nodo work. They are not part of this
 | Error codes in the answers of nodo, so that the app does not classify the texts | nodo work |
 | A tunnel stream to a stopped instance stays open on the node while the client keeps the TCP connection (seen in `nodo tunnels --inbound` after a phone lost its network) | nodo work |
 | `GET /chat/messages?from=²` (a digit that is not ASCII) closes the connection instead of status 400 | `echo-chat` in celaut-basics |
-| Open the conversation of a running instance again. The lock of the app when it goes to the background closes the conversation screen; the instance runs on, and the home screen can only stop it | The chat-first UI PR |
 
 Checks of the closing PR, on 2026-10-21, on Ubuntu 22.04 x86_64 (WSL2 with KVM), Rust
 1.99.0, Flutter 3.41.2, NDK 28.2.13676358:

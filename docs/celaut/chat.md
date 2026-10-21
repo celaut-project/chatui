@@ -18,7 +18,7 @@ and the service must share.
 | Discovery | The service declares the convention in its interface (section 2). There is no discovery endpoint |
 | Version | The tag has no version. The convention only grows with new optional fields (section 6) |
 | Storage in the app | The history is only in memory. The app writes no message to the Celaut database |
-| Leaving the screen | The app asks the user to stop the instance or to leave it running (section 5) |
+| Leaving the screen | Back goes to the list of conversations without a question. The instance runs on and stays in the list; Stop is a separate action (section 5). This replaces the question "stop or leave running" of 2026-10-14, for Josemi to confirm ([ui-chat-first.md](ui-chat-first.md), section 4) |
 
 ## 2. Declaration in the service interface
 
@@ -127,10 +127,12 @@ failed.
   `TUNNEL_OPEN_MU`, also when the service is not there yet: about 14 reads (140 000 MU at
   the default rate) if the service never answers. A message that the user sends meanwhile
   waits for the first read.
-- When the user leaves the screen, the client asks: "Stop the instance" or "Leave it
-  running". "Stop" calls `StopService` and the node refunds the balance of the instance.
-  The conversation is lost. "Leave it running" keeps the instance, and the node continues
-  to charge for it. The cost so far stays on the instance list.
+- When the user leaves the screen, the app goes back to the list of conversations
+  ([ui-chat-first.md](ui-chat-first.md)). The instance runs on, the node continues to charge
+  for it, and its row shows the cost so far. A tap on the row opens the conversation again.
+- Stop is in ⋮ of the screen, on the info page of the instance and in the long press of its
+  row. The app asks first. Stop calls `StopService` and the node refunds the balance of the
+  instance. The conversation is lost.
 - The screen shows the cost so far while the user talks to the service (the charge of
   the start less the balance that the instance still has).
 - Each TCP connection through the local port is one `ServiceTunnel` stream and costs
@@ -159,6 +161,6 @@ Check, on a node that we run:
 2. Send "one" and "two". The screen shows four messages.
 3. Stop the connection of the app (flight mode) in the middle of a send, and start it
    again. The screen reads the history and shows each message once.
-4. Leave the screen and choose "Leave it running". Open the instance again. The screen
-   shows the four messages.
+4. Go back to the list. The row shows the instance as running, with the last message. Open
+   it again from the list. The screen shows the four messages.
 5. Stop the instance. The node gives the refund.
