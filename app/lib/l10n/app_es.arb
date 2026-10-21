@@ -1384,7 +1384,6 @@
       }
     }
   },
-  "chatsMenu": "Menú",
   "chatsMenuMore": "Más",
   "chatsNewTitle": "Nueva conversación",
   "chatsServicesTitle": "Servicios",
@@ -1392,11 +1391,14 @@
   "chatsOtherEmpty": "No hay otras instancias. Aquí aparece, mientras corre, un servicio que no tiene conversación.",
   "chatsEmptyTitle": "Aún no hay conversaciones",
   "chatsEmptyBody": "Cada conversación es un servicio que corre en un nodo. Empieza una con el botón del lápiz.",
-  "chatsDrawerWallet": "Billetera",
-  "chatsDrawerNoWallet": "Aún no hay billetera",
-  "chatsDrawerDeposit": "Depositar en un nodo",
-  "chatsDrawerCompute": "Cómputo y crédito",
-  "chatsDrawerNetwork": "Red y Tor",
+  "chatsTabChats": "Chats",
+  "chatsTabWallet": "Billetera",
+  "chatsTabCompute": "Cómputo",
+  "chatsDepositRow": "Depositar en un nodo",
+  "chatsDepositRowSubtitle": "Crédito en un nodo para sus servicios, pagado con la billetera",
+  "chatsNodesRowSubtitle": "Añade un nodo por su dirección o un código QR",
+  "chatsServicesRowSubtitle": "Importa un archivo de servicio, o ejecuta un servicio",
+  "chatsOtherRowSubtitle": "Instancias sin conversación",
   "chatsStateChecking": "Comprobando…",
   "chatsStateStarting": "Iniciando",
   "chatsStateRunning": "En marcha",
@@ -1413,7 +1415,7 @@
     }
   },
   "chatsActionInfo": "Información",
-  "chatsRemove": "Quitar de la lista",
+  "chatsDelete": "Eliminar",
   "chatsStopTitle": "¿Detener {name}?",
   "@chatsStopTitle": {
     "placeholders": {
@@ -1423,16 +1425,16 @@
     }
   },
   "chatsStopBody": "La conversación termina y el nodo devuelve lo que le queda a la instancia.",
-  "chatsForgetTitle": "¿Quitar {name} de la lista?",
-  "@chatsForgetTitle": {
+  "chatsDeleteTitle": "¿Eliminar {name}?",
+  "@chatsDeleteTitle": {
     "placeholders": {
       "name": {
         "type": "String"
       }
     }
   },
-  "chatsForgetBody": "El nodo no responde por esta instancia. Si la quitas, la app olvida su token y no puede detenerla después. Si el nodo aún la ejecuta, sigue cobrando hasta que se acabe su saldo.",
-  "chatsStartedOther": "El servicio se inició en {node}. No tiene conversación: búscalo en Otras instancias, en el menú.",
+  "chatsDeleteBody": "La instancia está detenida. Eliminar la quita de la app, con su token.",
+  "chatsStartedOther": "El servicio se inició en {node}. No tiene conversación: búscalo en Cómputo, en Otras instancias.",
   "@chatsStartedOther": {
     "placeholders": {
       "node": {
@@ -1459,6 +1461,7 @@
   "chatsInfoCost": "Coste hasta ahora",
   "chatsInfoRefund": "Reembolso al detenerla",
   "chatsInfoStopNote": "Detener termina la conversación. El nodo devuelve lo que le queda a la instancia.",
+  "chatsInfoDeleteNote": "Solo se puede eliminar una instancia detenida. La app guarda todas las demás, aunque su nodo no responda.",
   "celautErrorNodeClosed": "El nodo está cerrado ahora: su operador solo acepta trabajo nuevo en ciertas horas. Inténtalo más tarde o elige otro nodo.",
   "celautErrorNoRoom": "El nodo no tiene recursos libres suficientes para este servicio ahora. Inténtalo más tarde o elige otro nodo.",
   "celautErrorServiceMissing": "El nodo no tiene este servicio. Elige un nodo que lo tenga.",

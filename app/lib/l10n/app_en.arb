@@ -4061,7 +4061,6 @@
       }
     }
   },
-  "chatsMenu": "Menu",
   "chatsMenuMore": "More",
   "chatsNewTitle": "New conversation",
   "chatsServicesTitle": "Services",
@@ -4069,11 +4068,14 @@
   "chatsOtherEmpty": "No other instances. A service that has no conversation shows here while it runs.",
   "chatsEmptyTitle": "No conversations yet",
   "chatsEmptyBody": "Each conversation is a service that runs on a node. Start one with the pencil button.",
-  "chatsDrawerWallet": "Wallet",
-  "chatsDrawerNoWallet": "No wallet yet",
-  "chatsDrawerDeposit": "Deposit to a node",
-  "chatsDrawerCompute": "Compute and credit",
-  "chatsDrawerNetwork": "Network and Tor",
+  "chatsTabChats": "Chats",
+  "chatsTabWallet": "Wallet",
+  "chatsTabCompute": "Compute",
+  "chatsDepositRow": "Deposit to a node",
+  "chatsDepositRowSubtitle": "Credit on a node for its services, paid from the wallet",
+  "chatsNodesRowSubtitle": "Add a node by its address or a QR code",
+  "chatsServicesRowSubtitle": "Import a service file, or run a service",
+  "chatsOtherRowSubtitle": "Instances without a conversation",
   "chatsStateChecking": "Checking…",
   "chatsStateStarting": "Starting",
   "chatsStateRunning": "Running",
@@ -4090,7 +4092,7 @@
     }
   },
   "chatsActionInfo": "Info",
-  "chatsRemove": "Remove from the list",
+  "chatsDelete": "Delete",
   "chatsStopTitle": "Stop {name}?",
   "@chatsStopTitle": {
     "placeholders": {
@@ -4100,16 +4102,16 @@
     }
   },
   "chatsStopBody": "The conversation ends, and the node refunds what is left of the instance.",
-  "chatsForgetTitle": "Remove {name} from the list?",
-  "@chatsForgetTitle": {
+  "chatsDeleteTitle": "Delete {name}?",
+  "@chatsDeleteTitle": {
     "placeholders": {
       "name": {
         "type": "String"
       }
     }
   },
-  "chatsForgetBody": "The node does not answer for this instance. If you remove it, the app forgets its token and cannot stop it later. If the node still runs it, the node keeps charging until its balance ends.",
-  "chatsStartedOther": "The service started on {node}. It has no conversation: find it in Other instances, in the menu.",
+  "chatsDeleteBody": "The instance is stopped. Delete takes it out of the app, with its token.",
+  "chatsStartedOther": "The service started on {node}. It has no conversation: find it in Compute, under Other instances.",
   "@chatsStartedOther": {
     "placeholders": {
       "node": {
@@ -4136,6 +4138,7 @@
   "chatsInfoCost": "Cost so far",
   "chatsInfoRefund": "Refund at the stop",
   "chatsInfoStopNote": "Stop ends the conversation. The node refunds what is left of the instance.",
+  "chatsInfoDeleteNote": "Only a stopped instance can be deleted. The app keeps every other instance, even if its node does not answer.",
   "celautErrorNodeClosed": "The node is closed now: its operator accepts new work only at certain hours. Try later or choose another node.",
   "celautErrorNoRoom": "The node has not enough free resources for this service now. Try later or choose another node.",
   "celautErrorServiceMissing": "The node does not have this service. Choose a node that has it.",

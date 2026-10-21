@@ -5301,9 +5301,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get chatsMenu => 'Menu';
-
-  @override
   String get chatsMenuMore => 'More';
 
   @override
@@ -5327,19 +5324,30 @@ class AppLocalizationsEn extends AppLocalizations {
       'Each conversation is a service that runs on a node. Start one with the pencil button.';
 
   @override
-  String get chatsDrawerWallet => 'Wallet';
+  String get chatsTabChats => 'Chats';
 
   @override
-  String get chatsDrawerNoWallet => 'No wallet yet';
+  String get chatsTabWallet => 'Wallet';
 
   @override
-  String get chatsDrawerDeposit => 'Deposit to a node';
+  String get chatsTabCompute => 'Compute';
 
   @override
-  String get chatsDrawerCompute => 'Compute and credit';
+  String get chatsDepositRow => 'Deposit to a node';
 
   @override
-  String get chatsDrawerNetwork => 'Network and Tor';
+  String get chatsDepositRowSubtitle =>
+      'Credit on a node for its services, paid from the wallet';
+
+  @override
+  String get chatsNodesRowSubtitle => 'Add a node by its address or a QR code';
+
+  @override
+  String get chatsServicesRowSubtitle =>
+      'Import a service file, or run a service';
+
+  @override
+  String get chatsOtherRowSubtitle => 'Instances without a conversation';
 
   @override
   String get chatsStateChecking => 'Checking…';
@@ -5372,7 +5380,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatsActionInfo => 'Info';
 
   @override
-  String get chatsRemove => 'Remove from the list';
+  String get chatsDelete => 'Delete';
 
   @override
   String chatsStopTitle(String name) {
@@ -5384,17 +5392,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'The conversation ends, and the node refunds what is left of the instance.';
 
   @override
-  String chatsForgetTitle(String name) {
-    return 'Remove $name from the list?';
+  String chatsDeleteTitle(String name) {
+    return 'Delete $name?';
   }
 
   @override
-  String get chatsForgetBody =>
-      'The node does not answer for this instance. If you remove it, the app forgets its token and cannot stop it later. If the node still runs it, the node keeps charging until its balance ends.';
+  String get chatsDeleteBody =>
+      'The instance is stopped. Delete takes it out of the app, with its token.';
 
   @override
   String chatsStartedOther(String node) {
-    return 'The service started on $node. It has no conversation: find it in Other instances, in the menu.';
+    return 'The service started on $node. It has no conversation: find it in Compute, under Other instances.';
   }
 
   @override
@@ -5435,6 +5443,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get chatsInfoStopNote =>
       'Stop ends the conversation. The node refunds what is left of the instance.';
+
+  @override
+  String get chatsInfoDeleteNote =>
+      'Only a stopped instance can be deleted. The app keeps every other instance, even if its node does not answer.';
 
   @override
   String get celautErrorNodeClosed =>

@@ -5370,9 +5370,6 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get chatsMenu => 'Menú';
-
-  @override
   String get chatsMenuMore => 'Más';
 
   @override
@@ -5396,19 +5393,31 @@ class AppLocalizationsEs extends AppLocalizations {
       'Cada conversación es un servicio que corre en un nodo. Empieza una con el botón del lápiz.';
 
   @override
-  String get chatsDrawerWallet => 'Billetera';
+  String get chatsTabChats => 'Chats';
 
   @override
-  String get chatsDrawerNoWallet => 'Aún no hay billetera';
+  String get chatsTabWallet => 'Billetera';
 
   @override
-  String get chatsDrawerDeposit => 'Depositar en un nodo';
+  String get chatsTabCompute => 'Cómputo';
 
   @override
-  String get chatsDrawerCompute => 'Cómputo y crédito';
+  String get chatsDepositRow => 'Depositar en un nodo';
 
   @override
-  String get chatsDrawerNetwork => 'Red y Tor';
+  String get chatsDepositRowSubtitle =>
+      'Crédito en un nodo para sus servicios, pagado con la billetera';
+
+  @override
+  String get chatsNodesRowSubtitle =>
+      'Añade un nodo por su dirección o un código QR';
+
+  @override
+  String get chatsServicesRowSubtitle =>
+      'Importa un archivo de servicio, o ejecuta un servicio';
+
+  @override
+  String get chatsOtherRowSubtitle => 'Instancias sin conversación';
 
   @override
   String get chatsStateChecking => 'Comprobando…';
@@ -5441,7 +5450,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get chatsActionInfo => 'Información';
 
   @override
-  String get chatsRemove => 'Quitar de la lista';
+  String get chatsDelete => 'Eliminar';
 
   @override
   String chatsStopTitle(String name) {
@@ -5453,17 +5462,17 @@ class AppLocalizationsEs extends AppLocalizations {
       'La conversación termina y el nodo devuelve lo que le queda a la instancia.';
 
   @override
-  String chatsForgetTitle(String name) {
-    return '¿Quitar $name de la lista?';
+  String chatsDeleteTitle(String name) {
+    return '¿Eliminar $name?';
   }
 
   @override
-  String get chatsForgetBody =>
-      'El nodo no responde por esta instancia. Si la quitas, la app olvida su token y no puede detenerla después. Si el nodo aún la ejecuta, sigue cobrando hasta que se acabe su saldo.';
+  String get chatsDeleteBody =>
+      'La instancia está detenida. Eliminar la quita de la app, con su token.';
 
   @override
   String chatsStartedOther(String node) {
-    return 'El servicio se inició en $node. No tiene conversación: búscalo en Otras instancias, en el menú.';
+    return 'El servicio se inició en $node. No tiene conversación: búscalo en Cómputo, en Otras instancias.';
   }
 
   @override
@@ -5504,6 +5513,10 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get chatsInfoStopNote =>
       'Detener termina la conversación. El nodo devuelve lo que le queda a la instancia.';
+
+  @override
+  String get chatsInfoDeleteNote =>
+      'Solo se puede eliminar una instancia detenida. La app guarda todas las demás, aunque su nodo no responda.';
 
   @override
   String get celautErrorNodeClosed =>

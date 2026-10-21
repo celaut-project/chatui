@@ -8375,12 +8375,6 @@ abstract class AppLocalizations {
   /// **'The instance stopped. Refund: {refund}'**
   String chatStopped(String refund);
 
-  /// No description provided for @chatsMenu.
-  ///
-  /// In en, this message translates to:
-  /// **'Menu'**
-  String get chatsMenu;
-
   /// No description provided for @chatsMenuMore.
   ///
   /// In en, this message translates to:
@@ -8423,35 +8417,53 @@ abstract class AppLocalizations {
   /// **'Each conversation is a service that runs on a node. Start one with the pencil button.'**
   String get chatsEmptyBody;
 
-  /// No description provided for @chatsDrawerWallet.
+  /// No description provided for @chatsTabChats.
+  ///
+  /// In en, this message translates to:
+  /// **'Chats'**
+  String get chatsTabChats;
+
+  /// No description provided for @chatsTabWallet.
   ///
   /// In en, this message translates to:
   /// **'Wallet'**
-  String get chatsDrawerWallet;
+  String get chatsTabWallet;
 
-  /// No description provided for @chatsDrawerNoWallet.
+  /// No description provided for @chatsTabCompute.
   ///
   /// In en, this message translates to:
-  /// **'No wallet yet'**
-  String get chatsDrawerNoWallet;
+  /// **'Compute'**
+  String get chatsTabCompute;
 
-  /// No description provided for @chatsDrawerDeposit.
+  /// No description provided for @chatsDepositRow.
   ///
   /// In en, this message translates to:
   /// **'Deposit to a node'**
-  String get chatsDrawerDeposit;
+  String get chatsDepositRow;
 
-  /// No description provided for @chatsDrawerCompute.
+  /// No description provided for @chatsDepositRowSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Compute and credit'**
-  String get chatsDrawerCompute;
+  /// **'Credit on a node for its services, paid from the wallet'**
+  String get chatsDepositRowSubtitle;
 
-  /// No description provided for @chatsDrawerNetwork.
+  /// No description provided for @chatsNodesRowSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Network and Tor'**
-  String get chatsDrawerNetwork;
+  /// **'Add a node by its address or a QR code'**
+  String get chatsNodesRowSubtitle;
+
+  /// No description provided for @chatsServicesRowSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import a service file, or run a service'**
+  String get chatsServicesRowSubtitle;
+
+  /// No description provided for @chatsOtherRowSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Instances without a conversation'**
+  String get chatsOtherRowSubtitle;
 
   /// No description provided for @chatsStateChecking.
   ///
@@ -8507,11 +8519,11 @@ abstract class AppLocalizations {
   /// **'Info'**
   String get chatsActionInfo;
 
-  /// No description provided for @chatsRemove.
+  /// No description provided for @chatsDelete.
   ///
   /// In en, this message translates to:
-  /// **'Remove from the list'**
-  String get chatsRemove;
+  /// **'Delete'**
+  String get chatsDelete;
 
   /// No description provided for @chatsStopTitle.
   ///
@@ -8525,22 +8537,22 @@ abstract class AppLocalizations {
   /// **'The conversation ends, and the node refunds what is left of the instance.'**
   String get chatsStopBody;
 
-  /// No description provided for @chatsForgetTitle.
+  /// No description provided for @chatsDeleteTitle.
   ///
   /// In en, this message translates to:
-  /// **'Remove {name} from the list?'**
-  String chatsForgetTitle(String name);
+  /// **'Delete {name}?'**
+  String chatsDeleteTitle(String name);
 
-  /// No description provided for @chatsForgetBody.
+  /// No description provided for @chatsDeleteBody.
   ///
   /// In en, this message translates to:
-  /// **'The node does not answer for this instance. If you remove it, the app forgets its token and cannot stop it later. If the node still runs it, the node keeps charging until its balance ends.'**
-  String get chatsForgetBody;
+  /// **'The instance is stopped. Delete takes it out of the app, with its token.'**
+  String get chatsDeleteBody;
 
   /// No description provided for @chatsStartedOther.
   ///
   /// In en, this message translates to:
-  /// **'The service started on {node}. It has no conversation: find it in Other instances, in the menu.'**
+  /// **'The service started on {node}. It has no conversation: find it in Compute, under Other instances.'**
   String chatsStartedOther(String node);
 
   /// No description provided for @chatsInfoTitle.
@@ -8614,6 +8626,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stop ends the conversation. The node refunds what is left of the instance.'**
   String get chatsInfoStopNote;
+
+  /// No description provided for @chatsInfoDeleteNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Only a stopped instance can be deleted. The app keeps every other instance, even if its node does not answer.'**
+  String get chatsInfoDeleteNote;
 
   /// No description provided for @celautErrorNodeClosed.
   ///
