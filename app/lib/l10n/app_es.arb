@@ -1370,14 +1370,6 @@
   "chatSend": "Enviar",
   "chatEmpty": "Escribe algo para empezar la conversación.",
   "chatStarting": "El servicio se está iniciando. Puede tardar un minuto en responder.",
-  "chatCost": "Coste hasta ahora: {mu}",
-  "@chatCost": {
-    "placeholders": {
-      "mu": {
-        "type": "String"
-      }
-    }
-  },
   "chatStop": "Detener la instancia",
   "chatErrorUnreachable": "El servicio no respondió. Puede que tu mensaje no haya llegado. Inténtalo de nuevo.",
   "chatErrorBadAnswer": "El servicio respondió de una forma que esta app no entiende.",
@@ -1607,7 +1599,7 @@
       }
     }
   },
-  "celautRunConfirmBody": "El servicio se ejecuta en un nodo y usa tu crédito allí hasta que se detiene. Detenlo en la pantalla de inicio, o al salir de la conversación.",
+  "celautRunConfirmBody": "El servicio se ejecuta en un nodo y usa tu crédito allí hasta que se detiene. Detenlo desde su conversación, su página de información o la lista de conversaciones.",
   "celautRunConfirmNoQuote": "Ningún nodo ha dado un precio todavía. Ejecutar pregunta a todos los nodos de la lista.",
   "celautErrorTransferFailed": "La transferencia del servicio se detuvo (no se pudo leer el fichero, está cortado o se canceló). El nodo no guardó el servicio cortado. Inténtalo de nuevo.",
   "celautSendMissingTitle": "El servicio no está en estos nodos",

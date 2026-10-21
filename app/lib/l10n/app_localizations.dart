@@ -8333,12 +8333,6 @@ abstract class AppLocalizations {
   /// **'The service is starting. It can take a minute before it answers.'**
   String get chatStarting;
 
-  /// No description provided for @chatCost.
-  ///
-  /// In en, this message translates to:
-  /// **'Cost so far: {mu}'**
-  String chatCost(String mu);
-
   /// No description provided for @chatStop.
   ///
   /// In en, this message translates to:
@@ -8906,7 +8900,7 @@ abstract class AppLocalizations {
   /// No description provided for @celautRunConfirmBody.
   ///
   /// In en, this message translates to:
-  /// **'The service runs on a node and uses your credit there until it stops. Stop it on the home screen, or when you leave the conversation.'**
+  /// **'The service runs on a node and uses your credit there until it stops. Stop it from its conversation, its info page or the list of conversations.'**
   String get celautRunConfirmBody;
 
   /// No description provided for @celautRunConfirmNoQuote.

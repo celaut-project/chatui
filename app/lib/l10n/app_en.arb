@@ -4047,14 +4047,6 @@
   "chatSend": "Send",
   "chatEmpty": "Say something to start the conversation.",
   "chatStarting": "The service is starting. It can take a minute before it answers.",
-  "chatCost": "Cost so far: {mu}",
-  "@chatCost": {
-    "placeholders": {
-      "mu": {
-        "type": "String"
-      }
-    }
-  },
   "chatStop": "Stop the instance",
   "chatErrorUnreachable": "The service did not answer. Your message may not have arrived. Try again.",
   "chatErrorBadAnswer": "The service answered in a way that this app does not understand.",
@@ -4284,7 +4276,7 @@
       }
     }
   },
-  "celautRunConfirmBody": "The service runs on a node and uses your credit there until it stops. Stop it on the home screen, or when you leave the conversation.",
+  "celautRunConfirmBody": "The service runs on a node and uses your credit there until it stops. Stop it from its conversation, its info page or the list of conversations.",
   "celautRunConfirmNoQuote": "No node gave a price yet. Run asks every node of the list.",
   "celautErrorTransferFailed": "The transfer of the service stopped (the file could not be read, it is cut, or it was cancelled). The node did not keep the cut service. Try again.",
   "celautSendMissingTitle": "The service is not on these nodes",

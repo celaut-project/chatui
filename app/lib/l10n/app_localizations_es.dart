@@ -5343,11 +5343,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'El servicio se está iniciando. Puede tardar un minuto en responder.';
 
   @override
-  String chatCost(String mu) {
-    return 'Coste hasta ahora: $mu';
-  }
-
-  @override
   String get chatStop => 'Detener la instancia';
 
   @override
@@ -5692,7 +5687,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautRunConfirmBody =>
-      'El servicio se ejecuta en un nodo y usa tu crédito allí hasta que se detiene. Detenlo en la pantalla de inicio, o al salir de la conversación.';
+      'El servicio se ejecuta en un nodo y usa tu crédito allí hasta que se detiene. Detenlo desde su conversación, su página de información o la lista de conversaciones.';
 
   @override
   String get celautRunConfirmNoQuote =>

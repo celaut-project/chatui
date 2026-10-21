@@ -224,7 +224,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final subtitle = [
       instanceStateText(context, _state),
       widget.instance.address,
-      l10n.chatCost(muOrUnknown(_costMu)),
+      muOrUnknown(_costMu),
     ].join(' · ');
     return Scaffold(
       appBar: AppBar(
