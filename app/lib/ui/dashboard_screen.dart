@@ -24,8 +24,10 @@ import '../services/wallet_sync_controller.dart';
 import '../theme/argus_theme.dart';
 import 'assets_screen.dart';
 import '../celaut/wallet_money.dart';
+import 'celaut/chats_screen.dart';
 import 'celaut/compute_home_screen.dart';
 import 'celaut/known_nodes_screen.dart';
+import 'celaut/run_service_screen.dart';
 import 'create_wallet_screen.dart';
 import 'ergopay_screen.dart';
 import 'home/erg_price_feed.dart';
@@ -51,11 +53,12 @@ import 'widgets/error_sheet.dart';
 import 'widgets/token_detail_sheet.dart';
 import 'widgets/wallet_view_boundary.dart';
 
-/// The app's home: the overview of every wallet, and the page of the one
-/// that is open.
+/// The app's home: the list of conversations ([ChatsScreen]), the overview
+/// of the wallet, and the page of the wallet when it is open.
 ///
-/// The app always opens on the overview ([WalletsOverviewScreen]), with no
-/// unlock and no prompt. Tapping a wallet opens its page in place; back
+/// The app opens on the list of conversations, with no unlock and no
+/// prompt; its drawer opens the wallet. With the setting "Chats home" off it
+/// opens on the overview ([WalletsOverviewScreen]). Tapping a wallet opens its page in place; back
 /// returns to the overview, which is how the user switches wallets. A seed
 /// wallet asks for its key once, when it is opened. A cancelled biometric
 /// prompt leaves its locked page ([UnlockGate]) with Unlock and Use PIN,
@@ -83,8 +86,8 @@ class DashboardScreen extends StatefulWidget {
   /// app's [enforceSingleWallet]; tests give their own.
   final Future<void> Function()? enforceSingleWallet;
 
-  /// Whether the launch level is the compute home. Null: the setting decides (on by
-  /// default). Tests of the wallets list give false.
+  /// Whether the launch level is the list of conversations. Null: the setting decides
+  /// (on by default). Tests of the wallets list give false.
   final bool? computeHome;
 
   @override
@@ -173,8 +176,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     _init();
   }
 
-  /// The compute home is on: the launch level shows it, and the wallets list is one level
-  /// down (`docs/celaut/ui.md`, section 2).
+  /// The list of conversations is on: the launch level shows it, and the wallets list is
+  /// one level down (`docs/celaut/ui-chat-first.md`).
   bool _walletsLevel = false;
 
   void _onComputeHomeChanged() {
@@ -926,7 +929,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     final open = _open;
     if (open == null) {
       if (!(widget.computeHome ?? computeHomeFlag.value)) return _overviewScreen();
-      if (!_walletsLevel) return _computeHome();
+      if (!_walletsLevel) return _chatsHome();
       return PopScope(
         canPop: false,
         onPopInvokedWithResult: (didPop, _) {
@@ -964,11 +967,30 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   final _computeHomeKey = GlobalKey<ComputeHomeScreenState>();
+  final _chatsKey = GlobalKey<ChatsScreenState>();
 
-  /// The compute home, the default home screen (`docs/celaut/ui.md`, section 2). The ERG
-  /// of the wallet comes from the same figures as the wallets list; the USD price is the
-  /// oracle pool price of the pricer of the app.
-  Widget _computeHome() {
+  /// The home screen: the list of conversations, chat first
+  /// (`docs/celaut/ui-chat-first.md`). Its drawer holds the rest of the app; the
+  /// compute view (`docs/celaut/ui.md`, section 2) is one of its pages. The ERG of the
+  /// wallet comes from the same figures as the wallets list; the USD price is the oracle
+  /// pool price of the pricer of the app.
+  Widget _chatsHome() {
+    return ListenableBuilder(
+      listenable: Listenable.merge([_overview, tokenPricer, walletService.currentWalletId]),
+      builder: (context, _) {
+        return ChatsScreen(
+          key: _chatsKey,
+          money: WalletMoney.of(_overview.entries()),
+          onWallet: _openTheWallet,
+          computePage: (_) => _computePage(),
+        );
+      },
+    );
+  }
+
+  /// The compute and the credit of the nodes, a page of the drawer. It shows the same
+  /// figures as before; its Run button opens the same picker as the pencil button.
+  Widget _computePage() {
     return ListenableBuilder(
       listenable: Listenable.merge([_overview, tokenPricer, walletService.currentWalletId]),
       builder: (context, _) {
@@ -977,12 +999,18 @@ class _DashboardScreenState extends State<DashboardScreen>
           money: WalletMoney.of(_overview.entries()),
           usdPerErg: tokenPricer.result.ergUsd,
           refreshPrice: () => tokenPricer.refresh(),
-          onWallets: _openTheWallet,
+          onWallets: () {
+            Navigator.of(context).popUntil((r) => r.isFirst);
+            _openTheWallet();
+          },
           onNodes: () async {
             await Navigator.push(context, fadeRoute(const KnownNodesScreen()));
             await _computeHomeKey.currentState?.refresh();
           },
           onSettings: () => Navigator.push(context, fadeRoute(const SettingsScreen())),
+          runScreen: (context) =>
+              _chatsKey.currentState?.runPage(context.l10n.celautRunTitle) ??
+              const RunServiceScreen(),
         );
       },
     );

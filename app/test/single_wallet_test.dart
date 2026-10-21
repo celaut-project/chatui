@@ -2,6 +2,7 @@ import 'package:argus_wallet/bridge/frb_generated.dart';
 import 'package:argus_wallet/services/public_wallet_sync.dart';
 import 'package:argus_wallet/services/single_wallet.dart';
 import 'package:argus_wallet/services/wallet_service.dart';
+import 'package:argus_wallet/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -89,11 +90,13 @@ void main() {
       await disposeHome(tester);
     });
 
-    testWidgets('the Wallet line of the compute home opens the wallet', (tester) async {
+    testWidgets('Wallet in the drawer of the conversations opens the wallet', (tester) async {
       FakeKeystore(wallets: ['w-only']).install(tester);
       await tester.runAsync(() => saveWallet('w-only', name: 'Only'));
       await pumpHome(tester, computeHome: true);
-      await tester.tap(find.byKey(const Key('compute-home-wallets')));
+      await tester.tap(find.byKey(const Key('chats-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('drawer-wallet')));
       await tester.pumpAndSettle();
       // The page of the wallet, behind its gate: no wallets list in between.
       expect(find.byKey(const Key('gate-unlock')), findsOneWidget);
@@ -101,10 +104,28 @@ void main() {
       await disposeHome(tester);
     });
 
-    testWidgets('with no wallet, the Wallet line offers to create or restore one', (tester) async {
+    testWidgets('the Wallet line of the compute page opens the wallet over the list', (tester) async {
+      FakeKeystore(wallets: ['w-only']).install(tester);
+      await tester.runAsync(() => saveWallet('w-only', name: 'Only'));
+      await pumpHome(tester, computeHome: true);
+      await tester.tap(find.byKey(const Key('chats-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('drawer-compute')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('compute-home-wallets')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('compute-home-wallets')), findsNothing);
+      expect(find.byKey(const Key('gate-unlock')), findsOneWidget);
+      await disposeHome(tester);
+    });
+
+    testWidgets('with no wallet, Wallet in the drawer offers to create or restore one', (tester) async {
       FakeKeystore(wallets: const []).install(tester);
       await pumpHome(tester, computeHome: true);
-      await tester.tap(find.byKey(const Key('compute-home-wallets')));
+      await tester.tap(find.byKey(const Key('chats-menu')));
+      await tester.pumpAndSettle();
+      expect(find.text(appL10n.chatsDrawerNoWallet), findsOneWidget);
+      await tester.tap(find.byKey(const Key('drawer-wallet')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('overview-create')), findsOneWidget);
       expect(find.byKey(const Key('overview-restore')), findsOneWidget);

@@ -18,6 +18,7 @@ import '../home/home_style.dart';
 import 'chat_screen.dart';
 import 'client_unknown_dialog.dart';
 import 'deposit_screen.dart';
+import 'instance_list.dart' show instanceOfLaunch;
 import 'launch_failure_sheet.dart';
 import 'service_transfer_dialog.dart';
 import 'skill_services_sheet.dart';
@@ -27,6 +28,14 @@ typedef LaunchCall = Future<LaunchOutcome> Function({
   required String serviceIdHex,
   String? initialMu,
 });
+
+/// What the picker calls after a start, instead of opening the conversation itself:
+/// the outcome, the service id, and the name that the user saw.
+typedef StartedCall = Future<void> Function(
+  LaunchOutcome outcome,
+  String serviceId,
+  String? name,
+);
 
 /// "Run a service" on the home screen (`docs/celaut/ui.md`, section 2): the skills of the
 /// catalog with a search field. A skill opens a sheet with its ranked services. Run starts
@@ -51,7 +60,17 @@ class RunServiceSection extends StatefulWidget {
     this.packages,
     this.library,
     this.showTitle = true,
+    this.onStarted,
+    this.nameInstance,
   });
+
+  /// What to do after a start. The list of conversations gives it: it goes back to the
+  /// list and opens the conversation (`docs/celaut/ui-chat-first.md`). Without it the
+  /// section opens the conversation on top of itself.
+  final StartedCall? onStarted;
+
+  /// Keep the name of a started instance in the database. Tests give their own.
+  final void Function(String instanceId, String name)? nameInstance;
 
   /// Show the title of the section. Off on its own screen, where the app bar has it.
   final bool showTitle;
@@ -105,6 +124,10 @@ class _RunServiceSectionState extends State<RunServiceSection> {
   bool _loading = true;
   bool _failed = false;
   bool _running = false;
+
+  /// The name of the last service that the user confirmed: the launch again after a
+  /// transfer has no confirmation, and keeps it.
+  String? _lastName;
   List<LibraryPackageView> _packages = const [];
   late final PackageLibrary _library = widget.library ?? PackageLibrary();
 
@@ -238,6 +261,7 @@ class _RunServiceSectionState extends State<RunServiceSection> {
   /// has already confirmed (the launch again after a transfer).
   Future<void> _run(String serviceId, {String? name}) async {
     if (name != null && (!await _confirm(serviceId, name) || !mounted)) return;
+    if (name != null) _lastName = name;
     if (!await ensureOpenFullWallet(context, widget.wallets) || !mounted) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -258,7 +282,7 @@ class _RunServiceSectionState extends State<RunServiceSection> {
       if (!mounted) return;
       // The progress bar stops before the next screen or sheet, which can stay open.
       setState(() => _running = false);
-      await _started(outcome);
+      await _started(outcome, serviceId);
     } on LaunchFailure catch (failure) {
       if (!mounted) return;
       setState(() => _running = false);
@@ -274,9 +298,26 @@ class _RunServiceSectionState extends State<RunServiceSection> {
     }
   }
 
-  Future<void> _started(LaunchOutcome outcome) async {
+  void _name(String instanceId, String? name) {
+    if (name == null || name.trim().isEmpty) return;
+    try {
+      (widget.nameInstance ??
+          (id, n) => celautNameInstance(instanceId: id, name: n))(instanceId, name);
+    } catch (_) {
+      // Without the name, the list shows the short service id.
+    }
+  }
+
+  Future<void> _started(LaunchOutcome outcome, String serviceId) async {
     final instance = outcome.instance;
+    final name = _lastName;
+    _name(instance.instanceId, name);
     widget.onChanged?.call();
+    final onStarted = widget.onStarted;
+    if (onStarted != null) {
+      await onStarted(outcome, serviceId, name);
+      return;
+    }
     if (instance.chatSlots.isNotEmpty) {
       final slot = instance.chatSlots.first;
       try {
@@ -285,8 +326,13 @@ class _RunServiceSectionState extends State<RunServiceSection> {
         if (!mounted) return;
         await Navigator.of(context).push<void>(
           MaterialPageRoute(
-            builder: (_) =>
-                (widget.chatBuilder ?? _defaultChat)(instance.instanceId, port),
+            builder: (_) => widget.chatBuilder?.call(instance.instanceId, port) ??
+                ChatScreen(
+                  instance: instanceOfLaunch(outcome, serviceId, name),
+                  port: port,
+                  wallets: widget.wallets,
+                  starting: true,
+                ),
           ),
         );
         // The user may have stopped the instance in the conversation.
@@ -314,9 +360,6 @@ class _RunServiceSectionState extends State<RunServiceSection> {
       ),
     );
   }
-
-  Widget _defaultChat(String instanceId, int port) =>
-      ChatScreen(instanceId: instanceId, port: port, wallets: widget.wallets, starting: true);
 
   Future<void> _showFailure(LaunchFailure failure, String serviceId) async {
     TransferOffer? chosen;

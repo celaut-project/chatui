@@ -17,8 +17,9 @@ import '../home/home_style.dart';
 import 'client_unknown_dialog.dart';
 import 'run_service_screen.dart';
 
-/// The home screen of the app (`docs/celaut/ui.md`, section 2), in the look of the
-/// Celaut landing page. It shows only what the user acts on, in this order:
+/// The compute view (`docs/celaut/ui.md`, section 2), in the look of the Celaut landing
+/// page: the page "Compute and credit" of the drawer of the list of conversations
+/// (`docs/celaut/ui-chat-first.md`). It shows only what the user acts on, in this order:
 ///
 /// 1. the running instances, if there are some: they cost money now, and can be stopped;
 /// 2. the button that opens "Run a service";

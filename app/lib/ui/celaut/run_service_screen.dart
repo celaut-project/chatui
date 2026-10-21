@@ -15,7 +15,16 @@ class RunServiceScreen extends StatelessWidget {
     this.newClient,
     this.onChanged,
     this.section,
+    this.title,
+    this.onStarted,
   });
+
+  /// The title of the bar: "New conversation" from the pencil button, "Services" from
+  /// the drawer. Null: "Run a service".
+  final String? title;
+
+  /// What to do after a start (see [RunServiceSection.onStarted]).
+  final StartedCall? onStarted;
 
   final FullWallets wallets;
 
@@ -31,7 +40,7 @@ class RunServiceScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.celautRunTitle)),
+      appBar: AppBar(title: Text(title ?? context.l10n.celautRunTitle)),
       body: ListView(
         padding: EdgeInsets.fromLTRB(0, 8, 0, 32 + MediaQuery.paddingOf(context).bottom),
         children: [
@@ -40,6 +49,7 @@ class RunServiceScreen extends StatelessWidget {
                 wallets: wallets,
                 newClient: newClient,
                 onChanged: onChanged,
+                onStarted: onStarted,
                 showTitle: false,
               ),
         ],

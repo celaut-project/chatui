@@ -344,13 +344,31 @@ class _ServiceScreenState extends State<ServiceScreen> {
 
   /// The conversation with the instance on [port] (`docs/celaut/chat.md`). It shares
   /// the kept-alive connection of this screen. The user can stop the instance there.
+  /// The instance as the database has it, for the bar of the conversation.
+  InstanceListView _listed(InstanceView instance) {
+    for (final i in _appInstances) {
+      if (i.instanceId == instance.instanceId) return i;
+    }
+    return InstanceListView(
+      instanceId: instance.instanceId,
+      peerId: instance.peerId,
+      address: '',
+      serviceId: _serviceCtrl.text.trim().toLowerCase(),
+      slots: instance.slots,
+      chatSlots: instance.chatSlots,
+      startedAt: 0,
+      startChargeMu: '',
+      name: '',
+    );
+  }
+
   Future<void> _openChat(int port) async {
     final instance = _instance;
     if (instance == null) return;
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => ChatScreen(
-          instanceId: instance.instanceId,
+          instance: _listed(instance),
           port: port,
           http: _http,
           wallets: widget.wallets,
