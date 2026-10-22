@@ -5365,20 +5365,16 @@ class AppLocalizationsEs extends AppLocalizations {
   String get chatErrorOther => 'El servicio rechazó el mensaje.';
 
   @override
-  String get chatAttach =>
-      'Adjuntar una foto o un audio';
+  String get chatAttach => 'Adjuntar una foto o un audio';
 
   @override
-  String get chatAttachmentRemove =>
-      'Quitar el archivo';
+  String get chatAttachmentRemove => 'Quitar el archivo';
 
   @override
-  String get chatAttachmentShare =>
-      'Abrir o compartir el archivo';
+  String get chatAttachmentShare => 'Abrir o compartir el archivo';
 
   @override
-  String get chatAttachmentFailed =>
-      'El archivo no se cargó.';
+  String get chatAttachmentFailed => 'El archivo no se cargó.';
 
   @override
   String get chatErrorUnsupportedMedia =>
