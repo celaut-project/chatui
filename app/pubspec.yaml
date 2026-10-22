@@ -49,6 +49,11 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  # The timings of navigation (integration_test/, test_driver/, docs/performance.md).
+  integration_test:
+    sdk: flutter
+  flutter_driver:
+    sdk: flutter
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
   # Tests stand in a failing preferences store.
