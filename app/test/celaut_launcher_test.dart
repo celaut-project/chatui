@@ -80,6 +80,8 @@ void main() {
         },
         start: ({required node, required serviceIdHex, initialMu, required environment}) async {
           started.add(node.port);
+          // The quote of the node, which has the build in it, is the start balance.
+          expect(initialMu, answer.quotes.firstWhere((q) => q.address.port == node.port).costMu);
           final failure = failures[node.port];
           if (failure != null) throw failure;
           return _instance('i${node.port}');

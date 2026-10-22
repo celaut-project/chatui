@@ -248,7 +248,8 @@ void main() {
     final start = api.startCalls.single;
     expect(start.node, const NodeAddress(host: '127.0.0.1', port: 18460));
     expect(start.service, _service);
-    expect(start.initial, ServiceStrings.initialDefault);
+    // The quote (build plus balance) is what the start sends.
+    expect(start.initial, '1000000');
     expect(find.byKey(const Key('service-instance')), findsOneWidget);
     expect(find.text(ServiceStrings.clientBalance('3,500,000 MU')), findsOneWidget);
     // One instance at a time: the start buttons are off.

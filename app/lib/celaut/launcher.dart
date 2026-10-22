@@ -233,7 +233,9 @@ Future<LaunchOutcome> launchService({
       final instance = await start(
         node: candidate.address,
         serviceIdHex: serviceIdHex,
-        initialMu: initialMu,
+        // The node takes the build out of initial_mu, and its quote is the build plus
+        // the balance asked for: the least that a start needs.
+        initialMu: candidate.costMu,
         environment: values,
       );
       return LaunchOutcome(

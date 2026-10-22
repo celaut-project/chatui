@@ -74,7 +74,6 @@ class _ServiceScreenState extends State<ServiceScreen> {
 
   QuotesView? _quotes;
   String _serviceId = '';
-  String? _initialMu;
   InstanceView? _instance;
   final _ports = <int, int>{};
   InstanceStatusView? _status;
@@ -259,7 +258,6 @@ class _ServiceScreenState extends State<ServiceScreen> {
     if (form == null) return;
     final nodes = form.nodes;
     final service = form.service;
-    final initial = form.initial ?? '';
 
     setState(() {
       _quoting = true;
@@ -276,7 +274,6 @@ class _ServiceScreenState extends State<ServiceScreen> {
       setState(() {
         _quotes = quotes;
         _serviceId = service;
-        _initialMu = initial.isEmpty ? null : initial;
       });
     } on CelautError catch (e) {
       if (mounted) setState(() => _error = e);
@@ -296,7 +293,8 @@ class _ServiceScreenState extends State<ServiceScreen> {
       final instance = await celautStartService(
         node: quote.address,
         serviceIdHex: _serviceId,
-        initialMu: _initialMu,
+        // The quote is the build plus the balance asked for, which is what a start takes.
+        initialMu: quote.costMu,
         environment: const [],
       );
       if (!mounted) return;
