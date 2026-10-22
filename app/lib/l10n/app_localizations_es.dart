@@ -5385,6 +5385,17 @@ class AppLocalizationsEs extends AppLocalizations {
       'Un archivo está vacío o es demasiado grande. Un archivo puede tener 4 MB como máximo, y un mensaje 4 archivos.';
 
   @override
+  String get chatTyping => 'El servicio está respondiendo…';
+
+  @override
+  String get chatSending => 'Enviando…';
+
+  @override
+  String chatWaitingSeconds(int seconds) {
+    return 'Sigue trabajando… $seconds s';
+  }
+
+  @override
   String chatStopped(String refund) {
     return 'La instancia se detuvo. Reembolso: $refund';
   }

@@ -8405,6 +8405,24 @@ abstract class AppLocalizations {
   /// **'A file is empty or too big. A file can have 4 MB at most, and a message 4 files.'**
   String get chatErrorFile;
 
+  /// No description provided for @chatTyping.
+  ///
+  /// In en, this message translates to:
+  /// **'The service is answering…'**
+  String get chatTyping;
+
+  /// No description provided for @chatSending.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending…'**
+  String get chatSending;
+
+  /// No description provided for @chatWaitingSeconds.
+  ///
+  /// In en, this message translates to:
+  /// **'Still working… {seconds} s'**
+  String chatWaitingSeconds(int seconds);
+
   /// No description provided for @chatStopped.
   ///
   /// In en, this message translates to:

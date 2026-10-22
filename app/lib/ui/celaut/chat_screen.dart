@@ -92,6 +92,15 @@ class _ChatScreenState extends State<ChatScreen> {
   late final ConversationNotes _notes = widget.notes ?? conversationNotes;
 
   bool _sending = false;
+
+  /// The message that is on its way: shown as a bubble at once, so the screen does not
+  /// look stuck while the service makes its answer.
+  String _flyingText = '';
+  List<OutgoingAttachment> _flyingFiles = const [];
+
+  /// Seconds since the send began. A tick each second while a send runs.
+  int _waited = 0;
+  Timer? _ticker;
   final List<OutgoingAttachment> _pending = [];
   bool _stopping = false;
   late bool _waitingStart = widget.starting;
@@ -146,18 +155,37 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _send() async {
     final text = _input.text.trim();
     if ((text.isEmpty && _pending.isEmpty) || _sending) return;
+    final files = List.of(_pending);
     setState(() {
       _sending = true;
       _error = null;
-    });
-    try {
-      await _chat.send(text, attachments: List.of(_pending));
+      _flyingText = text;
+      _flyingFiles = files;
+      _waited = 0;
+      // The field is free at once: the user can write the next message while the
+      // service answers.
       _input.clear();
       _pending.clear();
+    });
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _waited++);
+    });
+    _scrollToEnd();
+    try {
+      await _chat.send(text, attachments: files);
     } on ChatException catch (e) {
-      // The text and the files stay, so the user can send them again.
-      if (mounted) setState(() => _error = e.kind);
+      // The text and the files come back, so the user can send them again. What the
+      // user has written meanwhile stays: the old text goes before it.
+      if (mounted) {
+        setState(() {
+          _error = e.kind;
+          _input.text = _input.text.isEmpty ? text : '$text\n${_input.text}';
+          _pending.insertAll(0, files);
+        });
+      }
     } finally {
+      _ticker?.cancel();
+      _ticker = null;
       _notes.saw(_id, _chat.messages);
       if (mounted) setState(() => _sending = false);
     }
@@ -230,6 +258,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     unawaited(_keepAlive.stop());
+    _ticker?.cancel();
     _input.dispose();
     _scroll.dispose();
     if (widget.http == null) _http.close();
@@ -309,7 +338,7 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: messages.isEmpty
+            child: messages.isEmpty && !_sending
                 ? Center(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
@@ -330,12 +359,24 @@ class _ChatScreenState extends State<ChatScreen> {
                     key: const Key('chat-messages'),
                     controller: _scroll,
                     padding: const EdgeInsets.all(16),
-                    itemCount: messages.length,
-                    itemBuilder: (context, i) => _Bubble(
-                      message: messages[i],
-                      scheme: scheme,
-                      read: _chat.readAttachment,
-                    ),
+                    itemCount: messages.length + (_sending ? 2 : 0),
+                    itemBuilder: (context, i) {
+                      if (i < messages.length) {
+                        return _Bubble(
+                          message: messages[i],
+                          scheme: scheme,
+                          read: _chat.readAttachment,
+                        );
+                      }
+                      if (i == messages.length) {
+                        return _FlyingBubble(
+                          text: _flyingText,
+                          files: _flyingFiles,
+                          scheme: scheme,
+                        );
+                      }
+                      return _TypingBubble(seconds: _waited, scheme: scheme);
+                    },
                   ),
           ),
           if (error != null)
@@ -395,19 +436,164 @@ class _ChatScreenState extends State<ChatScreen> {
                     key: const Key('chat-send'),
                     tooltip: l10n.chatSend,
                     onPressed: _sending || _stopping ? null : _send,
-                    icon: _sending
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send),
+                    icon: const Icon(Icons.send),
                   ),
                 ],
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The message that the client is sending: a bubble of the user, paler, with a small
+/// "Sending…" under it. It is replaced by the real message when the answer comes.
+class _FlyingBubble extends StatelessWidget {
+  const _FlyingBubble({required this.text, required this.files, required this.scheme});
+
+  final String text;
+  final List<OutgoingAttachment> files;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    const r = Radius.circular(16);
+    final color = scheme.onPrimaryContainer;
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Opacity(
+        opacity: 0.7,
+        child: Container(
+          key: const Key('chat-flying'),
+          margin: const EdgeInsets.symmetric(vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.8),
+          decoration: BoxDecoration(
+            color: scheme.primaryContainer,
+            borderRadius: const BorderRadius.only(
+              topLeft: r,
+              topRight: r,
+              bottomLeft: r,
+              bottomRight: Radius.circular(4),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final file in files)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(file.kind == 'audio' ? Icons.audiotrack : Icons.image, color: color),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        file.name ?? file.mime,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: color),
+                      ),
+                    ),
+                  ],
+                ),
+              if (text.isNotEmpty) Text(text, style: TextStyle(color: color)),
+              Text(
+                context.l10n.chatSending,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The answer that is on its way: three dots that pulse, and, after a few seconds, the
+/// time that the screen has waited. A slow service (an LLM can take a minute) shows that
+/// it works, so the screen does not look stuck.
+class _TypingBubble extends StatefulWidget {
+  const _TypingBubble({required this.seconds, required this.scheme});
+
+  final int seconds;
+  final ColorScheme scheme;
+
+  /// The wait after which the bubble shows the seconds.
+  static const showSecondsAfter = 5;
+
+  @override
+  State<_TypingBubble> createState() => _TypingBubbleState();
+}
+
+class _TypingBubbleState extends State<_TypingBubble> with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    const r = Radius.circular(16);
+    final color = widget.scheme.onSurfaceVariant;
+    final long = widget.seconds >= _TypingBubble.showSecondsAfter;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        key: const Key('chat-typing'),
+        margin: const EdgeInsets.symmetric(vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: widget.scheme.surfaceContainerHighest,
+          borderRadius: const BorderRadius.only(
+            topLeft: r,
+            topRight: r,
+            bottomLeft: Radius.circular(4),
+            bottomRight: r,
+          ),
+        ),
+        child: Semantics(
+          liveRegion: true,
+          label: l10n.chatTyping,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedBuilder(
+                animation: _pulse,
+                builder: (context, _) => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var i = 0; i < 3; i++)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: Opacity(
+                          // Each dot is one third of the cycle behind the one before.
+                          opacity: 0.25 + 0.75 * (1 - ((_pulse.value - i / 3) % 1.0)),
+                          child: CircleAvatar(radius: 4, backgroundColor: color),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (long)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    key: const Key('chat-waited'),
+                    l10n.chatWaitingSeconds(widget.seconds),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

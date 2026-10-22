@@ -40,6 +40,9 @@ class _FakeChat extends ChatClient {
   Future<void> syncWhenStarted({Duration limit = const Duration(minutes: 2), Future<void> Function(Duration)? wait}) =>
       starting?.future ?? Future.value();
 
+  /// Holds [send] until it completes: a slow service.
+  Completer<void>? gate;
+
   /// The kinds that the fake service accepts.
   Set<String> kinds = const {};
 
@@ -57,6 +60,7 @@ class _FakeChat extends ChatClient {
 
   @override
   Future<void> send(String text, {List<OutgoingAttachment> attachments = const []}) async {
+    await gate?.future;
     final failure = failWith;
     if (failure != null) throw failure;
     sent.add(text);
@@ -202,6 +206,47 @@ void main() {
   final png = base64Decode(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
   );
+
+  testWidgets('a slow answer shows the message at once, the dots, then the seconds', (tester) async {
+    chat.gate = Completer<void>();
+    await open(tester);
+    await tester.enterText(find.byKey(const Key('chat-input')), 'think hard');
+    await tester.tap(find.byKey(const Key('chat-send')));
+    await tester.pump();
+    // The message is on screen before the service answers, and the field is free.
+    expect(find.byKey(const Key('chat-flying')), findsOneWidget);
+    expect(find.text('think hard'), findsOneWidget);
+    expect(find.text(appL10n.chatSending), findsOneWidget);
+    expect(find.byKey(const Key('chat-typing')), findsOneWidget);
+    expect(find.byKey(const Key('chat-waited')), findsNothing);
+    expect(tester.widget<TextField>(find.byKey(const Key('chat-input'))).controller!.text, '');
+    expect(tester.widget<TextField>(find.byKey(const Key('chat-input'))).enabled, isNot(false));
+
+    await tester.pump(const Duration(seconds: 6));
+    expect(find.text(appL10n.chatWaitingSeconds(6)), findsOneWidget);
+
+    chat.gate!.complete();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('chat-flying')), findsNothing);
+    expect(find.byKey(const Key('chat-typing')), findsNothing);
+    expect(find.text('think hard'), findsOneWidget);
+    expect(find.text('echo: think hard'), findsOneWidget);
+  });
+
+  testWidgets('a failed slow send gives the text back, with what the user wrote meanwhile', (tester) async {
+    chat.gate = Completer<void>();
+    chat.failWith = const ChatException(ChatErrorKind.busy);
+    await open(tester);
+    await tester.enterText(find.byKey(const Key('chat-input')), 'first');
+    await tester.tap(find.byKey(const Key('chat-send')));
+    await tester.pump();
+    await tester.enterText(find.byKey(const Key('chat-input')), 'second');
+    chat.gate!.complete();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('chat-flying')), findsNothing);
+    expect(find.text(appL10n.chatErrorBusy), findsOneWidget);
+    expect(tester.widget<TextField>(find.byKey(const Key('chat-input'))).controller!.text, 'first\nsecond');
+  });
 
   testWidgets('a service that accepts text only has no attach button', (tester) async {
     await open(tester);

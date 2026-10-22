@@ -4059,6 +4059,16 @@
   "chatAttachmentFailed": "The file did not load.",
   "chatErrorUnsupportedMedia": "The service does not accept this kind of file.",
   "chatErrorFile": "A file is empty or too big. A file can have 4 MB at most, and a message 4 files.",
+  "chatTyping": "The service is answering…",
+  "chatSending": "Sending…",
+  "chatWaitingSeconds": "Still working… {seconds} s",
+  "@chatWaitingSeconds": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
   "chatStopped": "The instance stopped. Refund: {refund}",
   "@chatStopped": {
     "placeholders": {
