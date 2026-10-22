@@ -233,18 +233,59 @@ pub async fn celaut_new_client(node: NodeAddress) -> Result<NewClientView, Celau
 /// The session of `address`: the open one, or a new connection with the client id of
 /// the node from the database (or a new client on the node).
 pub(crate) async fn session(address: &NodeAddress) -> Result<Session, CelautError> {
+    session_with(address, ConnectOptions::default()).await
+}
+
+/// The session of `address`, which must be held by the node `peer_id` (the lowercase hex
+/// of its identity key): the TLS handshake fails for any other key, so an address that
+/// another node holds is never used. `connect_timeout` is for the dial and the handshake
+/// (a route through Tor needs longer).
+pub(crate) async fn session_pinned(
+    address: &NodeAddress,
+    peer_id: &str,
+    connect_timeout: std::time::Duration,
+) -> Result<Session, CelautError> {
+    session_with(
+        address,
+        ConnectOptions {
+            expected_peer_id: Some(peer_id.to_string()),
+            connect_timeout,
+            ..ConnectOptions::default()
+        },
+    )
+    .await
+}
+
+async fn session_with(
+    address: &NodeAddress,
+    options: ConnectOptions,
+) -> Result<Session, CelautError> {
     check(address)?;
     let key = key(address);
     if let Some(s) = state()?.sessions.get(&key) {
-        return Ok(s.clone());
+        // A session that is open belongs to the node that it proved. With a pin, only the
+        // node that the caller expects can use it.
+        if options
+            .expected_peer_id
+            .as_deref()
+            .is_none_or(|p| p == s.peer_id())
+        {
+            return Ok(s.clone());
+        }
     }
-    let connection =
-        Connection::connect(address.host.trim(), address.port, ConnectOptions::default())
-            .await
-            .map_err(|e| error_of(e.into()))?;
+    let connection = Connection::connect(address.host.trim(), address.port, options)
+        .await
+        .map_err(|e| error_of(e.into()))?;
     let session = Arc::new(open_session(connection, &key).await?);
     // Another call may have made one at the same time: keep the first.
-    Ok(state()?.sessions.entry(key).or_insert(session).clone())
+    let mut state = state()?;
+    Ok(match state.sessions.get(&key) {
+        Some(open) if open.peer_id() == session.peer_id() => open.clone(),
+        _ => {
+            state.sessions.insert(key, session.clone());
+            session
+        }
+    })
 }
 
 /// Forget the connection of `address` after a connection error, so that the next call
@@ -254,6 +295,15 @@ pub(crate) fn forget_if_broken(address: &NodeAddress, error: &ClientError) {
         if let Ok(mut s) = STATE.lock() {
             s.sessions.remove(&key(address));
         }
+    }
+}
+
+/// The same as [`forget_if_broken`], for a connection that failed before any session:
+/// forget what is stored for the address `key` (`host:port`), so that the next call
+/// connects again.
+pub(crate) fn forget_if_broken_key(key: &str) {
+    if let Ok(mut s) = STATE.lock() {
+        s.sessions.remove(key);
     }
 }
 

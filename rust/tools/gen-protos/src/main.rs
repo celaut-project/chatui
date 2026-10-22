@@ -17,7 +17,11 @@ fn main() {
     prost_build::Config::new()
         .out_dir(&out)
         .compile_protos(
-            &[protos.join("buffer.proto"), protos.join("celaut.proto")],
+            &[
+                protos.join("buffer.proto"),
+                protos.join("celaut.proto"),
+                protos.join("invite.proto"),
+            ],
             &[protos],
         )
         .expect("compile protos");

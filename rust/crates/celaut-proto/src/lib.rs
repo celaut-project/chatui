@@ -15,4 +15,9 @@ pub mod celaut {
     include!("gen/celaut.rs");
 }
 
+/// The peer invitation of a QR code (`invite.proto`, nodo#579).
+pub mod invite {
+    include!("gen/invite.rs");
+}
+
 pub use prost::Message;

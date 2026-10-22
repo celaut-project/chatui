@@ -4476,5 +4476,17 @@
   "celautEnvRun": "Run",
   "celautEnvDeclUnreadableTitle": "The variables of the service are unknown",
   "celautEnvDeclUnreadableBody": "The service may ask for variables, and the app could not find out. Run it with none, or cancel.",
-  "celautEnvRunWithout": "Run without variables"
+  "celautEnvRunWithout": "Run without variables",
+  "celautInviteConnected": "Connected by {address}. The node is in your list.",
+  "@celautInviteConnected": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "celautInviteFailedTitle": "Could not connect to the invited node",
+  "celautInviteNoAddress": "The invitation has no address that this app can use.",
+  "celautInviteOnionNeedsProxy": "Not tried. An onion address needs Tor through an external proxy such as Orbot. A direct connection and the Tor client of the app cannot open it.",
+  "celautInvitePrivateOverTor": "Not tried. An address on a private network cannot be reached through Tor."
 }

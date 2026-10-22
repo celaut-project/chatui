@@ -5981,4 +5981,25 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautEnvRunWithout => 'Ejecutar sin variables';
+
+  @override
+  String celautInviteConnected(String address) {
+    return 'Conectado por $address. El nodo está en tu lista.';
+  }
+
+  @override
+  String get celautInviteFailedTitle =>
+      'No se pudo conectar con el nodo de la invitación';
+
+  @override
+  String get celautInviteNoAddress =>
+      'La invitación no tiene ninguna dirección que esta app pueda usar.';
+
+  @override
+  String get celautInviteOnionNeedsProxy =>
+      'No se probó. Una dirección onion necesita Tor mediante un proxy externo, como Orbot. Una conexión directa y el cliente Tor de la app no pueden abrirla.';
+
+  @override
+  String get celautInvitePrivateOverTor =>
+      'No se probó. Una dirección de una red privada no se puede alcanzar a través de Tor.';
 }

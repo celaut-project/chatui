@@ -1,11 +1,15 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../bridge/api/celaut.dart';
 import '../../bridge/api/celaut_home.dart';
+import '../../bridge/api/celaut_invite.dart';
 import '../../bridge/api/celaut_service.dart';
 import '../../celaut/celaut_format.dart';
 import '../../celaut/celaut_strings.dart';
 import '../../celaut/host_port.dart';
+import '../../celaut/invite_scan.dart';
 import '../../celaut/node_health_monitor.dart';
 import '../../celaut/overview_cache.dart';
 import '../../format.dart';
@@ -22,6 +26,9 @@ abstract class KnownNodes {
   List<KnownNodeView> list();
   Future<KnownNodeView> add(NodeAddress node);
   void remove(String peerId);
+
+  /// Connect from the bytes of a peer invitation (`docs/celaut/invite.md`).
+  Future<InviteConnectView> connectInvite(Uint8List invite);
 }
 
 class AppKnownNodes implements KnownNodes {
@@ -35,6 +42,9 @@ class AppKnownNodes implements KnownNodes {
 
   @override
   void remove(String peerId) => celautRemoveNode(peerId: peerId);
+
+  @override
+  Future<InviteConnectView> connectInvite(Uint8List invite) => celautConnectInvite(invite: invite);
 }
 
 /// The node list of the app (`docs/celaut/ui.md`, section 4): add a node by its address
@@ -56,9 +66,9 @@ class KnownNodesScreen extends StatefulWidget {
 
   final KnownNodes nodes;
 
-  /// Read a QR code: the text, or null when the user goes back. The app opens the
-  /// camera ([ScanScreen]); tests give their own.
-  final Future<String?> Function(BuildContext context)? scan;
+  /// Read a QR code: its text and its bytes, or null when the user goes back. The app
+  /// opens the camera ([ScanScreen]); tests give their own.
+  final Future<ScannedCode?> Function(BuildContext context)? scan;
 
   /// Make a new client on a node that forgot the client id. Tests give their own.
   final Future<NewClientView> Function(NodeAddress node)? newClient;
@@ -167,15 +177,22 @@ class _KnownNodesScreenState extends State<KnownNodesScreen> {
     }
   }
 
-  /// A scanned address goes into the field and then through [_add], the same check as
-  /// a typed address. Text that is not a node address shows the error of a bad typed
-  /// address and stores nothing.
+  /// A QR code is a node address or a peer invitation of nodo (`docs/celaut/invite.md`).
+  ///
+  /// - An invitation connects by the best address that works on the current route.
+  /// - A scanned address goes into the field and then through [_add], the same check as a
+  ///   typed address.
+  /// - Anything else shows the error of a bad typed address and stores nothing.
   Future<void> _scan() async {
     final scan = widget.scan ??
-        (context) => Navigator.push<String>(context, fadeRoute(const ScanScreen()));
-    final raw = await scan(context);
-    if (!mounted || raw == null) return;
-    final parsed = parseNodeQr(raw);
+        (context) => Navigator.push<ScannedCode>(context, fadeRoute(const ScanScreen(binary: true)));
+    final code = await scan(context);
+    if (!mounted || code == null) return;
+    if (looksLikeInvite(code.bytes)) {
+      await _connectInvite(code.bytes!);
+      return;
+    }
+    final parsed = parseNodeQr(code.text ?? '');
     if (parsed.value == null) {
       setState(() {
         _addressError = parsed.error == HostPortError.port
@@ -183,11 +200,96 @@ class _KnownNodesScreenState extends State<KnownNodesScreen> {
             : CelautStrings.addressInvalid;
         _note = null;
         _error = null;
+        _invite = null;
       });
       return;
     }
     _addressCtrl.text = parsed.value.toString();
     await _add();
+  }
+
+  /// The result of the last invitation that did not connect, to show why.
+  InviteConnectView? _invite;
+
+  Future<void> _connectInvite(Uint8List invite) async {
+    setState(() {
+      _addressError = null;
+      _adding = true;
+      _error = null;
+      _note = null;
+      _invite = null;
+    });
+    try {
+      final view = await widget.nodes.connectInvite(invite);
+      if (!mounted) return;
+      final node = view.node;
+      if (node != null) {
+        final used = view.attempts.where((a) => a.kind == InviteAttemptKind.connected);
+        setState(() {
+          _list = widget.nodes.list();
+          _note = context.l10n.celautInviteConnected(used.isEmpty ? '' : used.first.address);
+        });
+        return;
+      }
+      setState(() => _invite = view);
+      // A node that forgot the client id: the user chooses, as for a typed address.
+      final forgot = view.attempts.where((a) => a.error == CelautErrorKind.clientUnknown);
+      final address = forgot.isEmpty ? null : parseHostPort(forgot.first.address).value;
+      if (address != null && mounted) {
+        final choice = await showClientUnknownChoice(
+          context,
+          node: NodeAddress(host: address.host, port: address.port),
+          error: forgot.first.message,
+          newClient: widget.newClient,
+        );
+        if (choice == ClientUnknownChoice.newClient && mounted) {
+          setState(() => _adding = false);
+          await _connectInvite(invite);
+          return;
+        }
+      }
+    } on CelautError catch (e) {
+      if (!mounted) return;
+      // Bytes that are not an invitation are a bad address, as for any other QR code.
+      setState(() {
+        if (e.kind == CelautErrorKind.invalidInput) {
+          _addressError = CelautStrings.addressInvalid;
+        } else {
+          _error = e;
+        }
+      });
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
+  }
+
+  /// Why an invitation did not connect: one line for each address that the app knows.
+  Widget _inviteFailure(BuildContext context, InviteConnectView view) {
+    final l = context.l10n;
+    final muted = ArgusColors.of(context).muted;
+    return SoftCard(
+      child: Column(
+        key: const Key('nodes-invite-failed'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l.celautInviteFailedTitle, style: const TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          if (view.attempts.isEmpty) Text(l.celautInviteNoAddress),
+          for (final a in view.attempts) ...[
+            Text(a.address, style: const TextStyle(fontFamily: 'IBMPlexMono', fontSize: 13)),
+            Text(
+              switch (a.kind) {
+                InviteAttemptKind.onionNeedsProxy => l.celautInviteOnionNeedsProxy,
+                InviteAttemptKind.privateOverTor => l.celautInvitePrivateOverTor,
+                _ => CelautStrings.errorText(a.error ?? CelautErrorKind.unreachable),
+              },
+              style: TextStyle(fontSize: 12.5, color: muted),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
   }
 
   void _remove(KnownNodeView n) {
@@ -245,6 +347,7 @@ class _KnownNodesScreenState extends State<KnownNodesScreen> {
         ),
         const SizedBox(height: 16),
         if (_note != null) SoftCard(child: Text(_note!, key: const Key('nodes-note'))),
+        if (_invite != null) _inviteFailure(context, _invite!),
         if (_error != null)
           SoftCard(
             child: Text(

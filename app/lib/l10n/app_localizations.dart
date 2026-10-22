@@ -9382,6 +9382,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Run without variables'**
   String get celautEnvRunWithout;
+
+  /// No description provided for @celautInviteConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected by {address}. The node is in your list.'**
+  String celautInviteConnected(String address);
+
+  /// No description provided for @celautInviteFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not connect to the invited node'**
+  String get celautInviteFailedTitle;
+
+  /// No description provided for @celautInviteNoAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'The invitation has no address that this app can use.'**
+  String get celautInviteNoAddress;
+
+  /// No description provided for @celautInviteOnionNeedsProxy.
+  ///
+  /// In en, this message translates to:
+  /// **'Not tried. An onion address needs Tor through an external proxy such as Orbot. A direct connection and the Tor client of the app cannot open it.'**
+  String get celautInviteOnionNeedsProxy;
+
+  /// No description provided for @celautInvitePrivateOverTor.
+  ///
+  /// In en, this message translates to:
+  /// **'Not tried. An address on a private network cannot be reached through Tor.'**
+  String get celautInvitePrivateOverTor;
 }
 
 class _AppLocalizationsDelegate

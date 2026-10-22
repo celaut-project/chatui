@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:argus_wallet/bridge/api/celaut.dart';
 import 'package:argus_wallet/bridge/api/celaut_health.dart';
 import 'package:argus_wallet/bridge/api/celaut_home.dart';
+import 'package:argus_wallet/bridge/api/celaut_invite.dart';
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
 import 'package:argus_wallet/celaut/celaut_strings.dart';
 import 'package:argus_wallet/celaut/node_health_format.dart';
@@ -404,4 +406,7 @@ class _Nodes implements KnownNodes {
 
   @override
   void remove(String peerId) {}
+
+  @override
+  Future<InviteConnectView> connectInvite(Uint8List invite) => throw UnimplementedError();
 }

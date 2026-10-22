@@ -395,16 +395,20 @@ pub fn celaut_known_nodes() -> Vec<KnownNodeView> {
 #[flutter_rust_bridge::frb]
 pub async fn celaut_add_node(node: NodeAddress) -> Result<KnownNodeView, CelautError> {
     let s = session(&node).await?;
-    let peer_id = s.peer_id().to_string();
-    let address = key(&node);
+    list_node(s.peer_id(), &key(&node))
+}
+
+/// Put the node `peer_id`, which the app just reached at `address` (`host:port`), in the
+/// node list, with that address first.
+pub(crate) fn list_node(peer_id: &str, address: &str) -> Result<KnownNodeView, CelautError> {
     db().update(|d| {
-        if let Some(record) = d.nodes.get_mut(&peer_id) {
+        if let Some(record) = d.nodes.get_mut(peer_id) {
             record.listed = true;
         }
-        d.note_address(&peer_id, &address);
+        d.note_address(peer_id, address);
     })
     .map_err(storage_error)?;
-    db().read(|d| known_node(d, &peer_id))
+    db().read(|d| known_node(d, peer_id))
         .ok_or_else(|| invalid("The node is not in the database after the check."))
 }
 

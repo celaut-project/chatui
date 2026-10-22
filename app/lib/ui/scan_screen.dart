@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
+import '../celaut/invite_scan.dart';
 import '../l10n/l10n.dart';
 import '../services/session_lock.dart';
 
+/// Reads one QR code and closes with it. By default the result is the trimmed text
+/// (`String`). With [binary] it is a [ScannedCode] with the text and the bytes, for the
+/// peer invitation of a node, which is binary (`docs/celaut/invite.md`).
 class ScanScreen extends StatefulWidget {
-  const ScanScreen({super.key});
+  const ScanScreen({super.key, this.binary = false});
+
+  final bool binary;
 
   @override
   State<ScanScreen> createState() => _ScanScreenState();
@@ -29,6 +35,13 @@ class _ScanScreenState extends State<ScanScreen> {
 
   void _onScan(Code code) {
     if (_done || !mounted || !code.isValid) return;
+    if (widget.binary) {
+      final bytes = code.rawBytes;
+      if (bytes == null || bytes.isEmpty) return;
+      _done = true;
+      Navigator.pop(context, ScannedCode(text: code.text?.trim(), bytes: bytes));
+      return;
+    }
     final raw = code.text?.trim();
     if (raw == null || raw.isEmpty) return;
     _done = true;

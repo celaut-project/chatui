@@ -50,7 +50,8 @@ With Tor on, the app never falls back to a direct connection.
 ## Limits
 
 - A node on a private network (`10.0.2.2` of the emulator, `192.168.x.x`) cannot be reached
-  through Tor.
+  through Tor. The app does not try such an address of a peer invitation on a Tor route
+  ([invite.md](invite.md), section 3).
 - Tor hides the IP address of the phone from the node. It does not hide the node, and a
   node still links the calls of one client id. Onion addresses for nodes are nodo work
   (decision 7 in `docs/celaut-plan.md`).

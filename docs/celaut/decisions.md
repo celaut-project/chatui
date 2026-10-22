@@ -57,3 +57,6 @@
   When a service that declares variables is launched, the app asks for each one: choose
   one of the container, type it as UTF-8, or skip it (it is then absent from the
   configuration). Design in [env-variables.md](env-variables.md).
+- **Peer invitation (2026-10-22, Josemi):** the app reads the QR code of nodo#579
+  (`protos/invite.proto`) and connects to the node by the address that is most feasible on the
+  current route, with the invited key pinned. See [invite.md](invite.md).

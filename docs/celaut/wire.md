@@ -229,6 +229,9 @@ address. The app reads two forms. The text is trimmed first.
    - Example: `celaut://node?addr=203.0.113.7:53460`.
 2. **Bare address:** `host:port` or `[ipv6]:port`, with no scheme.
 
+A third form is binary, not text: the peer invitation of nodo (`protos/invite.proto`). The
+app tells it apart by its first bytes and reads it as [invite.md](invite.md) says.
+
 Any other text is not a node address (for example an Ergo address, an ErgoPay link or
 a web link). The app shows the same error as for a bad typed address and stores
 nothing.

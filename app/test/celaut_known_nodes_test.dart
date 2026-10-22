@@ -1,7 +1,11 @@
+
 import 'package:argus_wallet/bridge/api/celaut.dart';
 import 'package:argus_wallet/bridge/api/celaut_home.dart';
+import 'package:argus_wallet/bridge/api/celaut_invite.dart';
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
 import 'package:argus_wallet/bridge/frb_generated.dart';
+import 'package:argus_wallet/celaut/celaut_strings.dart';
+import 'package:argus_wallet/celaut/invite_scan.dart';
 import 'package:argus_wallet/format.dart';
 import 'package:argus_wallet/l10n/l10n.dart';
 import 'package:argus_wallet/ui/celaut/known_nodes_screen.dart';
@@ -23,6 +27,26 @@ class _Db implements KnownNodes {
   final byAddress = {'a.example:1': 'aa' * 32, 'b.example:2': 'bb' * 32};
   final errors = <CelautError>[];
   final adds = <String>[];
+
+  /// The answers of `connectInvite`, in order, and the bytes that it was given.
+  final invites = <InviteConnectView>[];
+  final invited = <Uint8List>[];
+
+  @override
+  Future<InviteConnectView> connectInvite(Uint8List invite) async {
+    invited.add(invite);
+    if (errors.isNotEmpty) throw errors.removeAt(0);
+    final view = invites.removeAt(0);
+    final node = view.node;
+    if (node != null) {
+      records[node.peerId] = (
+        addresses: node.addresses,
+        deposited: records[node.peerId]?.deposited ?? 0,
+        listed: true,
+      );
+    }
+    return view;
+  }
 
   KnownNodeView _view(String peer) => KnownNodeView(
     peerId: peer,
@@ -73,12 +97,14 @@ void main() {
     WidgetTester tester, {
     List<String>? made,
     List<String?>? scans,
+    List<ScannedCode?>? codes,
     bool camera = false,
+    _Db? with_,
   }) async {
     tester.view.physicalSize = const Size(390, 2400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final db = _Db();
+    final db = with_ ?? _Db();
     await tester.pumpWidget(
       MaterialApp(
         home: KnownNodesScreen(
@@ -89,7 +115,13 @@ void main() {
           },
           // The QR codes that the scanner reads, in order; null is "back". With
           // `camera`, the app's scanner opens (the test has no camera).
-          scan: camera ? null : (_) async => scans!.removeAt(0),
+          scan: camera
+              ? null
+              : (_) async {
+                  if (codes != null) return codes.removeAt(0);
+                  final text = scans!.removeAt(0);
+                  return text == null ? null : ScannedCode.text(text);
+                },
         ),
       ),
     );
@@ -286,5 +318,146 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.byKey(const Key('settings-nodes')), findsOneWidget);
+  });
+
+  group('a peer invitation', () {
+    /// The bytes of an invitation as nodo writes them: field 1, the 32-byte key, first.
+    Uint8List invite([int fill = 0xbb]) => Uint8List.fromList([0x0a, 0x20, ...List.filled(32, fill), 0x12, 0x00]);
+
+    KnownNodeView nodeB(String address) =>
+        KnownNodeView(peerId: _b, addresses: [address], depositedNanoErg: BigInt.zero);
+
+    InviteAttemptView attempt(
+      String address,
+      InviteAttemptKind kind, {
+      CelautErrorKind? error,
+      String message = '',
+    }) => InviteAttemptView(address: address, kind: kind, error: error, message: message);
+
+    testWidgets('it connects by the address that worked and lists the node', (tester) async {
+      final db = _Db();
+      db.invites.add(
+        InviteConnectView(
+          peerId: _b,
+          node: nodeB('b.example:2'),
+          attempts: [
+            attempt('203.0.113.7:1', InviteAttemptKind.failed, error: CelautErrorKind.timeout),
+            attempt('b.example:2', InviteAttemptKind.connected),
+          ],
+        ),
+      );
+      final bytes = invite();
+      await pump(tester, with_: db, codes: [ScannedCode(bytes: bytes)]);
+      await tester.tap(find.byKey(const Key('nodes-scan')));
+      await tester.pumpAndSettle();
+      expect(db.invited, [bytes]);
+      expect(db.adds, isEmpty, reason: 'it is not a typed address');
+      expect(find.byKey(Key('nodes-row-$_b')), findsOneWidget);
+      expect(find.text(appL10n.celautInviteConnected('b.example:2')), findsOneWidget);
+      expect(find.byKey(const Key('nodes-invite-failed')), findsNothing);
+      expect(find.byKey(const Key('nodes-error')), findsNothing);
+    });
+
+    testWidgets('when no address works, each one says why', (tester) async {
+      final db = _Db();
+      db.invites.add(
+        InviteConnectView(
+          peerId: _b,
+          attempts: [
+            attempt('203.0.113.7:1', InviteAttemptKind.failed, error: CelautErrorKind.identityMismatch),
+            attempt('x.onion:2', InviteAttemptKind.onionNeedsProxy),
+            attempt('[fd00::1]:3', InviteAttemptKind.privateOverTor),
+          ],
+        ),
+      );
+      await pump(tester, with_: db, codes: [ScannedCode(bytes: invite())]);
+      await tester.tap(find.byKey(const Key('nodes-scan')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('nodes-invite-failed')), findsOneWidget);
+      expect(find.text(appL10n.celautInviteFailedTitle), findsOneWidget);
+      expect(find.text('203.0.113.7:1'), findsOneWidget);
+      expect(find.text(CelautStrings.errorText(CelautErrorKind.identityMismatch)), findsOneWidget);
+      expect(find.text(appL10n.celautInviteOnionNeedsProxy), findsOneWidget);
+      expect(find.text(appL10n.celautInvitePrivateOverTor), findsOneWidget);
+      expect(find.byKey(Key('nodes-row-$_b')), findsNothing);
+      expect(db.records.keys, [_a]);
+    });
+
+    testWidgets('an invitation with no address that the app knows says so', (tester) async {
+      final db = _Db()..invites.add(InviteConnectView(peerId: _b, attempts: const []));
+      await pump(tester, with_: db, codes: [ScannedCode(bytes: invite())]);
+      await tester.tap(find.byKey(const Key('nodes-scan')));
+      await tester.pumpAndSettle();
+      expect(find.text(appL10n.celautInviteNoAddress), findsOneWidget);
+    });
+
+    testWidgets('bytes that Rust does not read as an invitation are a bad address', (tester) async {
+      final db = _Db()..errors.add(const CelautError(kind: CelautErrorKind.invalidInput, message: 'Not a peer invitation'));
+      await pump(tester, with_: db, codes: [ScannedCode(bytes: invite())]);
+      await tester.tap(find.byKey(const Key('nodes-scan')));
+      await tester.pumpAndSettle();
+      expect(db.invited, hasLength(1));
+      expect(find.text(appL10n.celautAddressInvalid), findsOneWidget);
+      expect(db.records.keys, [_a]);
+    });
+
+    testWidgets('a code of text is never sent to the invitation reader', (tester) async {
+      final db = _Db();
+      final text = 'ergopay://example.org/pay';
+      await pump(
+        tester,
+        with_: db,
+        codes: [ScannedCode(text: text, bytes: Uint8List.fromList(text.codeUnits))],
+      );
+      await tester.tap(find.byKey(const Key('nodes-scan')));
+      await tester.pumpAndSettle();
+      expect(db.invited, isEmpty);
+      expect(find.text(appL10n.celautAddressInvalid), findsOneWidget);
+    });
+
+    testWidgets('bytes that begin as an invitation but are too short are not one', (tester) async {
+      expect(looksLikeInvite(Uint8List.fromList([0x0a, 0x20, 1, 2, 3])), isFalse);
+      expect(looksLikeInvite(null), isFalse);
+      expect(looksLikeInvite(invite()), isTrue);
+      expect(looksLikeInvite(Uint8List.fromList([0x0a, 0x1f, ...List.filled(40, 1)])), isFalse);
+    });
+
+    testWidgets('a node that forgot the client id asks the user, and a new client connects again', (
+      tester,
+    ) async {
+      final made = <String>[];
+      final db = _Db();
+      db.invites
+        ..add(
+          InviteConnectView(
+            peerId: _b,
+            attempts: [
+              attempt(
+                'b.example:2',
+                InviteAttemptKind.failed,
+                error: CelautErrorKind.clientUnknown,
+                message: 'unknown client',
+              ),
+            ],
+          ),
+        )
+        ..add(
+          InviteConnectView(
+            peerId: _b,
+            node: nodeB('b.example:2'),
+            attempts: [attempt('b.example:2', InviteAttemptKind.connected)],
+          ),
+        );
+      await pump(tester, with_: db, made: made, codes: [ScannedCode(bytes: invite())]);
+      await tester.tap(find.byKey(const Key('nodes-scan')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('client-unknown-dialog')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('client-unknown-new')));
+      await tester.pumpAndSettle();
+      expect(made, ['b.example:2']);
+      expect(db.invited, hasLength(2));
+      expect(find.byKey(Key('nodes-row-$_b')), findsOneWidget);
+      expect(find.byKey(const Key('nodes-invite-failed')), findsNothing);
+    });
   });
 }
