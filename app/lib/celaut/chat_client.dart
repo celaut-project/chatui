@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'tunnel_http.dart';
 
-/// One message of a conversation (`docs/celaut/chat.md`, section 3).
+/// One message of a conversation (`docs/celaut/chat.md`, section 5).
 class ChatMessage {
   const ChatMessage({required this.seq, required this.role, required this.text});
 
@@ -121,7 +121,7 @@ class ChatClient {
   /// If the service says that the client is out of sync (409), or the connection
   /// breaks, the client reads the history first. If the message is in it, the send
   /// worked. If not, the client does not send it again by itself: it throws, and the
-  /// user decides to try again (`docs/celaut/chat.md`, section 4.1).
+  /// user decides to try again (`docs/celaut/chat.md`, section 6.3).
   Future<void> send(String text) => _serial(() => _send(text));
 
   Future<void> _serial(Future<void> Function() action) {

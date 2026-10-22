@@ -95,7 +95,7 @@ is not asked for.
   service without a chat slot starts, and a message says that it is in Compute, under
   "Other instances".
 - **Open a conversation again.** A tap on a row opens the local port of the chat slot and
-  reads the history from 0 ([chat.md](chat.md), section 5). This works after the lock of the
+  reads the history from 0 ([chat.md](chat.md), section 6.2). This works after the lock of the
   app closed the screen, and after a restart of the app.
 - **Leave.** Back goes to the list at once. The instance runs on, the node keeps charging,
   and the row shows its cost.
@@ -130,7 +130,7 @@ view is the Compute tab, not a first screen.
 
 | Where | Before | In this UI |
 |---|---|---|
-| [chat.md](chat.md), section 1 and 5: leaving the screen (decision of 2026-10-14) | The app asks "Stop the instance" or "Leave it running" | Back goes to the list without a question. The instance runs on and stays in the list. Stop is in ⋮, the info page and the long press |
+| The conversation screen: leaving it (decision of 2026-10-14, first written in `chat.md` revision 1) | The app asks "Stop the instance" or "Leave it running" | Back goes to the list without a question. The instance runs on and stays in the list. Stop is in ⋮, the info page and the long press |
 | [ui.md](ui.md), section 2: the home screen (decision of 2026-10-16) | The compute view: running instances, "Run a service", the card of state | The Chats tab. The compute view is unchanged and is the Compute tab |
 | [ui.md](ui.md), section 2: "Run a service" | A button of the home screen | The pencil button ("New conversation") and "Services" in the Compute tab; the Compute tab keeps its button. The confirmation is the same |
 | The Celaut database | An instance has no name, and leaves the database at its stop | An instance keeps the name of its skill or service file (`InstanceRecord.name`), and stays after its stop, as stopped, until the user deletes it |

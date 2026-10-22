@@ -17,7 +17,7 @@ import 'run_service_section.dart' show StartedCall;
 /// (`docs/celaut/ui-chat-first.md`):
 ///
 /// - the list of conversations: each row is an instance whose interface has a chat slot
-///   (`docs/celaut/chat.md`, section 2);
+///   (`docs/celaut/chat.md`, section 3);
 /// - the pencil button opens "New conversation": the skills of the catalog and the
 ///   service files, then the confirmation, the wallet, the launch, and the conversation.
 ///
@@ -169,7 +169,7 @@ class ChatsScreenState extends State<ChatsScreen> {
   }
 }
 
-/// The instances whose interface has no chat slot (`docs/celaut/chat.md`, section 2).
+/// The instances whose interface has no chat slot (`docs/celaut/chat.md`, section 3).
 /// They have no conversation: a row opens the info page of the instance.
 class OtherInstancesScreen extends StatelessWidget {
   const OtherInstancesScreen({

@@ -418,7 +418,7 @@ the instance or leave it running, the detector of the chat slot, the launch on t
 node, the skill catalog and its picker, the filter on the advertised resources, and an
 Android foreground service while a conversation is open. After a launch, the screen
 says that the service starts and reads the history again until the service answers
-(`ChatClient.syncWhenStarted`, chat.md section 5).
+(`ChatClient.syncWhenStarted`, chat.md section 9).
 
 Check on 2026-10-21, on our node (x86_64 with KVM, nodo `ec1274d`, default config), from
 the debug APK of the closing PR in the x86_64 emulator (Android 15, AOSP), the node at

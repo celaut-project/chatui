@@ -40,7 +40,7 @@ impl StartedInstance {
             .collect()
     }
 
-    /// The slots that follow the chat convention (`docs/celaut/chat.md`, section 2), in
+    /// The slots that follow the chat convention (`docs/celaut/chat.md`, section 3), in
     /// the order of `Service.Api`. The client uses the first one.
     pub fn chat_slots(&self) -> Vec<u16> {
         chat_slots(&self.instance)
@@ -54,7 +54,7 @@ const CHAT_TAG: &str = "chat";
 
 /// The ports of `api` that follow the chat convention: a slot with the transport `tcp`,
 /// and a protocol stack that has `http` and, above it, `chat` (the stack is written
-/// bottom to top), in the order of the interface (`docs/celaut/chat.md`, section 2). The
+/// bottom to top), in the order of the interface (`docs/celaut/chat.md`, section 3). The
 /// reachability of a port is not checked here: for a service that is not running, there is
 /// no instance yet.
 pub fn api_chat_ports(api: &Api) -> Vec<u16> {
