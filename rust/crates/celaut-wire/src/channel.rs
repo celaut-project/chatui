@@ -5,9 +5,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bee_rpc::frame::{ParseOptions, Part};
+use celaut_net::BoxStream;
 use hyper_util::rt::TokioIo;
 use rustls::pki_types::ServerName;
-use celaut_net::BoxStream;
 use tokio_rustls::client::TlsStream;
 use tokio_rustls::TlsConnector;
 use tonic::codegen::http::Uri;
@@ -120,6 +120,51 @@ fn futures_unfold(response: bee_rpc::grpc::RawResponse) -> crate::transport::Buf
         rx
     });
     Box::pin(stream)
+}
+
+/// [`futures_unfold`] for a call with `block_skip`: the task that owns the response also
+/// forwards the skip requests of the reader, before it reads each Buffer. Gives the stream
+/// and the function that queues a request.
+fn futures_unfold_skippable(
+    response: bee_rpc::grpc::RawResponse,
+) -> (crate::transport::Buffers, crate::transport::Skipper) {
+    use std::sync::{Arc, Mutex, PoisonError};
+    let queue: Arc<Mutex<Vec<Vec<u8>>>> = Arc::new(Mutex::new(Vec::new()));
+    let (tx, rx) = tokio::sync::mpsc::channel(1);
+    let requests = queue.clone();
+    tokio::spawn(async move {
+        let mut response = response;
+        loop {
+            let asked: Vec<Vec<u8>> =
+                std::mem::take(&mut *requests.lock().unwrap_or_else(PoisonError::into_inner));
+            for id in asked {
+                response.request_skip(&id);
+            }
+            let item = match response.next().await {
+                Ok(Some(buffer)) => Ok(buffer),
+                Ok(None) => return,
+                Err(e) => Err(wire_error(e)),
+            };
+            let stop = item.is_err();
+            if tx.send(item).await.is_err() || stop {
+                return;
+            }
+        }
+    });
+    let skipper: crate::transport::Skipper = Arc::new(move |id: &[u8]| {
+        if id.is_empty() {
+            return false;
+        }
+        queue
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(id.to_vec());
+        true
+    });
+    (
+        Box::pin(tokio_stream::wrappers::ReceiverStream::new(rx)),
+        skipper,
+    )
 }
 
 /// The text of an error and its sources.
@@ -288,6 +333,28 @@ impl Transport for Connection {
             .map_err(wire_error)?;
         let stream = futures_unfold(response);
         Ok(stream)
+    }
+
+    async fn call_raw_skippable(
+        &self,
+        method: &str,
+        parts: Vec<Part>,
+        timeout: Duration,
+    ) -> Result<crate::transport::RawAnswer, WireError> {
+        let options = bee_rpc::grpc::CallOptions {
+            timeout: Some(timeout),
+            block_skip: true,
+            ..Default::default()
+        };
+        let path = format!("/celaut.Gateway/{method}");
+        let response = bee_rpc::grpc::call_raw(self.channel.clone(), &path, parts, options)
+            .await
+            .map_err(wire_error)?;
+        let (buffers, skipper) = futures_unfold_skippable(response);
+        Ok(crate::transport::RawAnswer {
+            buffers,
+            skipper: Some(skipper),
+        })
     }
 
     async fn call(

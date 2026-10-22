@@ -14,6 +14,22 @@ use crate::WireError;
 /// [`Transport::call_buffers`] and the answer of [`Transport::call_raw`].
 pub type Buffers = Pin<Box<dyn Stream<Item = Result<Buffer, WireError>> + Send>>;
 
+/// Asks the node to drop the rest of a block: the id is the hash of its expansion, from its
+/// marker. True if the request was queued. See [`Transport::call_raw_skippable`].
+pub type Skipper = std::sync::Arc<dyn Fn(&[u8]) -> bool + Send + Sync>;
+
+/// The answer of [`Transport::call_raw_skippable`].
+pub struct RawAnswer {
+    /// The Buffers of the answer, as they are.
+    pub buffers: Buffers,
+    /// Asks the node to skip a block, if the transport can. A reader that does not need
+    /// the content of a block (the filesystem of a service, to read what is around it) calls
+    /// it with the id of the marker that it just read. The node drops the Buffers of the
+    /// block that it has not sent, and still sends its end marker, once. The Buffers that
+    /// were already on the way arrive too.
+    pub skipper: Option<Skipper>,
+}
+
 /// Sends the parts of one request to a method of the Gateway and returns the parts
 /// of the answer. `method` is the short name, for example `"GetPeerInfo"`.
 ///
@@ -53,7 +69,11 @@ pub trait Transport: Send + Sync {
         timeout: Duration,
     ) -> impl Future<Output = Result<Vec<Part>, WireError>> + Send {
         let _ = (method, input, accepted, timeout);
-        async { Err(WireError::Protocol("this transport cannot relay Buffers".into())) }
+        async {
+            Err(WireError::Protocol(
+                "this transport cannot relay Buffers".into(),
+            ))
+        }
     }
 
     /// Send `parts`, and give the Buffers of the answer as they are, without
@@ -65,6 +85,28 @@ pub trait Transport: Send + Sync {
         timeout: Duration,
     ) -> impl Future<Output = Result<Buffers, WireError>> + Send {
         let _ = (method, parts, timeout);
-        async { Err(WireError::Protocol("this transport cannot give raw Buffers".into())) }
+        async {
+            Err(WireError::Protocol(
+                "this transport cannot give raw Buffers".into(),
+            ))
+        }
+    }
+
+    /// [`Transport::call_raw`], and a way to ask the node to skip a block. A transport that
+    /// cannot ask gives the same Buffers and no skipper: the reader then gets the whole
+    /// answer.
+    fn call_raw_skippable(
+        &self,
+        method: &str,
+        parts: Vec<Part>,
+        timeout: Duration,
+    ) -> impl Future<Output = Result<RawAnswer, WireError>> + Send {
+        let raw = self.call_raw(method, parts, timeout);
+        async move {
+            Ok(RawAnswer {
+                buffers: raw.await?,
+                skipper: None,
+            })
+        }
     }
 }

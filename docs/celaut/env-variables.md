@@ -94,7 +94,8 @@ A quote asks every node. A value must not go to nodes that only price the servic
    filesystem can be hundreds of megabytes (`claude-code.bee` has 536 MB), so the Service is
    not decoded as a message. `celaut-client/src/service_info.rs` walks its protobuf fields as
    a stream and skips the filesystem; [service-info.md](service-info.md) says how. From a node
-   the app stops after 128 MiB and the service counts as one that cannot be read: the app asks
+   the app asks the node to skip the block of the filesystem, so the read is small; a node that
+   does not skip is stopped after 128 MiB, and the service counts as one that cannot be read: the app asks
    the user to run it anyway or to cancel. A service that the user loaded as a file is always
    read from the file.
 3. The questions of section 3.
@@ -158,5 +159,5 @@ The checks are in `celaut-client` (`env.rs`, `db.rs`, `service_info.rs`), `walle
 - Do the eye and the edit of a value need the unlock of the wallet (`wallet_unlock.dart`)?
   The code says no, as the database is encrypted already.
 - Save a typed value into the container from the question (section 3). Not built.
-- A service of more than 128 MiB that is on a node and not in the library cannot be read for
+- A service of more than 128 MiB that is on a node that does not skip blocks, and not in the library, cannot be read for
   its declaration. The user can load the file, or run with no variables.

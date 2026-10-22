@@ -174,6 +174,30 @@ pub async fn get_service_raw<T: Transport>(
         .await
 }
 
+/// [`get_service_raw`], with a way to ask the node to skip a block: for a reader that
+/// describes the service and does not need the filesystem of its container.
+pub async fn get_service_skippable<T: Transport>(
+    transport: &T,
+    client_id: &str,
+    service_id: [u8; 32],
+) -> Result<crate::transport::RawAnswer, WireError> {
+    let hash = Hash {
+        r#type: SHA3_256_TYPE.to_vec(),
+        value: service_id.to_vec(),
+    };
+    let client = Client {
+        client_id: client_id.to_string(),
+        ..Default::default()
+    };
+    let parts = vec![
+        Part::new(1, hash.encode_to_vec()),
+        Part::new(2, client.encode_to_vec()),
+    ];
+    transport
+        .call_raw_skippable("GetService", parts, SERVICE_TRANSFER_TIMEOUT)
+        .await
+}
+
 /// `GetServiceEstimatedCost` with the service: the request parts, then `service` (the
 /// Buffers of a service with the `StartService` indices 4, 5 and 6). The node stores the
 /// service, so later calls need only its hash. If `service` fails, the node refuses the

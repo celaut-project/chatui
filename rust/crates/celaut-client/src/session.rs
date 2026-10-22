@@ -10,7 +10,8 @@ use celaut_proto::celaut::service::Api;
 use celaut_proto::celaut::{Configuration, EstimatedCost, Instance, Payment};
 use celaut_wire::gateway::{
     generate_deposit_token, get_metrics, get_service_estimated_cost,
-    get_service_estimated_cost_with_service, get_service_raw, payable, start_service,
+    get_service_estimated_cost_with_service, get_service_raw, get_service_skippable, payable,
+    start_service,
     stop_service, ServiceRequest,
 };
 use celaut_wire::Transport;
@@ -182,6 +183,16 @@ impl<T: Transport> NodeSession<T> {
     /// node (`crate::package`). A node that does not have the service gives nothing.
     pub async fn get_service(&self, service_id: [u8; 32]) -> Result<celaut_wire::Buffers, ClientError> {
         Ok(get_service_raw(&self.transport, &self.client_id, service_id).await?)
+    }
+
+    /// `GetService` for a reader that describes the service and does not need its
+    /// filesystem: the Buffers, and a way to ask the node to skip the block that holds it
+    /// (`crate::service_info`). Not for a transfer to another node, which needs it all.
+    pub async fn get_service_skippable(
+        &self,
+        service_id: [u8; 32],
+    ) -> Result<celaut_wire::RawAnswer, ClientError> {
+        Ok(get_service_skippable(&self.transport, &self.client_id, service_id).await?)
     }
 
     /// `GetServiceEstimatedCost` with the service: the node stores `service`, and gives

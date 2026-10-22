@@ -24,12 +24,17 @@ use bee_rpc::buffer::Buffer;
 use celaut_proto::celaut::service::container::{Architecture, ConfigDeclaration, Init, Resources};
 use celaut_proto::celaut::service::{Api, Network, PossibleEnvironmentWorkload};
 use celaut_proto::celaut::DataFormatKeyValue;
-use celaut_wire::Buffers;
+use celaut_wire::gateway::SHA3_256_TYPE;
+use celaut_wire::{Buffers, Skipper};
 use prost::Message;
 use tokio_stream::StreamExt;
 
 use crate::package::{inspect, read, Cancel, PackageError};
 use crate::session::api_chat_ports;
+
+/// A field of at least this many bytes is asked to be skipped, if the node can skip it
+/// (it is a block that holds the filesystem of a service).
+const SKIP_THRESHOLD: u64 = 1024 * 1024;
 
 /// How long the reader waits for the next Buffer before it gives up.
 const IDLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
@@ -73,6 +78,26 @@ struct ServiceBytes {
     limit_hit: bool,
     /// The parts that were larger than the reader decodes, and were skipped.
     skipped: u32,
+    /// Asks the node to skip a block, if the transport can.
+    skipper: Option<Skipper>,
+    /// The ids of the blocks of the Service part that are open, outermost first.
+    stack: Vec<Vec<u8>>,
+    /// The id of the block that the node was asked to skip, until its end marker comes.
+    skipping: Option<Vec<u8>>,
+    /// The block that opened at the top level since it was last looked at.
+    opened: Option<Vec<u8>>,
+    /// How many blocks the node was asked to skip.
+    blocks_skipped: u32,
+}
+
+/// The id of a block, from its marker: the SHA3-256 hash that names it.
+fn block_id(block: &bee_rpc::buffer::buffer::Block) -> Option<Vec<u8>> {
+    block
+        .hashes
+        .iter()
+        .find(|h| h.r#type == SHA3_256_TYPE)
+        .map(|h| h.value.clone())
+        .filter(|v| !v.is_empty())
 }
 
 fn invalid(text: &str) -> PackageError {
@@ -80,7 +105,7 @@ fn invalid(text: &str) -> PackageError {
 }
 
 impl ServiceBytes {
-    fn new(input: Buffers, limit: Option<u64>) -> Self {
+    fn new(input: Buffers, limit: Option<u64>, skipper: Option<Skipper>) -> Self {
         ServiceBytes {
             input,
             buf: Vec::new(),
@@ -92,6 +117,11 @@ impl ServiceBytes {
             limit,
             limit_hit: false,
             skipped: 0,
+            skipper,
+            stack: Vec::new(),
+            skipping: None,
+            opened: None,
+            blocks_skipped: 0,
         }
     }
 
@@ -123,7 +153,12 @@ impl ServiceBytes {
             self.open = Some(buffer.head.as_ref().map_or(0, |h| h.index));
         }
         if self.open == Some(SERVICE_INDEX) {
-            if let Some(chunk) = &buffer.chunk {
+            if let Some(id) = buffer.block.as_ref().and_then(block_id) {
+                self.mark_block(id);
+            }
+            // The chunks of a block that the node was asked to skip are not the field: they
+            // are what was on the way when the request arrived.
+            if let (Some(chunk), None) = (&buffer.chunk, &self.skipping) {
                 if self.pos > 0 && self.pos == self.buf.len() {
                     self.buf.clear();
                     self.pos = 0;
@@ -138,6 +173,58 @@ impl ServiceBytes {
             self.open = None;
         }
         Ok(true)
+    }
+
+    /// A block marker of the Service part. The id of a block that is open closes it, and
+    /// the blocks that were open inside it (a node that skips a block drops the markers of
+    /// its children); any other id opens one.
+    fn mark_block(&mut self, id: Vec<u8>) {
+        match self.stack.iter().rposition(|open| *open == id) {
+            Some(at) => {
+                self.stack.truncate(at);
+                if at == 0 {
+                    self.skipping = None;
+                }
+            }
+            None => {
+                if self.stack.is_empty() {
+                    self.opened = Some(id.clone());
+                }
+                self.stack.push(id);
+            }
+        }
+    }
+
+    /// Skip the `len` bytes of a field. A field of a megabyte or more that is a block, and
+    /// that the node can skip, is not read: the reader asks the node to drop it, ignores what
+    /// was on the way until the end marker of the block, and counts the field as read (the
+    /// length of a field that is a block is the length of the block). If the field is not a
+    /// block, or the node cannot skip, the bytes are read and dropped.
+    async fn skip_field(&mut self, len: u64) -> Result<(), PackageError> {
+        if len >= SKIP_THRESHOLD && self.skipper.is_some() && self.pos >= self.buf.len() {
+            self.opened = None;
+            // The next Buffer: a marker if the field is a block, else its first bytes.
+            while self.pos >= self.buf.len() && self.opened.is_none() {
+                if !self.pull().await? {
+                    break;
+                }
+            }
+            if let Some(id) = self.opened.take() {
+                let asked = self.skipper.as_ref().is_some_and(|skip| skip(&id));
+                if asked && self.stack.len() == 1 {
+                    self.skipping = Some(id);
+                    self.blocks_skipped += 1;
+                    while self.skipping.is_some() {
+                        if !self.pull().await? {
+                            return Err(invalid("the Service is cut"));
+                        }
+                    }
+                    self.consumed = self.consumed.saturating_add(len);
+                    return Ok(());
+                }
+            }
+        }
+        self.skip(len).await
     }
 
     /// Make sure that at least one byte is ready. False at the end of the Service part.
@@ -266,6 +353,8 @@ pub struct ServiceInfo {
     /// True if the interface was larger than the reader decodes and was skipped, so the
     /// chat check cannot tell.
     pub api_skipped: bool,
+    /// How many blocks the node was asked not to send (the block of the filesystem).
+    pub blocks_skipped: u32,
     /// True if the stream passed the limit before the end of the Service part. The fields
     /// after the filesystem (everything but the prose and the architecture) are then
     /// unknown, which is not the same as empty.
@@ -332,7 +421,7 @@ async fn scan_container(
             // The filesystem is skipped: it is the weight of the service.
             2 => {
                 info.filesystem_bytes = info.filesystem_bytes.saturating_add(len);
-                src.skip(len).await?;
+                src.skip_field(len).await?;
             }
             3 => info.init = part(src, len, "the init").await?,
             4 => info.resources = part(src, len, "the resources").await?,
@@ -416,14 +505,16 @@ async fn scan(src: &mut ServiceBytes, info: &mut ServiceInfo) -> Result<(), Pack
 }
 
 /// Read what the service says about itself from the Buffers of a service (`GetService`,
-/// or a package through [`read`]). With `limit`, a stream of more bytes than that ends
+/// or a package through [`read`]). With a `skipper`, the node is asked not to send the block of
+/// the filesystem, so it is not even received. With `limit`, a stream of more bytes than that ends
 /// the reading: what was read so far is given, with `truncated` set (a node can send a
 /// service of gigabytes, and the fields after the filesystem need all of it).
 pub async fn read_service_info(
     input: Buffers,
     limit: Option<u64>,
+    skipper: Option<Skipper>,
 ) -> Result<ServiceInfo, PackageError> {
-    let mut src = ServiceBytes::new(input, limit);
+    let mut src = ServiceBytes::new(input, limit, skipper);
     let mut info = ServiceInfo::default();
     match scan(&mut src, &mut info).await {
         Ok(()) => {}
@@ -433,6 +524,7 @@ pub async fn read_service_info(
     }
     info.truncated = src.limit_hit;
     info.parts_skipped = src.skipped;
+    info.blocks_skipped = src.blocks_skipped;
     Ok(info)
 }
 
@@ -443,7 +535,12 @@ pub async fn read_service_info_of_file(path: &Path) -> Result<ServiceInfo, Packa
     if !info.has_service {
         return Err(invalid("the file has no Service part"));
     }
-    read_service_info(read(path.to_path_buf(), info.layout, Cancel::new()), None).await
+    read_service_info(
+        read(path.to_path_buf(), info.layout, Cancel::new()),
+        None,
+        None,
+    )
+    .await
 }
 
 #[cfg(test)]
@@ -614,7 +711,7 @@ mod tests {
     async fn every_part_is_read_after_a_large_filesystem() {
         let bytes = service(300_000, &["API_KEY", "DB_PASSWORD"]).encode_to_vec();
         for size in [1, 7, 4096, 1 << 20] {
-            let info = read_service_info(package(&bytes, size), None)
+            let info = read_service_info(package(&bytes, size), None, None)
                 .await
                 .unwrap();
             assert!(!info.truncated, "chunks of {size}");
@@ -650,7 +747,7 @@ mod tests {
         // A filesystem of 40 MiB, read in chunks of 1 MiB: the buffer of the reader stays
         // as large as one chunk and the parts that it keeps, never as the filesystem.
         let bytes = service(40 << 20, &["A"]).encode_to_vec();
-        let mut src = ServiceBytes::new(package(&bytes, 1 << 20), None);
+        let mut src = ServiceBytes::new(package(&bytes, 1 << 20), None, None);
         let mut max = 0usize;
         // Drive the scan by hand, so the buffer can be measured between the pulls.
         let tag = src.varint().await.unwrap().unwrap();
@@ -683,11 +780,15 @@ mod tests {
     #[tokio::test]
     async fn the_chat_interface_is_found_on_the_declared_ports() {
         let bytes = service(10, &[]).encode_to_vec();
-        let info = read_service_info(package(&bytes, 64), None).await.unwrap();
+        let info = read_service_info(package(&bytes, 64), None, None)
+            .await
+            .unwrap();
         assert_eq!(info.chat_ports(), vec![3030]);
         // No interface, or one without the chat protocol above http: not supported.
         let none = Service::default().encode_to_vec();
-        let info = read_service_info(package(&none, 64), None).await.unwrap();
+        let info = read_service_info(package(&none, 64), None, None)
+            .await
+            .unwrap();
         assert!(info.chat_ports().is_empty());
         for stack in [
             vec![vec!["chat"], vec!["http"]],
@@ -703,7 +804,7 @@ mod tests {
                 }),
                 ..Default::default()
             };
-            let info = read_service_info(package(&svc.encode_to_vec(), 64), None)
+            let info = read_service_info(package(&svc.encode_to_vec(), 64), None, None)
                 .await
                 .unwrap();
             assert!(info.chat_ports().is_empty(), "{stack:?}");
@@ -715,7 +816,7 @@ mod tests {
             }),
             ..Default::default()
         };
-        let info = read_service_info(package(&udp.encode_to_vec(), 64), None)
+        let info = read_service_info(package(&udp.encode_to_vec(), 64), None, None)
             .await
             .unwrap();
         assert!(info.chat_ports().is_empty());
@@ -724,17 +825,19 @@ mod tests {
     #[tokio::test]
     async fn a_service_with_nothing_gives_an_empty_info() {
         let empty = Service::default().encode_to_vec();
-        let info = read_service_info(package(&empty, 4), None).await.unwrap();
+        let info = read_service_info(package(&empty, 4), None, None)
+            .await
+            .unwrap();
         assert_eq!(info, ServiceInfo::default());
         // No Service part at all.
-        let info = read_service_info(stream(vec![]), None).await.unwrap();
+        let info = read_service_info(stream(vec![]), None, None).await.unwrap();
         assert_eq!(info, ServiceInfo::default());
     }
 
     #[tokio::test]
     async fn the_limit_gives_what_came_before_the_filesystem_and_says_so() {
         let bytes = service(200_000, &["A"]).encode_to_vec();
-        let info = read_service_info(package(&bytes, 4096), Some(50_000))
+        let info = read_service_info(package(&bytes, 4096), Some(50_000), None)
             .await
             .unwrap();
         assert!(info.truncated);
@@ -745,7 +848,7 @@ mod tests {
         );
         // What is after the filesystem is unknown, not empty.
         assert!(info.api.is_none() && info.environment.is_empty() && info.networks.is_empty());
-        let whole = read_service_info(package(&bytes, 4096), Some(1 << 20))
+        let whole = read_service_info(package(&bytes, 4096), Some(1 << 20), None)
             .await
             .unwrap();
         assert!(!whole.truncated);
@@ -768,7 +871,7 @@ mod tests {
             })
             .collect();
         assert!(svc.api.as_ref().unwrap().encoded_len() as u64 > MAX_ENTRY);
-        let info = read_service_info(package(&svc.encode_to_vec(), 4096), None)
+        let info = read_service_info(package(&svc.encode_to_vec(), 4096), None, None)
             .await
             .unwrap();
         // Not "no chat interface": the interface is unknown.
@@ -779,7 +882,7 @@ mod tests {
         // The parts after it are still read.
         assert_eq!(info.networks.len(), 2);
         // A normal service has all of its parts and a known interface.
-        let ok = read_service_info(package(&service(0, &[]).encode_to_vec(), 4096), None)
+        let ok = read_service_info(package(&service(0, &[]).encode_to_vec(), 4096), None, None)
             .await
             .unwrap();
         assert!(ok.interface_known() && ok.parts_skipped == 0 && !ok.api_skipped);
@@ -794,14 +897,18 @@ mod tests {
             head: head(SERVICE_INDEX),
             ..Default::default()
         });
-        let info = read_service_info(stream(parts), Some(4096)).await.unwrap();
+        let info = read_service_info(stream(parts), Some(4096), None)
+            .await
+            .unwrap();
         assert!(info.truncated);
     }
 
     #[tokio::test(start_paused = true)]
     async fn a_node_that_stops_sending_does_not_hold_the_reader() {
         let silent: Buffers = Box::pin(futures::stream::pending());
-        let err = read_service_info(silent, Some(1 << 20)).await.unwrap_err();
+        let err = read_service_info(silent, Some(1 << 20), None)
+            .await
+            .unwrap_err();
         assert!(err.to_string().contains("stopped sending"), "{err}");
     }
 
@@ -823,7 +930,7 @@ mod tests {
             }],
         };
         big.possible_environment_workload.push(nested);
-        let info = read_service_info(package(&big.encode_to_vec(), 4096), None)
+        let info = read_service_info(package(&big.encode_to_vec(), 4096), None, None)
             .await
             .unwrap();
         assert_eq!(info.workloads.len(), 1);
@@ -835,21 +942,27 @@ mod tests {
     async fn a_cut_service_is_an_error_and_never_a_panic() {
         let bytes = service(1000, &["A", "B"]).encode_to_vec();
         for cut in [1, 3, 500, bytes.len() - 3] {
-            let _ = read_service_info(package(&bytes[..cut], 64), None).await;
+            let _ = read_service_info(package(&bytes[..cut], 64), None, None).await;
         }
         let mut junk = Vec::new();
         varint((2 << 3) | 2, &mut junk);
         varint(1 << 40, &mut junk);
         junk.extend_from_slice(&[0xff; 32]);
-        assert!(read_service_info(package(&junk, 8), None).await.is_err());
+        assert!(read_service_info(package(&junk, 8), None, None)
+            .await
+            .is_err());
         // A group wire type is not valid.
-        assert!(read_service_info(package(&[0x0b], 8), None).await.is_err());
+        assert!(read_service_info(package(&[0x0b], 8), None, None)
+            .await
+            .is_err());
         // The prose must be UTF-8.
         let mut bad = Vec::new();
         varint((1 << 3) | 2, &mut bad);
         varint(2, &mut bad);
         bad.extend_from_slice(&[0xff, 0xfe]);
-        assert!(read_service_info(package(&bad, 8), None).await.is_err());
+        assert!(read_service_info(package(&bad, 8), None, None)
+            .await
+            .is_err());
     }
 
     #[tokio::test]
@@ -867,7 +980,7 @@ mod tests {
             separator: Some(true),
             ..Default::default()
         });
-        let info = read_service_info(stream(parts), None).await.unwrap();
+        let info = read_service_info(stream(parts), None, None).await.unwrap();
         assert_eq!(info.environment.len(), 1);
         assert_eq!(info.environment[0].name, "B");
     }
@@ -891,5 +1004,291 @@ mod tests {
             got.chat_ports(),
             started.elapsed()
         );
+    }
+
+    // --- skipping the block of the filesystem -------------------------------------------
+
+    use bee_rpc::hash::HashAlgorithm;
+    use bee_rpc::pointer::block_pointer;
+    use bee_rpc::skip::{skip_buffer, SkipFilter, StreamControl};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Arc, Mutex};
+
+    const ALG: HashAlgorithm = HashAlgorithm::Sha3_256;
+
+    /// A Service whose filesystem is `fs` bytes, in pieces: what comes before the
+    /// filesystem (its tag and length included), the filesystem, and what comes after.
+    fn pieces(fs: usize, names: &[&str]) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
+        let mut svc = service(0, names);
+        svc.container.as_mut().unwrap().filesystem = vec![0xAB; fs];
+        let bytes = svc.encode_to_vec();
+        let start = bytes.windows(8).position(|w| w == [0xAB; 8]).unwrap();
+        (
+            bytes[..start].to_vec(),
+            bytes[start..start + fs].to_vec(),
+            bytes[start + fs..].to_vec(),
+        )
+    }
+
+    fn marker(id: &[u8]) -> Buffer {
+        Buffer {
+            block: Some(block_pointer(id, ALG, false)),
+            ..Default::default()
+        }
+    }
+
+    fn chunk(data: &[u8]) -> Buffer {
+        Buffer {
+            chunk: Some(data.to_vec()),
+            ..Default::default()
+        }
+    }
+
+    /// The Buffers of a Service part as nodo sends them: the filesystem in a block, with
+    /// blocks of its own inside it.
+    fn block_buffers(fs: usize, names: &[&str]) -> Vec<Buffer> {
+        let (before, body, after) = pieces(fs, names);
+        let top = ALG.digest(&body);
+        let (left, right) = body.split_at(body.len() / 2);
+        let (child_a, child_b) = (ALG.digest(left), ALG.digest(right));
+        let mut out = vec![
+            Buffer {
+                head: head(SERVICE_INDEX),
+                chunk: Some(before),
+                ..Default::default()
+            },
+            marker(&top),
+            marker(&child_a),
+        ];
+        out.extend(left.chunks(64 * 1024).map(chunk));
+        out.push(marker(&child_a));
+        out.push(marker(&child_b));
+        out.extend(right.chunks(64 * 1024).map(chunk));
+        out.push(marker(&child_b));
+        out.push(marker(&top));
+        out.push(chunk(&after));
+        out.push(Buffer {
+            separator: Some(true),
+            ..Default::default()
+        });
+        out
+    }
+
+    /// A node that honours the skip requests, as the reference does: the stream is lazy, and
+    /// each Buffer goes through the filter when it is asked for, so what the reader asked to
+    /// skip is not sent. Gives the stream, the skipper, the ids that were asked and how many
+    /// Buffers left the node.
+    fn skipping_node(
+        buffers: Vec<Buffer>,
+    ) -> (Buffers, Skipper, Arc<Mutex<Vec<Vec<u8>>>>, Arc<AtomicUsize>) {
+        let control = StreamControl::new(ALG);
+        let asked = Arc::new(Mutex::new(Vec::new()));
+        let sent = Arc::new(AtomicUsize::new(0));
+        let (observe, record) = (control.clone(), asked.clone());
+        let skipper: Skipper = Arc::new(move |id: &[u8]| {
+            record.lock().unwrap().push(id.to_vec());
+            observe.observe(&skip_buffer(id, ALG))
+        });
+        let filter = SkipFilter::new(control);
+        let count = sent.clone();
+        let stream = futures::stream::unfold(
+            (buffers.into_iter(), filter),
+            move |(mut rest, mut filter)| {
+                let count = count.clone();
+                async move {
+                    for buffer in rest.by_ref() {
+                        if let Some(out) = filter.push(buffer) {
+                            count.fetch_add(1, Ordering::SeqCst);
+                            return Some((Ok(out), (rest, filter)));
+                        }
+                    }
+                    None
+                }
+            },
+        );
+        (Box::pin(stream), skipper, asked, sent)
+    }
+
+    #[tokio::test]
+    async fn the_node_is_asked_to_skip_the_filesystem_and_the_rest_is_read() {
+        let fs = 8 << 20;
+        let buffers = block_buffers(fs, &["API_KEY", "MODE"]);
+        let total = buffers.len();
+        let top = ALG.digest(&pieces(fs, &["API_KEY", "MODE"]).1);
+        let (stream, skipper, asked, sent) = skipping_node(buffers);
+        let info = read_service_info(stream, None, Some(skipper))
+            .await
+            .unwrap();
+        // Everything after the filesystem is read: the variables, the interface, the networks.
+        assert!(!info.truncated);
+        assert_eq!(info.filesystem_bytes, fs as u64);
+        let names: Vec<_> = info.environment.iter().map(|d| d.name.as_str()).collect();
+        assert_eq!(names, ["API_KEY", "MODE"]);
+        assert_eq!(info.chat_ports(), vec![3030]);
+        assert_eq!(info.networks.len(), 2);
+        assert_eq!(info.workloads.len(), 1);
+        // The request named the block of the filesystem, once, and the body did not come.
+        assert_eq!(*asked.lock().unwrap(), vec![top]);
+        assert_eq!(info.blocks_skipped, 1);
+        let sent = sent.load(Ordering::SeqCst);
+        assert!(sent < 10, "{sent} of {total} Buffers left the node");
+    }
+
+    #[tokio::test]
+    async fn without_a_skipper_the_same_service_is_read_in_full() {
+        let fs = 8 << 20;
+        let buffers = block_buffers(fs, &["API_KEY"]);
+        let total = buffers.len();
+        let sent = Arc::new(AtomicUsize::new(0));
+        let count = sent.clone();
+        let stream: Buffers = Box::pin(tokio_stream::iter(buffers.into_iter().map(move |b| {
+            count.fetch_add(1, Ordering::SeqCst);
+            Ok(b)
+        })));
+        let info = read_service_info(stream, None, None).await.unwrap();
+        assert_eq!(sent.load(Ordering::SeqCst), total);
+        assert_eq!(info.blocks_skipped, 0);
+        assert_eq!(info.filesystem_bytes, fs as u64);
+        assert_eq!(info.environment.len(), 1);
+        assert_eq!(info.chat_ports(), vec![3030]);
+    }
+
+    #[tokio::test]
+    async fn a_node_that_refuses_the_request_gives_the_filesystem_and_the_result_is_the_same() {
+        let fs = 4 << 20;
+        let buffers = block_buffers(fs, &["API_KEY"]);
+        let total = buffers.len();
+        let sent = Arc::new(AtomicUsize::new(0));
+        let count = sent.clone();
+        let stream: Buffers = Box::pin(tokio_stream::iter(buffers.into_iter().map(move |b| {
+            count.fetch_add(1, Ordering::SeqCst);
+            Ok(b)
+        })));
+        let refusing: Skipper = Arc::new(|_: &[u8]| false);
+        let info = read_service_info(stream, None, Some(refusing))
+            .await
+            .unwrap();
+        assert_eq!(sent.load(Ordering::SeqCst), total);
+        assert_eq!(info.blocks_skipped, 0);
+        assert_eq!(info.environment.len(), 1);
+        assert_eq!(info.chat_ports(), vec![3030]);
+    }
+
+    #[tokio::test]
+    async fn a_large_field_that_is_not_a_block_is_read_and_the_node_is_not_asked() {
+        // The same message with the filesystem inline, as `claude-code.bee` is not: no marker.
+        let fs = 3 << 20;
+        let (before, body, after) = pieces(fs, &["API_KEY"]);
+        let mut parts = vec![Buffer {
+            head: head(SERVICE_INDEX),
+            chunk: Some(before),
+            ..Default::default()
+        }];
+        parts.extend(body.chunks(1 << 20).map(chunk));
+        parts.push(chunk(&after));
+        parts.push(Buffer {
+            separator: Some(true),
+            ..Default::default()
+        });
+        let (stream, skipper, asked, _) = skipping_node(parts);
+        let info = read_service_info(stream, None, Some(skipper))
+            .await
+            .unwrap();
+        assert!(asked.lock().unwrap().is_empty());
+        assert_eq!(info.blocks_skipped, 0);
+        assert_eq!(info.environment.len(), 1);
+        assert_eq!(info.chat_ports(), vec![3030]);
+    }
+
+    #[tokio::test]
+    async fn a_small_field_is_never_asked_to_skip() {
+        // Under a megabyte the bytes are cheaper than the request.
+        let (before, body, after) = pieces(100_000, &["A"]);
+        let top = ALG.digest(&body);
+        let parts = vec![
+            Buffer {
+                head: head(SERVICE_INDEX),
+                chunk: Some(before),
+                ..Default::default()
+            },
+            marker(&top),
+            chunk(&body),
+            marker(&top),
+            chunk(&after),
+            Buffer {
+                separator: Some(true),
+                ..Default::default()
+            },
+        ];
+        let (stream, skipper, asked, _) = skipping_node(parts);
+        let info = read_service_info(stream, None, Some(skipper))
+            .await
+            .unwrap();
+        assert!(asked.lock().unwrap().is_empty());
+        assert_eq!(info.environment.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn blocks_that_were_open_when_the_request_arrived_close_with_the_skipped_one() {
+        // The node sent the start of a child before it saw the request, and then dropped the
+        // child, its end marker included, and sent only the end of the skipped block.
+        let fs = 2 << 20;
+        let (before, body, after) = pieces(fs, &["A", "B"]);
+        let top = ALG.digest(&body);
+        let child = ALG.digest(&body[..1000]);
+        let parts = vec![
+            Buffer {
+                head: head(SERVICE_INDEX),
+                chunk: Some(before),
+                ..Default::default()
+            },
+            marker(&top),
+            marker(&child),
+            chunk(&body[..64 * 1024]),
+            marker(&top),
+            chunk(&after),
+            Buffer {
+                separator: Some(true),
+                ..Default::default()
+            },
+        ];
+        let ids = Arc::new(Mutex::new(Vec::new()));
+        let record = ids.clone();
+        let skipper: Skipper = Arc::new(move |id: &[u8]| {
+            record.lock().unwrap().push(id.to_vec());
+            true
+        });
+        let info = read_service_info(stream(parts), None, Some(skipper))
+            .await
+            .unwrap();
+        assert_eq!(*ids.lock().unwrap(), vec![top]);
+        assert_eq!(info.environment.len(), 2);
+        assert_eq!(info.filesystem_bytes, fs as u64);
+        assert_eq!(info.chat_ports(), vec![3030]);
+    }
+
+    #[tokio::test]
+    async fn a_node_that_never_ends_the_block_is_a_cut_service() {
+        let fs = 2 << 20;
+        let (before, body, _) = pieces(fs, &[]);
+        let top = ALG.digest(&body);
+        let parts = vec![
+            Buffer {
+                head: head(SERVICE_INDEX),
+                chunk: Some(before),
+                ..Default::default()
+            },
+            marker(&top),
+            chunk(&[1, 2, 3]),
+            Buffer {
+                separator: Some(true),
+                ..Default::default()
+            },
+        ];
+        let skipper: Skipper = Arc::new(|_: &[u8]| true);
+        let err = read_service_info(stream(parts), None, Some(skipper))
+            .await
+            .unwrap_err();
+        assert!(err.to_string().contains("cut"), "{err}");
     }
 }

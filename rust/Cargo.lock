@@ -453,8 +453,8 @@ checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 
 [[package]]
 name = "bee-rpc"
-version = "0.2.1"
-source = "git+https://github.com/bee-rpc-protocol/bee-rpc-over-grpc-rs?tag=v0.2.1#8fd905c26806160532a74f93d7acea985a6ff014"
+version = "0.3.0"
+source = "git+https://github.com/bee-rpc-protocol/bee-rpc-over-grpc-rs?tag=v0.3.0#e3d2b6c26ef96a30f99c587b10df87c7db20ceaa"
 dependencies = [
  "blake2 0.11.0",
  "prost",

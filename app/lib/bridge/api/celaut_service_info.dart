@@ -14,9 +14,10 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// What the service `service_id_hex` says about itself. The app reads it from the file of
 /// the service in the library if it has one. If not, from `node` (a node that has the
-/// service), which sends the whole service: the app stops after 128 MiB and gives what
-/// came before, with `truncated` set. The app never keeps the filesystem, so the memory
-/// that this takes does not depend on the size of the service.
+/// service), which is asked to skip the block of the filesystem, so the read takes a few
+/// kilobytes. A node that does not skip sends the whole service: the app stops after
+/// 128 MiB and gives what came before, with `truncated` set. The app never keeps the
+/// filesystem, so the memory that this takes does not depend on the size of the service.
 Future<ServiceInfoView> celautServiceInfo({
   required String serviceIdHex,
   NodeAddress? node,

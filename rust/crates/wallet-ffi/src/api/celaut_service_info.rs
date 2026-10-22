@@ -20,9 +20,11 @@ use super::celaut_env::DeclaredVariableView;
 use super::celaut_package::package_error;
 use super::celaut_service::{forget_if_broken, service_id, session, NodeAddress};
 
-/// The most that the app reads from a node to describe a service, in bytes. A node sends
-/// the whole service, and most of it is the filesystem, which comes before the interface
-/// and the networks. A larger service is described only by what comes before it.
+/// The most that the app reads from a node to describe a service, in bytes. The app asks
+/// the node to skip the block of the filesystem, so a service is a few kilobytes plus what
+/// was on the way when the request arrived. This is for a node that does not skip, which
+/// sends the filesystem before the interface and the networks: a larger service is then
+/// described only by what comes before it.
 pub(crate) const NODE_READ_LIMIT: u64 = 128 * 1024 * 1024;
 
 /// A protocol of an interface or of a network.
@@ -280,9 +282,10 @@ pub(crate) fn view_of(info: ServiceInfo) -> ServiceInfoView {
 
 /// What the service `service_id_hex` says about itself. The app reads it from the file of
 /// the service in the library if it has one. If not, from `node` (a node that has the
-/// service), which sends the whole service: the app stops after 128 MiB and gives what
-/// came before, with `truncated` set. The app never keeps the filesystem, so the memory
-/// that this takes does not depend on the size of the service.
+/// service), which is asked to skip the block of the filesystem, so the read takes a few
+/// kilobytes. A node that does not skip sends the whole service: the app stops after
+/// 128 MiB and gives what came before, with `truncated` set. The app never keeps the
+/// filesystem, so the memory that this takes does not depend on the size of the service.
 #[flutter_rust_bridge::frb]
 pub async fn celaut_service_info(
     service_id_hex: String,
@@ -303,11 +306,14 @@ pub async fn celaut_service_info(
     } else {
         let node = node.ok_or_else(|| invalid("There is no node to read the service from."))?;
         let s = session(&node).await?;
-        let raw = s.get_service(id).await.map_err(|e| {
+        // The node is asked to skip the block that holds the filesystem: the app needs the
+        // parts around it, and not its hundreds of megabytes. A node that does not skip sends
+        // it, and the limit stops the read.
+        let answer = s.get_service_skippable(id).await.map_err(|e| {
             forget_if_broken(&node, &e);
             error_of(e)
         })?;
-        read_service_info(raw, Some(NODE_READ_LIMIT))
+        read_service_info(answer.buffers, Some(NODE_READ_LIMIT), answer.skipper)
             .await
             .map_err(package_error)?
     };

@@ -27,13 +27,40 @@ The fields come in the order of their numbers, so the interface and the networks
 after the container (2), which holds the filesystem. The reader must read the whole Service
 part, but it never keeps the filesystem. A file of 536 MB takes about 1.5 seconds.
 
-From a node, the node sends the whole service. The app stops after 128 MiB and gives what came
-before the filesystem (the prose and the architecture) with `truncated` set. What is after it
-is then **unknown, not empty**: the screen shows no "no variables" or "no port" for a service
-that was cut, and the chat check is "unknown", not "unsupported". A service that the user
-loaded as a file is always read in full from the library.
+## 2. Skipping the filesystem on a node
 
-## 2. What the app shows
+In a package, the filesystem is not loose bytes: it is one top-level block (`buffer.Block`),
+with blocks of its own inside it. In `claude-code.bee`, the first chunk of the Service holds
+the container, the architecture, and the tag and length of the `filesystem` field; then comes
+the marker of a block, with 535 923 139 bytes inside, exactly the length of the field; and
+after the end marker one chunk of 496 bytes, which has the variables, the interface and the
+networks. What the app needs is outside the block.
+
+bee-rpc lets a receiver ask the sender to drop the rest of a block (`skip`, field 6 of the
+Buffer, with the id of the block), and nodo honours it in `GetService`
+(`src/gateway/iterables/get_service_iterable.py`: `StreamControl.watch()` on the request,
+`respond(control=...)`). So, from a node, the app:
+
+1. calls `GetService` with `block_skip` (`bee-rpc` 0.3.0: `call_raw` with `block_skip`, and
+   `RawResponse::request_skip`; `Transport::call_raw_skippable` in `celaut-wire`);
+2. reads the Service as before. When it meets the field of the filesystem (a megabyte or more,
+   with no byte buffered), the next Buffer is the marker of a block: it asks the node to skip
+   that block, ignores what was on the way until the end marker, and counts the field as read,
+   because the length of a field that is a block is the length of the block;
+3. reads the rest (the variables, the interface, the networks) as usual.
+
+The node drops the Buffers that it has not sent and the markers of the children of the block
+(a child that was open when the request arrived closes with its parent), and sends the end
+marker of the block once. What was on the way arrives too: a few Buffers, not hundreds of
+megabytes. A field that is not a block, a small one, a node that refuses or ignores the
+request, and the library file (it is local) are read as before. The limit of 128 MiB is now
+for a node that does not skip: after it the reader gives what came before the filesystem, with
+`truncated` set.
+
+A package that the user transfers to another node (`celaut_fetch_service`) needs every byte, and
+uses `get_service_raw`, which never asks to skip.
+
+## 3. What the app shows
 
 `ServiceInfoScreen` (`app/lib/ui/celaut/service_info_screen.dart`), with a banner on top:
 
@@ -54,7 +81,7 @@ expects from the node, and the instances that it can start).
 It opens from the confirmation of a launch ("Service details"), from the info page of an
 instance, and from the alert below.
 
-## 3. The check before a launch
+## 4. The check before a launch
 
 After the quotes (a quote is free) and before the first start, `RunServiceSection` reads the
 service once and:
@@ -73,7 +100,7 @@ The convention is one function for the service and for the instance: `api_chat_p
 `session.rs` (a slot with `tcp`, `http` and `chat` above it). `chat_slots(instance)` adds that
 the instance has the port, because `ServiceTunnel` accepts only the ports of an instance.
 
-## 4. Code
+## 5. Code
 
 | Where | What |
 |---|---|
@@ -83,7 +110,7 @@ the instance has the port, because `ServiceTunnel` accepts only the ports of an 
 | `app/lib/ui/celaut/service_info_screen.dart` | The details and the banner |
 | `app/lib/ui/celaut/run_service_section.dart` | The check and the alert before a launch |
 
-## 5. Checks
+## 6. Checks
 
 - `service_info.rs`: every part is read after a filesystem of 300 000 bytes in chunks of 1 byte
   to 1 MiB, with a block marker in the middle; a filesystem of 40 MiB does not grow the buffer;
@@ -102,11 +129,22 @@ the instance has the port, because `ServiceTunnel` accepts only the ports of an 
   instance) and `celaut_run_section_test.dart` (the alert: cancel, run anyway then the
   variables, details without a second read, a cut service is not "unsupported", a supported
   interface has no alert).
-- Not checked: a service on a real node with a large filesystem through `GetService`, and a phone.
+- `service_info.rs` with a node that honours `skip`: the node is `bee_rpc::skip::SkipFilter` on a
+  lazy stream, as the reference sends. With an 8 MiB filesystem in a block with two children,
+  the node is asked once, for the block of the filesystem, fewer than 10 Buffers leave it, and the
+  variables, the interface, the networks and the workloads after the block are read. Without a
+  skipper, with a node that refuses, with a large field that is not a block and with a small field,
+  nothing is asked and the result is the same. A child that was open when the request arrived
+  closes with its parent. A node that never ends the block is a cut service. At the wire level,
+  `bee-rpc` has its own tests of `call_raw` with `block_skip`
+  (bee-rpc-over-grpc-rs, `tests/relay.rs`).
+- Not checked: a skip request against a real nodo (the in-process node follows its code, not its
+  process), `call_raw_skippable` of `celaut-wire` on a TLS channel, and a phone.
 
-## 6. Open items
+## 7. Open items
 
-- A service of more than 128 MiB that is on a node and not in the library is described only by
-  its prose and its architecture. The user can load the file.
+- A node that does not honour `skip` sends the whole filesystem. A service of more than 128 MiB
+  on such a node, and not in the library, is described only by its prose and its architecture.
+  The user can load the file.
 - The check looks at the interface that the service declares. A service whose chat slot is
   declared and does not answer is not found here: the conversation shows that.

@@ -26,5 +26,5 @@ pub mod tunnel;
 
 pub use channel::{ConnectOptions, Connection};
 pub use error::{IdentityError, WireError};
-pub use transport::{Buffers, Transport};
+pub use transport::{Buffers, RawAnswer, Skipper, Transport};
 pub use tunnel::{Tunnel, TunnelOpener};
