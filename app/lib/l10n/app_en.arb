@@ -1,6 +1,6 @@
 {
   "@@locale": "en",
-  "appTitle": "Celaut",
+  "appTitle": "Celaut Chatui",
   "commonCancel": "Cancel",
   "commonSave": "Save",
   "commonRetry": "Retry",
@@ -4474,9 +4474,9 @@
   "celautEnvReviewSkipped": "Skipped",
   "celautEnvReviewNote": "The node that starts the service reads these values. A node that refuses the start has read them too.",
   "celautEnvRun": "Run",
-  "celautEnvDeclUnreadableTitle": "The variables of the service are unknown",
-  "celautEnvDeclUnreadableBody": "The service may ask for variables, and the app could not find out. Run it with none, or cancel.",
-  "celautEnvRunWithout": "Run without variables",
+  "celautEnvDeclUnreadableTitle": "The service could not be read",
+  "celautEnvDeclUnreadableBody": "The app could not read the interface and the variables of this service, so it cannot tell if Chatui supports it or if it needs variables. Run it anyway, or cancel.",
+  "celautEnvRunWithout": "Run anyway",
   "celautInviteConnected": "Connected by {address}. The node is in your list.",
   "@celautInviteConnected": {
     "placeholders": {
@@ -4488,5 +4488,89 @@
   "celautInviteFailedTitle": "Could not connect to the invited node",
   "celautInviteNoAddress": "The invitation has no address that this app can use.",
   "celautInviteOnionNeedsProxy": "Not tried. An onion address needs Tor through an external proxy such as Orbot. A direct connection and the Tor client of the app cannot open it.",
-  "celautInvitePrivateOverTor": "Not tried. An address on a private network cannot be reached through Tor."
+  "celautInvitePrivateOverTor": "Not tried. An address on a private network cannot be reached through Tor.",
+  "serviceInfoTitle": "Service details",
+  "serviceInfoLoading": "Reading the service…",
+  "serviceInfoReadFailed": "The service could not be read",
+  "serviceInfoTruncated": "This service is too large to read from a node, so only what comes first is shown. Load its file to see everything.",
+  "serviceInfoChatSupported": "It follows the chat convention of Chatui (port {port}), so it opens as a conversation.",
+  "@serviceInfoChatSupported": {
+    "placeholders": {
+      "port": {
+        "type": "int"
+      }
+    }
+  },
+  "serviceInfoChatUnsupported": "Chatui does not support its interface: no port speaks the chat convention (tcp, then http, and chat above it). It can run, but Chatui cannot open a conversation with it.",
+  "serviceInfoChatUnknown": "The app could not read the interface of this service, so it cannot tell if it works as a conversation.",
+  "serviceInfoAbout": "About",
+  "serviceInfoNoProse": "The service gives no description.",
+  "serviceInfoArchitecture": "Architecture",
+  "serviceInfoEntry": "Starts",
+  "serviceInfoFilesystem": "Filesystem",
+  "serviceInfoConfigFile": "Configuration file",
+  "serviceInfoResources": "Resources",
+  "serviceInfoAtStart": "Needs at the start",
+  "serviceInfoAtMost": "Can use at most",
+  "serviceInfoNoResources": "The service does not say what it needs.",
+  "serviceInfoCoreSpeed": "Speed of one core",
+  "serviceInfoInterface": "Interface",
+  "serviceInfoNoInterface": "The service declares no port.",
+  "serviceInfoPort": "Port {port}",
+  "@serviceInfoPort": {
+    "placeholders": {
+      "port": {
+        "type": "int"
+      }
+    }
+  },
+  "serviceInfoChatReady": "Chat ready",
+  "serviceInfoPricePerCall": "MU per call",
+  "serviceInfoNetworks": "Networks",
+  "serviceInfoNoNetworks": "The service does not connect to any network.",
+  "serviceInfoAnyAddress": "Every address",
+  "serviceInfoPeersSpeak": "Peers speak: {protocols}",
+  "@serviceInfoPeersSpeak": {
+    "placeholders": {
+      "protocols": {
+        "type": "String"
+      }
+    }
+  },
+  "serviceInfoEnvironment": "Environment variables",
+  "serviceInfoNoEnvironment": "The service declares no variables.",
+  "serviceInfoMore": "Other",
+  "serviceInfoNodeProtocols": "Protocols that it expects from the node",
+  "serviceInfoWorkloads": "Instances that it can start",
+  "serviceInfoWorkload": "{count} × instance",
+  "@serviceInfoWorkload": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "serviceInfoWorkloadService": "of a service",
+  "serviceInfoWorkloadsSkipped": "{count, plural, =1{1 scenario is too large to show.} other{{count} scenarios are too large to show.}}",
+  "@serviceInfoWorkloadsSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "celautChatUnsupportedTitle": "Chatui does not support this interface",
+  "celautChatUnsupportedBody": "This service does not follow the chat convention that Chatui uses, so Chatui cannot open a conversation with it. If you run it, it shows in Compute, and you cannot talk to it from here.",
+  "celautChatRunAnyway": "Run anyway",
+  "celautChatDetails": "Details",
+  "celautRunConfirmDetails": "Service details",
+  "chatsInfoServiceDetails": "Service details",
+  "serviceInfoPartsSkipped": "{count, plural, =1{1 part of the service is too large to show.} other{{count} parts of the service are too large to show.}}",
+  "@serviceInfoPartsSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

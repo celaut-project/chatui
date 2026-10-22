@@ -37,7 +37,7 @@
 )]
 
 pub mod db;
-pub mod declaration;
+pub mod service_info;
 pub mod deposit;
 pub mod env;
 pub mod health;

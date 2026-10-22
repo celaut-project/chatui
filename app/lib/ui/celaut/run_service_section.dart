@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../bridge/api/celaut.dart';
 import '../../bridge/api/celaut_catalog.dart';
 import '../../bridge/api/celaut_env.dart';
+import '../../bridge/api/celaut_service_info.dart';
 import '../../bridge/api/celaut_home.dart';
 import '../../bridge/api/celaut_service.dart';
 import '../../celaut/celaut_format.dart';
@@ -16,6 +17,7 @@ import '../../celaut/payers.dart';
 import '../../celaut/service_strings.dart';
 import '../../celaut/service_transfer.dart';
 import '../../l10n/l10n.dart';
+import '../../theme/argus_theme.dart';
 import '../home/home_style.dart';
 import 'chat_screen.dart';
 import 'client_unknown_dialog.dart';
@@ -23,6 +25,7 @@ import 'deposit_screen.dart';
 import 'env_questions_screen.dart';
 import 'instance_list.dart' show instanceOfLaunch;
 import 'launch_failure_sheet.dart';
+import 'service_info_screen.dart';
 import 'service_transfer_dialog.dart';
 import 'skill_services_sheet.dart';
 
@@ -66,13 +69,14 @@ class RunServiceSection extends StatefulWidget {
     this.showTitle = true,
     this.onStarted,
     this.nameInstance,
-    this.declaration,
+    this.inspect,
     this.envStore,
   });
 
-  /// The environment variables that a service declares: from the file in the library, or
-  /// from the node of the best quote. Tests give their own.
-  final Future<List<DeclaredVariableView>> Function(String serviceId, NodeAddress node)? declaration;
+  /// What a service says about itself (`docs/celaut/service-info.md`): from the file in the
+  /// library, or from the node of the best quote. The launch reads it once, for the check of
+  /// the interface and for the environment variables. Tests give their own.
+  final ServiceInfoLoader? inspect;
 
   /// The container of environment variables. Tests give their own.
   final EnvStore? envStore;
@@ -254,6 +258,20 @@ class _RunServiceSectionState extends State<RunServiceSection> {
           ),
           actions: [
             TextButton(
+              key: const Key('run-confirm-details'),
+              onPressed: () async {
+                QuoteView? best;
+                try {
+                  best = await quote;
+                } catch (_) {
+                  // No quote: the details read the library file, or say that there is none.
+                }
+                if (!context.mounted) return;
+                _details(serviceId, node: best?.address, name: name);
+              },
+              child: Text(l.celautRunConfirmDetails),
+            ),
+            TextButton(
               key: const Key('run-confirm-cancel'),
               onPressed: () => Navigator.pop(context, false),
               child: Text(l.celautSendCancel),
@@ -294,7 +312,7 @@ class _RunServiceSectionState extends State<RunServiceSection> {
       final outcome = await launch(
         serviceIdHex: serviceId,
         initialMu: ServiceStrings.initialDefault,
-        environment: (quotes) => _askEnvironment(serviceId, quotes),
+        environment: (quotes) => _inspectBeforeRun(serviceId, quotes),
       );
       if (!mounted) return;
       // The progress bar stops before the next screen or sheet, which can stay open.
@@ -317,33 +335,94 @@ class _RunServiceSectionState extends State<RunServiceSection> {
     }
   }
 
-  /// The question about the environment variables, after the quotes and before the start
-  /// (`docs/celaut/env-variables.md`). A service that declares none starts at once. If the
-  /// app cannot read the declaration, the user chooses: run with no variables, or cancel.
-  /// Null cancels the launch.
-  Future<List<EnvChoice>?> _askEnvironment(String serviceId, QuotesView quotes) async {
+  /// What the app asks before it starts the service, after the quotes (a quote is free) and
+  /// before the first start:
+  ///
+  /// 1. If the interface of the service is not the chat convention of Chatui
+  ///    (`docs/celaut/chat.md`), an alert says so, and the user can run it anyway or cancel.
+  /// 2. The environment variables that the service declares, one at a time
+  ///    (`docs/celaut/env-variables.md`).
+  ///
+  /// The service is read once, as a stream, so its filesystem is never in memory. If the app
+  /// cannot read it (an error, or a service too large to read from a node), the user chooses:
+  /// run it anyway, or cancel. Null cancels the launch.
+  Future<List<EnvChoice>?> _inspectBeforeRun(String serviceId, QuotesView quotes) async {
     if (!mounted) return null;
-    final List<DeclaredVariableView> declared;
+    final ServiceInfoView info;
     try {
-      declared = await (widget.declaration ??
-          (id, node) => celautServiceDeclaration(serviceIdHex: id, node: node))(
-        serviceId,
-        quotes.quotes.first.address,
-      );
+      info = await (widget.inspect ?? readServiceInfo)(serviceId, quotes.quotes.first.address);
     } on CelautError {
       if (!mounted) return null;
-      return await _confirmWithoutVariables() ? const [] : null;
+      return await _confirmUnreadable(serviceId) ? const [] : null;
     }
-    if (declared.isEmpty) return const [];
+    // The service was cut, or its interface was too large to decode: the app cannot tell if
+    // Chatui supports it, which is not the same as "unsupported".
+    if (info.truncated || info.chat == ChatSupportView.unknown) {
+      if (!mounted) return null;
+      return await _confirmUnreadable(serviceId, info: info) ? const [] : null;
+    }
+    if (info.chat == ChatSupportView.unsupported) {
+      if (!mounted) return null;
+      if (!await _confirmUnsupported(serviceId, info)) return null;
+    }
+    if (info.environment.isEmpty) return const [];
     if (!mounted) return null;
     return Navigator.of(context).push<List<EnvChoice>>(
       MaterialPageRoute(
-        builder: (_) => EnvQuestionsScreen(declared: declared, store: widget.envStore),
+        builder: (_) => EnvQuestionsScreen(declared: info.environment, store: widget.envStore),
       ),
     );
   }
 
-  Future<bool> _confirmWithoutVariables() async {
+  void _details(String serviceId, {ServiceInfoView? info, NodeAddress? node, String? name}) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ServiceInfoScreen(
+          serviceIdHex: serviceId,
+          name: name,
+          node: node,
+          info: info,
+          load: widget.inspect ?? readServiceInfo,
+        ),
+      ),
+    );
+  }
+
+  /// The alert of an interface that Chatui does not support. True to run it anyway.
+  Future<bool> _confirmUnsupported(String serviceId, ServiceInfoView info) async {
+    final l = context.l10n;
+    final run = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        key: const Key('chat-unsupported'),
+        icon: Icon(Icons.warning_amber_rounded, color: rustFor(context)),
+        title: Text(l.celautChatUnsupportedTitle),
+        content: Text(l.celautChatUnsupportedBody),
+        actions: [
+          TextButton(
+            key: const Key('chat-unsupported-details'),
+            onPressed: () => _details(serviceId, info: info),
+            child: Text(l.celautChatDetails),
+          ),
+          TextButton(
+            key: const Key('chat-unsupported-cancel'),
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l.commonCancel),
+          ),
+          FilledButton(
+            key: const Key('chat-unsupported-run'),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l.celautChatRunAnyway),
+          ),
+        ],
+      ),
+    );
+    return run == true;
+  }
+
+  /// The service could not be read: the user cannot be told if Chatui supports it or if it
+  /// needs variables. True to run it anyway.
+  Future<bool> _confirmUnreadable(String serviceId, {ServiceInfoView? info}) async {
     final l = context.l10n;
     final run = await showDialog<bool>(
       context: context,
@@ -352,6 +431,12 @@ class _RunServiceSectionState extends State<RunServiceSection> {
         title: Text(l.celautEnvDeclUnreadableTitle),
         content: Text(l.celautEnvDeclUnreadableBody),
         actions: [
+          if (info != null)
+            TextButton(
+              key: const Key('env-unreadable-details'),
+              onPressed: () => _details(serviceId, info: info),
+              child: Text(l.celautChatDetails),
+            ),
           TextButton(onPressed: () => Navigator.pop(context, false), child: Text(l.commonCancel)),
           TextButton(
             key: const Key('env-run-without'),

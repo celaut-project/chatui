@@ -215,7 +215,7 @@ void main() {
     expect(runButton, lessThan(nodes));
     expect(nodes, lessThan(credit));
     expect(credit, lessThan(wallets));
-    expect(find.text('CELAUT'), findsOneWidget);
+    expect(find.text('CELAUT CHATui', findRichText: true), findsOneWidget);
   });
 
   testWidgets('the detail of each node and of the money is not on the home screen', (tester) async {

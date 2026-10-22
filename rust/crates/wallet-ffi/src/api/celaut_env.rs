@@ -6,20 +6,11 @@
 //! variable of the container and Rust reads its value ([`EnvChoice`]), so the value does
 //! not go through Dart. No value is in a log, an event or the text of an error.
 
-use std::path::PathBuf;
-
-use celaut_client::declaration::{declared_variables, declared_variables_of_file, Declared};
 use celaut_client::env::{check_name, check_value, entries, EnvError};
 use celaut_proto::celaut::BytesKeyValue;
 
-use super::celaut::{error_of, invalid, CelautError};
+use super::celaut::{invalid, CelautError};
 use super::celaut_db::{db, now_seconds, storage_error};
-use super::celaut_package::package_error;
-use super::celaut_service::{forget_if_broken, service_id, session, NodeAddress};
-
-/// The most that the app reads from a node to find the declaration of a service, in
-/// bytes. A node sends the whole service, and the declaration is after its filesystem.
-pub(crate) const NODE_READ_LIMIT: u64 = 128 * 1024 * 1024;
 
 fn refused(e: EnvError) -> CelautError {
     invalid(&e.to_string())
@@ -80,49 +71,6 @@ pub struct DeclaredVariableView {
     pub tags: Vec<String>,
     /// The text that explains it (empty if the service gives none).
     pub prose: String,
-}
-
-fn view_of(d: Declared) -> DeclaredVariableView {
-    DeclaredVariableView {
-        name: d.name,
-        tags: d.tags,
-        prose: d.prose,
-    }
-}
-
-/// The variables that the service declares, in the order of its declaration. The app
-/// reads them from the file of the service in the library if it has one. If not, from
-/// `node` (a node that has the service), which sends the service: it stops after
-/// 128 MiB, with an error. A service that declares nothing gives an empty list.
-#[flutter_rust_bridge::frb]
-pub async fn celaut_service_declaration(
-    service_id_hex: String,
-    node: Option<NodeAddress>,
-) -> Result<Vec<DeclaredVariableView>, CelautError> {
-    let id = service_id(&service_id_hex)?;
-    let library = db()
-        .read(|d| {
-            d.packages
-                .get(&hex::encode(id))
-                .map(|p| PathBuf::from(&p.path))
-        })
-        .filter(|p| p.is_file());
-    let declared = if let Some(path) = library {
-        declared_variables_of_file(&path)
-            .await
-            .map_err(package_error)?
-    } else {
-        let node = node.ok_or_else(|| invalid("There is no node to read the service from."))?;
-        let s = session(&node).await?;
-        let raw = s.get_service(id).await.map_err(|e| {
-            forget_if_broken(&node, &e);
-            error_of(e)
-        })?;
-        declared_variables(raw, Some(NODE_READ_LIMIT))
-            .await
-            .map_err(package_error)?
-    };
-    Ok(declared.into_iter().map(view_of).collect())
 }
 
 /// The value for one declared variable, as the user chose it. A variable that the user

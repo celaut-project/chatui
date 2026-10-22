@@ -9,7 +9,7 @@ class AppLocalizationsEs extends AppLocalizations {
   AppLocalizationsEs([String locale = 'es']) : super(locale);
 
   @override
-  String get appTitle => 'Celaut';
+  String get appTitle => 'Celaut Chatui';
 
   @override
   String get commonCancel => 'Cancelar';
@@ -5972,15 +5972,14 @@ class AppLocalizationsEs extends AppLocalizations {
   String get celautEnvRun => 'Ejecutar';
 
   @override
-  String get celautEnvDeclUnreadableTitle =>
-      'Se desconocen las variables del servicio';
+  String get celautEnvDeclUnreadableTitle => 'No se pudo leer el servicio';
 
   @override
   String get celautEnvDeclUnreadableBody =>
-      'Puede que el servicio pida variables y la app no ha podido averiguarlo. Ejecútalo sin ninguna o cancela.';
+      'La app no ha podido leer la interfaz ni las variables de este servicio, así que no sabe si Chatui lo admite ni si necesita variables. Ejecútalo igualmente o cancela.';
 
   @override
-  String get celautEnvRunWithout => 'Ejecutar sin variables';
+  String get celautEnvRunWithout => 'Ejecutar igualmente';
 
   @override
   String celautInviteConnected(String address) {
@@ -6002,4 +6001,161 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get celautInvitePrivateOverTor =>
       'No se probó. Una dirección de una red privada no se puede alcanzar a través de Tor.';
+
+  @override
+  String get serviceInfoTitle => 'Detalles del servicio';
+
+  @override
+  String get serviceInfoLoading => 'Leyendo el servicio…';
+
+  @override
+  String get serviceInfoReadFailed => 'No se pudo leer el servicio';
+
+  @override
+  String get serviceInfoTruncated =>
+      'Este servicio es demasiado grande para leerlo desde un nodo, así que solo se muestra lo que viene primero. Carga su fichero para verlo todo.';
+
+  @override
+  String serviceInfoChatSupported(int port) {
+    return 'Sigue la convención de chat de Chatui (puerto $port), así que se abre como una conversación.';
+  }
+
+  @override
+  String get serviceInfoChatUnsupported =>
+      'Chatui no admite su interfaz: ningún puerto habla la convención de chat (tcp, luego http y chat encima). Se puede ejecutar, pero Chatui no puede abrir una conversación con él.';
+
+  @override
+  String get serviceInfoChatUnknown =>
+      'La app no ha podido leer la interfaz de este servicio, así que no sabe si funciona como una conversación.';
+
+  @override
+  String get serviceInfoAbout => 'Acerca de';
+
+  @override
+  String get serviceInfoNoProse => 'El servicio no da ninguna descripción.';
+
+  @override
+  String get serviceInfoArchitecture => 'Arquitectura';
+
+  @override
+  String get serviceInfoEntry => 'Arranca';
+
+  @override
+  String get serviceInfoFilesystem => 'Sistema de ficheros';
+
+  @override
+  String get serviceInfoConfigFile => 'Fichero de configuración';
+
+  @override
+  String get serviceInfoResources => 'Recursos';
+
+  @override
+  String get serviceInfoAtStart => 'Necesita al arrancar';
+
+  @override
+  String get serviceInfoAtMost => 'Puede usar como máximo';
+
+  @override
+  String get serviceInfoNoResources => 'El servicio no dice qué necesita.';
+
+  @override
+  String get serviceInfoCoreSpeed => 'Velocidad de un núcleo';
+
+  @override
+  String get serviceInfoInterface => 'Interfaz';
+
+  @override
+  String get serviceInfoNoInterface => 'El servicio no declara ningún puerto.';
+
+  @override
+  String serviceInfoPort(int port) {
+    return 'Puerto $port';
+  }
+
+  @override
+  String get serviceInfoChatReady => 'Apto para chat';
+
+  @override
+  String get serviceInfoPricePerCall => 'MU por llamada';
+
+  @override
+  String get serviceInfoNetworks => 'Redes';
+
+  @override
+  String get serviceInfoNoNetworks =>
+      'El servicio no se conecta a ninguna red.';
+
+  @override
+  String get serviceInfoAnyAddress => 'Cualquier dirección';
+
+  @override
+  String serviceInfoPeersSpeak(String protocols) {
+    return 'Los pares hablan: $protocols';
+  }
+
+  @override
+  String get serviceInfoEnvironment => 'Variables de entorno';
+
+  @override
+  String get serviceInfoNoEnvironment =>
+      'El servicio no declara ninguna variable.';
+
+  @override
+  String get serviceInfoMore => 'Otros';
+
+  @override
+  String get serviceInfoNodeProtocols => 'Protocolos que espera del nodo';
+
+  @override
+  String get serviceInfoWorkloads => 'Instancias que puede arrancar';
+
+  @override
+  String serviceInfoWorkload(int count) {
+    return '$count × instancia';
+  }
+
+  @override
+  String get serviceInfoWorkloadService => 'de un servicio';
+
+  @override
+  String serviceInfoWorkloadsSkipped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count escenarios son demasiado grandes para mostrarlos.',
+      one: '1 escenario es demasiado grande para mostrarlo.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get celautChatUnsupportedTitle => 'Chatui no admite esta interfaz';
+
+  @override
+  String get celautChatUnsupportedBody =>
+      'Este servicio no sigue la convención de chat que usa Chatui, así que Chatui no puede abrir una conversación con él. Si lo ejecutas, aparece en Cómputo y no podrás hablar con él desde aquí.';
+
+  @override
+  String get celautChatRunAnyway => 'Ejecutar igualmente';
+
+  @override
+  String get celautChatDetails => 'Detalles';
+
+  @override
+  String get celautRunConfirmDetails => 'Detalles del servicio';
+
+  @override
+  String get chatsInfoServiceDetails => 'Detalles del servicio';
+
+  @override
+  String serviceInfoPartsSkipped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count partes del servicio son demasiado grandes para mostrarlas.',
+      one: '1 parte del servicio es demasiado grande para mostrarla.',
+    );
+    return '$_temp0';
+  }
 }

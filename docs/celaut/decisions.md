@@ -60,3 +60,8 @@
 - **Peer invitation (2026-10-22, Josemi):** the app reads the QR code of nodo#579
   (`protos/invite.proto`) and connects to the node by the address that is most feasible on the
   current route, with the invited key pinned. See [invite.md](invite.md).
+- **Service details and the chat check (2026-10-22, Josemi):** the app reads the Service as a
+  stream and never keeps its filesystem. It shows what the service declares (prose, resources,
+  interface, networks, variables) and, before a launch, warns if the interface is not the chat
+  convention of Chatui. The title of the app is Celaut Chatui, with "ui" in lower case and in the
+  other colour. See [service-info.md](service-info.md).

@@ -138,7 +138,7 @@ class ChatsScreenState extends State<ChatsScreen> {
         titleSpacing: 16,
         title: Semantics(
           header: true,
-          label: 'Celaut',
+          label: CelautWordmark.name,
           excludeSemantics: true,
           child: const Row(
             mainAxisSize: MainAxisSize.min,

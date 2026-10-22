@@ -5,10 +5,9 @@
 
 import '../frb_generated.dart';
 import 'celaut.dart';
-import 'celaut_service.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `refused`, `resolve`, `view_of`
+// These functions are ignored because they are not marked as `pub`: `refused`, `resolve`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`
 
 /// The variables of the container, by name.
@@ -30,18 +29,6 @@ void celautEnvSet({required String name, required String value}) => RustLib
 /// Remove a variable. A name that is not there is not an error.
 void celautEnvDelete({required String name}) =>
     RustLib.instance.api.crateApiCelautEnvCelautEnvDelete(name: name);
-
-/// The variables that the service declares, in the order of its declaration. The app
-/// reads them from the file of the service in the library if it has one. If not, from
-/// `node` (a node that has the service), which sends the service: it stops after
-/// 128 MiB, with an error. A service that declares nothing gives an empty list.
-Future<List<DeclaredVariableView>> celautServiceDeclaration({
-  required String serviceIdHex,
-  NodeAddress? node,
-}) => RustLib.instance.api.crateApiCelautEnvCelautServiceDeclaration(
-  serviceIdHex: serviceIdHex,
-  node: node,
-);
 
 /// A variable that a service declares.
 class DeclaredVariableView {

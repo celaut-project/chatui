@@ -1,6 +1,6 @@
 {
   "@@locale": "es",
-  "appTitle": "Celaut",
+  "appTitle": "Celaut Chatui",
   "commonCancel": "Cancelar",
   "commonSave": "Guardar",
   "commonRetry": "Reintentar",
@@ -1797,9 +1797,9 @@
   "celautEnvReviewSkipped": "Omitida",
   "celautEnvReviewNote": "El nodo que arranca el servicio lee estos valores. Un nodo que rechaza el arranque también los ha leído.",
   "celautEnvRun": "Ejecutar",
-  "celautEnvDeclUnreadableTitle": "Se desconocen las variables del servicio",
-  "celautEnvDeclUnreadableBody": "Puede que el servicio pida variables y la app no ha podido averiguarlo. Ejecútalo sin ninguna o cancela.",
-  "celautEnvRunWithout": "Ejecutar sin variables",
+  "celautEnvDeclUnreadableTitle": "No se pudo leer el servicio",
+  "celautEnvDeclUnreadableBody": "La app no ha podido leer la interfaz ni las variables de este servicio, así que no sabe si Chatui lo admite ni si necesita variables. Ejecútalo igualmente o cancela.",
+  "celautEnvRunWithout": "Ejecutar igualmente",
   "celautInviteConnected": "Conectado por {address}. El nodo está en tu lista.",
   "@celautInviteConnected": {
     "placeholders": {
@@ -1811,5 +1811,89 @@
   "celautInviteFailedTitle": "No se pudo conectar con el nodo de la invitación",
   "celautInviteNoAddress": "La invitación no tiene ninguna dirección que esta app pueda usar.",
   "celautInviteOnionNeedsProxy": "No se probó. Una dirección onion necesita Tor mediante un proxy externo, como Orbot. Una conexión directa y el cliente Tor de la app no pueden abrirla.",
-  "celautInvitePrivateOverTor": "No se probó. Una dirección de una red privada no se puede alcanzar a través de Tor."
+  "celautInvitePrivateOverTor": "No se probó. Una dirección de una red privada no se puede alcanzar a través de Tor.",
+  "serviceInfoTitle": "Detalles del servicio",
+  "serviceInfoLoading": "Leyendo el servicio…",
+  "serviceInfoReadFailed": "No se pudo leer el servicio",
+  "serviceInfoTruncated": "Este servicio es demasiado grande para leerlo desde un nodo, así que solo se muestra lo que viene primero. Carga su fichero para verlo todo.",
+  "serviceInfoChatSupported": "Sigue la convención de chat de Chatui (puerto {port}), así que se abre como una conversación.",
+  "@serviceInfoChatSupported": {
+    "placeholders": {
+      "port": {
+        "type": "int"
+      }
+    }
+  },
+  "serviceInfoChatUnsupported": "Chatui no admite su interfaz: ningún puerto habla la convención de chat (tcp, luego http y chat encima). Se puede ejecutar, pero Chatui no puede abrir una conversación con él.",
+  "serviceInfoChatUnknown": "La app no ha podido leer la interfaz de este servicio, así que no sabe si funciona como una conversación.",
+  "serviceInfoAbout": "Acerca de",
+  "serviceInfoNoProse": "El servicio no da ninguna descripción.",
+  "serviceInfoArchitecture": "Arquitectura",
+  "serviceInfoEntry": "Arranca",
+  "serviceInfoFilesystem": "Sistema de ficheros",
+  "serviceInfoConfigFile": "Fichero de configuración",
+  "serviceInfoResources": "Recursos",
+  "serviceInfoAtStart": "Necesita al arrancar",
+  "serviceInfoAtMost": "Puede usar como máximo",
+  "serviceInfoNoResources": "El servicio no dice qué necesita.",
+  "serviceInfoCoreSpeed": "Velocidad de un núcleo",
+  "serviceInfoInterface": "Interfaz",
+  "serviceInfoNoInterface": "El servicio no declara ningún puerto.",
+  "serviceInfoPort": "Puerto {port}",
+  "@serviceInfoPort": {
+    "placeholders": {
+      "port": {
+        "type": "int"
+      }
+    }
+  },
+  "serviceInfoChatReady": "Apto para chat",
+  "serviceInfoPricePerCall": "MU por llamada",
+  "serviceInfoNetworks": "Redes",
+  "serviceInfoNoNetworks": "El servicio no se conecta a ninguna red.",
+  "serviceInfoAnyAddress": "Cualquier dirección",
+  "serviceInfoPeersSpeak": "Los pares hablan: {protocols}",
+  "@serviceInfoPeersSpeak": {
+    "placeholders": {
+      "protocols": {
+        "type": "String"
+      }
+    }
+  },
+  "serviceInfoEnvironment": "Variables de entorno",
+  "serviceInfoNoEnvironment": "El servicio no declara ninguna variable.",
+  "serviceInfoMore": "Otros",
+  "serviceInfoNodeProtocols": "Protocolos que espera del nodo",
+  "serviceInfoWorkloads": "Instancias que puede arrancar",
+  "serviceInfoWorkload": "{count} × instancia",
+  "@serviceInfoWorkload": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "serviceInfoWorkloadService": "de un servicio",
+  "serviceInfoWorkloadsSkipped": "{count, plural, =1{1 escenario es demasiado grande para mostrarlo.} other{{count} escenarios son demasiado grandes para mostrarlos.}}",
+  "@serviceInfoWorkloadsSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "celautChatUnsupportedTitle": "Chatui no admite esta interfaz",
+  "celautChatUnsupportedBody": "Este servicio no sigue la convención de chat que usa Chatui, así que Chatui no puede abrir una conversación con él. Si lo ejecutas, aparece en Cómputo y no podrás hablar con él desde aquí.",
+  "celautChatRunAnyway": "Ejecutar igualmente",
+  "celautChatDetails": "Detalles",
+  "celautRunConfirmDetails": "Detalles del servicio",
+  "chatsInfoServiceDetails": "Detalles del servicio",
+  "serviceInfoPartsSkipped": "{count, plural, =1{1 parte del servicio es demasiado grande para mostrarla.} other{{count} partes del servicio son demasiado grandes para mostrarlas.}}",
+  "@serviceInfoPartsSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

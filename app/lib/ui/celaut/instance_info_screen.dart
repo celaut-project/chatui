@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../bridge/api/celaut_service.dart';
+import '../../celaut/host_port.dart';
 import '../../celaut/celaut_format.dart';
 import '../../celaut/conversations.dart';
 import '../../celaut/payers.dart';
@@ -9,6 +10,7 @@ import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
 import '../home/home_style.dart';
 import 'instance_actions.dart';
+import 'service_info_screen.dart';
 
 /// The page of one instance, as the info page of a chat in a messenger: the service,
 /// the node, the chat slot, the cost so far, the start time, and Stop; for a stopped
@@ -25,7 +27,11 @@ class InstanceInfoScreen extends StatefulWidget {
     this.stop,
     this.forget,
     this.notes,
+    this.loadInfo = readServiceInfo,
   });
+
+  /// Read what the service says about itself. Tests give their own.
+  final ServiceInfoLoader loadInfo;
 
   final InstanceListView instance;
   final InstanceState state;
@@ -68,6 +74,23 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
     if (done != null) Navigator.of(context).pop(true);
   }
 
+  /// The details of the service: from the library file, or from the node of the instance,
+  /// which has the service.
+  void _details() {
+    final i = widget.instance;
+    final parsed = parseHostPort(i.address).value;
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ServiceInfoScreen(
+          serviceIdHex: i.serviceId,
+          name: instanceTitle(i),
+          node: parsed == null ? null : NodeAddress(host: parsed.host, port: parsed.port),
+          load: widget.loadInfo,
+        ),
+      ),
+    );
+  }
+
   Future<void> _delete() async {
     final deleted = await confirmAndDeleteInstance(
       context,
@@ -104,7 +127,17 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
         (l.chatsInfoCost, muOrUnknown(widget.costMu), const Key('info-cost')),
     ];
     return Scaffold(
-      appBar: AppBar(title: Text(l.chatsInfoTitle)),
+      appBar: AppBar(
+        title: Text(l.chatsInfoTitle),
+        actions: [
+          IconButton(
+            key: const Key('info-service-details'),
+            tooltip: l.chatsInfoServiceDetails,
+            onPressed: _details,
+            icon: const Icon(Icons.info_outline),
+          ),
+        ],
+      ),
       body: ListView(
         padding: EdgeInsets.fromLTRB(
           homeGutter,

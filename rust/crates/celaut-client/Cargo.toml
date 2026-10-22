@@ -25,4 +25,4 @@ tokio = { workspace = true, features = ["time", "net", "io-util", "rt", "fs", "s
 
 [dev-dependencies]
 tokio-stream = { version = "0.1", default-features = false }
-tokio = { workspace = true, features = ["time", "net", "io-util", "rt"] }
+tokio = { workspace = true, features = ["time", "net", "io-util", "rt", "test-util"] }

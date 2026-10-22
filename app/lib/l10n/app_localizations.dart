@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
-  /// **'Celaut'**
+  /// **'Celaut Chatui'**
   String get appTitle;
 
   /// No description provided for @commonCancel.
@@ -9368,19 +9368,19 @@ abstract class AppLocalizations {
   /// No description provided for @celautEnvDeclUnreadableTitle.
   ///
   /// In en, this message translates to:
-  /// **'The variables of the service are unknown'**
+  /// **'The service could not be read'**
   String get celautEnvDeclUnreadableTitle;
 
   /// No description provided for @celautEnvDeclUnreadableBody.
   ///
   /// In en, this message translates to:
-  /// **'The service may ask for variables, and the app could not find out. Run it with none, or cancel.'**
+  /// **'The app could not read the interface and the variables of this service, so it cannot tell if Chatui supports it or if it needs variables. Run it anyway, or cancel.'**
   String get celautEnvDeclUnreadableBody;
 
   /// No description provided for @celautEnvRunWithout.
   ///
   /// In en, this message translates to:
-  /// **'Run without variables'**
+  /// **'Run anyway'**
   String get celautEnvRunWithout;
 
   /// No description provided for @celautInviteConnected.
@@ -9412,6 +9412,258 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not tried. An address on a private network cannot be reached through Tor.'**
   String get celautInvitePrivateOverTor;
+
+  /// No description provided for @serviceInfoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Service details'**
+  String get serviceInfoTitle;
+
+  /// No description provided for @serviceInfoLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading the service…'**
+  String get serviceInfoLoading;
+
+  /// No description provided for @serviceInfoReadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The service could not be read'**
+  String get serviceInfoReadFailed;
+
+  /// No description provided for @serviceInfoTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'This service is too large to read from a node, so only what comes first is shown. Load its file to see everything.'**
+  String get serviceInfoTruncated;
+
+  /// No description provided for @serviceInfoChatSupported.
+  ///
+  /// In en, this message translates to:
+  /// **'It follows the chat convention of Chatui (port {port}), so it opens as a conversation.'**
+  String serviceInfoChatSupported(int port);
+
+  /// No description provided for @serviceInfoChatUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Chatui does not support its interface: no port speaks the chat convention (tcp, then http, and chat above it). It can run, but Chatui cannot open a conversation with it.'**
+  String get serviceInfoChatUnsupported;
+
+  /// No description provided for @serviceInfoChatUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'The app could not read the interface of this service, so it cannot tell if it works as a conversation.'**
+  String get serviceInfoChatUnknown;
+
+  /// No description provided for @serviceInfoAbout.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get serviceInfoAbout;
+
+  /// No description provided for @serviceInfoNoProse.
+  ///
+  /// In en, this message translates to:
+  /// **'The service gives no description.'**
+  String get serviceInfoNoProse;
+
+  /// No description provided for @serviceInfoArchitecture.
+  ///
+  /// In en, this message translates to:
+  /// **'Architecture'**
+  String get serviceInfoArchitecture;
+
+  /// No description provided for @serviceInfoEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Starts'**
+  String get serviceInfoEntry;
+
+  /// No description provided for @serviceInfoFilesystem.
+  ///
+  /// In en, this message translates to:
+  /// **'Filesystem'**
+  String get serviceInfoFilesystem;
+
+  /// No description provided for @serviceInfoConfigFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Configuration file'**
+  String get serviceInfoConfigFile;
+
+  /// No description provided for @serviceInfoResources.
+  ///
+  /// In en, this message translates to:
+  /// **'Resources'**
+  String get serviceInfoResources;
+
+  /// No description provided for @serviceInfoAtStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs at the start'**
+  String get serviceInfoAtStart;
+
+  /// No description provided for @serviceInfoAtMost.
+  ///
+  /// In en, this message translates to:
+  /// **'Can use at most'**
+  String get serviceInfoAtMost;
+
+  /// No description provided for @serviceInfoNoResources.
+  ///
+  /// In en, this message translates to:
+  /// **'The service does not say what it needs.'**
+  String get serviceInfoNoResources;
+
+  /// No description provided for @serviceInfoCoreSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed of one core'**
+  String get serviceInfoCoreSpeed;
+
+  /// No description provided for @serviceInfoInterface.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface'**
+  String get serviceInfoInterface;
+
+  /// No description provided for @serviceInfoNoInterface.
+  ///
+  /// In en, this message translates to:
+  /// **'The service declares no port.'**
+  String get serviceInfoNoInterface;
+
+  /// No description provided for @serviceInfoPort.
+  ///
+  /// In en, this message translates to:
+  /// **'Port {port}'**
+  String serviceInfoPort(int port);
+
+  /// No description provided for @serviceInfoChatReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat ready'**
+  String get serviceInfoChatReady;
+
+  /// No description provided for @serviceInfoPricePerCall.
+  ///
+  /// In en, this message translates to:
+  /// **'MU per call'**
+  String get serviceInfoPricePerCall;
+
+  /// No description provided for @serviceInfoNetworks.
+  ///
+  /// In en, this message translates to:
+  /// **'Networks'**
+  String get serviceInfoNetworks;
+
+  /// No description provided for @serviceInfoNoNetworks.
+  ///
+  /// In en, this message translates to:
+  /// **'The service does not connect to any network.'**
+  String get serviceInfoNoNetworks;
+
+  /// No description provided for @serviceInfoAnyAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Every address'**
+  String get serviceInfoAnyAddress;
+
+  /// No description provided for @serviceInfoPeersSpeak.
+  ///
+  /// In en, this message translates to:
+  /// **'Peers speak: {protocols}'**
+  String serviceInfoPeersSpeak(String protocols);
+
+  /// No description provided for @serviceInfoEnvironment.
+  ///
+  /// In en, this message translates to:
+  /// **'Environment variables'**
+  String get serviceInfoEnvironment;
+
+  /// No description provided for @serviceInfoNoEnvironment.
+  ///
+  /// In en, this message translates to:
+  /// **'The service declares no variables.'**
+  String get serviceInfoNoEnvironment;
+
+  /// No description provided for @serviceInfoMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get serviceInfoMore;
+
+  /// No description provided for @serviceInfoNodeProtocols.
+  ///
+  /// In en, this message translates to:
+  /// **'Protocols that it expects from the node'**
+  String get serviceInfoNodeProtocols;
+
+  /// No description provided for @serviceInfoWorkloads.
+  ///
+  /// In en, this message translates to:
+  /// **'Instances that it can start'**
+  String get serviceInfoWorkloads;
+
+  /// No description provided for @serviceInfoWorkload.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} × instance'**
+  String serviceInfoWorkload(int count);
+
+  /// No description provided for @serviceInfoWorkloadService.
+  ///
+  /// In en, this message translates to:
+  /// **'of a service'**
+  String get serviceInfoWorkloadService;
+
+  /// No description provided for @serviceInfoWorkloadsSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 scenario is too large to show.} other{{count} scenarios are too large to show.}}'**
+  String serviceInfoWorkloadsSkipped(int count);
+
+  /// No description provided for @celautChatUnsupportedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Chatui does not support this interface'**
+  String get celautChatUnsupportedTitle;
+
+  /// No description provided for @celautChatUnsupportedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This service does not follow the chat convention that Chatui uses, so Chatui cannot open a conversation with it. If you run it, it shows in Compute, and you cannot talk to it from here.'**
+  String get celautChatUnsupportedBody;
+
+  /// No description provided for @celautChatRunAnyway.
+  ///
+  /// In en, this message translates to:
+  /// **'Run anyway'**
+  String get celautChatRunAnyway;
+
+  /// No description provided for @celautChatDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get celautChatDetails;
+
+  /// No description provided for @celautRunConfirmDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Service details'**
+  String get celautRunConfirmDetails;
+
+  /// No description provided for @chatsInfoServiceDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Service details'**
+  String get chatsInfoServiceDetails;
+
+  /// No description provided for @serviceInfoPartsSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 part of the service is too large to show.} other{{count} parts of the service are too large to show.}}'**
+  String serviceInfoPartsSkipped(int count);
 }
 
 class _AppLocalizationsDelegate

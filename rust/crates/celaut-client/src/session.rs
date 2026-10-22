@@ -6,6 +6,7 @@
 //! that balance.
 
 use celaut_balancer::{amount, erg_rate};
+use celaut_proto::celaut::service::Api;
 use celaut_proto::celaut::{Configuration, EstimatedCost, Instance, Payment};
 use celaut_wire::gateway::{
     generate_deposit_token, get_metrics, get_service_estimated_cost,
@@ -50,14 +51,12 @@ const HTTP_TAG: &str = "http";
 /// The tag of the chat convention in a protocol stack. It has no version.
 const CHAT_TAG: &str = "chat";
 
-/// The slots of `instance` that follow the chat convention: a port of `Service.Api`
-/// with the transport `tcp`, and a protocol stack that has `http` and, above it, `chat`
-/// (the stack is written bottom to top). A slot counts only if the instance has that
-/// port, because `ServiceTunnel` accepts only the ports of the instance.
-pub fn chat_slots(instance: &Instance) -> Vec<u16> {
-    let Some(api) = instance.api.as_ref() else {
-        return Vec::new();
-    };
+/// The ports of `api` that follow the chat convention: a slot with the transport `tcp`,
+/// and a protocol stack that has `http` and, above it, `chat` (the stack is written
+/// bottom to top), in the order of the interface (`docs/celaut/chat.md`, section 2). The
+/// reachability of a port is not checked here: for a service that is not running, there is
+/// no instance yet.
+pub fn api_chat_ports(api: &Api) -> Vec<u16> {
     let has = |tags: &[String], tag: &str| tags.iter().any(|t| t == tag);
     let mut found = Vec::new();
     for slot in &api.slot {
@@ -68,15 +67,29 @@ pub fn chat_slots(instance: &Instance) -> Vec<u16> {
         let Ok(port) = u16::try_from(slot.port) else {
             continue;
         };
-        let reachable = instance
-            .uri_slot
-            .iter()
-            .any(|u| u16::try_from(u.internal_port) == Ok(port));
-        if tcp && follows && reachable && !found.contains(&port) {
+        if tcp && follows && !found.contains(&port) {
             found.push(port);
         }
     }
     found
+}
+
+/// The slots of `instance` that follow the chat convention (see [`api_chat_ports`]). A
+/// slot counts only if the instance has that port, because `ServiceTunnel` accepts only
+/// the ports of the instance.
+pub fn chat_slots(instance: &Instance) -> Vec<u16> {
+    let Some(api) = instance.api.as_ref() else {
+        return Vec::new();
+    };
+    api_chat_ports(api)
+        .into_iter()
+        .filter(|port| {
+            instance
+                .uri_slot
+                .iter()
+                .any(|u| u16::try_from(u.internal_port) == Ok(*port))
+        })
+        .collect()
 }
 
 /// A client on one node.

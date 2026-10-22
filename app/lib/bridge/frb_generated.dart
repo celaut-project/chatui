@@ -15,6 +15,7 @@ import 'api/celaut_invite.dart';
 import 'api/celaut_network.dart';
 import 'api/celaut_package.dart';
 import 'api/celaut_service.dart';
+import 'api/celaut_service_info.dart';
 import 'api/mempool.dart';
 import 'api/storage_rent.dart';
 import 'dart:async';
@@ -77,7 +78,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1914620839;
+  int get rustContentHash => -966555598;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -233,7 +234,7 @@ abstract class RustLibApi extends BaseApi {
 
   List<DepositSentView> crateApiCelautDepositCelautSentDeposits();
 
-  Future<List<DeclaredVariableView>> crateApiCelautEnvCelautServiceDeclaration({
+  Future<ServiceInfoView> crateApiCelautServiceInfoCelautServiceInfo({
     required String serviceIdHex,
     NodeAddress? node,
   });
@@ -1667,7 +1668,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "celaut_sent_deposits", argNames: []);
 
   @override
-  Future<List<DeclaredVariableView>> crateApiCelautEnvCelautServiceDeclaration({
+  Future<ServiceInfoView> crateApiCelautServiceInfoCelautServiceInfo({
     required String serviceIdHex,
     NodeAddress? node,
   }) {
@@ -1685,19 +1686,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_list_declared_variable_view,
+          decodeSuccessData: sse_decode_service_info_view,
           decodeErrorData: sse_decode_celaut_error,
         ),
-        constMeta: kCrateApiCelautEnvCelautServiceDeclarationConstMeta,
+        constMeta: kCrateApiCelautServiceInfoCelautServiceInfoConstMeta,
         argValues: [serviceIdHex, node],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiCelautEnvCelautServiceDeclarationConstMeta =>
+  TaskConstMeta get kCrateApiCelautServiceInfoCelautServiceInfoConstMeta =>
       const TaskConstMeta(
-        debugName: "celaut_service_declaration",
+        debugName: "celaut_service_info",
         argNames: ["serviceIdHex", "node"],
       );
 
@@ -3650,6 +3651,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ApiSlotView dco_decode_api_slot_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return ApiSlotView(
+      port: dco_decode_i_32(arr[0]),
+      transport: dco_decode_list_String(arr[1]),
+      protocolStack: dco_decode_list_protocol_view(arr[2]),
+      muPerCall: dco_decode_list_named_value_view(arr[3]),
+      chat: dco_decode_bool(arr[4]),
+    );
+  }
+
+  @protected
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
@@ -3683,6 +3699,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   NodeAddress dco_decode_box_autoadd_node_address(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_node_address(raw);
+  }
+
+  @protected
+  SysresourcesView dco_decode_box_autoadd_sysresources_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_sysresources_view(raw);
+  }
+
+  @protected
+  int dco_decode_box_autoadd_u_16(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
   }
 
   @protected
@@ -3742,6 +3770,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   CelautErrorKind dco_decode_celaut_error_kind(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return CelautErrorKind.values[raw as int];
+  }
+
+  @protected
+  ChatSupportView dco_decode_chat_support_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return ChatSupportView.values[raw as int];
   }
 
   @protected
@@ -4047,6 +4081,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<ApiSlotView> dco_decode_list_api_slot_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_api_slot_view).toList();
+  }
+
+  @protected
   List<DeclaredVariableView> dco_decode_list_declared_variable_view(
     dynamic raw,
   ) {
@@ -4102,6 +4142,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<LibraryPackageView> dco_decode_list_library_package_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_library_package_view).toList();
+  }
+
+  @protected
+  List<NamedValueView> dco_decode_list_named_value_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_named_value_view).toList();
+  }
+
+  @protected
+  List<NetworkView> dco_decode_list_network_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_network_view).toList();
   }
 
   @protected
@@ -4161,6 +4213,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<ProtocolView> dco_decode_list_protocol_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_protocol_view).toList();
+  }
+
+  @protected
   List<QuoteFailureView> dco_decode_list_quote_failure_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_quote_failure_view).toList();
@@ -4190,6 +4248,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<SkillView> dco_decode_list_skill_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_skill_view).toList();
+  }
+
+  @protected
+  List<WorkloadView> dco_decode_list_workload_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_workload_view).toList();
+  }
+
+  @protected
+  NamedValueView dco_decode_named_value_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return NamedValueView(
+      key: dco_decode_String(arr[0]),
+      value: dco_decode_String(arr[1]),
+    );
   }
 
   @protected
@@ -4251,6 +4327,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       state: dco_decode_network_state(arr[1]),
       percent: dco_decode_u_8(arr[2]),
       error: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  NetworkView dco_decode_network_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return NetworkView(
+      tags: dco_decode_list_String(arr[0]),
+      prose: dco_decode_String(arr[1]),
+      formal: dco_decode_String(arr[2]),
+      protocolStack: dco_decode_list_protocol_view(arr[3]),
     );
   }
 
@@ -4397,6 +4487,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SysresourcesView? dco_decode_opt_box_autoadd_sysresources_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_sysresources_view(raw);
+  }
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_16(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_u_16(raw);
+  }
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_u_32(raw);
@@ -4456,6 +4558,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       paymentContracts: dco_decode_list_payment_contract_view(arr[4]),
       resources: dco_decode_list_node_resources_view(arr[5]),
       reputationProofs: dco_decode_u_32(arr[6]),
+    );
+  }
+
+  @protected
+  ProtocolView dco_decode_protocol_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return ProtocolView(
+      tags: dco_decode_list_String(arr[0]),
+      prose: dco_decode_String(arr[1]),
     );
   }
 
@@ -4521,6 +4635,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ServiceInfoView dco_decode_service_info_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 18)
+      throw Exception('unexpected arr length: expect 18 but see ${arr.length}');
+    return ServiceInfoView(
+      prose: dco_decode_String(arr[0]),
+      architecture: dco_decode_list_String(arr[1]),
+      filesystemBytes: dco_decode_u_64(arr[2]),
+      entryPath: dco_decode_list_String(arr[3]),
+      resourcesAtInit: dco_decode_opt_box_autoadd_sysresources_view(arr[4]),
+      resourcesAtMost: dco_decode_opt_box_autoadd_sysresources_view(arr[5]),
+      configPath: dco_decode_list_String(arr[6]),
+      nodeProtocols: dco_decode_list_protocol_view(arr[7]),
+      environment: dco_decode_list_declared_variable_view(arr[8]),
+      slots: dco_decode_list_api_slot_view(arr[9]),
+      networks: dco_decode_list_network_view(arr[10]),
+      workloads: dco_decode_list_workload_view(arr[11]),
+      workloadsSkipped: dco_decode_u_32(arr[12]),
+      partsSkipped: dco_decode_u_32(arr[13]),
+      apiSkipped: dco_decode_bool(arr[14]),
+      chat: dco_decode_chat_support_view(arr[15]),
+      chatPort: dco_decode_opt_box_autoadd_u_16(arr[16]),
+      truncated: dco_decode_bool(arr[17]),
+    );
+  }
+
+  @protected
   SkillServiceView dco_decode_skill_service_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -4556,6 +4698,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return StopView(
       refundMu: dco_decode_String(arr[0]),
       clientBalanceMu: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
+  SysresourcesView dco_decode_sysresources_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return SysresourcesView(
+      cpuCores: dco_decode_opt_box_autoadd_f_64(arr[0]),
+      memBytes: dco_decode_opt_box_autoadd_u_64(arr[1]),
+      diskBytes: dco_decode_opt_box_autoadd_u_64(arr[2]),
+      blkioWeight: dco_decode_opt_box_autoadd_u_64(arr[3]),
+      benchmark: dco_decode_list_named_value_view(arr[4]),
     );
   }
 
@@ -4609,10 +4766,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  WorkloadView dco_decode_workload_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return WorkloadView(
+      scenario: dco_decode_u_32(arr[0]),
+      count: dco_decode_u_32(arr[1]),
+      resources: dco_decode_opt_box_autoadd_sysresources_view(arr[2]),
+      hasDependency: dco_decode_bool(arr[3]),
+    );
+  }
+
+  @protected
   String sse_decode_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_list_prim_u_8_strict(deserializer);
     return utf8.decoder.convert(inner);
+  }
+
+  @protected
+  ApiSlotView sse_decode_api_slot_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_port = sse_decode_i_32(deserializer);
+    var var_transport = sse_decode_list_String(deserializer);
+    var var_protocolStack = sse_decode_list_protocol_view(deserializer);
+    var var_muPerCall = sse_decode_list_named_value_view(deserializer);
+    var var_chat = sse_decode_bool(deserializer);
+    return ApiSlotView(
+      port: var_port,
+      transport: var_transport,
+      protocolStack: var_protocolStack,
+      muPerCall: var_muPerCall,
+      chat: var_chat,
+    );
   }
 
   @protected
@@ -4655,6 +4843,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_node_address(deserializer));
+  }
+
+  @protected
+  SysresourcesView sse_decode_box_autoadd_sysresources_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_sysresources_view(deserializer));
+  }
+
+  @protected
+  int sse_decode_box_autoadd_u_16(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_u_16(deserializer));
   }
 
   @protected
@@ -4716,6 +4918,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return CelautErrorKind.values[inner];
+  }
+
+  @protected
+  ChatSupportView sse_decode_chat_support_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return ChatSupportView.values[inner];
   }
 
   @protected
@@ -5079,6 +5288,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<ApiSlotView> sse_decode_list_api_slot_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ApiSlotView>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_api_slot_view(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<DeclaredVariableView> sse_decode_list_declared_variable_view(
     SseDeserializer deserializer,
   ) {
@@ -5203,6 +5426,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<NamedValueView> sse_decode_list_named_value_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <NamedValueView>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_named_value_view(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<NetworkView> sse_decode_list_network_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <NetworkView>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_network_view(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<NodeAddress> sse_decode_list_node_address(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -5306,6 +5555,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<ProtocolView> sse_decode_list_protocol_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ProtocolView>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_protocol_view(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<QuoteFailureView> sse_decode_list_quote_failure_view(
     SseDeserializer deserializer,
   ) {
@@ -5369,6 +5632,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       ans_.add(sse_decode_skill_view(deserializer));
     }
     return ans_;
+  }
+
+  @protected
+  List<WorkloadView> sse_decode_list_workload_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <WorkloadView>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_workload_view(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  NamedValueView sse_decode_named_value_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_key = sse_decode_String(deserializer);
+    var var_value = sse_decode_String(deserializer);
+    return NamedValueView(key: var_key, value: var_value);
   }
 
   @protected
@@ -5442,6 +5727,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       state: var_state,
       percent: var_percent,
       error: var_error,
+    );
+  }
+
+  @protected
+  NetworkView sse_decode_network_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_tags = sse_decode_list_String(deserializer);
+    var var_prose = sse_decode_String(deserializer);
+    var var_formal = sse_decode_String(deserializer);
+    var var_protocolStack = sse_decode_list_protocol_view(deserializer);
+    return NetworkView(
+      tags: var_tags,
+      prose: var_prose,
+      formal: var_formal,
+      protocolStack: var_protocolStack,
     );
   }
 
@@ -5648,6 +5948,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SysresourcesView? sse_decode_opt_box_autoadd_sysresources_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_sysresources_view(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_16(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_u_16(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -5736,6 +6060,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ProtocolView sse_decode_protocol_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_tags = sse_decode_list_String(deserializer);
+    var var_prose = sse_decode_String(deserializer);
+    return ProtocolView(tags: var_tags, prose: var_prose);
+  }
+
+  @protected
   QuoteFailureView sse_decode_quote_failure_view(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_address = sse_decode_node_address(deserializer);
@@ -5805,6 +6137,53 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ServiceInfoView sse_decode_service_info_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_prose = sse_decode_String(deserializer);
+    var var_architecture = sse_decode_list_String(deserializer);
+    var var_filesystemBytes = sse_decode_u_64(deserializer);
+    var var_entryPath = sse_decode_list_String(deserializer);
+    var var_resourcesAtInit = sse_decode_opt_box_autoadd_sysresources_view(
+      deserializer,
+    );
+    var var_resourcesAtMost = sse_decode_opt_box_autoadd_sysresources_view(
+      deserializer,
+    );
+    var var_configPath = sse_decode_list_String(deserializer);
+    var var_nodeProtocols = sse_decode_list_protocol_view(deserializer);
+    var var_environment = sse_decode_list_declared_variable_view(deserializer);
+    var var_slots = sse_decode_list_api_slot_view(deserializer);
+    var var_networks = sse_decode_list_network_view(deserializer);
+    var var_workloads = sse_decode_list_workload_view(deserializer);
+    var var_workloadsSkipped = sse_decode_u_32(deserializer);
+    var var_partsSkipped = sse_decode_u_32(deserializer);
+    var var_apiSkipped = sse_decode_bool(deserializer);
+    var var_chat = sse_decode_chat_support_view(deserializer);
+    var var_chatPort = sse_decode_opt_box_autoadd_u_16(deserializer);
+    var var_truncated = sse_decode_bool(deserializer);
+    return ServiceInfoView(
+      prose: var_prose,
+      architecture: var_architecture,
+      filesystemBytes: var_filesystemBytes,
+      entryPath: var_entryPath,
+      resourcesAtInit: var_resourcesAtInit,
+      resourcesAtMost: var_resourcesAtMost,
+      configPath: var_configPath,
+      nodeProtocols: var_nodeProtocols,
+      environment: var_environment,
+      slots: var_slots,
+      networks: var_networks,
+      workloads: var_workloads,
+      workloadsSkipped: var_workloadsSkipped,
+      partsSkipped: var_partsSkipped,
+      apiSkipped: var_apiSkipped,
+      chat: var_chat,
+      chatPort: var_chatPort,
+      truncated: var_truncated,
+    );
+  }
+
+  @protected
   SkillServiceView sse_decode_skill_service_view(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_serviceId = sse_decode_String(deserializer);
@@ -5840,6 +6219,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return StopView(
       refundMu: var_refundMu,
       clientBalanceMu: var_clientBalanceMu,
+    );
+  }
+
+  @protected
+  SysresourcesView sse_decode_sysresources_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_cpuCores = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_memBytes = sse_decode_opt_box_autoadd_u_64(deserializer);
+    var var_diskBytes = sse_decode_opt_box_autoadd_u_64(deserializer);
+    var var_blkioWeight = sse_decode_opt_box_autoadd_u_64(deserializer);
+    var var_benchmark = sse_decode_list_named_value_view(deserializer);
+    return SysresourcesView(
+      cpuCores: var_cpuCores,
+      memBytes: var_memBytes,
+      diskBytes: var_diskBytes,
+      blkioWeight: var_blkioWeight,
+      benchmark: var_benchmark,
     );
   }
 
@@ -5889,9 +6285,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  WorkloadView sse_decode_workload_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_scenario = sse_decode_u_32(deserializer);
+    var var_count = sse_decode_u_32(deserializer);
+    var var_resources = sse_decode_opt_box_autoadd_sysresources_view(
+      deserializer,
+    );
+    var var_hasDependency = sse_decode_bool(deserializer);
+    return WorkloadView(
+      scenario: var_scenario,
+      count: var_count,
+      resources: var_resources,
+      hasDependency: var_hasDependency,
+    );
+  }
+
+  @protected
   void sse_encode_String(String self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_prim_u_8_strict(utf8.encoder.convert(self), serializer);
+  }
+
+  @protected
+  void sse_encode_api_slot_view(ApiSlotView self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.port, serializer);
+    sse_encode_list_String(self.transport, serializer);
+    sse_encode_list_protocol_view(self.protocolStack, serializer);
+    sse_encode_list_named_value_view(self.muPerCall, serializer);
+    sse_encode_bool(self.chat, serializer);
   }
 
   @protected
@@ -5943,6 +6366,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_sysresources_view(
+    SysresourcesView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_sysresources_view(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_u_16(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_16(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self, serializer);
@@ -5989,6 +6427,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_celaut_error_kind(
     CelautErrorKind self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_chat_support_view(
+    ChatSupportView self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -6258,6 +6705,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_api_slot_view(
+    List<ApiSlotView> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_api_slot_view(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_declared_variable_view(
     List<DeclaredVariableView> self,
     SseSerializer serializer,
@@ -6366,6 +6825,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_named_value_view(
+    List<NamedValueView> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_named_value_view(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_network_view(
+    List<NetworkView> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_network_view(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_node_address(
     List<NodeAddress> self,
     SseSerializer serializer,
@@ -6470,6 +6953,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_protocol_view(
+    List<ProtocolView> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_protocol_view(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_quote_failure_view(
     List<QuoteFailureView> self,
     SseSerializer serializer,
@@ -6530,6 +7025,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_workload_view(
+    List<WorkloadView> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_workload_view(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_named_value_view(
+    NamedValueView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.key, serializer);
+    sse_encode_String(self.value, serializer);
+  }
+
+  @protected
   void sse_encode_nano_erg_total_view(
     NanoErgTotalView self,
     SseSerializer serializer,
@@ -6586,6 +7103,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_network_state(self.state, serializer);
     sse_encode_u_8(self.percent, serializer);
     sse_encode_String(self.error, serializer);
+  }
+
+  @protected
+  void sse_encode_network_view(NetworkView self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_String(self.tags, serializer);
+    sse_encode_String(self.prose, serializer);
+    sse_encode_String(self.formal, serializer);
+    sse_encode_list_protocol_view(self.protocolStack, serializer);
   }
 
   @protected
@@ -6752,6 +7278,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_sysresources_view(
+    SysresourcesView? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_sysresources_view(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_16(int? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_u_16(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -6818,6 +7367,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_protocol_view(ProtocolView self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_String(self.tags, serializer);
+    sse_encode_String(self.prose, serializer);
+  }
+
+  @protected
   void sse_encode_quote_failure_view(
     QuoteFailureView self,
     SseSerializer serializer,
@@ -6865,6 +7421,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_service_info_view(
+    ServiceInfoView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.prose, serializer);
+    sse_encode_list_String(self.architecture, serializer);
+    sse_encode_u_64(self.filesystemBytes, serializer);
+    sse_encode_list_String(self.entryPath, serializer);
+    sse_encode_opt_box_autoadd_sysresources_view(
+      self.resourcesAtInit,
+      serializer,
+    );
+    sse_encode_opt_box_autoadd_sysresources_view(
+      self.resourcesAtMost,
+      serializer,
+    );
+    sse_encode_list_String(self.configPath, serializer);
+    sse_encode_list_protocol_view(self.nodeProtocols, serializer);
+    sse_encode_list_declared_variable_view(self.environment, serializer);
+    sse_encode_list_api_slot_view(self.slots, serializer);
+    sse_encode_list_network_view(self.networks, serializer);
+    sse_encode_list_workload_view(self.workloads, serializer);
+    sse_encode_u_32(self.workloadsSkipped, serializer);
+    sse_encode_u_32(self.partsSkipped, serializer);
+    sse_encode_bool(self.apiSkipped, serializer);
+    sse_encode_chat_support_view(self.chat, serializer);
+    sse_encode_opt_box_autoadd_u_16(self.chatPort, serializer);
+    sse_encode_bool(self.truncated, serializer);
+  }
+
+  @protected
   void sse_encode_skill_service_view(
     SkillServiceView self,
     SseSerializer serializer,
@@ -6889,6 +7477,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.refundMu, serializer);
     sse_encode_String(self.clientBalanceMu, serializer);
+  }
+
+  @protected
+  void sse_encode_sysresources_view(
+    SysresourcesView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_f_64(self.cpuCores, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.memBytes, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.diskBytes, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.blkioWeight, serializer);
+    sse_encode_list_named_value_view(self.benchmark, serializer);
   }
 
   @protected
@@ -6932,5 +7533,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_unit(void self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+  }
+
+  @protected
+  void sse_encode_workload_view(WorkloadView self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.scenario, serializer);
+    sse_encode_u_32(self.count, serializer);
+    sse_encode_opt_box_autoadd_sysresources_view(self.resources, serializer);
+    sse_encode_bool(self.hasDependency, serializer);
   }
 }

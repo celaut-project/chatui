@@ -82,21 +82,21 @@ A quote asks every node. A value must not go to nodes that only price the servic
 
 1. The quote goes with `initial_mu` only, as now. The price does not depend on the values
    (the node charges a balance, not a variable).
-2. **The declaration is read.** From the loaded file if the service is in the library
-   if not, with `GetService` from the best node of the quotes (`GetService` needs a client
-   id, which the app has for a node that quoted). New call:
-   `celaut_service_declaration(service_id, node)`, which gives a list of name, tags and
-   prose. No declaration means no question and no change to the flow.
+2. **The service is read.** From the loaded file if the service is in the library; if not,
+   with `GetService` from the best node of the quotes (`GetService` needs a client id, which
+   the app has for a node that quoted). New call: `celaut_service_info(service_id, node)`,
+   which gives what the service says about itself, the declared variables among it (name,
+   tags and prose). No declaration means no question and no change to the flow. The same read
+   checks the interface of the service for the chat convention
+   ([service-info.md](service-info.md)).
 
    The declaration is after the filesystem of the container in the Service, and the
-   filesystem can be hundreds of megabytes (`claude-code.bee` has 536 MB). So
-   `celaut-client/src/declaration.rs` does not decode the Service. It walks the protobuf
-   fields of the Service part as a stream, skips the bytes that it does not need, decodes
-   only the entries of the declaration and stops at the end of the container. On a file it
-   takes about a second and a half for 536 MB. From a node, the node sends the service, so
-   the app stops after 128 MiB: the error is the same as for any other declaration that
-   cannot be read, and the app asks the user to run with no variables or to cancel. A
-   service that the user loaded as a file is always read from the file.
+   filesystem can be hundreds of megabytes (`claude-code.bee` has 536 MB), so the Service is
+   not decoded as a message. `celaut-client/src/service_info.rs` walks its protobuf fields as
+   a stream and skips the filesystem; [service-info.md](service-info.md) says how. From a node
+   the app stops after 128 MiB and the service counts as one that cannot be read: the app asks
+   the user to run it anyway or to cancel. A service that the user loaded as a file is always
+   read from the file.
 3. The questions of section 3.
 4. `launchService` starts the service on the nodes in order, and **only a start request
    carries the values**. A node that refuses the start has read them. That is the same
@@ -117,8 +117,9 @@ The node holds them in the file `/__config__` of the instance (`ConfigurationFil
 |---|---|
 | `EnvRecord`, `CelautData.env_variables`, `set_env` | `rust/crates/celaut-client/src/db.rs` |
 | Name and value rules (used by set and by start) | `rust/crates/celaut-client/src/env.rs` |
-| Read `Container.environment_variables` as a stream | `rust/crates/celaut-client/src/declaration.rs` |
-| `celaut_env_*`, `celaut_service_declaration`, `EnvChoice` | `rust/crates/wallet-ffi/src/api/celaut_env.rs` |
+| Read `Container.environment_variables` as a stream | `rust/crates/celaut-client/src/service_info.rs` |
+| `celaut_env_*`, `EnvChoice` | `rust/crates/wallet-ffi/src/api/celaut_env.rs` |
+| `celaut_service_info` (the declaration is a part of it) | `rust/crates/wallet-ffi/src/api/celaut_service_info.rs` |
 | `start_configuration`, the `environment` of `celaut_start_service` | `rust/crates/wallet-ffi/src/api/celaut_service.rs` |
 | The question between quote and start (`EnvironmentStep`, `LaunchCancelled`) | `app/lib/celaut/launcher.dart`, `app/lib/ui/celaut/run_service_section.dart` |
 | The container (`EnvStore`, the rules of a name and a value) | `app/lib/celaut/env_store.dart` |
@@ -130,7 +131,7 @@ with no variables, as before.
 
 ## 6. Checks
 
-The checks are in `celaut-client` (`env.rs`, `db.rs`, `declaration.rs`), `wallet-ffi`
+The checks are in `celaut-client` (`env.rs`, `db.rs`, `service_info.rs`), `wallet-ffi`
 (`celaut_env.rs`, `celaut_service.rs`) and `app/test` (`celaut_env_test.dart`,
 `celaut_launcher_test.dart`, `celaut_run_section_test.dart`):
 

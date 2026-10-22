@@ -123,7 +123,7 @@ class _AboutPageState extends State<AboutPage> {
                 title: context.l10n.aboutLicenses,
                 onTap: () => showLicensePage(
                   context: context,
-                  applicationName: 'Celaut',
+                  applicationName: CelautWordmark.name,
                   applicationVersion: appVersion,
                 ),
               ),

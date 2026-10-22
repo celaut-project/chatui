@@ -23,3 +23,4 @@ Sources read for these notes:
 | [package.md](package.md) | Give a service to a node that does not have it: from a node that has it, or from a `.celaut.bee` file, with cancel markers so that a node never keeps half a service |
 | [env-variables.md](env-variables.md) | Environment variables: a container in the app, and one question per variable at a launch (choose, type or skip) |
 | [invite.md](invite.md) | The peer invitation of nodo in a QR code: what the app reads, the binary scanner, and how it chooses the address that can work on the route |
+| [service-info.md](service-info.md) | The details of a service, read from its Service as a stream that skips the filesystem, and the check of the chat interface before a launch |

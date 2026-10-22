@@ -178,7 +178,7 @@ class ComputeHomeScreenState extends State<ComputeHomeScreen> {
         titleSpacing: homeGutter,
         title: Semantics(
           header: true,
-          label: 'Celaut',
+          label: CelautWordmark.name,
           excludeSemantics: true,
           child: Row(
             mainAxisSize: MainAxisSize.min,

@@ -15,6 +15,7 @@ import 'api/celaut_invite.dart';
 import 'api/celaut_network.dart';
 import 'api/celaut_package.dart';
 import 'api/celaut_service.dart';
+import 'api/celaut_service_info.dart';
 import 'api/mempool.dart';
 import 'api/storage_rent.dart';
 import 'dart:async';
@@ -35,6 +36,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  ApiSlotView dco_decode_api_slot_view(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
@@ -53,6 +57,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   NodeAddress dco_decode_box_autoadd_node_address(dynamic raw);
 
   @protected
+  SysresourcesView dco_decode_box_autoadd_sysresources_view(dynamic raw);
+
+  @protected
+  int dco_decode_box_autoadd_u_16(dynamic raw);
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
@@ -69,6 +79,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CelautErrorKind dco_decode_celaut_error_kind(dynamic raw);
+
+  @protected
+  ChatSupportView dco_decode_chat_support_view(dynamic raw);
 
   @protected
   ComputeOverviewView dco_decode_compute_overview_view(dynamic raw);
@@ -140,6 +153,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
+  List<ApiSlotView> dco_decode_list_api_slot_view(dynamic raw);
+
+  @protected
   List<DeclaredVariableView> dco_decode_list_declared_variable_view(
     dynamic raw,
   );
@@ -169,6 +185,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<LibraryPackageView> dco_decode_list_library_package_view(dynamic raw);
 
   @protected
+  List<NamedValueView> dco_decode_list_named_value_view(dynamic raw);
+
+  @protected
+  List<NetworkView> dco_decode_list_network_view(dynamic raw);
+
+  @protected
   List<NodeAddress> dco_decode_list_node_address(dynamic raw);
 
   @protected
@@ -196,6 +218,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  List<ProtocolView> dco_decode_list_protocol_view(dynamic raw);
+
+  @protected
   List<QuoteFailureView> dco_decode_list_quote_failure_view(dynamic raw);
 
   @protected
@@ -209,6 +234,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<SkillView> dco_decode_list_skill_view(dynamic raw);
+
+  @protected
+  List<WorkloadView> dco_decode_list_workload_view(dynamic raw);
+
+  @protected
+  NamedValueView dco_decode_named_value_view(dynamic raw);
 
   @protected
   NanoErgTotalView dco_decode_nano_erg_total_view(dynamic raw);
@@ -227,6 +258,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NetworkStatusView dco_decode_network_status_view(dynamic raw);
+
+  @protected
+  NetworkView dco_decode_network_view(dynamic raw);
 
   @protected
   NewClientView dco_decode_new_client_view(dynamic raw);
@@ -268,6 +302,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   NodeAddress? dco_decode_opt_box_autoadd_node_address(dynamic raw);
 
   @protected
+  SysresourcesView? dco_decode_opt_box_autoadd_sysresources_view(dynamic raw);
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_16(dynamic raw);
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
   @protected
@@ -286,6 +326,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PeerInfoView dco_decode_peer_info_view(dynamic raw);
 
   @protected
+  ProtocolView dco_decode_protocol_view(dynamic raw);
+
+  @protected
   QuoteFailureView dco_decode_quote_failure_view(dynamic raw);
 
   @protected
@@ -298,6 +341,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RunningInstanceView dco_decode_running_instance_view(dynamic raw);
 
   @protected
+  ServiceInfoView dco_decode_service_info_view(dynamic raw);
+
+  @protected
   SkillServiceView dco_decode_skill_service_view(dynamic raw);
 
   @protected
@@ -305,6 +351,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   StopView dco_decode_stop_view(dynamic raw);
+
+  @protected
+  SysresourcesView dco_decode_sysresources_view(dynamic raw);
 
   @protected
   TransferStage dco_decode_transfer_stage(dynamic raw);
@@ -328,7 +377,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void dco_decode_unit(dynamic raw);
 
   @protected
+  WorkloadView dco_decode_workload_view(dynamic raw);
+
+  @protected
   String sse_decode_String(SseDeserializer deserializer);
+
+  @protected
+  ApiSlotView sse_decode_api_slot_view(SseDeserializer deserializer);
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
@@ -353,6 +408,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   NodeAddress sse_decode_box_autoadd_node_address(SseDeserializer deserializer);
 
   @protected
+  SysresourcesView sse_decode_box_autoadd_sysresources_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  int sse_decode_box_autoadd_u_16(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
@@ -371,6 +434,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CelautErrorKind sse_decode_celaut_error_kind(SseDeserializer deserializer);
+
+  @protected
+  ChatSupportView sse_decode_chat_support_view(SseDeserializer deserializer);
 
   @protected
   ComputeOverviewView sse_decode_compute_overview_view(
@@ -458,6 +524,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
+  List<ApiSlotView> sse_decode_list_api_slot_view(SseDeserializer deserializer);
+
+  @protected
   List<DeclaredVariableView> sse_decode_list_declared_variable_view(
     SseDeserializer deserializer,
   );
@@ -499,6 +568,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<NamedValueView> sse_decode_list_named_value_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<NetworkView> sse_decode_list_network_view(SseDeserializer deserializer);
+
+  @protected
   List<NodeAddress> sse_decode_list_node_address(SseDeserializer deserializer);
 
   @protected
@@ -534,6 +611,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  List<ProtocolView> sse_decode_list_protocol_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<QuoteFailureView> sse_decode_list_quote_failure_view(
     SseDeserializer deserializer,
   );
@@ -555,6 +637,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SkillView> sse_decode_list_skill_view(SseDeserializer deserializer);
 
   @protected
+  List<WorkloadView> sse_decode_list_workload_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  NamedValueView sse_decode_named_value_view(SseDeserializer deserializer);
+
+  @protected
   NanoErgTotalView sse_decode_nano_erg_total_view(SseDeserializer deserializer);
 
   @protected
@@ -573,6 +663,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   NetworkStatusView sse_decode_network_status_view(
     SseDeserializer deserializer,
   );
+
+  @protected
+  NetworkView sse_decode_network_view(SseDeserializer deserializer);
 
   @protected
   NewClientView sse_decode_new_client_view(SseDeserializer deserializer);
@@ -622,6 +715,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SysresourcesView? sse_decode_opt_box_autoadd_sysresources_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_16(SseDeserializer deserializer);
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
@@ -642,6 +743,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PeerInfoView sse_decode_peer_info_view(SseDeserializer deserializer);
 
   @protected
+  ProtocolView sse_decode_protocol_view(SseDeserializer deserializer);
+
+  @protected
   QuoteFailureView sse_decode_quote_failure_view(SseDeserializer deserializer);
 
   @protected
@@ -656,6 +760,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ServiceInfoView sse_decode_service_info_view(SseDeserializer deserializer);
+
+  @protected
   SkillServiceView sse_decode_skill_service_view(SseDeserializer deserializer);
 
   @protected
@@ -663,6 +770,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   StopView sse_decode_stop_view(SseDeserializer deserializer);
+
+  @protected
+  SysresourcesView sse_decode_sysresources_view(SseDeserializer deserializer);
 
   @protected
   TransferStage sse_decode_transfer_stage(SseDeserializer deserializer);
@@ -686,7 +796,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_decode_unit(SseDeserializer deserializer);
 
   @protected
+  WorkloadView sse_decode_workload_view(SseDeserializer deserializer);
+
+  @protected
   void sse_encode_String(String self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_api_slot_view(ApiSlotView self, SseSerializer serializer);
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
@@ -719,6 +835,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_sysresources_view(
+    SysresourcesView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_u_16(int self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
@@ -742,6 +867,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_celaut_error_kind(
     CelautErrorKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_support_view(
+    ChatSupportView self,
     SseSerializer serializer,
   );
 
@@ -854,6 +985,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_api_slot_view(
+    List<ApiSlotView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_declared_variable_view(
     List<DeclaredVariableView> self,
     SseSerializer serializer,
@@ -904,6 +1041,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_library_package_view(
     List<LibraryPackageView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_named_value_view(
+    List<NamedValueView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_network_view(
+    List<NetworkView> self,
     SseSerializer serializer,
   );
 
@@ -959,6 +1108,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_protocol_view(
+    List<ProtocolView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_quote_failure_view(
     List<QuoteFailureView> self,
     SseSerializer serializer,
@@ -985,6 +1140,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_skill_view(
     List<SkillView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_workload_view(
+    List<WorkloadView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_named_value_view(
+    NamedValueView self,
     SseSerializer serializer,
   );
 
@@ -1017,6 +1184,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     NetworkStatusView self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_network_view(NetworkView self, SseSerializer serializer);
 
   @protected
   void sse_encode_new_client_view(NewClientView self, SseSerializer serializer);
@@ -1082,6 +1252,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_sysresources_view(
+    SysresourcesView? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_16(int? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
@@ -1103,6 +1282,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_peer_info_view(PeerInfoView self, SseSerializer serializer);
 
   @protected
+  void sse_encode_protocol_view(ProtocolView self, SseSerializer serializer);
+
+  @protected
   void sse_encode_quote_failure_view(
     QuoteFailureView self,
     SseSerializer serializer,
@@ -1121,6 +1303,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_service_info_view(
+    ServiceInfoView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_skill_service_view(
     SkillServiceView self,
     SseSerializer serializer,
@@ -1131,6 +1319,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_stop_view(StopView self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_sysresources_view(
+    SysresourcesView self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_transfer_stage(TransferStage self, SseSerializer serializer);
@@ -1152,6 +1346,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_workload_view(WorkloadView self, SseSerializer serializer);
 }
 
 // Section: wire_class

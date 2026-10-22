@@ -39,6 +39,9 @@ pub mod celaut_env;
 /// Connect to a node from the peer invitation of a QR code (`docs/celaut/invite.md`).
 pub mod celaut_invite;
 
+/// What a service says about itself, read as a stream (`docs/celaut/service-info.md`).
+pub mod celaut_service_info;
+
 /// Celaut deposits: pay a node in ERG from one full wallet (milestone M3).
 pub mod celaut_deposit;
 

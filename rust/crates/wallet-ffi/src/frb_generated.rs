@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1914620839;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -966555598;
 
 // Section: executor
 
@@ -1381,7 +1381,7 @@ fn wire__crate__api__celaut_deposit__celaut_sent_deposits_impl(
         },
     )
 }
-fn wire__crate__api__celaut_env__celaut_service_declaration_impl(
+fn wire__crate__api__celaut_service_info__celaut_service_info_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -1389,7 +1389,7 @@ fn wire__crate__api__celaut_env__celaut_service_declaration_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "celaut_service_declaration",
+            debug_name: "celaut_service_info",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -1410,7 +1410,7 @@ fn wire__crate__api__celaut_env__celaut_service_declaration_impl(
             move |context| async move {
                 transform_result_sse::<_, crate::api::celaut::CelautError>(
                     (move || async move {
-                        let output_ok = crate::api::celaut_env::celaut_service_declaration(
+                        let output_ok = crate::api::celaut_service_info::celaut_service_info(
                             api_service_id_hex,
                             api_node,
                         )
@@ -3441,6 +3441,26 @@ impl SseDecode for String {
     }
 }
 
+impl SseDecode for crate::api::celaut_service_info::ApiSlotView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_port = <i32>::sse_decode(deserializer);
+        let mut var_transport = <Vec<String>>::sse_decode(deserializer);
+        let mut var_protocolStack =
+            <Vec<crate::api::celaut_service_info::ProtocolView>>::sse_decode(deserializer);
+        let mut var_muPerCall =
+            <Vec<crate::api::celaut_service_info::NamedValueView>>::sse_decode(deserializer);
+        let mut var_chat = <bool>::sse_decode(deserializer);
+        return crate::api::celaut_service_info::ApiSlotView {
+            port: var_port,
+            transport: var_transport,
+            protocol_stack: var_protocolStack,
+            mu_per_call: var_muPerCall,
+            chat: var_chat,
+        };
+    }
+}
+
 impl SseDecode for bool {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -3524,6 +3544,19 @@ impl SseDecode for crate::api::celaut::CelautErrorKind {
             22 => crate::api::celaut::CelautErrorKind::LaunchFailed,
             23 => crate::api::celaut::CelautErrorKind::TransferFailed,
             _ => unreachable!("Invalid variant for CelautErrorKind: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::celaut_service_info::ChatSupportView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::celaut_service_info::ChatSupportView::Supported,
+            1 => crate::api::celaut_service_info::ChatSupportView::Unsupported,
+            2 => crate::api::celaut_service_info::ChatSupportView::Unknown,
+            _ => unreachable!("Invalid variant for ChatSupportView: {}", inner),
         };
     }
 }
@@ -3917,6 +3950,20 @@ impl SseDecode for Vec<String> {
     }
 }
 
+impl SseDecode for Vec<crate::api::celaut_service_info::ApiSlotView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::celaut_service_info::ApiSlotView>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::celaut_env::DeclaredVariableView> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4039,6 +4086,32 @@ impl SseDecode for Vec<crate::api::celaut_package::LibraryPackageView> {
     }
 }
 
+impl SseDecode for Vec<crate::api::celaut_service_info::NamedValueView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::celaut_service_info::NamedValueView>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::celaut_service_info::NetworkView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::celaut_service_info::NetworkView>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::celaut_service::NodeAddress> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4145,6 +4218,20 @@ impl SseDecode for Vec<u8> {
     }
 }
 
+impl SseDecode for Vec<crate::api::celaut_service_info::ProtocolView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::celaut_service_info::ProtocolView>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::celaut_service::QuoteFailureView> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4212,6 +4299,32 @@ impl SseDecode for Vec<crate::api::celaut_catalog::SkillView> {
             ));
         }
         return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::celaut_service_info::WorkloadView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::celaut_service_info::WorkloadView>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for crate::api::celaut_service_info::NamedValueView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_key = <String>::sse_decode(deserializer);
+        let mut var_value = <String>::sse_decode(deserializer);
+        return crate::api::celaut_service_info::NamedValueView {
+            key: var_key,
+            value: var_value,
+        };
     }
 }
 
@@ -4303,6 +4416,23 @@ impl SseDecode for crate::api::celaut_network::NetworkStatusView {
             state: var_state,
             percent: var_percent,
             error: var_error,
+        };
+    }
+}
+
+impl SseDecode for crate::api::celaut_service_info::NetworkView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_tags = <Vec<String>>::sse_decode(deserializer);
+        let mut var_prose = <String>::sse_decode(deserializer);
+        let mut var_formal = <String>::sse_decode(deserializer);
+        let mut var_protocolStack =
+            <Vec<crate::api::celaut_service_info::ProtocolView>>::sse_decode(deserializer);
+        return crate::api::celaut_service_info::NetworkView {
+            tags: var_tags,
+            prose: var_prose,
+            formal: var_formal,
+            protocol_stack: var_protocolStack,
         };
     }
 }
@@ -4523,6 +4653,30 @@ impl SseDecode for Option<crate::api::celaut_service::NodeAddress> {
     }
 }
 
+impl SseDecode for Option<crate::api::celaut_service_info::SysresourcesView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(
+                <crate::api::celaut_service_info::SysresourcesView>::sse_decode(deserializer),
+            );
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<u16> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<u16>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<u32> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4612,6 +4766,18 @@ impl SseDecode for crate::api::celaut::PeerInfoView {
     }
 }
 
+impl SseDecode for crate::api::celaut_service_info::ProtocolView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_tags = <Vec<String>>::sse_decode(deserializer);
+        let mut var_prose = <String>::sse_decode(deserializer);
+        return crate::api::celaut_service_info::ProtocolView {
+            tags: var_tags,
+            prose: var_prose,
+        };
+    }
+}
+
 impl SseDecode for crate::api::celaut_service::QuoteFailureView {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4687,6 +4853,58 @@ impl SseDecode for crate::api::celaut_home::RunningInstanceView {
     }
 }
 
+impl SseDecode for crate::api::celaut_service_info::ServiceInfoView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_prose = <String>::sse_decode(deserializer);
+        let mut var_architecture = <Vec<String>>::sse_decode(deserializer);
+        let mut var_filesystemBytes = <u64>::sse_decode(deserializer);
+        let mut var_entryPath = <Vec<String>>::sse_decode(deserializer);
+        let mut var_resourcesAtInit =
+            <Option<crate::api::celaut_service_info::SysresourcesView>>::sse_decode(deserializer);
+        let mut var_resourcesAtMost =
+            <Option<crate::api::celaut_service_info::SysresourcesView>>::sse_decode(deserializer);
+        let mut var_configPath = <Vec<String>>::sse_decode(deserializer);
+        let mut var_nodeProtocols =
+            <Vec<crate::api::celaut_service_info::ProtocolView>>::sse_decode(deserializer);
+        let mut var_environment =
+            <Vec<crate::api::celaut_env::DeclaredVariableView>>::sse_decode(deserializer);
+        let mut var_slots =
+            <Vec<crate::api::celaut_service_info::ApiSlotView>>::sse_decode(deserializer);
+        let mut var_networks =
+            <Vec<crate::api::celaut_service_info::NetworkView>>::sse_decode(deserializer);
+        let mut var_workloads =
+            <Vec<crate::api::celaut_service_info::WorkloadView>>::sse_decode(deserializer);
+        let mut var_workloadsSkipped = <u32>::sse_decode(deserializer);
+        let mut var_partsSkipped = <u32>::sse_decode(deserializer);
+        let mut var_apiSkipped = <bool>::sse_decode(deserializer);
+        let mut var_chat =
+            <crate::api::celaut_service_info::ChatSupportView>::sse_decode(deserializer);
+        let mut var_chatPort = <Option<u16>>::sse_decode(deserializer);
+        let mut var_truncated = <bool>::sse_decode(deserializer);
+        return crate::api::celaut_service_info::ServiceInfoView {
+            prose: var_prose,
+            architecture: var_architecture,
+            filesystem_bytes: var_filesystemBytes,
+            entry_path: var_entryPath,
+            resources_at_init: var_resourcesAtInit,
+            resources_at_most: var_resourcesAtMost,
+            config_path: var_configPath,
+            node_protocols: var_nodeProtocols,
+            environment: var_environment,
+            slots: var_slots,
+            networks: var_networks,
+            workloads: var_workloads,
+            workloads_skipped: var_workloadsSkipped,
+            parts_skipped: var_partsSkipped,
+            api_skipped: var_apiSkipped,
+            chat: var_chat,
+            chat_port: var_chatPort,
+            truncated: var_truncated,
+        };
+    }
+}
+
 impl SseDecode for crate::api::celaut_catalog::SkillServiceView {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4725,6 +4943,25 @@ impl SseDecode for crate::api::celaut_service::StopView {
         return crate::api::celaut_service::StopView {
             refund_mu: var_refundMu,
             client_balance_mu: var_clientBalanceMu,
+        };
+    }
+}
+
+impl SseDecode for crate::api::celaut_service_info::SysresourcesView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_cpuCores = <Option<f64>>::sse_decode(deserializer);
+        let mut var_memBytes = <Option<u64>>::sse_decode(deserializer);
+        let mut var_diskBytes = <Option<u64>>::sse_decode(deserializer);
+        let mut var_blkioWeight = <Option<u64>>::sse_decode(deserializer);
+        let mut var_benchmark =
+            <Vec<crate::api::celaut_service_info::NamedValueView>>::sse_decode(deserializer);
+        return crate::api::celaut_service_info::SysresourcesView {
+            cpu_cores: var_cpuCores,
+            mem_bytes: var_memBytes,
+            disk_bytes: var_diskBytes,
+            blkio_weight: var_blkioWeight,
+            benchmark: var_benchmark,
         };
     }
 }
@@ -4787,6 +5024,23 @@ impl SseDecode for u8 {
 impl SseDecode for () {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {}
+}
+
+impl SseDecode for crate::api::celaut_service_info::WorkloadView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_scenario = <u32>::sse_decode(deserializer);
+        let mut var_count = <u32>::sse_decode(deserializer);
+        let mut var_resources =
+            <Option<crate::api::celaut_service_info::SysresourcesView>>::sse_decode(deserializer);
+        let mut var_hasDependency = <bool>::sse_decode(deserializer);
+        return crate::api::celaut_service_info::WorkloadView {
+            scenario: var_scenario,
+            count: var_count,
+            resources: var_resources,
+            has_dependency: var_hasDependency,
+        };
+    }
 }
 
 fn pde_ffi_dispatcher_primary_impl(
@@ -4911,7 +5165,7 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        39 => wire__crate__api__celaut_env__celaut_service_declaration_impl(
+        39 => wire__crate__api__celaut_service_info__celaut_service_info_impl(
             port,
             ptr,
             rust_vec_len,
@@ -5069,6 +5323,30 @@ fn pde_ffi_dispatcher_sync_impl(
 // Section: rust2dart
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::celaut_service_info::ApiSlotView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.port.into_into_dart().into_dart(),
+            self.transport.into_into_dart().into_dart(),
+            self.protocol_stack.into_into_dart().into_dart(),
+            self.mu_per_call.into_into_dart().into_dart(),
+            self.chat.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::celaut_service_info::ApiSlotView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut_service_info::ApiSlotView>
+    for crate::api::celaut_service_info::ApiSlotView
+{
+    fn into_into_dart(self) -> crate::api::celaut_service_info::ApiSlotView {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::celaut_home::BytesTotalView {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -5176,6 +5454,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut::CelautErrorKind>
     for crate::api::celaut::CelautErrorKind
 {
     fn into_into_dart(self) -> crate::api::celaut::CelautErrorKind {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::celaut_service_info::ChatSupportView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Supported => 0.into_dart(),
+            Self::Unsupported => 1.into_dart(),
+            Self::Unknown => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::celaut_service_info::ChatSupportView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut_service_info::ChatSupportView>
+    for crate::api::celaut_service_info::ChatSupportView
+{
+    fn into_into_dart(self) -> crate::api::celaut_service_info::ChatSupportView {
         self
     }
 }
@@ -5622,6 +5922,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut_package::LibraryPackag
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::celaut_service_info::NamedValueView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.key.into_into_dart().into_dart(),
+            self.value.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::celaut_service_info::NamedValueView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut_service_info::NamedValueView>
+    for crate::api::celaut_service_info::NamedValueView
+{
+    fn into_into_dart(self) -> crate::api::celaut_service_info::NamedValueView {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::celaut_home::NanoErgTotalView {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -5756,6 +6077,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut_network::NetworkStatus
     for crate::api::celaut_network::NetworkStatusView
 {
     fn into_into_dart(self) -> crate::api::celaut_network::NetworkStatusView {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::celaut_service_info::NetworkView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.tags.into_into_dart().into_dart(),
+            self.prose.into_into_dart().into_dart(),
+            self.formal.into_into_dart().into_dart(),
+            self.protocol_stack.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::celaut_service_info::NetworkView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut_service_info::NetworkView>
+    for crate::api::celaut_service_info::NetworkView
+{
+    fn into_into_dart(self) -> crate::api::celaut_service_info::NetworkView {
         self
     }
 }
@@ -6009,6 +6353,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut::PeerInfoView>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::celaut_service_info::ProtocolView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.tags.into_into_dart().into_dart(),
+            self.prose.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::celaut_service_info::ProtocolView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut_service_info::ProtocolView>
+    for crate::api::celaut_service_info::ProtocolView
+{
+    fn into_into_dart(self) -> crate::api::celaut_service_info::ProtocolView {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::celaut_service::QuoteFailureView {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -6106,6 +6471,43 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut_home::RunningInstanceV
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::celaut_service_info::ServiceInfoView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.prose.into_into_dart().into_dart(),
+            self.architecture.into_into_dart().into_dart(),
+            self.filesystem_bytes.into_into_dart().into_dart(),
+            self.entry_path.into_into_dart().into_dart(),
+            self.resources_at_init.into_into_dart().into_dart(),
+            self.resources_at_most.into_into_dart().into_dart(),
+            self.config_path.into_into_dart().into_dart(),
+            self.node_protocols.into_into_dart().into_dart(),
+            self.environment.into_into_dart().into_dart(),
+            self.slots.into_into_dart().into_dart(),
+            self.networks.into_into_dart().into_dart(),
+            self.workloads.into_into_dart().into_dart(),
+            self.workloads_skipped.into_into_dart().into_dart(),
+            self.parts_skipped.into_into_dart().into_dart(),
+            self.api_skipped.into_into_dart().into_dart(),
+            self.chat.into_into_dart().into_dart(),
+            self.chat_port.into_into_dart().into_dart(),
+            self.truncated.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::celaut_service_info::ServiceInfoView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut_service_info::ServiceInfoView>
+    for crate::api::celaut_service_info::ServiceInfoView
+{
+    fn into_into_dart(self) -> crate::api::celaut_service_info::ServiceInfoView {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::celaut_catalog::SkillServiceView {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -6172,6 +6574,30 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut_service::StopView>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::celaut_service_info::SysresourcesView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.cpu_cores.into_into_dart().into_dart(),
+            self.mem_bytes.into_into_dart().into_dart(),
+            self.disk_bytes.into_into_dart().into_dart(),
+            self.blkio_weight.into_into_dart().into_dart(),
+            self.benchmark.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::celaut_service_info::SysresourcesView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut_service_info::SysresourcesView>
+    for crate::api::celaut_service_info::SysresourcesView
+{
+    fn into_into_dart(self) -> crate::api::celaut_service_info::SysresourcesView {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::celaut_package::TransferStage {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -6215,11 +6641,51 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut_package::TransferView>
         self
     }
 }
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::celaut_service_info::WorkloadView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.scenario.into_into_dart().into_dart(),
+            self.count.into_into_dart().into_dart(),
+            self.resources.into_into_dart().into_dart(),
+            self.has_dependency.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::celaut_service_info::WorkloadView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::celaut_service_info::WorkloadView>
+    for crate::api::celaut_service_info::WorkloadView
+{
+    fn into_into_dart(self) -> crate::api::celaut_service_info::WorkloadView {
+        self
+    }
+}
 
 impl SseEncode for String {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Vec<u8>>::sse_encode(self.into_bytes(), serializer);
+    }
+}
+
+impl SseEncode for crate::api::celaut_service_info::ApiSlotView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.port, serializer);
+        <Vec<String>>::sse_encode(self.transport, serializer);
+        <Vec<crate::api::celaut_service_info::ProtocolView>>::sse_encode(
+            self.protocol_stack,
+            serializer,
+        );
+        <Vec<crate::api::celaut_service_info::NamedValueView>>::sse_encode(
+            self.mu_per_call,
+            serializer,
+        );
+        <bool>::sse_encode(self.chat, serializer);
     }
 }
 
@@ -6288,6 +6754,23 @@ impl SseEncode for crate::api::celaut::CelautErrorKind {
                 crate::api::celaut::CelautErrorKind::InsufficientCredit => 21,
                 crate::api::celaut::CelautErrorKind::LaunchFailed => 22,
                 crate::api::celaut::CelautErrorKind::TransferFailed => 23,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::celaut_service_info::ChatSupportView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::celaut_service_info::ChatSupportView::Supported => 0,
+                crate::api::celaut_service_info::ChatSupportView::Unsupported => 1,
+                crate::api::celaut_service_info::ChatSupportView::Unknown => 2,
                 _ => {
                     unimplemented!("");
                 }
@@ -6551,6 +7034,16 @@ impl SseEncode for Vec<String> {
     }
 }
 
+impl SseEncode for Vec<crate::api::celaut_service_info::ApiSlotView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::celaut_service_info::ApiSlotView>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::celaut_env::DeclaredVariableView> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -6641,6 +7134,26 @@ impl SseEncode for Vec<crate::api::celaut_package::LibraryPackageView> {
     }
 }
 
+impl SseEncode for Vec<crate::api::celaut_service_info::NamedValueView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::celaut_service_info::NamedValueView>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::celaut_service_info::NetworkView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::celaut_service_info::NetworkView>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::celaut_service::NodeAddress> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -6721,6 +7234,16 @@ impl SseEncode for Vec<u8> {
     }
 }
 
+impl SseEncode for Vec<crate::api::celaut_service_info::ProtocolView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::celaut_service_info::ProtocolView>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::celaut_service::QuoteFailureView> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -6768,6 +7291,24 @@ impl SseEncode for Vec<crate::api::celaut_catalog::SkillView> {
         for item in self {
             <crate::api::celaut_catalog::SkillView>::sse_encode(item, serializer);
         }
+    }
+}
+
+impl SseEncode for Vec<crate::api::celaut_service_info::WorkloadView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::celaut_service_info::WorkloadView>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for crate::api::celaut_service_info::NamedValueView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.key, serializer);
+        <String>::sse_encode(self.value, serializer);
     }
 }
 
@@ -6852,6 +7393,19 @@ impl SseEncode for crate::api::celaut_network::NetworkStatusView {
         <crate::api::celaut_network::NetworkState>::sse_encode(self.state, serializer);
         <u8>::sse_encode(self.percent, serializer);
         <String>::sse_encode(self.error, serializer);
+    }
+}
+
+impl SseEncode for crate::api::celaut_service_info::NetworkView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<String>>::sse_encode(self.tags, serializer);
+        <String>::sse_encode(self.prose, serializer);
+        <String>::sse_encode(self.formal, serializer);
+        <Vec<crate::api::celaut_service_info::ProtocolView>>::sse_encode(
+            self.protocol_stack,
+            serializer,
+        );
     }
 }
 
@@ -7009,6 +7563,26 @@ impl SseEncode for Option<crate::api::celaut_service::NodeAddress> {
     }
 }
 
+impl SseEncode for Option<crate::api::celaut_service_info::SysresourcesView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::celaut_service_info::SysresourcesView>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<u16> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <u16>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<u32> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -7075,6 +7649,14 @@ impl SseEncode for crate::api::celaut::PeerInfoView {
     }
 }
 
+impl SseEncode for crate::api::celaut_service_info::ProtocolView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<String>>::sse_encode(self.tags, serializer);
+        <String>::sse_encode(self.prose, serializer);
+    }
+}
+
 impl SseEncode for crate::api::celaut_service::QuoteFailureView {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -7120,6 +7702,45 @@ impl SseEncode for crate::api::celaut_home::RunningInstanceView {
     }
 }
 
+impl SseEncode for crate::api::celaut_service_info::ServiceInfoView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.prose, serializer);
+        <Vec<String>>::sse_encode(self.architecture, serializer);
+        <u64>::sse_encode(self.filesystem_bytes, serializer);
+        <Vec<String>>::sse_encode(self.entry_path, serializer);
+        <Option<crate::api::celaut_service_info::SysresourcesView>>::sse_encode(
+            self.resources_at_init,
+            serializer,
+        );
+        <Option<crate::api::celaut_service_info::SysresourcesView>>::sse_encode(
+            self.resources_at_most,
+            serializer,
+        );
+        <Vec<String>>::sse_encode(self.config_path, serializer);
+        <Vec<crate::api::celaut_service_info::ProtocolView>>::sse_encode(
+            self.node_protocols,
+            serializer,
+        );
+        <Vec<crate::api::celaut_env::DeclaredVariableView>>::sse_encode(
+            self.environment,
+            serializer,
+        );
+        <Vec<crate::api::celaut_service_info::ApiSlotView>>::sse_encode(self.slots, serializer);
+        <Vec<crate::api::celaut_service_info::NetworkView>>::sse_encode(self.networks, serializer);
+        <Vec<crate::api::celaut_service_info::WorkloadView>>::sse_encode(
+            self.workloads,
+            serializer,
+        );
+        <u32>::sse_encode(self.workloads_skipped, serializer);
+        <u32>::sse_encode(self.parts_skipped, serializer);
+        <bool>::sse_encode(self.api_skipped, serializer);
+        <crate::api::celaut_service_info::ChatSupportView>::sse_encode(self.chat, serializer);
+        <Option<u16>>::sse_encode(self.chat_port, serializer);
+        <bool>::sse_encode(self.truncated, serializer);
+    }
+}
+
 impl SseEncode for crate::api::celaut_catalog::SkillServiceView {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -7144,6 +7765,20 @@ impl SseEncode for crate::api::celaut_service::StopView {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.refund_mu, serializer);
         <String>::sse_encode(self.client_balance_mu, serializer);
+    }
+}
+
+impl SseEncode for crate::api::celaut_service_info::SysresourcesView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<f64>>::sse_encode(self.cpu_cores, serializer);
+        <Option<u64>>::sse_encode(self.mem_bytes, serializer);
+        <Option<u64>>::sse_encode(self.disk_bytes, serializer);
+        <Option<u64>>::sse_encode(self.blkio_weight, serializer);
+        <Vec<crate::api::celaut_service_info::NamedValueView>>::sse_encode(
+            self.benchmark,
+            serializer,
+        );
     }
 }
 
@@ -7204,6 +7839,19 @@ impl SseEncode for u8 {
 impl SseEncode for () {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {}
+}
+
+impl SseEncode for crate::api::celaut_service_info::WorkloadView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.scenario, serializer);
+        <u32>::sse_encode(self.count, serializer);
+        <Option<crate::api::celaut_service_info::SysresourcesView>>::sse_encode(
+            self.resources,
+            serializer,
+        );
+        <bool>::sse_encode(self.has_dependency, serializer);
+    }
 }
 
 #[cfg(not(target_family = "wasm"))]

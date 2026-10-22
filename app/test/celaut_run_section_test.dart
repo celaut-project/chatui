@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:argus_wallet/bridge/api/celaut.dart';
 import 'package:argus_wallet/bridge/api/celaut_catalog.dart';
 import 'package:argus_wallet/bridge/api/celaut_env.dart';
+import 'package:argus_wallet/bridge/api/celaut_service_info.dart';
 import 'package:argus_wallet/bridge/api/celaut_package.dart';
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
 import 'package:argus_wallet/celaut/env_store.dart';
@@ -17,8 +18,33 @@ import 'package:argus_wallet/l10n/l10n.dart';
 import 'package:argus_wallet/theme/argus_theme.dart';
 import 'package:argus_wallet/ui/celaut/launch_failure_sheet.dart';
 import 'package:argus_wallet/ui/celaut/run_service_section.dart';
+import 'package:argus_wallet/ui/celaut/service_info_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+/// What a service says about itself, with the parts that these tests use.
+ServiceInfoView _info({
+  List<DeclaredVariableView> env = const [],
+  ChatSupportView chat = ChatSupportView.supported,
+  bool truncated = false,
+}) => ServiceInfoView(
+  prose: 'A service',
+  architecture: const ['linux/amd64'],
+  filesystemBytes: BigInt.from(1024),
+  entryPath: const [],
+  configPath: const [],
+  nodeProtocols: const [],
+  environment: env,
+  slots: const [],
+  networks: const [],
+  workloads: const [],
+  workloadsSkipped: 0,
+  partsSkipped: 0,
+  apiSkipped: false,
+  chat: chat,
+  chatPort: chat == ChatSupportView.supported ? 8080 : null,
+  truncated: truncated,
+);
 
 final _best = 'aa' * 32;
 final _other = 'bb' * 32;
@@ -147,7 +173,7 @@ void main() {
     _Lib? lib,
     ThemeData? theme,
     bool askEnvironment = false,
-    Future<List<DeclaredVariableView>> Function(String, NodeAddress)? declaration,
+    ServiceInfoLoader? inspect,
     EnvStore? envStore,
   }) async {
     tester.view.physicalSize = const Size(390, 2400);
@@ -180,7 +206,7 @@ void main() {
                 }
                 return outcome();
               },
-              declaration: declaration,
+              inspect: inspect,
               envStore: envStore,
               openTunnel: (id, slot) async {
                 tunnels.add((id, slot));
@@ -808,7 +834,7 @@ void main() {
     ];
 
     testWidgets('a service that declares nothing starts with no question', (tester) async {
-      await open(tester, askEnvironment: true, declaration: (id, node) async => const [], envStore: store);
+      await open(tester, askEnvironment: true, inspect: (id, node) async => _info(), envStore: store);
       await run(tester);
       expect(find.byKey(const Key('env-step')), findsNothing);
       expect(envChosen, isEmpty);
@@ -820,9 +846,9 @@ void main() {
       await open(
         tester,
         askEnvironment: true,
-        declaration: (id, node) async {
-          asked.add((id, node.port));
-          return declared;
+        inspect: (id, node) async {
+          asked.add((id, node!.port));
+          return _info(env: declared);
         },
         envStore: store,
       );
@@ -844,7 +870,7 @@ void main() {
     });
 
     testWidgets('cancelling the question cancels the launch without a failure sheet', (tester) async {
-      await open(tester, askEnvironment: true, declaration: (id, node) async => declared, envStore: store);
+      await open(tester, askEnvironment: true, inspect: (id, node) async => _info(env: declared), envStore: store);
       await run(tester);
       await tester.tap(find.byKey(const Key('env-cancel')));
       await tester.pumpAndSettle();
@@ -868,9 +894,9 @@ void main() {
     }
 
     testWidgets('a declaration that cannot be read offers to run with no variables', (tester) async {
-      Future<List<DeclaredVariableView>> broken(String id, NodeAddress node) async =>
+      Future<ServiceInfoView> broken(String id, NodeAddress? node) async =>
           throw const CelautError(kind: CelautErrorKind.protocol, message: 'too large');
-      await open(tester, askEnvironment: true, declaration: broken, envStore: store);
+      await open(tester, askEnvironment: true, inspect: broken, envStore: store);
       await runUntilDialog(tester);
       expect(find.byKey(const Key('env-unreadable')), findsOneWidget);
       await tester.tap(find.byKey(const Key('env-run-without')));
@@ -880,14 +906,121 @@ void main() {
     });
 
     testWidgets('a declaration that cannot be read can be cancelled', (tester) async {
-      Future<List<DeclaredVariableView>> broken(String id, NodeAddress node) async =>
+      Future<ServiceInfoView> broken(String id, NodeAddress? node) async =>
           throw const CelautError(kind: CelautErrorKind.protocol, message: 'too large');
-      await open(tester, askEnvironment: true, declaration: broken, envStore: store);
+      await open(tester, askEnvironment: true, inspect: broken, envStore: store);
       await runUntilDialog(tester);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
       expect(envChosen, isNull);
       expect(changed, 0);
+    });
+
+    testWidgets('an interface that Chatui does not support gets an alert before the start', (tester) async {
+      await open(
+        tester,
+        askEnvironment: true,
+        inspect: (id, node) async => _info(chat: ChatSupportView.unsupported),
+        envStore: store,
+      );
+      await runUntilDialog(tester);
+      expect(find.byKey(const Key('chat-unsupported')), findsOneWidget);
+      expect(find.text(appL10n.celautChatUnsupportedTitle), findsOneWidget);
+      // Nothing has started yet, and Cancel ends the launch for good.
+      await tester.tap(find.byKey(const Key('chat-unsupported-cancel')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(envChosen, isNull);
+      expect(changed, 0);
+    });
+
+    testWidgets('the alert can be run anyway, and then the variables are asked', (tester) async {
+      await open(
+        tester,
+        askEnvironment: true,
+        inspect: (id, node) async => _info(
+          chat: ChatSupportView.unsupported,
+          env: const [DeclaredVariableView(name: 'MODE', tags: [], prose: '')],
+        ),
+        envStore: store,
+      );
+      await runUntilDialog(tester);
+      await tester.tap(find.byKey(const Key('chat-unsupported-run')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Variable 1 of 1'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('env-ask-skip')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('env-run')));
+      await tester.pumpAndSettle();
+      expect(envChosen, isEmpty);
+      expect(changed, 1);
+    });
+
+    testWidgets('the alert opens the details of the service without reading it again', (tester) async {
+      var reads = 0;
+      await open(
+        tester,
+        askEnvironment: true,
+        inspect: (id, node) async {
+          reads++;
+          return _info(chat: ChatSupportView.unsupported);
+        },
+        envStore: store,
+      );
+      await runUntilDialog(tester);
+      await tester.tap(find.byKey(const Key('chat-unsupported-details')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byKey(const Key('service-info-chat-unsupported')), findsOneWidget);
+      expect(reads, 1);
+    });
+
+    testWidgets('a service that was too large to read is not called unsupported', (tester) async {
+      await open(
+        tester,
+        askEnvironment: true,
+        inspect: (id, node) async => _info(chat: ChatSupportView.unknown, truncated: true),
+        envStore: store,
+      );
+      await runUntilDialog(tester);
+      expect(find.byKey(const Key('chat-unsupported')), findsNothing);
+      expect(find.byKey(const Key('env-unreadable')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('env-run-without')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(envChosen, isEmpty);
+    });
+
+    testWidgets('an interface too large to decode is not called unsupported either', (tester) async {
+      await open(
+        tester,
+        askEnvironment: true,
+        inspect: (id, node) async => _info(chat: ChatSupportView.unknown),
+        envStore: store,
+      );
+      await runUntilDialog(tester);
+      expect(find.byKey(const Key('chat-unsupported')), findsNothing);
+      expect(find.byKey(const Key('env-unreadable')), findsOneWidget);
+    });
+
+    testWidgets('a supported interface starts with no alert', (tester) async {
+      await open(tester, askEnvironment: true, inspect: (id, node) async => _info(), envStore: store);
+      await run(tester);
+      expect(find.byKey(const Key('chat-unsupported')), findsNothing);
+      expect(envChosen, isEmpty);
+    });
+
+    testWidgets('the confirmation has a button for the details of the service', (tester) async {
+      await open(tester, preview: _quote(), inspect: (id, node) async => _info());
+      await tester.tap(find.byKey(const Key('run-skill-skill-sat')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('skill-sheet-run')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('run-confirm-details')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('service-info-chat-supported')), findsOneWidget);
+      expect(launched, isEmpty);
     });
   });
 }

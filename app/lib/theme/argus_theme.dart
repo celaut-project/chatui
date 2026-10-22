@@ -766,6 +766,12 @@ Route<T> fadeRoute<T>(Widget page, {RouteSettings? settings}) {
   );
 }
 
+/// The mint of the mark, the second colour of the brand after the accent. Mint reads on
+/// the teal; on a light page it takes the landing's deep viz green so that it keeps its
+/// edge. Text and the born cell of [CellMark] use it.
+Color mintOf(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark ? mint : const Color(0xFF0F6B58);
+
 /// The Celaut mark: a Game-of-Life glider on a faint grid of cells, with
 /// the one cell its next generation brings to life in mint. The same
 /// drawing as the launcher icon, in the current palette's colours.
@@ -783,9 +789,7 @@ class CellMark extends StatelessWidget {
         size: Size.square(size),
         painter: CellMarkPainter(
           live: colors.accent,
-          // Mint reads on the teal; on a light page it takes the landing's
-          // deep viz green so the cell keeps its edge.
-          born: dark ? mint : const Color(0xFF0F6B58),
+          born: mintOf(context),
           grid: theme.colorScheme.onSurface.withValues(alpha: dark ? 0.10 : 0.08),
         ),
       ),
@@ -849,29 +853,39 @@ class CellMarkPainter extends CustomPainter {
       oldDelegate.live != live || oldDelegate.born != born || oldDelegate.grid != grid;
 }
 
-/// The wordmark beside [CellMark]: CELAUT in Playfair Display 800, widely
-/// tracked, in the accent's text colour, as on the landing page.
+/// The wordmark beside [CellMark]: CELAUT CHAT in Playfair Display 800, widely tracked, in
+/// the accent's text colour, as on the landing page, and then "ui" in lower case and in
+/// mint, the other colour of the mark: Celaut Chatui.
 class CelautWordmark extends StatelessWidget {
   const CelautWordmark({super.key, this.size = 26, this.textAlign});
   final double size;
   final TextAlign? textAlign;
 
+  /// The name of the app, for a screen reader and for a title.
+  static const name = 'Celaut Chatui';
+
   @override
   Widget build(BuildContext context) {
-    return Text(
-      'CELAUT',
-      semanticsLabel: 'Celaut',
+    final base = TextStyle(
+      fontFamily: headingFont,
+      fontWeight: FontWeight.w800,
+      fontSize: size,
+      height: 1.1,
+      letterSpacing: size * 0.06,
+      color: accentTextOf(context),
+    );
+    return Text.rich(
+      TextSpan(
+        text: 'CELAUT CHAT',
+        children: [
+          TextSpan(text: 'ui', style: TextStyle(color: mintOf(context))),
+        ],
+      ),
+      semanticsLabel: name,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       textAlign: textAlign,
-      style: TextStyle(
-        fontFamily: headingFont,
-        fontWeight: FontWeight.w800,
-        fontSize: size,
-        height: 1.1,
-        letterSpacing: size * 0.06,
-        color: accentTextOf(context),
-      ),
+      style: base,
     );
   }
 }
