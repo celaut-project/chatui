@@ -1376,6 +1376,12 @@
   "chatErrorHistoryFull": "Esta conversación está llena. Inicia una instancia nueva para una conversación nueva.",
   "chatErrorBusy": "El servicio está ocupado con otro mensaje. Inténtalo de nuevo en un momento.",
   "chatErrorOther": "El servicio rechazó el mensaje.",
+  "chatAttach": "Adjuntar una foto o un audio",
+  "chatAttachmentRemove": "Quitar el archivo",
+  "chatAttachmentShare": "Abrir o compartir el archivo",
+  "chatAttachmentFailed": "El archivo no se cargó.",
+  "chatErrorUnsupportedMedia": "El servicio no acepta este tipo de archivo.",
+  "chatErrorFile": "Un archivo está vacío o es demasiado grande. Un archivo puede tener 4 MB como máximo, y un mensaje 4 archivos.",
   "chatStopped": "La instancia se detuvo. Reembolso: {refund}",
   "@chatStopped": {
     "placeholders": {

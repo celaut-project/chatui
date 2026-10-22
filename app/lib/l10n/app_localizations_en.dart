@@ -5296,6 +5296,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatErrorOther => 'The service refused the message.';
 
   @override
+  String get chatAttach =>
+      'Attach a photo or an audio file';
+
+  @override
+  String get chatAttachmentRemove =>
+      'Remove the file';
+
+  @override
+  String get chatAttachmentShare =>
+      'Open or share the file';
+
+  @override
+  String get chatAttachmentFailed =>
+      'The file did not load.';
+
+  @override
+  String get chatErrorUnsupportedMedia =>
+      'The service does not accept this kind of file.';
+
+  @override
+  String get chatErrorFile =>
+      'A file is empty or too big. A file can have 4 MB at most, and a message 4 files.';
+
+  @override
   String chatStopped(String refund) {
     return 'The instance stopped. Refund: $refund';
   }

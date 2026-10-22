@@ -4053,6 +4053,12 @@
   "chatErrorHistoryFull": "This conversation is full. Start a new instance for a new conversation.",
   "chatErrorBusy": "The service is busy with another message. Try again in a moment.",
   "chatErrorOther": "The service refused the message.",
+  "chatAttach": "Attach a photo or an audio file",
+  "chatAttachmentRemove": "Remove the file",
+  "chatAttachmentShare": "Open or share the file",
+  "chatAttachmentFailed": "The file did not load.",
+  "chatErrorUnsupportedMedia": "The service does not accept this kind of file.",
+  "chatErrorFile": "A file is empty or too big. A file can have 4 MB at most, and a message 4 files.",
   "chatStopped": "The instance stopped. Refund: {refund}",
   "@chatStopped": {
     "placeholders": {

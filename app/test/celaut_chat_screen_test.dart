@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
@@ -39,13 +40,37 @@ class _FakeChat extends ChatClient {
   Future<void> syncWhenStarted({Duration limit = const Duration(minutes: 2), Future<void> Function(Duration)? wait}) =>
       starting?.future ?? Future.value();
 
+  /// The kinds that the fake service accepts.
+  Set<String> kinds = const {};
+
   @override
-  Future<void> send(String text) async {
+  Set<String> get accepts => kinds;
+
+  /// The files of each send.
+  final sentFiles = <List<OutgoingAttachment>>[];
+
+  /// The bytes that [readAttachment] gives.
+  Uint8List fileBytes = Uint8List(0);
+
+  @override
+  Future<Uint8List> readAttachment(int seq, int index) async => fileBytes;
+
+  @override
+  Future<void> send(String text, {List<OutgoingAttachment> attachments = const []}) async {
     final failure = failWith;
     if (failure != null) throw failure;
     sent.add(text);
+    sentFiles.add(attachments);
     _messages
-      ..add(ChatMessage(seq: _messages.length, role: 'user', text: text))
+      ..add(ChatMessage(
+        seq: _messages.length,
+        role: 'user',
+        text: text,
+        attachments: [
+          for (final f in attachments)
+            ChatAttachment(kind: f.kind!, mime: f.mime, size: f.bytes.length, name: f.name),
+        ],
+      ))
       ..add(ChatMessage(seq: _messages.length, role: 'assistant', text: 'echo: $text'));
   }
 }
@@ -93,6 +118,8 @@ void main() {
   late bool closed;
   late _FakeKeepAlive keepAlive;
   late ConversationNotes notes;
+  late Future<List<OutgoingAttachment>> Function(Set<String>) pick;
+  Set<String>? pickedKinds;
 
   Future<void> open(WidgetTester tester, {bool fullWallet = true, bool starting = false}) async {
     stops = [];
@@ -120,6 +147,10 @@ void main() {
                       keepAlive: keepAlive,
                       starting: starting,
                       notes: notes,
+                      pickFiles: (kinds) {
+                        pickedKinds = kinds;
+                        return pick(kinds);
+                      },
                       loadStatus: (_) async => InstanceStatusView(
                         instanceBalanceMu: '900',
                         costSoFarMu: '100',
@@ -161,7 +192,77 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  setUp(() => chat = _FakeChat());
+  setUp(() {
+    chat = _FakeChat();
+    pick = (_) async => const [];
+    pickedKinds = null;
+  });
+
+  // A PNG of one pixel.
+  final png = base64Decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  );
+
+  testWidgets('a service that accepts text only has no attach button', (tester) async {
+    await open(tester);
+    expect(find.byKey(const Key('chat-attach')), findsNothing);
+  });
+
+  testWidgets('a file is picked, shown as a chip, removed, and sent with no text', (tester) async {
+    chat.kinds = {'image'};
+    chat.fileBytes = Uint8List.fromList(png);
+    pick = (_) async => [OutgoingAttachment(mime: 'image/png', bytes: Uint8List.fromList(png), name: 'dot.png')];
+    await open(tester);
+    await tester.tap(find.byKey(const Key('chat-attach')));
+    await tester.pumpAndSettle();
+    expect(pickedKinds, {'image'});
+    expect(find.byKey(const Key('chat-pending-0')), findsOneWidget);
+    expect(find.text('dot.png'), findsOneWidget);
+
+    // Remove it, then pick it again.
+    await tester.tap(find.byTooltip(appL10n.chatAttachmentRemove));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('chat-pending')), findsNothing);
+    await tester.tap(find.byKey(const Key('chat-attach')));
+    await tester.pumpAndSettle();
+
+    // No text: the file alone is enough to send.
+    await tester.tap(find.byKey(const Key('chat-send')));
+    await tester.pumpAndSettle();
+    expect(chat.sent, ['']);
+    expect(chat.sentFiles.single.single.name, 'dot.png');
+    expect(find.byKey(const Key('chat-pending')), findsNothing);
+    expect(find.byKey(const Key('chat-file-0-0')), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
+  });
+
+  testWidgets('a send that fails keeps the files', (tester) async {
+    chat.kinds = {'audio'};
+    pick = (_) async => [OutgoingAttachment(mime: 'audio/wav', bytes: Uint8List(4), name: 'a.wav')];
+    chat.failWith = const ChatException(ChatErrorKind.unsupportedMedia);
+    await open(tester);
+    await tester.tap(find.byKey(const Key('chat-attach')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('chat-send')));
+    await tester.pumpAndSettle();
+    expect(find.text(appL10n.chatErrorUnsupportedMedia), findsOneWidget);
+    expect(find.byKey(const Key('chat-pending-0')), findsOneWidget);
+  });
+
+  testWidgets('an audio file shows its name in the bubble', (tester) async {
+    chat = _FakeChat(history: const [
+      ChatMessage(
+        seq: 0,
+        role: 'assistant',
+        text: 'listen',
+        attachments: [ChatAttachment(kind: 'audio', mime: 'audio/mpeg', size: 4, name: 'song.mp3')],
+      ),
+    ]);
+    await open(tester);
+    expect(find.text('song.mp3'), findsOneWidget);
+    expect(find.text('listen'), findsOneWidget);
+    expect(find.byIcon(Icons.audiotrack), findsOneWidget);
+  });
 
   testWidgets('shows the history of a running instance and the cost so far', (tester) async {
     chat = _FakeChat(history: const [

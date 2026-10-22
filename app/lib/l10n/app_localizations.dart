@@ -8369,6 +8369,42 @@ abstract class AppLocalizations {
   /// **'The service refused the message.'**
   String get chatErrorOther;
 
+  /// No description provided for @chatAttach.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach a photo or an audio file'**
+  String get chatAttach;
+
+  /// No description provided for @chatAttachmentRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the file'**
+  String get chatAttachmentRemove;
+
+  /// No description provided for @chatAttachmentShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Open or share the file'**
+  String get chatAttachmentShare;
+
+  /// No description provided for @chatAttachmentFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The file did not load.'**
+  String get chatAttachmentFailed;
+
+  /// No description provided for @chatErrorUnsupportedMedia.
+  ///
+  /// In en, this message translates to:
+  /// **'The service does not accept this kind of file.'**
+  String get chatErrorUnsupportedMedia;
+
+  /// No description provided for @chatErrorFile.
+  ///
+  /// In en, this message translates to:
+  /// **'A file is empty or too big. A file can have 4 MB at most, and a message 4 files.'**
+  String get chatErrorFile;
+
   /// No description provided for @chatStopped.
   ///
   /// In en, this message translates to:
