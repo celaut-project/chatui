@@ -53,3 +53,7 @@
 - **Phase 1:** trimmed wallet that builds for Android; Rust crates for the protocol and
   the balancer, with tests against a local node; a screen that launches a service by
   hash and shows the quotes.
+- **Environment variables (2026-10-22, Josemi):** the app has a container of named values.
+  When a service that declares variables is launched, the app asks for each one: choose
+  one of the container, type it as UTF-8, or skip it (it is then absent from the
+  configuration). Design in [env-variables.md](env-variables.md).

@@ -21,3 +21,4 @@ Sources read for these notes:
 | [chat.md](chat.md) | Chat convention for M4: HTTP with JSON, history in the service, numbered messages |
 | [network.md](network.md) | The network route and optional Tor (M5): direct, Arti inside the app, or a SOCKS5 proxy, and the rule that Tor on never goes direct |
 | [package.md](package.md) | Give a service to a node that does not have it: from a node that has it, or from a `.celaut.bee` file, with cancel markers so that a node never keeps half a service |
+| [env-variables.md](env-variables.md) | Environment variables: a container in the app, and one question per variable at a launch (choose, type or skip) |
