@@ -65,3 +65,17 @@
   interface, networks, variables) and, before a launch, warns if the interface is not the chat
   convention of Chatui. The title of the app is Celaut Chatui, with "ui" in lower case and in the
   other colour. See [service-info.md](service-info.md).
+- **Chat attachments (2026-10-22, Josemi):** a message can carry image and audio files
+  (JPEG, PNG, MP3, WAV; at most 4 files of 4 MiB each). A service that accepts them
+  announces `accepts` in the history read, and the app shows the attach button only then.
+  The files stay in memory only. The app does not play audio: a tap hands the file to the
+  share sheet of the system. See [chat.md](chat.md) and
+  [ui-chat-first.md](ui-chat-first.md), section 7.
+- **Specification of the chat interface (2026-10-22):** [chat.md](chat.md) is written in
+  ASD-STE100, has a revision number (4), covers the protocol only, and has conformance
+  tests (section 10). A service follows the interface if it passes them. The rules for the
+  app are in [ui-chat-first.md](ui-chat-first.md).
+- **Leaving a conversation (proposed on 2026-10-21, for Josemi to confirm):** Back goes to
+  the list without a question. The instance runs on and the node keeps charging. Stop is
+  in the menu, on the info page and on a long press. See
+  [ui-chat-first.md](ui-chat-first.md), section 5.

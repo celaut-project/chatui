@@ -141,6 +141,15 @@ Create clients with `wallet_net::http::client_builder()` or `client()`, not
 `reqwest::Client::builder()`/`new()`, which panic without a crypto provider.
 reqwest 0.13.5 is the only reqwest in `Cargo.lock`.
 
+## Dart (pub) dependencies
+
+Only the packages that need a licence or permission note are listed here. The versions are
+in `app/pubspec.lock`.
+
+| Package | Version | Licence | Purpose |
+|---------|---------|---------|---------|
+| `file_picker` | 10.3.10 | MIT | Pick the image and audio files of a chat message. On Android it opens the system document picker, so the app needs no storage permission. It has no Play Services dependency |
+
 ## Former patch: core2
 
 sigma-rust used to depend on `core2 = "0.4.0"`, which was yanked from

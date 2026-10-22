@@ -408,17 +408,24 @@ contract on mainnet, with the token in R4, 1 MU per nanoERG; GenerateDepositToke
 36-character token; free credit 4 500 000 MU. No transaction.
 
 **M4: conversation screen.** The instance data is in one database for the app, not per wallet (`docs/celaut/ui.md`). Select a skill or a service hash, launch it, and talk to
-it through the tunnel. Show the cost so far, and stop the instance when the user
-leaves. First write the "chat" convention (HTTP with JSON, decision 3 in section 7).
+it through the tunnel. Show the cost so far. Back leaves the screen and the instance runs
+on; Stop is in the menu (the rule is in `docs/celaut/ui-chat-first.md`, section 5, and
+waits for the confirmation of Josemi). First write the "chat" convention (HTTP with JSON, decision 3 in section 7).
 Check: a conversation with a simple echo service that follows it.
 
 What M4 has (PR #17 to #25, and the closing PR): the convention (`docs/celaut/chat.md`),
-`ChatClient`, `ChatScreen` with the history, the cost so far and the question to stop
-the instance or leave it running, the detector of the chat slot, the launch on the best
+`ChatClient`, `ChatScreen` with the history and the cost so far, the detector of the chat slot, the launch on the best
 node, the skill catalog and its picker, the filter on the advertised resources, and an
 Android foreground service while a conversation is open. After a launch, the screen
 says that the service starts and reads the history again until the service answers
 (`ChatClient.syncWhenStarted`, chat.md section 9).
+
+Attachments (2026-10-22): `chat.md` is at revision 4. It is a specification in ASD-STE100
+that covers the protocol only, and its section 10 has the conformance tests that a chat
+service must pass. The app sends image and audio files (`file_picker`, the system document
+picker), shows them in the bubbles and gives the text and the files back to the field when a
+send fails. The flows are in `docs/celaut/ui-chat-first.md`, section 7. The services of the
+sibling repositories that read the files are not described in chatui.
 
 Check on 2026-10-21, on our node (x86_64 with KVM, nodo `ec1274d`, default config), from
 the debug APK of the closing PR in the x86_64 emulator (Android 15, AOSP), the node at

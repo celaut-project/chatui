@@ -4,7 +4,8 @@ Josemi asked for a home screen like Telegram or WhatsApp: each conversation is a
 of a service that follows the chat convention ([chat.md](chat.md)), and the rest of the app
 (wallet, compute, nodes, services, settings) is one level down. This note describes the
 screens of that UI. It follows [ui.md](ui.md) and [chat.md](chat.md); section 4 has the
-decisions of Josemi on this UI, and section 5 what it changes in the older notes.
+decisions of Josemi on this UI, section 5 what it changes in the older notes, and section 7
+the messages and the files of a conversation.
 
 ## 1. Research: how the two messengers organise the app
 
@@ -55,7 +56,7 @@ of the wallet and the pages under a tab open over the bar.
 | Place | Where | What it holds | Code |
 |---|---|---|---|
 | New conversation | Chats, pencil button | The skills of the catalog (a skill opens its ranked services), the service files of the user, the import of a file | `RunServiceScreen` with the title "New conversation" |
-| Conversation | Chats, a row | Bubbles; the bar has the name of the service and "state · node · cost so far"; ⋮ has Info and Stop | `ChatScreen` |
+| Conversation | Chats, a row | Bubbles, with images and files (section 7); the bar has the name of the service and "state · node · cost so far"; ⋮ has Info and Stop | `ChatScreen` |
 | Instance info | The bar of a conversation, ⋮, a long press, a tap on a stopped row | State, node address, peer id of the node, service id, chat slot, start time, cost so far (or the refund at the stop). Stop, or Delete for a stopped instance | `InstanceInfoScreen` |
 | Page of the wallet | Wallet, the wallet row | Balance, Send, Receive, activity, the tools and the settings of the wallet | `DashboardScreen` (wallet page) |
 | Deposit to a node | Wallet | The deposit screen | `DepositScreen` |
@@ -130,7 +131,7 @@ view is the Compute tab, not a first screen.
 
 | Where | Before | In this UI |
 |---|---|---|
-| The conversation screen: leaving it (decision of 2026-10-14, first written in `chat.md` revision 1) | The app asks "Stop the instance" or "Leave it running" | Back goes to the list without a question. The instance runs on and stays in the list. Stop is in ⋮, the info page and the long press |
+| The conversation screen: leaving it (decision of 2026-10-14, first written in `chat.md` revision 1; since revision 2 of `chat.md` the rules for the app are in this file and not there) | The app asks "Stop the instance" or "Leave it running" | Back goes to the list without a question. The instance runs on and stays in the list. Stop is in ⋮, the info page and the long press |
 | [ui.md](ui.md), section 2: the home screen (decision of 2026-10-16) | The compute view: running instances, "Run a service", the card of state | The Chats tab. The compute view is unchanged and is the Compute tab |
 | [ui.md](ui.md), section 2: "Run a service" | A button of the home screen | The pencil button ("New conversation") and "Services" in the Compute tab; the Compute tab keeps its button. The confirmation is the same |
 | The Celaut database | An instance has no name, and leaves the database at its stop | An instance keeps the name of its skill or service file (`InstanceRecord.name`), and stays after its stop, as stopped, until the user deletes it |
@@ -140,3 +141,30 @@ view is the Compute tab, not a first screen.
 1. An instance that its node no longer knows (for example after a restart of the node)
    cannot be stopped, so it cannot be deleted either. Should Stop mark such an instance
    stopped when the node answers that the token is unknown?
+
+## 7. Messages and files
+
+The screen is `ChatScreen`. The protocol is in [chat.md](chat.md). The picker is in
+`app/lib/celaut/attachment_picker.dart` (`file_picker`, the system document picker).
+
+| Part | What the user sees |
+|---|---|
+| Attach button | It shows only if the service announced `accepts` in the history read. Before the picker opens, the app reads the history again to check `accepts` |
+| Picker | It offers only JPEG, PNG, MP3 and WAV. At most 4 files, of 4 MiB each |
+| Chips | A picked file shows as a chip above the field |
+| Image in a bubble | The image shows inside the bubble |
+| Audio in a bubble | The bubble shows the name of the file. A tap hands the file to the share sheet of the system. The app has no player |
+| Files in memory | The app keeps the files in memory only. It writes no file to the storage and no message to the Celaut database |
+| List of conversations | A message with only a file shows a preview, "Photo" or "Audio" |
+
+Flows:
+
+- **Send.** The message shows at once as a paler bubble with "Sending…". The field is free
+  for the next message.
+- **Wait for the answer.** Three pulsing dots show that the service answers. After 5
+  seconds, a counter shows "Still working… N s".
+- **A send fails.** The text and the files come back to the field. The app never sends a
+  message again by itself.
+- **A slow service.** If the service takes more than 30 seconds, the app waits. It reads
+  the history every 5 seconds, for up to 3 minutes. After that, it says that the service
+  does not answer.
