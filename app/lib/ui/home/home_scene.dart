@@ -58,13 +58,16 @@ class HomeScene extends StatelessWidget {
             child: RepaintBoundary(
               child: CustomPaint(
                 key: const Key('home-scene'),
-                painter: ScenePainter(
-                  spec: ArgusColors.sceneOf(context),
-                  page: page,
-                  light: light,
-                  lightAt: lightAt,
-                  lightRadius: lightRadius,
-                  dark: Theme.of(context).brightness == Brightness.dark,
+                painter: SceneImagePainter(
+                  ScenePainter(
+                    spec: ArgusColors.sceneOf(context),
+                    page: page,
+                    light: light,
+                    lightAt: lightAt,
+                    lightRadius: lightRadius,
+                    dark: Theme.of(context).brightness == Brightness.dark,
+                  ),
+                  devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
                 ),
               ),
             ),
@@ -74,6 +77,70 @@ class HomeScene extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Paints a [ScenePainter] from an image of it. The image is made the first time a
+/// scene of that size and look is painted, and kept for the next pages that show it.
+///
+/// The scene does not move, but its blurred light costs tens of render passes, and a
+/// page paints its scene again on each frame of a route transition over it or under
+/// it. An image is one draw.
+class SceneImagePainter extends CustomPainter {
+  SceneImagePainter(this.scene, {required this.devicePixelRatio});
+
+  final ScenePainter scene;
+  final double devicePixelRatio;
+
+  /// The images, the least recently painted first. A few looks are in use at a time:
+  /// the overview, the Compute tab and the page of the wallet.
+  static final _images = <Object, ui.Image>{};
+  static const _keep = 4;
+
+  /// How many images are kept now.
+  @visibleForTesting
+  static int get imageCount => _images.length;
+
+  @visibleForTesting
+  static void clearImages() {
+    for (final image in _images.values) {
+      image.dispose();
+    }
+    _images.clear();
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    final s = scene;
+    final key = (s.spec, s.page, s.light, s.lightAt, s.lightRadius, s.dark, size, devicePixelRatio);
+    var image = _images.remove(key);
+    if (image == null) {
+      final recorder = ui.PictureRecorder();
+      s.paint(Canvas(recorder)..scale(devicePixelRatio), size);
+      final picture = recorder.endRecording();
+      image = picture.toImageSync(
+        (size.width * devicePixelRatio).ceil(),
+        (size.height * devicePixelRatio).ceil(),
+      );
+      picture.dispose();
+      while (_images.length >= _keep) {
+        // A picture that still draws the image keeps it alive.
+        _images.remove(_images.keys.first)!.dispose();
+      }
+    }
+    _images[key] = image;
+    final pixels = Size(image.width.toDouble(), image.height.toDouble());
+    canvas.drawImageRect(
+      image,
+      Offset.zero & pixels,
+      Offset.zero & pixels / devicePixelRatio,
+      Paint()..filterQuality = FilterQuality.low,
+    );
+  }
+
+  @override
+  bool shouldRepaint(SceneImagePainter old) =>
+      old.devicePixelRatio != devicePixelRatio || scene.shouldRepaint(old.scene);
 }
 
 class ScenePainter extends CustomPainter {
