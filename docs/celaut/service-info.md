@@ -66,14 +66,14 @@ uses `get_service_raw`, which never asks to skip.
 
 | Banner | When |
 |---|---|
-| Follows the chat convention (with the port) | a port has `tcp`, then `http`, and `chat` above it |
+| Follows the chat convention | a slot has `tcp`, then `http`, and `chat` above it |
 | Chatui does not support its interface | the interface is known and no port follows the convention, or there is no interface |
 | The interface could not be read | the service was too large to read from a node, or its interface was too large to decode |
 
 Then, in cards: **About** (prose, architecture, the executable that the node starts, the
 configuration file, the size of the filesystem), **Resources** (at the start and at most: cores,
-memory, disk, the speed of one core), **Interface** (each port with its stack from bottom to top,
-`tcp → http → chat`, a mark on the chat port, the prices per call), **Networks** (the domains that
+memory, disk, the speed of one core), **Interface** (each slot, numbered, with its stack from bottom to top,
+`tcp → http → chat`, a mark on the chat slot, the prices per call), **Networks** (the domains that
 the service declares to connect to: the names, the prose, the parameters, the protocols of the
 peers, and `*` as every address), **Environment variables**, and **Other** (the protocols that it
 expects from the node, and the instances that it can start).

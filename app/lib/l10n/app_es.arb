@@ -1501,16 +1501,9 @@
   "chatsInfoNode": "Nodo",
   "chatsInfoPeer": "ID de par del nodo",
   "chatsInfoServiceId": "ID del servicio",
-  "chatsInfoSlot": "Ranura",
-  "chatsInfoChatSlot": "Puerto {port}, chat",
-  "@chatsInfoChatSlot": {
-    "placeholders": {
-      "port": {
-        "type": "String"
-      }
-    }
-  },
-  "chatsInfoNoChatSlot": "Sin ranura de chat",
+  "chatsInfoSlot": "Interfaz",
+  "chatsInfoChatSlot": "Chat por HTTP",
+  "chatsInfoNoChatSlot": "Sin interfaz de chat",
   "chatsInfoStarted": "Inicio",
   "chatsInfoCost": "Coste hasta ahora",
   "chatsInfoRefund": "Reembolso al detenerla",
@@ -1870,14 +1863,7 @@
   "serviceInfoLoading": "Leyendo el servicio…",
   "serviceInfoReadFailed": "No se pudo leer el servicio",
   "serviceInfoTruncated": "Este servicio es demasiado grande para leerlo desde un nodo, así que solo se muestra lo que viene primero. Carga su fichero para verlo todo.",
-  "serviceInfoChatSupported": "Sigue la convención de chat de Chatui (puerto {port}), así que se abre como una conversación.",
-  "@serviceInfoChatSupported": {
-    "placeholders": {
-      "port": {
-        "type": "int"
-      }
-    }
-  },
+  "serviceInfoChatSupported": "Sigue la convención de chat de Chatui, así que se abre como una conversación.",
   "serviceInfoChatUnsupported": "Chatui no admite su interfaz: ningún puerto habla la convención de chat (tcp, luego http y chat encima). Se puede ejecutar, pero Chatui no puede abrir una conversación con él.",
   "serviceInfoChatUnknown": "La app no ha podido leer la interfaz de este servicio, así que no sabe si funciona como una conversación.",
   "serviceInfoAbout": "Acerca de",
@@ -1893,10 +1879,10 @@
   "serviceInfoCoreSpeed": "Velocidad de un núcleo",
   "serviceInfoInterface": "Interfaz",
   "serviceInfoNoInterface": "El servicio no declara ningún puerto.",
-  "serviceInfoPort": "Puerto {port}",
-  "@serviceInfoPort": {
+  "serviceInfoSlot": "Interfaz {n}",
+  "@serviceInfoSlot": {
     "placeholders": {
-      "port": {
+      "n": {
         "type": "int"
       }
     }

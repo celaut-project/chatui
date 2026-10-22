@@ -4178,16 +4178,9 @@
   "chatsInfoNode": "Node",
   "chatsInfoPeer": "Peer id of the node",
   "chatsInfoServiceId": "Service id",
-  "chatsInfoSlot": "Slot",
-  "chatsInfoChatSlot": "Port {port}, chat",
-  "@chatsInfoChatSlot": {
-    "placeholders": {
-      "port": {
-        "type": "String"
-      }
-    }
-  },
-  "chatsInfoNoChatSlot": "No chat slot",
+  "chatsInfoSlot": "Interface",
+  "chatsInfoChatSlot": "Chat over HTTP",
+  "chatsInfoNoChatSlot": "No chat interface",
   "chatsInfoStarted": "Started",
   "chatsInfoCost": "Cost so far",
   "chatsInfoRefund": "Refund at the stop",
@@ -4547,14 +4540,7 @@
   "serviceInfoLoading": "Reading the service…",
   "serviceInfoReadFailed": "The service could not be read",
   "serviceInfoTruncated": "This service is too large to read from a node, so only what comes first is shown. Load its file to see everything.",
-  "serviceInfoChatSupported": "It follows the chat convention of Chatui (port {port}), so it opens as a conversation.",
-  "@serviceInfoChatSupported": {
-    "placeholders": {
-      "port": {
-        "type": "int"
-      }
-    }
-  },
+  "serviceInfoChatSupported": "It follows the chat convention of Chatui, so it opens as a conversation.",
   "serviceInfoChatUnsupported": "Chatui does not support its interface: no port speaks the chat convention (tcp, then http, and chat above it). It can run, but Chatui cannot open a conversation with it.",
   "serviceInfoChatUnknown": "The app could not read the interface of this service, so it cannot tell if it works as a conversation.",
   "serviceInfoAbout": "About",
@@ -4570,10 +4556,10 @@
   "serviceInfoCoreSpeed": "Speed of one core",
   "serviceInfoInterface": "Interface",
   "serviceInfoNoInterface": "The service declares no port.",
-  "serviceInfoPort": "Port {port}",
-  "@serviceInfoPort": {
+  "serviceInfoSlot": "Interface {n}",
+  "@serviceInfoSlot": {
     "placeholders": {
-      "port": {
+      "n": {
         "type": "int"
       }
     }

@@ -225,7 +225,7 @@ class ServiceInfoBody extends StatelessWidget {
       title: l.serviceInfoInterface,
       children: [
         if (info.slots.isEmpty) Text(l.serviceInfoNoInterface, style: TextStyle(color: muted)),
-        for (final s in info.slots)
+        for (final (index, s) in info.slots.indexed)
           Padding(
             key: Key('service-info-slot-${s.port}'),
             padding: const EdgeInsets.only(top: 6),
@@ -234,7 +234,7 @@ class ServiceInfoBody extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(l.serviceInfoPort(s.port), style: const TextStyle(fontWeight: FontWeight.w600)),
+                    Text(l.serviceInfoSlot(index + 1), style: const TextStyle(fontWeight: FontWeight.w600)),
                     if (s.chat) ...[
                       const SizedBox(width: 8),
                       _Badge(l.serviceInfoChatReady, key: Key('service-info-chat-${s.port}')),
@@ -367,7 +367,7 @@ class _ChatBanner extends StatelessWidget {
       ChatSupportView.supported => (
         Icons.chat_bubble_outline,
         accentTextOf(context),
-        l.serviceInfoChatSupported(info.chatPort ?? 0),
+        l.serviceInfoChatSupported,
         'service-info-chat-supported',
       ),
       ChatSupportView.unsupported => (

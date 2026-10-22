@@ -5500,15 +5500,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatsInfoServiceId => 'Service id';
 
   @override
-  String get chatsInfoSlot => 'Slot';
+  String get chatsInfoSlot => 'Interface';
 
   @override
-  String chatsInfoChatSlot(String port) {
-    return 'Port $port, chat';
-  }
+  String get chatsInfoChatSlot => 'Chat over HTTP';
 
   @override
-  String get chatsInfoNoChatSlot => 'No chat slot';
+  String get chatsInfoNoChatSlot => 'No chat interface';
 
   @override
   String get chatsInfoStarted => 'Started';
@@ -6020,9 +6018,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'This service is too large to read from a node, so only what comes first is shown. Load its file to see everything.';
 
   @override
-  String serviceInfoChatSupported(int port) {
-    return 'It follows the chat convention of Chatui (port $port), so it opens as a conversation.';
-  }
+  String get serviceInfoChatSupported =>
+      'It follows the chat convention of Chatui, so it opens as a conversation.';
 
   @override
   String get serviceInfoChatUnsupported =>
@@ -6073,8 +6070,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get serviceInfoNoInterface => 'The service declares no port.';
 
   @override
-  String serviceInfoPort(int port) {
-    return 'Port $port';
+  String serviceInfoSlot(int n) {
+    return 'Interface $n';
   }
 
   @override

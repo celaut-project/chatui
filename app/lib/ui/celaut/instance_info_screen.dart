@@ -117,7 +117,7 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
       (l.chatsInfoServiceId, i.serviceId, const Key('info-service')),
       (
         l.chatsInfoSlot,
-        slot == null ? l.chatsInfoNoChatSlot : l.chatsInfoChatSlot('$slot'),
+        slot == null ? l.chatsInfoNoChatSlot : l.chatsInfoChatSlot,
         const Key('info-slot'),
       ),
       (l.chatsInfoStarted, started.isEmpty ? l.celautUnknown : started, const Key('info-started')),

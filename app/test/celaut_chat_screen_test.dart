@@ -522,7 +522,7 @@ void main() {
     expect(tester.widget<SelectableText>(find.byKey(const Key('info-node'))).data,
         'node.example:53460');
     expect(tester.widget<SelectableText>(find.byKey(const Key('info-slot'))).data,
-        appL10n.chatsInfoChatSlot('8080'));
+        appL10n.chatsInfoChatSlot);
     expect(tester.widget<SelectableText>(find.byKey(const Key('info-cost'))).data, '100 MU');
     expect(find.byKey(const Key('info-started')), findsOneWidget);
     expect(find.byKey(const Key('info-stop')), findsOneWidget);

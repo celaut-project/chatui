@@ -8684,19 +8684,19 @@ abstract class AppLocalizations {
   /// No description provided for @chatsInfoSlot.
   ///
   /// In en, this message translates to:
-  /// **'Slot'**
+  /// **'Interface'**
   String get chatsInfoSlot;
 
   /// No description provided for @chatsInfoChatSlot.
   ///
   /// In en, this message translates to:
-  /// **'Port {port}, chat'**
-  String chatsInfoChatSlot(String port);
+  /// **'Chat over HTTP'**
+  String get chatsInfoChatSlot;
 
   /// No description provided for @chatsInfoNoChatSlot.
   ///
   /// In en, this message translates to:
-  /// **'No chat slot'**
+  /// **'No chat interface'**
   String get chatsInfoNoChatSlot;
 
   /// No description provided for @chatsInfoStarted.
@@ -9536,8 +9536,8 @@ abstract class AppLocalizations {
   /// No description provided for @serviceInfoChatSupported.
   ///
   /// In en, this message translates to:
-  /// **'It follows the chat convention of Chatui (port {port}), so it opens as a conversation.'**
-  String serviceInfoChatSupported(int port);
+  /// **'It follows the chat convention of Chatui, so it opens as a conversation.'**
+  String get serviceInfoChatSupported;
 
   /// No description provided for @serviceInfoChatUnsupported.
   ///
@@ -9629,11 +9629,11 @@ abstract class AppLocalizations {
   /// **'The service declares no port.'**
   String get serviceInfoNoInterface;
 
-  /// No description provided for @serviceInfoPort.
+  /// No description provided for @serviceInfoSlot.
   ///
   /// In en, this message translates to:
-  /// **'Port {port}'**
-  String serviceInfoPort(int port);
+  /// **'Interface {n}'**
+  String serviceInfoSlot(int n);
 
   /// No description provided for @serviceInfoChatReady.
   ///

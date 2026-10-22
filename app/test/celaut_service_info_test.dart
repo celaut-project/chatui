@@ -112,7 +112,7 @@ void main() {
     expect(find.text(CelautStrings.cores(1.5)), findsOneWidget);
     expect(find.text('int_ops_per_sec: 1000000'), findsOneWidget);
     // The interface, with the chat port marked and the stack from bottom to top.
-    expect(find.text(l.serviceInfoPort(8080)), findsOneWidget);
+    expect(find.text(l.serviceInfoSlot(1)), findsOneWidget);
     expect(find.byKey(const Key('service-info-chat-8080')), findsOneWidget);
     expect(find.byKey(const Key('service-info-chat-53')), findsNothing);
     expect(find.text('tcp → http → chat'), findsOneWidget);
@@ -136,7 +136,7 @@ void main() {
 
   testWidgets('the banner says that the interface works as a conversation', (tester) async {
     await _pump(tester, _full());
-    expect(find.text(appL10n.serviceInfoChatSupported(8080)), findsOneWidget);
+    expect(find.text(appL10n.serviceInfoChatSupported), findsOneWidget);
     expect(find.byKey(const Key('service-info-chat-unsupported')), findsNothing);
   });
 
