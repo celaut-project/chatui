@@ -11,6 +11,20 @@ class TunnelAnswer {
   final String body;
 }
 
+/// The answer of one HTTP call whose body is bytes, for example a file.
+class TunnelBytes {
+  const TunnelBytes(this.status, this.contentType, this.bytes, {this.truncated = false});
+
+  final int status;
+
+  /// The `Content-Type` of the answer, without its parameters, or null.
+  final String? contentType;
+  final Uint8List bytes;
+
+  /// The body was longer than the limit of the call, so [bytes] is only the start.
+  final bool truncated;
+}
+
 /// HTTP calls to the local port of an instance (127.0.0.1).
 ///
 /// Each TCP connection to that port is one `ServiceTunnel` stream, and the node
@@ -50,6 +64,24 @@ class TunnelHttp {
   }) =>
       _call('POST', port, path, json, timeout);
 
+  /// `GET path` on `127.0.0.1:port` for a body of bytes. The whole body is read, so that
+  /// the connection can carry the next call; only the first [maxBytes] bytes are kept,
+  /// and [TunnelBytes.truncated] says if there were more.
+  Future<TunnelBytes> getBytes(
+    int port,
+    String path, {
+    int maxBytes = 8 * 1024 * 1024,
+    Duration timeout = const Duration(seconds: 60),
+  }) async {
+    final (response, kept, truncated) = await _send('GET', port, path, null, maxBytes, timeout);
+    return TunnelBytes(
+      response.statusCode,
+      response.headers.contentType?.mimeType,
+      kept,
+      truncated: truncated,
+    );
+  }
+
   Future<TunnelAnswer> _call(
     String method,
     int port,
@@ -57,9 +89,21 @@ class TunnelHttp {
     Object? json,
     Duration timeout,
   ) async {
+    final (response, kept, _) = await _send(method, port, path, json, maxBody, timeout);
+    return TunnelAnswer(response.statusCode, utf8.decode(kept, allowMalformed: true));
+  }
+
+  Future<(HttpClientResponse, Uint8List, bool)> _send(
+    String method,
+    int port,
+    String path,
+    Object? json,
+    int limit,
+    Duration timeout,
+  ) {
     final target = path.startsWith('/') ? path : '/$path';
     final uri = Uri.parse('http://127.0.0.1:$port$target');
-    Future<TunnelAnswer> call() async {
+    Future<(HttpClientResponse, Uint8List, bool)> call() async {
       final request = await _client.openUrl(method, uri);
       request.persistentConnection = true;
       if (json != null) {
@@ -70,14 +114,13 @@ class TunnelHttp {
       }
       final response = await request.close();
       final kept = BytesBuilder(copy: false);
+      var truncated = false;
       await for (final chunk in response) {
-        final room = maxBody - kept.length;
+        final room = limit - kept.length;
+        if (chunk.length > room) truncated = true;
         if (room > 0) kept.add(chunk.length <= room ? chunk : chunk.sublist(0, room));
       }
-      return TunnelAnswer(
-        response.statusCode,
-        utf8.decode(kept.takeBytes(), allowMalformed: true),
-      );
+      return (response, kept.takeBytes(), truncated);
     }
 
     return call().timeout(timeout);

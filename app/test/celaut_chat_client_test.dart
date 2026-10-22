@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:argus_wallet/celaut/chat_client.dart';
 import 'package:argus_wallet/celaut/tunnel_http.dart';
@@ -22,6 +23,12 @@ class EchoService {
   /// The next GET gets this body with status 200.
   String? nextHistoryBody;
 
+  /// The kinds that the service says it accepts in each read of the history.
+  List<String>? accepts;
+
+  /// The files of the messages, by `seq` and index.
+  final files = <(int, int), List<int>>{};
+
   static Future<EchoService> start({int port = 0}) async {
     final s = EchoService._(await HttpServer.bind(InternetAddress.loopbackIPv4, port));
     s.server.listen(s._handle);
@@ -43,6 +50,20 @@ class EchoService {
   Future<void> _handle(HttpRequest request) async {
     connections.add(request.connectionInfo!.remotePort);
     final response = request.response;
+    final file = RegExp(r'^/chat/messages/(\d+)/attachments/(\d+)$').firstMatch(request.uri.path);
+    if (file != null) {
+      final bytes = files[(int.parse(file.group(1)!), int.parse(file.group(2)!))];
+      if (bytes == null) {
+        await _reply(response, 404, {'error': 'not_found'});
+        return;
+      }
+      response
+        ..statusCode = 200
+        ..headers.contentType = ContentType('image', 'png')
+        ..add(bytes);
+      await response.close();
+      return;
+    }
     if (request.uri.path != '/chat/messages') {
       await _reply(response, 404, {'error': 'not_found'});
       return;
@@ -60,6 +81,7 @@ class EchoService {
       final from = int.parse(request.uri.queryParameters['from'] ?? '0');
       await _reply(response, 200, {
         'count': messages.length,
+        if (accepts != null) 'accepts': accepts,
         'messages': messages.skip(from).toList(),
       });
       return;
@@ -76,7 +98,25 @@ class EchoService {
       return;
     }
     final text = body['text'] as String;
-    final user = {'seq': messages.length, 'role': 'user', 'text': text};
+    final sent = (body['attachments'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+    final user = {
+      'seq': messages.length,
+      'role': 'user',
+      'text': text,
+      if (sent.isNotEmpty)
+        'attachments': [
+          for (var i = 0; i < sent.length; i++)
+            {
+              'kind': (sent[i]['mime'] as String).split('/').first,
+              'mime': sent[i]['mime'],
+              if (sent[i]['name'] != null) 'name': sent[i]['name'],
+              'size': base64Decode(sent[i]['data'] as String).length,
+            },
+        ],
+    };
+    for (var i = 0; i < sent.length; i++) {
+      files[(messages.length, i)] = base64Decode(sent[i]['data'] as String);
+    }
     messages.add(user);
     final reply = {'seq': messages.length, 'role': 'assistant', 'text': text};
     messages.add(reply);
@@ -258,6 +298,129 @@ void main() {
       chat.sync(),
       throwsA(isA<ChatException>().having((e) => e.kind, 'kind', ChatErrorKind.badAnswer)),
     );
+  });
+
+  group('attachments', () {
+    final png = Uint8List.fromList([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
+    OutgoingAttachment image({String name = 'tree.png'}) =>
+        OutgoingAttachment(mime: 'image/png', bytes: png, name: name);
+
+    Matcher kind(ChatErrorKind k) =>
+        throwsA(isA<ChatException>().having((e) => e.kind, 'kind', k));
+
+    test('the read of the history gives the kinds that the service accepts', () async {
+      await chat.sync();
+      expect(chat.accepts, isEmpty);
+      service.accepts = ['image', 'audio', 'video'];
+      await chat.sync();
+      expect(chat.accepts, {'image', 'audio'});
+    });
+
+    test('a send with a file and no text works, and keeps the bytes', () async {
+      service.accepts = ['image'];
+      await chat.sync();
+      await chat.send('', attachments: [image()]);
+      final user = chat.messages.first;
+      expect(user.text, '');
+      expect(user.attachments.single.kind, 'image');
+      expect(user.attachments.single.name, 'tree.png');
+      expect(user.attachments.single.size, png.length);
+      final before = service.connections.length;
+      expect(await chat.readAttachment(0, 0), png);
+      expect(service.connections, hasLength(before));
+    });
+
+    test('a file of another message is read from the service once', () async {
+      service.accepts = ['image'];
+      service.files[(0, 0)] = png;
+      service.messages.add({
+        'seq': 0,
+        'role': 'assistant',
+        'text': 'a picture',
+        'attachments': [
+          {'kind': 'image', 'mime': 'image/png', 'size': png.length},
+        ],
+      });
+      await chat.sync();
+      expect(await chat.readAttachment(0, 0), png);
+      service.files.clear();
+      expect(await chat.readAttachment(0, 0), png);
+    });
+
+    test('a file that is not there is an error with its status', () async {
+      await expectLater(
+        chat.readAttachment(0, 3),
+        throwsA(isA<ChatException>().having((e) => e.status, 'status', 404)),
+      );
+    });
+
+    test('nothing is sent if the service accepts text only', () async {
+      await chat.sync();
+      await expectLater(
+        chat.send('x', attachments: [image()]),
+        kind(ChatErrorKind.unsupportedMedia),
+      );
+      expect(service.messages, isEmpty);
+    });
+
+    test('nothing is sent if the kind is not accepted or the file is not valid', () async {
+      service.accepts = ['image'];
+      await chat.sync();
+      final audio = OutgoingAttachment(mime: 'audio/wav', bytes: png);
+      final pdf = OutgoingAttachment(mime: 'application/pdf', bytes: png);
+      final empty = OutgoingAttachment(mime: 'image/png', bytes: Uint8List(0));
+      final big = OutgoingAttachment(
+        mime: 'image/png',
+        bytes: Uint8List(ChatClient.maxAttachmentBytes + 1),
+      );
+      await expectLater(chat.send('x', attachments: [audio]), kind(ChatErrorKind.unsupportedMedia));
+      await expectLater(chat.send('x', attachments: [pdf]), kind(ChatErrorKind.unsupportedMedia));
+      await expectLater(chat.send('x', attachments: [empty]), kind(ChatErrorKind.badRequest));
+      await expectLater(chat.send('x', attachments: [big]), kind(ChatErrorKind.badRequest));
+      await expectLater(
+        chat.send('x', attachments: List.filled(ChatClient.maxAttachments + 1, image())),
+        kind(ChatErrorKind.badRequest),
+      );
+      await expectLater(chat.send(''), kind(ChatErrorKind.badRequest));
+      expect(service.messages, isEmpty);
+    });
+
+    test('status 415 is unsupported media', () async {
+      service.accepts = ['image'];
+      await chat.sync();
+      service.failNextWith = 415;
+      await expectLater(
+        chat.send('x', attachments: [image()]),
+        kind(ChatErrorKind.unsupportedMedia),
+      );
+    });
+
+    test('a lost answer after a send with a file is found in the history', () async {
+      service.accepts = ['image'];
+      await chat.sync();
+      service.dropNextAnswer = true;
+      await chat.send('look', attachments: [image()]);
+      expect(chat.count, 2);
+      expect(await chat.readAttachment(0, 0), png);
+      expect(service.messages, hasLength(2));
+    });
+
+    test('a history with a file of a kind that is not defined is a bad answer', () async {
+      service.nextHistoryBody = jsonEncode({
+        'count': 1,
+        'messages': [
+          {
+            'seq': 0,
+            'role': 'user',
+            'text': '',
+            'attachments': [
+              {'kind': 'video', 'mime': 'video/mp4', 'size': 3},
+            ],
+          },
+        ],
+      });
+      await expectLater(chat.sync(), kind(ChatErrorKind.badAnswer));
+    });
   });
 
   test('a service that is gone is unreachable', () async {

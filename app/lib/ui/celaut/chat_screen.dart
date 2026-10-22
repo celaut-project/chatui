@@ -158,7 +158,10 @@ class _ChatScreenState extends State<ChatScreen> {
       ChatErrorKind.badAnswer => l10n.chatErrorBadAnswer,
       ChatErrorKind.historyFull => l10n.chatErrorHistoryFull,
       ChatErrorKind.busy => l10n.chatErrorBusy,
-      ChatErrorKind.badRequest || ChatErrorKind.other => l10n.chatErrorOther,
+      ChatErrorKind.badRequest ||
+      ChatErrorKind.unsupportedMedia ||
+      ChatErrorKind.other =>
+        l10n.chatErrorOther,
     };
   }
 
