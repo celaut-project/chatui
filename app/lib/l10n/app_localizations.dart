@@ -8402,8 +8402,32 @@ abstract class AppLocalizations {
   /// No description provided for @chatErrorFile.
   ///
   /// In en, this message translates to:
-  /// **'A file is empty or too big. A file can have 4 MB at most, and a message 4 files.'**
+  /// **'A file is empty or too big. Each file can have 4 MiB at most, and each message 4 files.'**
   String get chatErrorFile;
+
+  /// No description provided for @chatSkippedDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 file is already attached} other{{count} files are already attached}}'**
+  String chatSkippedDuplicate(int count);
+
+  /// No description provided for @chatSkippedInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 file is empty, too big or not a JPEG, PNG, MP3 or WAV file} other{{count} files are empty, too big or not JPEG, PNG, MP3 or WAV files}}'**
+  String chatSkippedInvalid(int count);
+
+  /// No description provided for @chatSkippedTooMany.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 file was left out: a message has 4 files at most} other{{count} files were left out: a message has 4 files at most}}'**
+  String chatSkippedTooMany(int count);
+
+  /// No description provided for @chatImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Image'**
+  String get chatImage;
 
   /// No description provided for @chatTyping.
   ///
@@ -8566,6 +8590,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You: {text}'**
   String chatsPreviewYou(String text);
+
+  /// No description provided for @chatsPreviewPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo'**
+  String get chatsPreviewPhoto;
+
+  /// No description provided for @chatsPreviewAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio'**
+  String get chatsPreviewAudio;
+
+  /// No description provided for @chatsPreviewNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'{kind}: {name}'**
+  String chatsPreviewNamed(String kind, String name);
 
   /// No description provided for @chatsActionInfo.
   ///

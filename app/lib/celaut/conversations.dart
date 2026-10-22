@@ -2,12 +2,24 @@ import 'package:flutter/foundation.dart';
 
 import '../bridge/api/celaut_service.dart';
 import '../format.dart';
+import '../l10n/l10n.dart';
 import 'chat_client.dart';
 
 /// The name of an instance for the user: the name of its skill or service file, or a
 /// short service id when the app does not know the name.
 String instanceTitle(InstanceListView i) =>
     i.name.trim().isNotEmpty ? i.name.trim() : shorten(i.serviceId, head: 8, tail: 6);
+
+/// The text of a message for a list or a notice, in one line: its text, or, when the
+/// text is blank, its first file as "Photo" or "Audio" with the name if there is one.
+String messagePreview(ChatMessage message, AppLocalizations l) {
+  final text = message.text.replaceAll(RegExp(r'\s+'), ' ').trim();
+  if (text.isNotEmpty || message.attachments.isEmpty) return text;
+  final file = message.attachments.first;
+  final kind = file.isAudio ? l.chatsPreviewAudio : l.chatsPreviewPhoto;
+  final name = file.safeName;
+  return name == null ? kind : l.chatsPreviewNamed(kind, name);
+}
 
 /// What the list of conversations knows in memory, for this run of the app only
 /// (`docs/celaut/ui-chat-first.md`): the last message of each conversation, and the
@@ -38,7 +50,12 @@ class ConversationNotes extends ChangeNotifier {
     if (messages.isEmpty) return;
     final last = messages.last;
     final before = _last[instanceId];
-    if (before != null && before.seq == last.seq && before.text == last.text) return;
+    if (before != null &&
+        before.seq == last.seq &&
+        before.text == last.text &&
+        before.attachments.length == last.attachments.length) {
+      return;
+    }
     _last[instanceId] = last;
     notifyListeners();
   }

@@ -40,6 +40,8 @@ like the English. Imperatives: "Escribe" (not "Introduce" or "Ingresa"),
 | node | nodo |
 | skill (of the catalog) | habilidad |
 | service | servicio |
+| attachment / file (of a message) | adjunto / archivo |
+| photo | foto |
 | deposit | depósito |
 | tunnel | túnel |
 | peer / peer ID | par / ID de par |

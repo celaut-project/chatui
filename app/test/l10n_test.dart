@@ -65,7 +65,7 @@ void main() {
       'sendBoxTokens', 'utxoTokensN', 'utxoValueTokens', 'utxoFilterTokens',
       'separateSourceItem', 'homePartsWhere', 'homeInclPartsWhere',
       'celautHomeUsd', 'celautAgoSeconds', 'celautAgoMinutes', 'celautAgoHours',
-      'celautAgoDays', 'chatsTabChats',
+      'celautAgoDays', 'chatsTabChats', 'chatsPreviewAudio', 'chatsPreviewNamed',
     };
     final copied = [
       for (final k in _messageKeys(en))

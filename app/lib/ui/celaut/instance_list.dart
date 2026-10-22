@@ -203,8 +203,8 @@ class InstanceListState extends State<InstanceList> {
     final slot = instance.chatSlots.first;
     final int port;
     try {
-      port = await (widget.openTunnel ??
-          (id, s) => celautOpenTunnel(instanceId: id, slot: s))(instance.instanceId, slot);
+      port = await (widget.openTunnel ?? (id, s) => celautOpenTunnel(instanceId: id, slot: s))(
+          instance.instanceId, slot);
     } on CelautError catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -388,8 +388,8 @@ class _InstanceRow extends StatelessWidget {
     final preview = last == null
         ? (instance.chatSlots.isEmpty ? l.chatsNoChatSlot : l.chatsNoPreview)
         : last!.fromUser
-            ? l.chatsPreviewYou(last!.text)
-            : last!.text;
+            ? l.chatsPreviewYou(messagePreview(last!, l))
+            : messagePreview(last!, l);
     return InkWell(
       key: Key('chats-row-$id'),
       onTap: onTap,

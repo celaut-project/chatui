@@ -33,26 +33,30 @@ class TunnelBytes {
 /// connection, and `maxConnectionsPerHost = 1` stops it from opening a second one
 /// while a call runs.
 class TunnelHttp {
-  TunnelHttp({Duration idleTimeout = const Duration(minutes: 5)})
-      : _client = HttpClient()
-          ..maxConnectionsPerHost = 1
-          ..idleTimeout = idleTimeout
-          // The port is on this device: never through a proxy.
-          ..findProxy = ((_) => 'DIRECT');
+  TunnelHttp({this.idleTimeout = const Duration(minutes: 5)}) : _client = _newClient(idleTimeout);
 
-  final HttpClient _client;
+  final Duration idleTimeout;
+  HttpClient _client;
+
+  static HttpClient _newClient(Duration idleTimeout) => HttpClient()
+    ..maxConnectionsPerHost = 1
+    ..idleTimeout = idleTimeout
+    // The port is on this device: never through a proxy.
+    ..findProxy = ((_) => 'DIRECT');
 
   /// The most bytes of a body that are kept.
   static const maxBody = 64 * 1024;
 
   /// `GET path` on `127.0.0.1:port`. The whole body is read, so that the
   /// connection can carry the next call; only the first [maxBody] bytes are kept.
+  /// [maxBytes] raises that limit for a read that can be long, such as a history.
   Future<TunnelAnswer> get(
     int port,
     String path, {
     Duration timeout = const Duration(seconds: 30),
+    int maxBytes = maxBody,
   }) =>
-      _call('GET', port, path, null, timeout);
+      _call('GET', port, path, null, timeout, maxBytes);
 
   /// `POST path` on `127.0.0.1:port` with [json] as the body (`application/json`).
   /// It reads the answer as [get] does.
@@ -62,7 +66,7 @@ class TunnelHttp {
     Object json, {
     Duration timeout = const Duration(seconds: 30),
   }) =>
-      _call('POST', port, path, json, timeout);
+      _call('POST', port, path, json, timeout, maxBody);
 
   /// `GET path` on `127.0.0.1:port` for a body of bytes. The whole body is read, so that
   /// the connection can carry the next call; only the first [maxBytes] bytes are kept,
@@ -88,8 +92,9 @@ class TunnelHttp {
     String path,
     Object? json,
     Duration timeout,
+    int limit,
   ) async {
-    final (response, kept, _) = await _send(method, port, path, json, maxBody, timeout);
+    final (response, kept, _) = await _send(method, port, path, json, limit, timeout);
     return TunnelAnswer(response.statusCode, utf8.decode(kept, allowMalformed: true));
   }
 
@@ -123,9 +128,20 @@ class TunnelHttp {
       return (response, kept.takeBytes(), truncated);
     }
 
-    return call().timeout(timeout);
+    // A call that times out still holds the only connection: drop it, so that the next
+    // call opens a new one instead of queueing behind it.
+    return call().timeout(timeout, onTimeout: () {
+      reset();
+      throw TimeoutException('No answer from the tunnel port', timeout);
+    });
   }
 
-  /// Close the connection. The next call opens a new one (a new stream).
+  /// Close the connection, and let the next call open a new one (a new stream).
+  void reset() {
+    _client.close(force: true);
+    _client = _newClient(idleTimeout);
+  }
+
+  /// Close the connection for good: no call follows.
   void close() => _client.close(force: true);
 }

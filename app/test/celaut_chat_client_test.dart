@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -23,6 +24,21 @@ class EchoService {
   /// The next GET gets this body with status 200.
   String? nextHistoryBody;
 
+  /// The user message is added at once, and the answer after this wait: a slow service.
+  Duration? answerDelay;
+
+  /// The user message is added, and the answer never comes.
+  bool answerNever = false;
+
+  /// The next POST waits for this to complete before anything is applied.
+  Completer<void>? holdNextPost;
+
+  /// The wait before a file is given.
+  Duration fileDelay = Duration.zero;
+
+  /// The reads of files that the service got.
+  int fileReads = 0;
+
   /// The kinds that the service says it accepts in each read of the history.
   List<String>? accepts;
 
@@ -44,7 +60,11 @@ class EchoService {
       ..statusCode = status
       ..headers.contentType = ContentType.json
       ..write(jsonEncode(body));
-    await response.close();
+    try {
+      await response.close();
+    } on Object {
+      // The client gave up and closed the connection.
+    }
   }
 
   Future<void> _handle(HttpRequest request) async {
@@ -52,6 +72,8 @@ class EchoService {
     final response = request.response;
     final file = RegExp(r'^/chat/messages/(\d+)/attachments/(\d+)$').firstMatch(request.uri.path);
     if (file != null) {
+      fileReads++;
+      await Future<void>.delayed(fileDelay);
       final bytes = files[(int.parse(file.group(1)!), int.parse(file.group(2)!))];
       if (bytes == null) {
         await _reply(response, 404, {'error': 'not_found'});
@@ -87,6 +109,11 @@ class EchoService {
       return;
     }
     final body = jsonDecode(await utf8.decoder.bind(request).join()) as Map<String, dynamic>;
+    final hold = holdNextPost;
+    if (hold != null) {
+      holdNextPost = null;
+      await hold.future;
+    }
     final status = failNextWith;
     if (status != null) {
       failNextWith = null;
@@ -118,6 +145,9 @@ class EchoService {
       files[(messages.length, i)] = base64Decode(sent[i]['data'] as String);
     }
     messages.add(user);
+    if (answerNever) await Completer<void>().future;
+    final delay = answerDelay;
+    if (delay != null) await Future<void>.delayed(delay);
     final reply = {'seq': messages.length, 'role': 'assistant', 'text': text};
     messages.add(reply);
     if (dropNextAnswer) {
@@ -126,7 +156,10 @@ class EchoService {
       socket.destroy();
       return;
     }
-    await _reply(response, 200, {'count': messages.length, 'messages': [user, reply]});
+    await _reply(response, 200, {
+      'count': messages.length,
+      'messages': [user, reply]
+    });
   }
 }
 
@@ -305,8 +338,7 @@ void main() {
     OutgoingAttachment image({String name = 'tree.png'}) =>
         OutgoingAttachment(mime: 'image/png', bytes: png, name: name);
 
-    Matcher kind(ChatErrorKind k) =>
-        throwsA(isA<ChatException>().having((e) => e.kind, 'kind', k));
+    Matcher kind(ChatErrorKind k) => throwsA(isA<ChatException>().having((e) => e.kind, 'kind', k));
 
     test('the read of the history gives the kinds that the service accepts', () async {
       await chat.sync();
@@ -423,11 +455,147 @@ void main() {
     });
   });
 
+  group('a slow service', () {
+    /// A client with a short wait for the answer, and no real wait between the reads.
+    ChatClient quick({List<Duration>? waits, Future<void> Function(Duration)? onWait}) =>
+        ChatClient(
+          port: service.port,
+          http: http,
+          sendTimeout: const Duration(milliseconds: 200),
+          wait: (d) async {
+            waits?.add(d);
+            await (onWait?.call(d) ?? Future<void>.delayed(const Duration(milliseconds: 50)));
+          },
+        );
+
+    test('a send waits 2 minutes, a read 30 seconds', () {
+      expect(ChatClient.defaultSendTimeout, const Duration(minutes: 2));
+      expect(ChatClient.lateAnswerLimit, const Duration(minutes: 3));
+      expect(ChatClient.lateAnswerEvery, const Duration(seconds: 5));
+    });
+
+    test('an answer that comes after the timeout is read, and nothing is sent twice', () async {
+      service.answerDelay = const Duration(seconds: 1);
+      final slow = quick();
+      await slow.send('think');
+      expect(slow.messages.map((m) => m.role), ['user', 'assistant']);
+      expect(slow.messages.map((m) => m.text), ['think', 'think']);
+      expect(service.messages, hasLength(2));
+      // The timeout dropped the connection that was stuck: the read used a new one.
+      expect(service.connections.length, greaterThan(1));
+    });
+
+    test('a message that is in the history with no answer ends as sent after the limit', () async {
+      service.answerNever = true;
+      final waits = <Duration>[];
+      final slow = quick(waits: waits, onWait: (_) async {});
+      await slow.send('think');
+      expect(slow.messages.map((m) => m.role), ['user']);
+      expect(waits, hasLength(36));
+      expect(waits.every((d) => d == ChatClient.lateAnswerEvery), isTrue);
+      expect(service.messages, hasLength(1));
+    });
+
+    test('a message that never reaches the history throws after the limit, and is not resent',
+        () async {
+      service.holdNextPost = Completer<void>();
+      final waits = <Duration>[];
+      final slow = quick(waits: waits, onWait: (_) async {});
+      await expectLater(
+        slow.send('lost'),
+        throwsA(isA<ChatException>().having((e) => e.kind, 'kind', ChatErrorKind.unreachable)),
+      );
+      expect(waits.fold(Duration.zero, (a, b) => a + b), ChatClient.lateAnswerLimit);
+      expect(service.messages, isEmpty);
+      expect(slow.count, 0);
+    });
+
+    test('a message that shows in the history while the client waits counts as sent', () async {
+      final hold = service.holdNextPost = Completer<void>();
+      final slow = quick(onWait: (_) async {
+        // The held request is applied at last, on the connection that was dropped.
+        if (!hold.isCompleted) hold.complete();
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      });
+      await slow.send('late');
+      expect(slow.messages.map((m) => m.text), ['late', 'late']);
+    });
+  });
+
+  test('a history longer than 64 KiB is read whole', () async {
+    final text = 'x' * 40000;
+    for (var i = 0; i < 6; i += 2) {
+      service.messages
+        ..add({'seq': i, 'role': 'user', 'text': text})
+        ..add({'seq': i + 1, 'role': 'assistant', 'text': text});
+    }
+    await chat.sync();
+    expect(chat.count, 6);
+  });
+
+  test('the safe name of a file drops paths, control characters and dots', () {
+    String? safe(String? name) =>
+        ChatAttachment(kind: 'image', mime: 'image/png', size: 1, name: name).safeName;
+    expect(safe('../../databases/x.db'), 'x.db');
+    expect(safe(r'..\..\a\b.png'), 'b.png');
+    expect(safe('a\u0000b\n.png'), 'ab.png');
+    expect(safe('tree.png'), 'tree.png');
+    expect(safe('..'), isNull);
+    expect(safe('dir/'), isNull);
+    expect(safe(''), isNull);
+    expect(safe(null), isNull);
+    expect(safe('${'a' * 101}.png'), isNull);
+  });
+
+  group('files in memory', () {
+    final big = List<int>.filled(ChatClient.maxAttachmentBytes, 7);
+
+    test('past 24 MiB the files of the other messages are dropped, and read again', () async {
+      for (var seq = 0; seq < 7; seq++) {
+        service.files[(seq, 0)] = big;
+      }
+      for (var seq = 0; seq < 6; seq++) {
+        await chat.readAttachment(seq, 0);
+      }
+      // 24 MiB: still the limit, nothing dropped.
+      await chat.readAttachment(0, 0);
+      expect(service.fileReads, 6);
+      await chat.readAttachment(6, 0);
+      expect(service.fileReads, 7);
+      // The last one stays; the first has to come again.
+      await chat.readAttachment(6, 0);
+      expect(service.fileReads, 7);
+      await chat.readAttachment(0, 0);
+      expect(service.fileReads, 8);
+    });
+
+    test('reads of files wait for a send that is queued', () async {
+      for (var seq = 0; seq < 3; seq++) {
+        service.files[(seq, 0)] = [1, 2, 3];
+      }
+      service.fileDelay = const Duration(milliseconds: 150);
+      final order = <String>[];
+      final reads = [
+        for (var seq = 0; seq < 3; seq++)
+          chat.readAttachment(seq, 0).then((_) => order.add('read$seq')),
+      ];
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      final send = chat.send('now').then((_) => order.add('send'));
+      await Future.wait([...reads, send]);
+      expect(order, ['read0', 'send', 'read1', 'read2']);
+    });
+  });
+
   test('a service that is gone is unreachable', () async {
+    final port = service.port;
     await service.close();
+    final waits = <Duration>[];
+    final gone = ChatClient(port: port, http: http, wait: (d) async => waits.add(d));
     await expectLater(
-      chat.send('x'),
+      gone.send('x'),
       throwsA(isA<ChatException>().having((e) => e.kind, 'kind', ChatErrorKind.unreachable)),
     );
+    // The client read the history for the whole limit before it gave up.
+    expect(waits, hasLength(36));
   });
 }

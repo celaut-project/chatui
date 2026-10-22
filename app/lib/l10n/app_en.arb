@@ -4058,7 +4058,32 @@
   "chatAttachmentShare": "Open or share the file",
   "chatAttachmentFailed": "The file did not load.",
   "chatErrorUnsupportedMedia": "The service does not accept this kind of file.",
-  "chatErrorFile": "A file is empty or too big. A file can have 4 MB at most, and a message 4 files.",
+  "chatErrorFile": "A file is empty or too big. Each file can have 4 MiB at most, and each message 4 files.",
+  "chatSkippedDuplicate": "{count, plural, =1{1 file is already attached} other{{count} files are already attached}}",
+  "@chatSkippedDuplicate": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatSkippedInvalid": "{count, plural, =1{1 file is empty, too big or not a JPEG, PNG, MP3 or WAV file} other{{count} files are empty, too big or not JPEG, PNG, MP3 or WAV files}}",
+  "@chatSkippedInvalid": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatSkippedTooMany": "{count, plural, =1{1 file was left out: a message has 4 files at most} other{{count} files were left out: a message has 4 files at most}}",
+  "@chatSkippedTooMany": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatImage": "Image",
   "chatTyping": "The service is answering…",
   "chatSending": "Sending…",
   "chatWaitingSeconds": "Still working… {seconds} s",
@@ -4103,6 +4128,19 @@
   "@chatsPreviewYou": {
     "placeholders": {
       "text": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsPreviewPhoto": "Photo",
+  "chatsPreviewAudio": "Audio",
+  "chatsPreviewNamed": "{kind}: {name}",
+  "@chatsPreviewNamed": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "name": {
         "type": "String"
       }
     }

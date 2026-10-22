@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:argus_wallet/celaut/tunnel_http.dart';
@@ -103,5 +104,21 @@ void main() {
     expect(answer.truncated, isTrue);
     await http.getBytes(server.port, '/file', maxBytes: 1000);
     expect(server.connections, hasLength(1));
+  });
+
+  test('a call that times out drops its connection, and the next call opens a new one', () async {
+    await expectLater(
+      http.get(server.port, '/', timeout: const Duration(milliseconds: 10)),
+      throwsA(isA<TimeoutException>()),
+    );
+    final answer = await http.get(server.port, '/');
+    expect(answer.status, 200);
+    expect(server.connections, hasLength(2));
+  });
+
+  test('get keeps more than the usual limit when it is asked to', () async {
+    server.body = 'x' * (TunnelHttp.maxBody + 100);
+    final answer = await http.get(server.port, '/', maxBytes: 1024 * 1024);
+    expect(answer.body.length, TunnelHttp.maxBody + 100);
   });
 }

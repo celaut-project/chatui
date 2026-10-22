@@ -88,8 +88,9 @@ class _Wallets implements FullWallets {
   final bool full;
 
   @override
-  Future<List<PayerWallet>> payers() async =>
-      full ? [const PayerWallet(walletId: 'w1', name: 'Main', balanceNano: 1, open: true)] : const [];
+  Future<List<PayerWallet>> payers() async => full
+      ? [const PayerWallet(walletId: 'w1', name: 'Main', balanceNano: 1, open: true)]
+      : const [];
 
   @override
   Future<bool> unlock(BuildContext context, PayerWallet wallet) async => true;
@@ -145,7 +146,8 @@ class _Place extends StatelessWidget {
   final HomePlace place;
 
   @override
-  Widget build(BuildContext context) => Scaffold(appBar: AppBar(), body: Text('page ${place.name}'));
+  Widget build(BuildContext context) =>
+      Scaffold(appBar: AppBar(), body: Text('page ${place.name}'));
 }
 
 /// The Wallet tab, in tests: a counter shows that the tab keeps its state.
@@ -200,7 +202,8 @@ void main() {
     launched = [];
   });
 
-  InstanceList list(GlobalKey<InstanceListState> key, Widget empty, {bool full = true}) => InstanceList(
+  InstanceList list(GlobalKey<InstanceListState> key, Widget empty, {bool full = true}) =>
+      InstanceList(
         key: key,
         chats: true,
         empty: empty,
@@ -228,7 +231,8 @@ void main() {
           loadSkills: () async => const [
             SkillView(boxId: 'skill-echo', name: 'Echo chat', prose: 'Says it back.', tags: []),
           ],
-          loadServices: (_) async => [SkillServiceView(serviceId: _echoId, score: 0.9, direct: true)],
+          loadServices: (_) async =>
+              [SkillServiceView(serviceId: _echoId, score: 0.9, direct: true)],
           previewQuote: (_) async => null,
           library: PackageLibrary(
             importPackage: (path, name, dir) async => throw UnimplementedError(),
@@ -335,6 +339,36 @@ void main() {
       expect(find.text(appL10n.chatsPreviewYou('hello')), findsOneWidget);
     });
 
+    testWidgets('a message with only a file shows the file, in one line', (tester) async {
+      node.db = [_instance('i1'), _instance('i2'), _instance('i3')];
+      node.answers['i1'] = _status('1');
+      notes
+        ..saw('i1', const [
+          ChatMessage(
+            seq: 0,
+            role: 'user',
+            text: '',
+            attachments: [
+              ChatAttachment(kind: 'image', mime: 'image/png', size: 3, name: 'dot.png')
+            ],
+          ),
+        ])
+        ..saw('i2', const [
+          ChatMessage(
+            seq: 0,
+            role: 'assistant',
+            text: ' \n ',
+            attachments: [ChatAttachment(kind: 'audio', mime: 'audio/wav', size: 3)],
+          ),
+        ])
+        ..saw('i3', const [ChatMessage(seq: 0, role: 'assistant', text: 'a\n\n  b')]);
+      await open(tester);
+      final photo = appL10n.chatsPreviewNamed(appL10n.chatsPreviewPhoto, 'dot.png');
+      expect(find.text(appL10n.chatsPreviewYou(photo)), findsOneWidget);
+      expect(find.text(appL10n.chatsPreviewAudio), findsOneWidget);
+      expect(find.text('a b'), findsOneWidget);
+    });
+
     testWidgets('without a name the row shows the short service id', (tester) async {
       node.db = [_instance('i1', name: '')];
       await open(tester);
@@ -397,7 +431,8 @@ void main() {
       );
     });
 
-    testWidgets('an instance without a chat slot is not in the list of conversations', (tester) async {
+    testWidgets('an instance without a chat slot is not in the list of conversations',
+        (tester) async {
       node.db = [_instance('plain', chat: false)];
       await open(tester);
       expect(find.byKey(const Key('chats-row-plain')), findsNothing);
@@ -577,7 +612,8 @@ void main() {
       expect(find.byKey(const Key('chats-action-delete')), findsNothing);
       expect(find.text(appL10n.chatsDelete), findsNothing);
       // Stop asks; the node does not answer: the user sees why, and the row stays.
-      node.answers['i1'] = const CelautError(kind: CelautErrorKind.unreachable, message: 'no route');
+      node.answers['i1'] =
+          const CelautError(kind: CelautErrorKind.unreachable, message: 'no route');
       await tester.tap(find.byKey(const Key('chats-action-stop')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('stop-confirm')), findsOneWidget);
@@ -772,7 +808,8 @@ void main() {
   });
 
   group('other instances', () {
-    testWidgets('they list the instances without a chat slot, and a tap opens the info', (tester) async {
+    testWidgets('they list the instances without a chat slot, and a tap opens the info',
+        (tester) async {
       node.db = [_instance('plain', chat: false, name: 'Solver'), _instance('chat')];
       node.answers['plain'] = _status('5');
       await tester.pumpWidget(

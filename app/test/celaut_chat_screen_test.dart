@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
+import 'package:argus_wallet/celaut/attachment_picker.dart';
 import 'package:argus_wallet/celaut/chat_client.dart';
 import 'package:argus_wallet/celaut/conversation_keep_alive.dart';
 import 'package:argus_wallet/celaut/conversations.dart';
@@ -33,11 +34,17 @@ class _FakeChat extends ChatClient {
   /// Holds [syncWhenStarted] until it completes.
   Completer<void>? starting;
 
-  @override
-  Future<void> sync() async {}
+  /// The reads fail while this is true, as when the service is not up yet.
+  bool broken = false;
 
   @override
-  Future<void> syncWhenStarted({Duration limit = const Duration(minutes: 2), Future<void> Function(Duration)? wait}) =>
+  Future<void> sync() async {
+    if (broken) throw const ChatException(ChatErrorKind.unreachable);
+  }
+
+  @override
+  Future<void> syncWhenStarted(
+          {Duration limit = const Duration(minutes: 2), Future<void> Function(Duration)? wait}) =>
       starting?.future ?? Future.value();
 
   /// Holds [send] until it completes: a slow service.
@@ -47,7 +54,7 @@ class _FakeChat extends ChatClient {
   Set<String> kinds = const {};
 
   @override
-  Set<String> get accepts => kinds;
+  Set<String> get accepts => broken ? const {} : kinds;
 
   /// The files of each send.
   final sentFiles = <List<OutgoingAttachment>>[];
@@ -55,8 +62,21 @@ class _FakeChat extends ChatClient {
   /// The bytes that [readAttachment] gives.
   Uint8List fileBytes = Uint8List(0);
 
+  /// Holds [readAttachment] until it completes.
+  Completer<void>? fileGate;
+
+  /// The next reads of a file fail this many times.
+  int failReads = 0;
+
   @override
-  Future<Uint8List> readAttachment(int seq, int index) async => fileBytes;
+  Future<Uint8List> readAttachment(int seq, int index) async {
+    await fileGate?.future;
+    if (failReads > 0) {
+      failReads--;
+      throw const ChatException(ChatErrorKind.unreachable);
+    }
+    return fileBytes;
+  }
 
   @override
   Future<void> send(String text, {List<OutgoingAttachment> attachments = const []}) async {
@@ -96,8 +116,9 @@ class _Wallets implements FullWallets {
   final bool full;
 
   @override
-  Future<List<PayerWallet>> payers() async =>
-      full ? [const PayerWallet(walletId: 'w1', name: 'Main', balanceNano: 1, open: true)] : const [];
+  Future<List<PayerWallet>> payers() async => full
+      ? [const PayerWallet(walletId: 'w1', name: 'Main', balanceNano: 1, open: true)]
+      : const [];
 
   @override
   Future<bool> unlock(BuildContext context, PayerWallet wallet) async => true;
@@ -151,9 +172,9 @@ void main() {
                       keepAlive: keepAlive,
                       starting: starting,
                       notes: notes,
-                      pickFiles: (kinds) {
+                      pickFiles: (kinds, existing) async {
                         pickedKinds = kinds;
-                        return pick(kinds);
+                        return selectAttachments(await pick(kinds), existing);
                       },
                       loadStatus: (_) async => InstanceStatusView(
                         instanceBalanceMu: '900',
@@ -207,7 +228,8 @@ void main() {
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
   );
 
-  testWidgets('a slow answer shows the message at once, the dots, then the seconds', (tester) async {
+  testWidgets('a slow answer shows the message at once, the dots, then the seconds',
+      (tester) async {
     chat.gate = Completer<void>();
     await open(tester);
     await tester.enterText(find.byKey(const Key('chat-input')), 'think hard');
@@ -233,7 +255,8 @@ void main() {
     expect(find.text('echo: think hard'), findsOneWidget);
   });
 
-  testWidgets('a failed slow send gives the text back, with what the user wrote meanwhile', (tester) async {
+  testWidgets('a failed slow send gives the text back, with what the user wrote meanwhile',
+      (tester) async {
     chat.gate = Completer<void>();
     chat.failWith = const ChatException(ChatErrorKind.busy);
     await open(tester);
@@ -245,7 +268,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('chat-flying')), findsNothing);
     expect(find.text(appL10n.chatErrorBusy), findsOneWidget);
-    expect(tester.widget<TextField>(find.byKey(const Key('chat-input'))).controller!.text, 'first\nsecond');
+    expect(tester.widget<TextField>(find.byKey(const Key('chat-input'))).controller!.text,
+        'first\nsecond');
   });
 
   testWidgets('a service that accepts text only has no attach button', (tester) async {
@@ -256,7 +280,8 @@ void main() {
   testWidgets('a file is picked, shown as a chip, removed, and sent with no text', (tester) async {
     chat.kinds = {'image'};
     chat.fileBytes = Uint8List.fromList(png);
-    pick = (_) async => [OutgoingAttachment(mime: 'image/png', bytes: Uint8List.fromList(png), name: 'dot.png')];
+    pick = (_) async =>
+        [OutgoingAttachment(mime: 'image/png', bytes: Uint8List.fromList(png), name: 'dot.png')];
     await open(tester);
     await tester.tap(find.byKey(const Key('chat-attach')));
     await tester.pumpAndSettle();
@@ -294,6 +319,160 @@ void main() {
     expect(find.byKey(const Key('chat-pending-0')), findsOneWidget);
   });
 
+  OutgoingAttachment wav(String name, {int size = 4}) =>
+      OutgoingAttachment(mime: 'audio/wav', bytes: Uint8List(size), name: name);
+
+  testWidgets('what the pick leaves out is told in one message, and at most 4 files stay', (
+    tester,
+  ) async {
+    chat.kinds = {'audio'};
+    pick = (_) async => [
+          for (var i = 0; i < 5; i++) wav('$i.wav'),
+          wav('empty.wav', size: 0),
+        ];
+    await open(tester);
+    await tester.tap(find.byKey(const Key('chat-attach')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('chat-pending-3')), findsOneWidget);
+    expect(find.byKey(const Key('chat-pending-4')), findsNothing);
+    expect(find.byType(SnackBar), findsOneWidget);
+    expect(
+      find.text('${appL10n.chatSkippedInvalid(1)}. ${appL10n.chatSkippedTooMany(1)}'),
+      findsOneWidget,
+    );
+    // Four files are the most: the button waits until one is removed.
+    expect(tester.widget<IconButton>(find.byKey(const Key('chat-attach'))).onPressed, isNull);
+  });
+
+  testWidgets('a file that is already attached is skipped, and the user is told', (tester) async {
+    chat.kinds = {'audio'};
+    pick = (_) async => [wav('a.wav')];
+    await open(tester);
+    await tester.tap(find.byKey(const Key('chat-attach')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('chat-attach')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('chat-pending-0')), findsOneWidget);
+    expect(find.byKey(const Key('chat-pending-1')), findsNothing);
+    expect(find.text(appL10n.chatSkippedDuplicate(1)), findsOneWidget);
+  });
+
+  testWidgets('a long file name is cut in the chip', (tester) async {
+    chat.kinds = {'audio'};
+    pick = (_) async => [wav('${'voice-note-' * 10}.wav')];
+    await open(tester);
+    await tester.tap(find.byKey(const Key('chat-attach')));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(find.byKey(const Key('chat-pending-0'))).width, lessThan(300));
+  });
+
+  testWidgets('after a first read that failed, Retry reads again and the attach button works', (
+    tester,
+  ) async {
+    chat.kinds = {'audio'};
+    chat.broken = true;
+    pick = (_) async => [wav('a.wav')];
+    await open(tester);
+    expect(find.text(appL10n.chatErrorUnreachable), findsOneWidget);
+    // The button stays, so the user is not locked out; the service is still down.
+    await tester.tap(find.byKey(const Key('chat-attach')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('chat-pending')), findsNothing);
+    expect(find.text(appL10n.chatErrorUnreachable), findsOneWidget);
+
+    chat.broken = false;
+    await tester.tap(find.byKey(const Key('chat-retry')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('chat-error')), findsNothing);
+    expect(find.byKey(const Key('chat-retry')), findsNothing);
+    await tester.tap(find.byKey(const Key('chat-attach')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('chat-pending-0')), findsOneWidget);
+  });
+
+  testWidgets('attach reads again first when the kinds are not known', (tester) async {
+    chat.kinds = {'audio'};
+    chat.broken = true;
+    pick = (_) async => [wav('a.wav')];
+    await open(tester);
+    chat.broken = false;
+    await tester.tap(find.byKey(const Key('chat-attach')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('chat-pending-0')), findsOneWidget);
+    expect(find.byKey(const Key('chat-error')), findsNothing);
+  });
+
+  testWidgets('an image has its final height while it loads, and a name for the screen reader', (
+    tester,
+  ) async {
+    chat = _FakeChat(history: const [
+      ChatMessage(
+        seq: 0,
+        role: 'assistant',
+        text: '',
+        attachments: [ChatAttachment(kind: 'image', mime: 'image/png', size: 3, name: 'dot.png')],
+      ),
+    ]);
+    chat.fileBytes = Uint8List.fromList(png);
+    chat.fileGate = Completer<void>();
+    // The progress indicator turns until the file loads: open without a settle.
+    await open(tester, starting: true);
+    final file = find.byKey(const Key('chat-file-0-0'));
+    final loading = tester.getSize(file).height;
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    chat.fileGate!.complete();
+    await tester.pumpAndSettle();
+    expect(tester.getSize(file).height, loading);
+    final image = tester.widget<Image>(find.byType(Image));
+    expect(image.semanticLabel, 'dot.png');
+    expect(image.gaplessPlayback, isTrue);
+    expect(image.image, isA<ResizeImage>());
+  });
+
+  testWidgets('a file that did not load loads again with a tap', (tester) async {
+    chat = _FakeChat(history: const [
+      ChatMessage(
+        seq: 0,
+        role: 'assistant',
+        text: '',
+        attachments: [ChatAttachment(kind: 'image', mime: 'image/png', size: 3)],
+      ),
+    ]);
+    chat.fileBytes = Uint8List.fromList(png);
+    chat.failReads = 1;
+    await open(tester);
+    expect(find.text(appL10n.chatAttachmentFailed), findsOneWidget);
+    await tester.tap(find.byKey(const Key('chat-file-retry')));
+    await tester.pumpAndSettle();
+    expect(find.text(appL10n.chatAttachmentFailed), findsNothing);
+    expect(find.byType(Image), findsOneWidget);
+    expect(tester.widget<Image>(find.byType(Image)).semanticLabel, appL10n.chatImage);
+  });
+
+  testWidgets('the audio row is a button for the screen reader, with its name', (tester) async {
+    final handle = tester.ensureSemantics();
+    chat = _FakeChat(history: const [
+      ChatMessage(
+        seq: 0,
+        role: 'assistant',
+        text: '',
+        attachments: [
+          ChatAttachment(kind: 'audio', mime: 'audio/mpeg', size: 4, name: 'a/../song.mp3')
+        ],
+      ),
+    ]);
+    await open(tester);
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('song.mp3. ${appL10n.chatAttachmentShare}')),
+      matchesSemantics(
+        isButton: true,
+        hasTapAction: true,
+        label: 'song.mp3. ${appL10n.chatAttachmentShare}',
+      ),
+    );
+    handle.dispose();
+  });
+
   testWidgets('an audio file shows its name in the bubble', (tester) async {
     chat = _FakeChat(history: const [
       ChatMessage(
@@ -323,7 +502,8 @@ void main() {
     expect(notes.lastMessage('i1')?.text, 'echo: one');
   });
 
-  testWidgets('the bar has the name, and under it the state, the node and the cost', (tester) async {
+  testWidgets('the bar has the name, and under it the state, the node and the cost',
+      (tester) async {
     await open(tester);
     expect(find.text('Echo chat'), findsOneWidget);
     final subtitle = tester.widget<Text>(find.byKey(const Key('chat-cost'))).data!;
@@ -339,8 +519,10 @@ void main() {
     expect(find.text(appL10n.chatsInfoTitle), findsOneWidget);
     expect(find.byKey(const Key('info-name')), findsOneWidget);
     expect(tester.widget<SelectableText>(find.byKey(const Key('info-service'))).data, '65' * 32);
-    expect(tester.widget<SelectableText>(find.byKey(const Key('info-node'))).data, 'node.example:53460');
-    expect(tester.widget<SelectableText>(find.byKey(const Key('info-slot'))).data, appL10n.chatsInfoChatSlot('8080'));
+    expect(tester.widget<SelectableText>(find.byKey(const Key('info-node'))).data,
+        'node.example:53460');
+    expect(tester.widget<SelectableText>(find.byKey(const Key('info-slot'))).data,
+        appL10n.chatsInfoChatSlot('8080'));
     expect(tester.widget<SelectableText>(find.byKey(const Key('info-cost'))).data, '100 MU');
     expect(find.byKey(const Key('info-started')), findsOneWidget);
     expect(find.byKey(const Key('info-stop')), findsOneWidget);
@@ -438,7 +620,8 @@ void main() {
     expect(tester.widget<TextField>(find.byKey(const Key('chat-input'))).controller!.text, 'Hello');
   });
 
-  testWidgets('back goes to the list at once: no question, and the instance runs on', (tester) async {
+  testWidgets('back goes to the list at once: no question, and the instance runs on',
+      (tester) async {
     await open(tester);
     await tester.pageBack();
     await tester.pumpAndSettle();
@@ -477,7 +660,8 @@ void main() {
     expect(find.text(appL10n.celautOpenFullWalletNeeded), findsOneWidget);
   });
 
-  testWidgets('the keep-alive starts when the screen opens and runs while it is open', (tester) async {
+  testWidgets('the keep-alive starts when the screen opens and runs while it is open',
+      (tester) async {
     await open(tester);
     expect(keepAlive.events, ['start']);
   });

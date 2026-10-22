@@ -74,9 +74,13 @@ class ChatScreen extends StatefulWidget {
   /// The notes of the list of conversations. Null: the notes of the app.
   final ConversationNotes? notes;
 
-  /// Let the user pick the files of a message, for the kinds that the service accepts.
-  /// Null: the file picker of the system. Tests give their own.
-  final Future<List<OutgoingAttachment>> Function(Set<String> kinds)? pickFiles;
+  /// Let the user pick the files of a message, for the kinds that the service accepts and
+  /// with the files that the message already has. Null: the file picker of the system.
+  /// Tests give their own.
+  final Future<PickedAttachments> Function(
+    Set<String> kinds,
+    List<OutgoingAttachment> existing,
+  )? pickFiles;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -87,8 +91,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _scroll = ScrollController();
   late final TunnelHttp _http = widget.http ?? TunnelHttp();
   late final ChatClient _chat = widget.chat ?? ChatClient(port: widget.port, http: _http);
-  late final ConversationKeepAlive _keepAlive =
-      widget.keepAlive ?? ChannelConversationKeepAlive();
+  late final ConversationKeepAlive _keepAlive = widget.keepAlive ?? ChannelConversationKeepAlive();
   late final ConversationNotes _notes = widget.notes ?? conversationNotes;
 
   bool _sending = false;
@@ -142,13 +145,41 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  /// Read the history again, after a first read that failed.
+  Future<void> _retry() async {
+    setState(() => _error = null);
+    try {
+      await _chat.sync();
+    } on ChatException catch (e) {
+      if (mounted) setState(() => _error = e.kind);
+    }
+    _notes.saw(_id, _chat.messages);
+    if (mounted) setState(() {});
+    _scrollToEnd();
+  }
+
   Future<void> _attach() async {
+    // The first read failed: the kinds that the service accepts are not known yet.
+    if (_chat.accepts.isEmpty) await _retry();
+    if (!mounted || _chat.accepts.isEmpty) return;
     final pick = widget.pickFiles ?? pickAttachments;
-    final files = await pick(_chat.accepts);
-    if (!mounted || files.isEmpty) return;
+    final picked = await pick(_chat.accepts, List.unmodifiable(_pending));
+    if (!mounted) return;
+    if (picked.skipped > 0) {
+      final l10n = context.l10n;
+      final text = [
+        if (picked.duplicates > 0) l10n.chatSkippedDuplicate(picked.duplicates),
+        if (picked.invalid > 0) l10n.chatSkippedInvalid(picked.invalid),
+        if (picked.tooMany > 0) l10n.chatSkippedTooMany(picked.tooMany),
+      ].join('. ');
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(text)));
+    }
+    if (picked.files.isEmpty) return;
     setState(() {
       _error = null;
-      _pending.addAll(files);
+      _pending.addAll(picked.files);
     });
   }
 
@@ -191,6 +222,12 @@ class _ChatScreenState extends State<ChatScreen> {
     }
     await _refreshCost();
     _scrollToEnd();
+  }
+
+  /// A file finished to load: keep the end in view if the list was at the end.
+  void _fileLoaded() {
+    if (!_scroll.hasClients) return;
+    if (_scroll.position.maxScrollExtent - _scroll.position.pixels < 80) _scrollToEnd();
   }
 
   void _scrollToEnd() {
@@ -366,6 +403,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           message: messages[i],
                           scheme: scheme,
                           read: _chat.readAttachment,
+                          onLoaded: _fileLoaded,
                         );
                       }
                       if (i == messages.length) {
@@ -382,10 +420,25 @@ class _ChatScreenState extends State<ChatScreen> {
           if (error != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Text(
-                error,
-                key: const Key('chat-error'),
-                style: TextStyle(color: scheme.error),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Semantics(
+                      liveRegion: true,
+                      child: Text(
+                        error,
+                        key: const Key('chat-error'),
+                        style: TextStyle(color: scheme.error),
+                      ),
+                    ),
+                  ),
+                  if (_error == ChatErrorKind.unreachable && !_sending)
+                    TextButton(
+                      key: const Key('chat-retry'),
+                      onPressed: _retry,
+                      child: Text(l10n.commonRetry),
+                    ),
+                ],
               ),
             ),
           if (_pending.isNotEmpty)
@@ -402,7 +455,14 @@ class _ChatScreenState extends State<ChatScreen> {
                       child: InputChip(
                         key: Key('chat-pending-$i'),
                         avatar: Icon(_pending[i].kind == 'audio' ? Icons.audiotrack : Icons.image),
-                        label: Text(_pending[i].name ?? _pending[i].mime),
+                        label: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 180),
+                          child: Text(
+                            _pending[i].name ?? _pending[i].mime,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                         deleteButtonTooltipMessage: l10n.chatAttachmentRemove,
                         onDeleted: _sending ? null : () => setState(() => _pending.removeAt(i)),
                       ),
@@ -415,11 +475,14 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
               child: Row(
                 children: [
-                  if (_chat.accepts.isNotEmpty)
+                  if (_chat.accepts.isNotEmpty || _error == ChatErrorKind.unreachable)
                     IconButton(
                       key: const Key('chat-attach'),
                       tooltip: l10n.chatAttach,
-                      onPressed: _sending || _stopping ? null : _attach,
+                      onPressed:
+                          _sending || _stopping || _pending.length >= ChatClient.maxAttachments
+                              ? null
+                              : _attach,
                       icon: const Icon(Icons.attach_file),
                     ),
                   Expanded(
@@ -462,48 +525,51 @@ class _FlyingBubble extends StatelessWidget {
     const r = Radius.circular(16);
     final color = scheme.onPrimaryContainer;
     return Align(
-      alignment: Alignment.centerRight,
+      alignment: AlignmentDirectional.centerEnd,
       child: Opacity(
         opacity: 0.7,
-        child: Container(
-          key: const Key('chat-flying'),
-          margin: const EdgeInsets.symmetric(vertical: 3),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.8),
-          decoration: BoxDecoration(
-            color: scheme.primaryContainer,
-            borderRadius: const BorderRadius.only(
-              topLeft: r,
-              topRight: r,
-              bottomLeft: r,
-              bottomRight: Radius.circular(4),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final file in files)
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(file.kind == 'audio' ? Icons.audiotrack : Icons.image, color: color),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        file.name ?? file.mime,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: color),
-                      ),
-                    ),
-                  ],
-                ),
-              if (text.isNotEmpty) Text(text, style: TextStyle(color: color)),
-              Text(
-                context.l10n.chatSending,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
+        child: Semantics(
+          liveRegion: true,
+          child: Container(
+            key: const Key('chat-flying'),
+            margin: const EdgeInsets.symmetric(vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.8),
+            decoration: BoxDecoration(
+              color: scheme.primaryContainer,
+              borderRadius: const BorderRadius.only(
+                topLeft: r,
+                topRight: r,
+                bottomLeft: r,
+                bottomRight: Radius.circular(4),
               ),
-            ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final file in files)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(file.kind == 'audio' ? Icons.audiotrack : Icons.image, color: color),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          file.name ?? file.mime,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: color),
+                        ),
+                      ),
+                    ],
+                  ),
+                if (text.isNotEmpty) Text(text, style: TextStyle(color: color)),
+                Text(
+                  context.l10n.chatSending,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -544,7 +610,7 @@ class _TypingBubbleState extends State<_TypingBubble> with SingleTickerProviderS
     final color = widget.scheme.onSurfaceVariant;
     final long = widget.seconds >= _TypingBubble.showSecondsAfter;
     return Align(
-      alignment: Alignment.centerLeft,
+      alignment: AlignmentDirectional.centerStart,
       child: Container(
         key: const Key('chat-typing'),
         margin: const EdgeInsets.symmetric(vertical: 3),
@@ -602,13 +668,21 @@ class _TypingBubbleState extends State<_TypingBubble> with SingleTickerProviderS
 /// A message as a bubble: the user on the right, the service on the left, with a small
 /// tail corner on the side of the sender. The files of the message come before its text.
 class _Bubble extends StatelessWidget {
-  const _Bubble({required this.message, required this.scheme, required this.read});
+  const _Bubble({
+    required this.message,
+    required this.scheme,
+    required this.read,
+    required this.onLoaded,
+  });
 
   final ChatMessage message;
   final ColorScheme scheme;
 
   /// Reads the bytes of a file of the message (`ChatClient.readAttachment`).
   final Future<Uint8List> Function(int seq, int index) read;
+
+  /// A file of the message finished to load.
+  final VoidCallback onLoaded;
 
   @override
   Widget build(BuildContext context) {
@@ -617,7 +691,7 @@ class _Bubble extends StatelessWidget {
     const tail = Radius.circular(4);
     final color = mine ? scheme.onPrimaryContainer : scheme.onSurface;
     return Align(
-      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: mine ? AlignmentDirectional.centerEnd : AlignmentDirectional.centerStart,
       child: Container(
         key: Key('chat-bubble-${message.seq}'),
         margin: const EdgeInsets.symmetric(vertical: 3),
@@ -641,9 +715,11 @@ class _Bubble extends StatelessWidget {
                 key: Key('chat-file-${message.seq}-$i'),
                 attachment: message.attachments[i],
                 load: () => read(message.seq, i),
+                onLoaded: onLoaded,
                 color: color,
               ),
-            if (message.text.isNotEmpty) SelectableText(message.text, style: TextStyle(color: color)),
+            if (message.text.isNotEmpty)
+              SelectableText(message.text, style: TextStyle(color: color)),
           ],
         ),
       ),
@@ -653,17 +729,20 @@ class _Bubble extends StatelessWidget {
 
 /// One file of a message. An image shows in the bubble. An audio file shows its name and
 /// size, and a tap hands it to the share sheet of the system, which can open it in a
-/// player. The bytes are read once, when the bubble first shows, and stay in memory.
+/// player. The bytes are read once, when the bubble first shows, and stay in memory. A
+/// file that did not load loads again with a tap on its error.
 class _AttachmentView extends StatefulWidget {
   const _AttachmentView({
     super.key,
     required this.attachment,
     required this.load,
+    required this.onLoaded,
     required this.color,
   });
 
   final ChatAttachment attachment;
   final Future<Uint8List> Function() load;
+  final VoidCallback onLoaded;
   final Color color;
 
   @override
@@ -671,66 +750,99 @@ class _AttachmentView extends StatefulWidget {
 }
 
 class _AttachmentViewState extends State<_AttachmentView> {
-  late final Future<Uint8List> _bytes = widget.load();
+  /// The height of an image in a bubble, also reserved while it loads, so the list does
+  /// not jump when it shows.
+  static const _imageHeight = 200.0;
+
+  late Future<Uint8List> _bytes = _start();
+
+  Future<Uint8List> _start() {
+    final bytes = widget.load();
+    bytes.then((_) {
+      if (mounted) widget.onLoaded();
+    }, onError: (_) {});
+    return bytes;
+  }
 
   Future<void> _share(Uint8List bytes) async {
     final a = widget.attachment;
     await SharePlus.instance.share(ShareParams(
-      files: [XFile.fromData(bytes, mimeType: a.mime, name: a.name)],
+      files: [XFile.fromData(bytes, mimeType: a.mime, name: a.safeName)],
     ));
   }
+
+  Widget _failed(BuildContext context) => InkWell(
+        key: const Key('chat-file-retry'),
+        onTap: () => setState(() {
+          _bytes = _start();
+        }),
+        child: Text(context.l10n.chatAttachmentFailed, style: TextStyle(color: widget.color)),
+      );
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final a = widget.attachment;
+    final name = a.safeName;
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: FutureBuilder<Uint8List>(
         future: _bytes,
         builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Text(l10n.chatAttachmentFailed, style: TextStyle(color: widget.color));
-          }
+          if (snapshot.hasError) return _failed(context);
           final bytes = snapshot.data;
-          if (a.isImage && bytes != null) {
+          if (a.isImage) {
+            if (bytes == null) {
+              return const SizedBox(
+                height: _imageHeight,
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
             return ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.memory(
                 bytes,
                 fit: BoxFit.contain,
-                height: 200,
-                errorBuilder: (context, _, __) =>
-                    Text(l10n.chatAttachmentFailed, style: TextStyle(color: widget.color)),
+                height: _imageHeight,
+                cacheHeight: (_imageHeight * MediaQuery.devicePixelRatioOf(context)).round(),
+                gaplessPlayback: true,
+                semanticLabel: name ?? l10n.chatImage,
+                errorBuilder: (context, _, __) => _failed(context),
               ),
             );
           }
-          return InkWell(
+          return Semantics(
+            button: true,
+            label: '${name ?? a.mime}. ${l10n.chatAttachmentShare}',
+            excludeSemantics: true,
             onTap: bytes == null ? null : () => _share(bytes),
-            child: Tooltip(
-              message: l10n.chatAttachmentShare,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(a.isAudio ? Icons.audiotrack : Icons.image, color: widget.color),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      a.name ?? a.mime,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: widget.color),
-                    ),
-                  ),
-                  if (bytes == null)
-                    const Padding(
-                      padding: EdgeInsets.only(left: 8),
-                      child: SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+            child: InkWell(
+              onTap: bytes == null ? null : () => _share(bytes),
+              child: Tooltip(
+                message: l10n.chatAttachmentShare,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(a.isAudio ? Icons.audiotrack : Icons.image, color: widget.color),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        name ?? a.mime,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: widget.color),
                       ),
                     ),
-                ],
+                    if (bytes == null)
+                      const Padding(
+                        padding: EdgeInsets.only(left: 8),
+                        child: SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           );

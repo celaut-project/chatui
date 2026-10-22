@@ -26,7 +26,12 @@ class ChatAttachment {
         (name != null && name is! String)) {
       throw const ChatException(ChatErrorKind.badAnswer);
     }
-    return ChatAttachment(kind: kind, mime: mime, size: size, name: name as String?);
+    return ChatAttachment(
+      kind: kind,
+      mime: mime,
+      size: size,
+      name: name as String?,
+    );
   }
 
   /// The kinds of attachment that the convention defines.
@@ -40,11 +45,24 @@ class ChatAttachment {
 
   bool get isImage => kind == 'image';
   bool get isAudio => kind == 'audio';
+
+  /// [name] as a safe name for a file on this device, or null. The name comes from the
+  /// service: only its last path segment stays, without control characters or `..`, and
+  /// a name that is empty or longer than 100 characters is dropped.
+  String? get safeName {
+    final last = name?.split(RegExp(r'[\\/]')).last ?? '';
+    final clean = last.replaceAll(RegExp(r'[\x00-\x1f\x7f]'), '').replaceAll('..', '').trim();
+    return clean.isEmpty || clean.length > 100 ? null : clean;
+  }
 }
 
 /// A file that the user sends with a message.
 class OutgoingAttachment {
-  const OutgoingAttachment({required this.mime, required this.bytes, this.name});
+  const OutgoingAttachment({
+    required this.mime,
+    required this.bytes,
+    this.name,
+  });
 
   final String mime;
   final Uint8List bytes;
@@ -142,16 +160,34 @@ class ChatException implements Exception {
 /// writes nothing to the Celaut database. [count] is the number of messages that the
 /// client knows: the `expect` of the next send.
 class ChatClient {
-  ChatClient({required this.port, required TunnelHttp http}) : _http = http;
+  ChatClient({
+    required this.port,
+    required TunnelHttp http,
+    this.sendTimeout = defaultSendTimeout,
+    Future<void> Function(Duration wait)? wait,
+  })  : _http = http,
+        _pause = wait ?? ((d) => Future<void>.delayed(d));
 
   final int port;
   final TunnelHttp _http;
+
+  /// The wait for the answer of a send. Tests make it short.
+  final Duration sendTimeout;
+
+  /// The wait between the reads of a late answer. Tests give their own.
+  final Future<void> Function(Duration wait) _pause;
   final List<ChatMessage> _messages = [];
   final Map<(int, int), Uint8List> _files = {};
   Set<String> _accepts = const {};
 
+  /// Sends that are queued or running: the reads of files wait while there is one.
+  int _sends = 0;
+
   /// Calls run one after the other: the service allows one send at a time.
   Future<void> _tail = Future.value();
+
+  /// The reads of files, one after the other, before they join [_tail].
+  Future<void> _readTail = Future.value();
 
   static const _path = '/chat/messages';
 
@@ -160,8 +196,23 @@ class ChatClient {
   static const maxAttachments = 4;
   static const maxAttachmentBytes = 4 * 1024 * 1024;
 
-  /// The wait for a send that has files: the body is larger.
-  static const attachmentTimeout = Duration(minutes: 2);
+  /// The wait for the answer of every send, with files or not. The convention gives the
+  /// service 30 seconds from the end of the request body, and a service that makes an
+  /// answer (an LLM) can use them all, so the client waits longer than that. A read keeps
+  /// the 30 seconds of [TunnelHttp.get].
+  static const defaultSendTimeout = Duration(minutes: 2);
+
+  /// How long, and how often, the client reads the history for an answer that comes late
+  /// after a send that timed out or lost its connection.
+  static const lateAnswerLimit = Duration(minutes: 3);
+  static const lateAnswerEvery = Duration(seconds: 5);
+
+  /// The most bytes of files that stay in memory. Past it, the files of the other
+  /// messages are dropped: the service gives them again.
+  static const maxCachedBytes = 24 * 1024 * 1024;
+
+  /// The most bytes of one read of the history.
+  static const maxHistoryBytes = 1024 * 1024;
 
   List<ChatMessage> get messages => List.unmodifiable(_messages);
 
@@ -219,31 +270,62 @@ class ChatClient {
   ///
   /// [attachments] are sent only if the service accepts their kinds ([accepts]). A send
   /// with files and no text is valid.
-  Future<void> send(String text, {List<OutgoingAttachment> attachments = const []}) =>
-      _serial(() => _send(text, attachments));
+  Future<void> send(
+    String text, {
+    List<OutgoingAttachment> attachments = const [],
+  }) {
+    _sends++;
+    return _serial(() => _send(text, attachments)).whenComplete(() => _sends--);
+  }
 
   /// The bytes of attachment [index] of message [seq]. A file that this client sent is
   /// already in memory; the others are read from the service
   /// (`docs/celaut/chat.md`, section 6.4) once. They are kept in memory only.
-  Future<Uint8List> readAttachment(int seq, int index) => _serial(() async {
-        final kept = _files[(seq, index)];
-        if (kept != null) return kept;
-        final TunnelBytes answer;
-        try {
-          answer = await _http.getBytes(
-            port,
-            '$_path/$seq/attachments/$index',
-            maxBytes: maxAttachmentBytes,
-          );
-        } on Exception {
-          throw const ChatException(ChatErrorKind.unreachable);
-        }
-        if (answer.status != 200) {
-          throw ChatException(ChatErrorKind.other, status: answer.status);
-        }
-        if (answer.truncated) throw const ChatException(ChatErrorKind.badAnswer);
-        return _files[(seq, index)] = answer.bytes;
-      });
+  ///
+  /// A send goes first: a read waits while a send is queued or running. The reads queue
+  /// among themselves, so at most one of them is ahead of a new send.
+  Future<Uint8List> readAttachment(int seq, int index) {
+    final run = _readTail.then((_) => _read(seq, index));
+    _readTail = run.then<void>((_) {}, onError: (_) {});
+    return run;
+  }
+
+  Future<Uint8List> _read(int seq, int index) async {
+    final early = _files[(seq, index)];
+    if (early != null) return early;
+    while (_sends > 0) {
+      await _tail;
+    }
+    return _serial(() async {
+      final kept = _files[(seq, index)];
+      if (kept != null) return kept;
+      final TunnelBytes answer;
+      try {
+        answer = await _http.getBytes(
+          port,
+          '$_path/$seq/attachments/$index',
+          maxBytes: maxAttachmentBytes,
+        );
+      } on Exception {
+        throw const ChatException(ChatErrorKind.unreachable);
+      }
+      if (answer.status != 200) {
+        throw ChatException(ChatErrorKind.other, status: answer.status);
+      }
+      if (answer.truncated) throw const ChatException(ChatErrorKind.badAnswer);
+      _remember(seq, index, answer.bytes);
+      return answer.bytes;
+    });
+  }
+
+  void _remember(int seq, int index, Uint8List bytes) {
+    _files[(seq, index)] = bytes;
+    var total = 0;
+    for (final file in _files.values) {
+      total += file.length;
+    }
+    if (total > maxCachedBytes) _files.removeWhere((key, _) => key.$1 != seq);
+  }
 
   Future<T> _serial<T>(Future<T> Function() action) {
     final run = _tail.then((_) => action());
@@ -278,28 +360,28 @@ class ChatClient {
     TunnelAnswer answer;
     try {
       answer = await _http.postJson(
-        port,
-        _path,
-        {
-          'expect': expect,
-          'text': text,
-          if (attachments.isNotEmpty)
-            'attachments': [
-              for (final file in attachments)
-                {
-                  'mime': file.mime,
-                  if (file.name != null) 'name': file.name,
-                  'data': base64Encode(file.bytes),
-                },
-            ],
-        },
-        timeout: attachments.isEmpty ? const Duration(seconds: 30) : attachmentTimeout,
-      );
+          port,
+          _path,
+          {
+            'expect': expect,
+            'text': text,
+            if (attachments.isNotEmpty)
+              'attachments': [
+                for (final file in attachments)
+                  {
+                    'mime': file.mime,
+                    if (file.name != null) 'name': file.name,
+                    'data': base64Encode(file.bytes),
+                  },
+              ],
+          },
+          timeout: sendTimeout);
     } on ChatException {
       rethrow;
     } on Exception {
-      // The client does not know if the service got the message.
-      await _recover(expect, text, attachments);
+      // The client does not know if the service got the message, or if its answer is
+      // still on its way: read the history, and wait for the answer if it is late.
+      await _recover(expect, text, attachments, late: true);
       return;
     }
     switch (answer.status) {
@@ -317,30 +399,58 @@ class ChatClient {
   /// the screen does not read them back.
   void _keepFiles(int seq, List<OutgoingAttachment> attachments) {
     for (var i = 0; i < attachments.length; i++) {
-      _files[(seq, i)] = attachments[i].bytes;
+      _remember(seq, i, attachments[i].bytes);
     }
   }
 
   /// Read the history, then check that the message with [expect] is the one that the
   /// client sent. If it is not, the send did not happen: throw `unreachable`.
-  Future<void> _recover(int expect, String text, List<OutgoingAttachment> attachments) async {
-    try {
-      await _sync();
-    } on Exception {
-      throw const ChatException(ChatErrorKind.unreachable);
+  ///
+  /// With [late], the answer may still come: while the message is not in the history, or
+  /// it is there with no answer after it, the client reads again every
+  /// [lateAnswerEvery] for up to [lateAnswerLimit]. A message that is in the history
+  /// counts as sent, answer or not. A message that never shows is not sent again here
+  /// (`docs/celaut/chat.md`, section 6.3): the call throws, and the user decides.
+  Future<void> _recover(
+    int expect,
+    String text,
+    List<OutgoingAttachment> attachments, {
+    bool late = false,
+  }) async {
+    var waited = Duration.zero;
+    while (true) {
+      var read = true;
+      try {
+        await _sync();
+      } on Exception {
+        read = false;
+      }
+      final sent = _messages.length > expect &&
+          _messages[expect].fromUser &&
+          _messages[expect].text == text &&
+          _messages[expect].attachments.length == attachments.length;
+      final answered = _messages.length > expect + 1;
+      if (sent) _keepFiles(expect, attachments);
+      if (read && sent && answered) return;
+      // The history says the message is not there, and nothing is coming: stop.
+      final other = read && _messages.length > expect && !sent;
+      if (!late || other || waited >= lateAnswerLimit) {
+        if (sent) return;
+        throw const ChatException(ChatErrorKind.unreachable);
+      }
+      await _pause(lateAnswerEvery);
+      waited += lateAnswerEvery;
     }
-    final sent = _messages.length > expect &&
-        _messages[expect].fromUser &&
-        _messages[expect].text == text &&
-        _messages[expect].attachments.length == attachments.length;
-    if (!sent) throw const ChatException(ChatErrorKind.unreachable);
-    _keepFiles(expect, attachments);
   }
 
   Future<void> _sync() async {
     final TunnelAnswer answer;
     try {
-      answer = await _http.get(port, '$_path?from=$count');
+      answer = await _http.get(
+        port,
+        '$_path?from=$count',
+        maxBytes: maxHistoryBytes,
+      );
     } on Exception {
       throw const ChatException(ChatErrorKind.unreachable);
     }
@@ -362,7 +472,9 @@ class ChatClient {
     }
   }
 
-  ({int count, Set<String> accepts, List<ChatMessage> messages}) _readMessages(String body) {
+  ({int count, Set<String> accepts, List<ChatMessage> messages}) _readMessages(
+    String body,
+  ) {
     try {
       final json = jsonDecode(body);
       if (json is! Map<String, dynamic>) throw const FormatException();

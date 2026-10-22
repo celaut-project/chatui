@@ -5382,7 +5382,46 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get chatErrorFile =>
-      'Un archivo está vacío o es demasiado grande. Un archivo puede tener 4 MB como máximo, y un mensaje 4 archivos.';
+      'Un archivo está vacío o es demasiado grande. Cada archivo admite hasta 4 MiB y cada mensaje hasta 4 archivos.';
+
+  @override
+  String chatSkippedDuplicate(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count archivos ya están adjuntos',
+      one: '1 archivo ya está adjunto',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String chatSkippedInvalid(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count archivos están vacíos, son demasiado grandes o no son JPEG, PNG, MP3 ni WAV',
+      one:
+          '1 archivo está vacío, es demasiado grande o no es JPEG, PNG, MP3 ni WAV',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String chatSkippedTooMany(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count archivos se quedaron fuera: un mensaje admite hasta 4 archivos',
+      one: '1 archivo se quedó fuera: un mensaje admite hasta 4 archivos',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get chatImage => 'Imagen';
 
   @override
   String get chatTyping => 'El servicio está respondiendo…';
@@ -5475,6 +5514,17 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String chatsPreviewYou(String text) {
     return 'Tú: $text';
+  }
+
+  @override
+  String get chatsPreviewPhoto => 'Foto';
+
+  @override
+  String get chatsPreviewAudio => 'Audio';
+
+  @override
+  String chatsPreviewNamed(String kind, String name) {
+    return '$kind: $name';
   }
 
   @override
