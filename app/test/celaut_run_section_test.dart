@@ -3,8 +3,10 @@ import 'dart:typed_data';
 
 import 'package:argus_wallet/bridge/api/celaut.dart';
 import 'package:argus_wallet/bridge/api/celaut_catalog.dart';
+import 'package:argus_wallet/bridge/api/celaut_env.dart';
 import 'package:argus_wallet/bridge/api/celaut_package.dart';
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
+import 'package:argus_wallet/celaut/env_store.dart';
 import 'package:argus_wallet/celaut/launcher.dart';
 import 'package:argus_wallet/celaut/package_channel.dart';
 import 'package:argus_wallet/celaut/package_library.dart';
@@ -131,6 +133,7 @@ void main() {
   late int deposits;
   late LaunchOutcome Function() outcome;
   Object? launchError;
+  List<EnvChoice>? envChosen;
   Object? skillsError;
   var skills = <SkillView>[_sat, _summary];
 
@@ -143,6 +146,9 @@ void main() {
     PackageChannel? packages,
     _Lib? lib,
     ThemeData? theme,
+    bool askEnvironment = false,
+    Future<List<DeclaredVariableView>> Function(String, NodeAddress)? declaration,
+    EnvStore? envStore,
   }) async {
     tester.view.physicalSize = const Size(390, 2400);
     tester.view.devicePixelRatio = 1;
@@ -163,11 +169,19 @@ void main() {
               },
               loadServices: (id) async => services ?? _ranked(),
               previewQuote: (id) async => preview,
-              launch: ({required serviceIdHex, initialMu}) async {
+              launch: ({required serviceIdHex, initialMu, environment}) async {
                 launched.add('$serviceIdHex $initialMu');
                 if (launchError != null) throw launchError!;
+                if (askEnvironment) {
+                  final quotes = QuotesView(quotes: [_quote()], failures: const []);
+                  final chosen = await environment!(quotes);
+                  if (chosen == null) throw const LaunchCancelled();
+                  envChosen = chosen;
+                }
                 return outcome();
               },
+              declaration: declaration,
+              envStore: envStore,
               openTunnel: (id, slot) async {
                 tunnels.add((id, slot));
                 return 4321;
@@ -191,6 +205,7 @@ void main() {
     changed = 0;
     deposits = 0;
     launchError = null;
+    envChosen = null;
     skillsError = null;
     skills = [_sat, _summary];
     outcome = () => LaunchOutcome(quote: _quote(), instance: _instance(), skipped: const []);
@@ -778,5 +793,101 @@ void main() {
     await run(tester);
     expect(find.text(appL10n.celautErrorUnreachable), findsOneWidget);
     expect(find.byKey(const Key('run-progress')), findsNothing);
+  });
+
+  group('environment variables', () {
+    final store = EnvStore(
+      names: () => [EnvNameView(name: 'OPENAI_KEY', changedAt: 1)],
+      get: (n) => 'secret',
+      set: (n, v) {},
+      delete: (n) {},
+    );
+    const declared = [
+      DeclaredVariableView(name: 'API_KEY', tags: ['text'], prose: 'The key of the API'),
+      DeclaredVariableView(name: 'MODE', tags: [], prose: ''),
+    ];
+
+    testWidgets('a service that declares nothing starts with no question', (tester) async {
+      await open(tester, askEnvironment: true, declaration: (id, node) async => const [], envStore: store);
+      await run(tester);
+      expect(find.byKey(const Key('env-step')), findsNothing);
+      expect(envChosen, isEmpty);
+      expect(launched, hasLength(1));
+    });
+
+    testWidgets('the declared variables are asked one by one and go to the start', (tester) async {
+      final asked = <(String, int)>[];
+      await open(
+        tester,
+        askEnvironment: true,
+        declaration: (id, node) async {
+          asked.add((id, node.port));
+          return declared;
+        },
+        envStore: store,
+      );
+      await run(tester);
+      // The declaration is read from the node of the best quote.
+      expect(asked, [(_best, 18460)]);
+      expect(find.text('Variable 1 of 2'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('env-ask-pick')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('env-pick-OPENAI_KEY')));
+      await tester.pumpAndSettle();
+      expect(find.text('Variable 2 of 2'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('env-ask-skip')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('env-run')));
+      await tester.pumpAndSettle();
+      expect(envChosen!.map((c) => (c.name, c.container, c.text)), [('API_KEY', 'OPENAI_KEY', null)]);
+      expect(find.byKey(const Key('env-step')), findsNothing);
+    });
+
+    testWidgets('cancelling the question cancels the launch without a failure sheet', (tester) async {
+      await open(tester, askEnvironment: true, declaration: (id, node) async => declared, envStore: store);
+      await run(tester);
+      await tester.tap(find.byKey(const Key('env-cancel')));
+      await tester.pumpAndSettle();
+      expect(envChosen, isNull);
+      expect(changed, 0);
+      expect(find.byKey(const Key('env-step')), findsNothing);
+      expect(find.byType(BottomSheet), findsNothing);
+      expect(find.byType(SnackBar), findsNothing);
+    });
+
+    /// Run, and stop at the dialog: the progress bar of the section animates for as long as
+    /// it is open, so the test cannot wait for it to settle.
+    Future<void> runUntilDialog(WidgetTester tester) async {
+      await tester.tap(find.byKey(const Key('run-skill-skill-sat')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('skill-sheet-run')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('run-confirm-ok')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    testWidgets('a declaration that cannot be read offers to run with no variables', (tester) async {
+      Future<List<DeclaredVariableView>> broken(String id, NodeAddress node) async =>
+          throw const CelautError(kind: CelautErrorKind.protocol, message: 'too large');
+      await open(tester, askEnvironment: true, declaration: broken, envStore: store);
+      await runUntilDialog(tester);
+      expect(find.byKey(const Key('env-unreadable')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('env-run-without')));
+      await tester.pumpAndSettle();
+      expect(envChosen, isEmpty);
+      expect(changed, 1);
+    });
+
+    testWidgets('a declaration that cannot be read can be cancelled', (tester) async {
+      Future<List<DeclaredVariableView>> broken(String id, NodeAddress node) async =>
+          throw const CelautError(kind: CelautErrorKind.protocol, message: 'too large');
+      await open(tester, askEnvironment: true, declaration: broken, envStore: store);
+      await runUntilDialog(tester);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(envChosen, isNull);
+      expect(changed, 0);
+    });
   });
 }

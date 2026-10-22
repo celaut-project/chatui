@@ -9124,6 +9124,264 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Credit: {credit}'**
   String celautNodeCredit(String credit);
+
+  /// No description provided for @celautEnvTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Environment variables'**
+  String get celautEnvTitle;
+
+  /// No description provided for @celautEnvRowSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Values that a service can get when it starts'**
+  String get celautEnvRowSubtitle;
+
+  /// No description provided for @celautEnvIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Named values that you can give to a service when you run it, for example a key. They stay encrypted on this phone. A service only gets the ones that you choose.'**
+  String get celautEnvIntro;
+
+  /// No description provided for @celautEnvEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No variables yet.'**
+  String get celautEnvEmpty;
+
+  /// No description provided for @celautEnvAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add variable'**
+  String get celautEnvAdd;
+
+  /// No description provided for @celautEnvEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit {name}'**
+  String celautEnvEditTitle(String name);
+
+  /// No description provided for @celautEnvName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get celautEnvName;
+
+  /// No description provided for @celautEnvValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Value'**
+  String get celautEnvValue;
+
+  /// No description provided for @celautEnvShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the value'**
+  String get celautEnvShow;
+
+  /// No description provided for @celautEnvHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide the value'**
+  String get celautEnvHide;
+
+  /// No description provided for @celautEnvEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get celautEnvEdit;
+
+  /// No description provided for @celautEnvDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get celautEnvDelete;
+
+  /// No description provided for @celautEnvDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {name}?'**
+  String celautEnvDeleteTitle(String name);
+
+  /// No description provided for @celautEnvDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Services that you run later cannot use it. Instances that already run keep what they got.'**
+  String get celautEnvDeleteBody;
+
+  /// No description provided for @celautEnvNameBad.
+  ///
+  /// In en, this message translates to:
+  /// **'The name must start with a letter or _ and have only letters, digits and _.'**
+  String get celautEnvNameBad;
+
+  /// No description provided for @celautEnvNameReserved.
+  ///
+  /// In en, this message translates to:
+  /// **'This name is reserved for the name of the instance.'**
+  String get celautEnvNameReserved;
+
+  /// No description provided for @celautEnvNameTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'A variable with this name exists. Edit it instead.'**
+  String get celautEnvNameTaken;
+
+  /// No description provided for @celautEnvValueEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Write a value.'**
+  String get celautEnvValueEmpty;
+
+  /// No description provided for @celautEnvValueLong.
+  ///
+  /// In en, this message translates to:
+  /// **'The value is longer than 8192 bytes.'**
+  String get celautEnvValueLong;
+
+  /// No description provided for @celautEnvValueNul.
+  ///
+  /// In en, this message translates to:
+  /// **'The value cannot have a NUL character.'**
+  String get celautEnvValueNul;
+
+  /// No description provided for @celautEnvTooMany.
+  ///
+  /// In en, this message translates to:
+  /// **'There are 256 variables. Delete one first.'**
+  String get celautEnvTooMany;
+
+  /// No description provided for @celautEnvAskTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Variables of the service'**
+  String get celautEnvAskTitle;
+
+  /// No description provided for @celautEnvAskStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Variable {current} of {total}'**
+  String celautEnvAskStep(int current, int total);
+
+  /// No description provided for @celautEnvAskNoText.
+  ///
+  /// In en, this message translates to:
+  /// **'The service gives no description of this variable.'**
+  String get celautEnvAskNoText;
+
+  /// No description provided for @celautEnvAskPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from my variables'**
+  String get celautEnvAskPick;
+
+  /// No description provided for @celautEnvAskPickTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a variable'**
+  String get celautEnvAskPickTitle;
+
+  /// No description provided for @celautEnvAskPickEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'You have no variables yet. Add them in Settings, Environment variables.'**
+  String get celautEnvAskPickEmpty;
+
+  /// No description provided for @celautEnvAskType.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a value'**
+  String get celautEnvAskType;
+
+  /// No description provided for @celautEnvAskUse.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this value'**
+  String get celautEnvAskUse;
+
+  /// No description provided for @celautEnvAskSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get celautEnvAskSkip;
+
+  /// No description provided for @celautEnvAskSkipHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The service does not get this variable.'**
+  String get celautEnvAskSkipHint;
+
+  /// No description provided for @celautEnvAskBadName.
+  ///
+  /// In en, this message translates to:
+  /// **'The node cannot give this variable, because its name is not valid. You can only skip it.'**
+  String get celautEnvAskBadName;
+
+  /// No description provided for @celautEnvAskChosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Chosen: {what}'**
+  String celautEnvAskChosen(String what);
+
+  /// No description provided for @celautEnvAskBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get celautEnvAskBack;
+
+  /// No description provided for @celautEnvReviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Review'**
+  String get celautEnvReviewTitle;
+
+  /// No description provided for @celautEnvReviewFromContainer.
+  ///
+  /// In en, this message translates to:
+  /// **'My variable {name}'**
+  String celautEnvReviewFromContainer(String name);
+
+  /// No description provided for @celautEnvReviewTyped.
+  ///
+  /// In en, this message translates to:
+  /// **'Typed value'**
+  String get celautEnvReviewTyped;
+
+  /// No description provided for @celautEnvReviewSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped'**
+  String get celautEnvReviewSkipped;
+
+  /// No description provided for @celautEnvReviewNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The node that starts the service reads these values. A node that refuses the start has read them too.'**
+  String get celautEnvReviewNote;
+
+  /// No description provided for @celautEnvRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Run'**
+  String get celautEnvRun;
+
+  /// No description provided for @celautEnvDeclUnreadableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The variables of the service are unknown'**
+  String get celautEnvDeclUnreadableTitle;
+
+  /// No description provided for @celautEnvDeclUnreadableBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The service may ask for variables, and the app could not find out. Run it with none, or cancel.'**
+  String get celautEnvDeclUnreadableBody;
+
+  /// No description provided for @celautEnvRunWithout.
+  ///
+  /// In en, this message translates to:
+  /// **'Run without variables'**
+  String get celautEnvRunWithout;
 }
 
 class _AppLocalizationsDelegate

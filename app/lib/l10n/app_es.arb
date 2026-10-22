@@ -1718,5 +1718,86 @@
         "type": "String"
       }
     }
-  }
+  },
+  "celautEnvTitle": "Variables de entorno",
+  "celautEnvRowSubtitle": "Valores que un servicio puede recibir al arrancar",
+  "celautEnvIntro": "Valores con nombre que puedes dar a un servicio al ejecutarlo, por ejemplo una clave. Se guardan cifrados en este teléfono. Un servicio solo recibe los que tú elijas.",
+  "celautEnvEmpty": "Todavía no hay variables.",
+  "celautEnvAdd": "Añadir variable",
+  "celautEnvEditTitle": "Editar {name}",
+  "@celautEnvEditTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "celautEnvName": "Nombre",
+  "celautEnvValue": "Valor",
+  "celautEnvShow": "Mostrar el valor",
+  "celautEnvHide": "Ocultar el valor",
+  "celautEnvEdit": "Editar",
+  "celautEnvDelete": "Eliminar",
+  "celautEnvDeleteTitle": "¿Eliminar {name}?",
+  "@celautEnvDeleteTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "celautEnvDeleteBody": "Los servicios que ejecutes después no podrán usarla. Las instancias que ya se ejecutan conservan lo que recibieron.",
+  "celautEnvNameBad": "El nombre debe empezar por una letra o _ y tener solo letras, dígitos y _.",
+  "celautEnvNameReserved": "Este nombre está reservado para el nombre de la instancia.",
+  "celautEnvNameTaken": "Ya existe una variable con este nombre. Edítala.",
+  "celautEnvValueEmpty": "Escribe un valor.",
+  "celautEnvValueLong": "El valor tiene más de 8192 bytes.",
+  "celautEnvValueNul": "El valor no puede tener un carácter NUL.",
+  "celautEnvTooMany": "Hay 256 variables. Elimina una primero.",
+  "celautEnvAskTitle": "Variables del servicio",
+  "celautEnvAskStep": "Variable {current} de {total}",
+  "@celautEnvAskStep": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "celautEnvAskNoText": "El servicio no describe esta variable.",
+  "celautEnvAskPick": "Elige de mis variables",
+  "celautEnvAskPickTitle": "Elige una variable",
+  "celautEnvAskPickEmpty": "Todavía no tienes variables. Añádelas en Ajustes, Variables de entorno.",
+  "celautEnvAskType": "Escribe un valor",
+  "celautEnvAskUse": "Usar este valor",
+  "celautEnvAskSkip": "Omitir",
+  "celautEnvAskSkipHint": "El servicio no recibe esta variable.",
+  "celautEnvAskBadName": "El nodo no puede dar esta variable, porque su nombre no es válido. Solo puedes omitirla.",
+  "celautEnvAskChosen": "Elegida: {what}",
+  "@celautEnvAskChosen": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "celautEnvAskBack": "Atrás",
+  "celautEnvReviewTitle": "Revisa",
+  "celautEnvReviewFromContainer": "Mi variable {name}",
+  "@celautEnvReviewFromContainer": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "celautEnvReviewTyped": "Valor escrito",
+  "celautEnvReviewSkipped": "Omitida",
+  "celautEnvReviewNote": "El nodo que arranca el servicio lee estos valores. Un nodo que rechaza el arranque también los ha leído.",
+  "celautEnvRun": "Ejecutar",
+  "celautEnvDeclUnreadableTitle": "Se desconocen las variables del servicio",
+  "celautEnvDeclUnreadableBody": "Puede que el servicio pida variables y la app no ha podido averiguarlo. Ejecútalo sin ninguna o cancela.",
+  "celautEnvRunWithout": "Ejecutar sin variables"
 }

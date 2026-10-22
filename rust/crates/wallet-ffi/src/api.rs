@@ -32,6 +32,10 @@ pub mod celaut_db;
 /// Celaut services: quotes, start, a local port for the tunnel, stop (milestone M2).
 pub mod celaut_service;
 
+/// The environment variables of a service: the container of the app, the declaration of a
+/// service and the values of a start (`docs/celaut/env-variables.md`).
+pub mod celaut_env;
+
 /// Celaut deposits: pay a node in ERG from one full wallet (milestone M3).
 pub mod celaut_deposit;
 

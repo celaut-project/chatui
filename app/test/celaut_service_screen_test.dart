@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:argus_wallet/bridge/api/celaut.dart';
+import 'package:argus_wallet/bridge/api/celaut_env.dart';
 import 'package:argus_wallet/bridge/api/celaut_catalog.dart';
 import 'package:argus_wallet/bridge/api/celaut_health.dart';
 import 'package:argus_wallet/bridge/api/celaut_home.dart';
@@ -71,6 +72,7 @@ class ServiceApi extends RustLibApi {
     required NodeAddress node,
     required String serviceIdHex,
     String? initialMu,
+    required List<EnvChoice> environment,
   }) async {
     startCalls.add((node: node, service: serviceIdHex, initial: initialMu));
     if (failStartOn.contains(node.port)) {

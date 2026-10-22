@@ -5831,4 +5831,154 @@ class AppLocalizationsEs extends AppLocalizations {
   String celautNodeCredit(String credit) {
     return 'Crédito: $credit';
   }
+
+  @override
+  String get celautEnvTitle => 'Variables de entorno';
+
+  @override
+  String get celautEnvRowSubtitle =>
+      'Valores que un servicio puede recibir al arrancar';
+
+  @override
+  String get celautEnvIntro =>
+      'Valores con nombre que puedes dar a un servicio al ejecutarlo, por ejemplo una clave. Se guardan cifrados en este teléfono. Un servicio solo recibe los que tú elijas.';
+
+  @override
+  String get celautEnvEmpty => 'Todavía no hay variables.';
+
+  @override
+  String get celautEnvAdd => 'Añadir variable';
+
+  @override
+  String celautEnvEditTitle(String name) {
+    return 'Editar $name';
+  }
+
+  @override
+  String get celautEnvName => 'Nombre';
+
+  @override
+  String get celautEnvValue => 'Valor';
+
+  @override
+  String get celautEnvShow => 'Mostrar el valor';
+
+  @override
+  String get celautEnvHide => 'Ocultar el valor';
+
+  @override
+  String get celautEnvEdit => 'Editar';
+
+  @override
+  String get celautEnvDelete => 'Eliminar';
+
+  @override
+  String celautEnvDeleteTitle(String name) {
+    return '¿Eliminar $name?';
+  }
+
+  @override
+  String get celautEnvDeleteBody =>
+      'Los servicios que ejecutes después no podrán usarla. Las instancias que ya se ejecutan conservan lo que recibieron.';
+
+  @override
+  String get celautEnvNameBad =>
+      'El nombre debe empezar por una letra o _ y tener solo letras, dígitos y _.';
+
+  @override
+  String get celautEnvNameReserved =>
+      'Este nombre está reservado para el nombre de la instancia.';
+
+  @override
+  String get celautEnvNameTaken =>
+      'Ya existe una variable con este nombre. Edítala.';
+
+  @override
+  String get celautEnvValueEmpty => 'Escribe un valor.';
+
+  @override
+  String get celautEnvValueLong => 'El valor tiene más de 8192 bytes.';
+
+  @override
+  String get celautEnvValueNul => 'El valor no puede tener un carácter NUL.';
+
+  @override
+  String get celautEnvTooMany => 'Hay 256 variables. Elimina una primero.';
+
+  @override
+  String get celautEnvAskTitle => 'Variables del servicio';
+
+  @override
+  String celautEnvAskStep(int current, int total) {
+    return 'Variable $current de $total';
+  }
+
+  @override
+  String get celautEnvAskNoText => 'El servicio no describe esta variable.';
+
+  @override
+  String get celautEnvAskPick => 'Elige de mis variables';
+
+  @override
+  String get celautEnvAskPickTitle => 'Elige una variable';
+
+  @override
+  String get celautEnvAskPickEmpty =>
+      'Todavía no tienes variables. Añádelas en Ajustes, Variables de entorno.';
+
+  @override
+  String get celautEnvAskType => 'Escribe un valor';
+
+  @override
+  String get celautEnvAskUse => 'Usar este valor';
+
+  @override
+  String get celautEnvAskSkip => 'Omitir';
+
+  @override
+  String get celautEnvAskSkipHint => 'El servicio no recibe esta variable.';
+
+  @override
+  String get celautEnvAskBadName =>
+      'El nodo no puede dar esta variable, porque su nombre no es válido. Solo puedes omitirla.';
+
+  @override
+  String celautEnvAskChosen(String what) {
+    return 'Elegida: $what';
+  }
+
+  @override
+  String get celautEnvAskBack => 'Atrás';
+
+  @override
+  String get celautEnvReviewTitle => 'Revisa';
+
+  @override
+  String celautEnvReviewFromContainer(String name) {
+    return 'Mi variable $name';
+  }
+
+  @override
+  String get celautEnvReviewTyped => 'Valor escrito';
+
+  @override
+  String get celautEnvReviewSkipped => 'Omitida';
+
+  @override
+  String get celautEnvReviewNote =>
+      'El nodo que arranca el servicio lee estos valores. Un nodo que rechaza el arranque también los ha leído.';
+
+  @override
+  String get celautEnvRun => 'Ejecutar';
+
+  @override
+  String get celautEnvDeclUnreadableTitle =>
+      'Se desconocen las variables del servicio';
+
+  @override
+  String get celautEnvDeclUnreadableBody =>
+      'Puede que el servicio pida variables y la app no ha podido averiguarlo. Ejecútalo sin ninguna o cancela.';
+
+  @override
+  String get celautEnvRunWithout => 'Ejecutar sin variables';
 }

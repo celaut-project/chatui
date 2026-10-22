@@ -14,6 +14,7 @@ import '../theme/theme_controller.dart';
 import 'celaut/network_screen.dart';
 import 'celaut/node_connect_screen.dart';
 import 'celaut/deposit_screen.dart';
+import 'celaut/env_variables_screen.dart';
 import 'celaut/known_nodes_screen.dart';
 import 'celaut/service_screen.dart';
 import 'settings/about_page.dart';
@@ -133,6 +134,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         title: context.l10n.celautNodesTitle,
                         subtitle: context.l10n.celautNodesRowSubtitle,
                         onTap: () => _open(const KnownNodesScreen()),
+                      ),
+                      SettingsRow(
+                        key: const Key('settings-env'),
+                        icon: Icons.key_outlined,
+                        title: context.l10n.celautEnvTitle,
+                        subtitle: context.l10n.celautEnvRowSubtitle,
+                        onTap: () => _open(const EnvVariablesScreen()),
                       ),
                       SettingsRow(
                         icon: Icons.account_balance_wallet_outlined,

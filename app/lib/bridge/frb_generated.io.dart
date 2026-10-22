@@ -8,6 +8,7 @@ import 'api/celaut.dart';
 import 'api/celaut_catalog.dart';
 import 'api/celaut_db.dart';
 import 'api/celaut_deposit.dart';
+import 'api/celaut_env.dart';
 import 'api/celaut_health.dart';
 import 'api/celaut_home.dart';
 import 'api/celaut_network.dart';
@@ -72,6 +73,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CoresTotalView dco_decode_cores_total_view(dynamic raw);
 
   @protected
+  DeclaredVariableView dco_decode_declared_variable_view(dynamic raw);
+
+  @protected
   DepositDoneView dco_decode_deposit_done_view(dynamic raw);
 
   @protected
@@ -82,6 +86,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DepositSentView dco_decode_deposit_sent_view(dynamic raw);
+
+  @protected
+  EnvChoice dco_decode_env_choice(dynamic raw);
+
+  @protected
+  EnvNameView dco_decode_env_name_view(dynamic raw);
 
   @protected
   double dco_decode_f_32(dynamic raw);
@@ -117,7 +127,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
+  List<DeclaredVariableView> dco_decode_list_declared_variable_view(
+    dynamic raw,
+  );
+
+  @protected
   List<DepositSentView> dco_decode_list_deposit_sent_view(dynamic raw);
+
+  @protected
+  List<EnvChoice> dco_decode_list_env_choice(dynamic raw);
+
+  @protected
+  List<EnvNameView> dco_decode_list_env_name_view(dynamic raw);
 
   @protected
   List<InstanceListView> dco_decode_list_instance_list_view(dynamic raw);
@@ -223,6 +244,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  NodeAddress? dco_decode_opt_box_autoadd_node_address(dynamic raw);
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
@@ -333,6 +357,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CoresTotalView sse_decode_cores_total_view(SseDeserializer deserializer);
 
   @protected
+  DeclaredVariableView sse_decode_declared_variable_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DepositDoneView sse_decode_deposit_done_view(SseDeserializer deserializer);
 
   @protected
@@ -345,6 +374,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DepositSentView sse_decode_deposit_sent_view(SseDeserializer deserializer);
+
+  @protected
+  EnvChoice sse_decode_env_choice(SseDeserializer deserializer);
+
+  @protected
+  EnvNameView sse_decode_env_name_view(SseDeserializer deserializer);
 
   @protected
   double sse_decode_f_32(SseDeserializer deserializer);
@@ -384,9 +419,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
+  List<DeclaredVariableView> sse_decode_list_declared_variable_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<DepositSentView> sse_decode_list_deposit_sent_view(
     SseDeserializer deserializer,
   );
+
+  @protected
+  List<EnvChoice> sse_decode_list_env_choice(SseDeserializer deserializer);
+
+  @protected
+  List<EnvNameView> sse_decode_list_env_name_view(SseDeserializer deserializer);
 
   @protected
   List<InstanceListView> sse_decode_list_instance_list_view(
@@ -522,6 +568,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
+  NodeAddress? sse_decode_opt_box_autoadd_node_address(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
@@ -652,6 +703,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_declared_variable_view(
+    DeclaredVariableView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_deposit_done_view(
     DepositDoneView self,
     SseSerializer serializer,
@@ -674,6 +731,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     DepositSentView self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_env_choice(EnvChoice self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_env_name_view(EnvNameView self, SseSerializer serializer);
 
   @protected
   void sse_encode_f_32(double self, SseSerializer serializer);
@@ -718,8 +781,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_declared_variable_view(
+    List<DeclaredVariableView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_deposit_sent_view(
     List<DepositSentView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_env_choice(
+    List<EnvChoice> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_env_name_view(
+    List<EnvNameView> self,
     SseSerializer serializer,
   );
 
@@ -906,6 +987,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_i_64(
     PlatformInt64? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_node_address(
+    NodeAddress? self,
     SseSerializer serializer,
   );
 

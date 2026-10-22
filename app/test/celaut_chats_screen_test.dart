@@ -236,7 +236,7 @@ void main() {
             remove: (_) async {},
             privateDir: () async => '/data',
           ),
-          launch: ({required serviceIdHex, initialMu}) async {
+          launch: ({required serviceIdHex, initialMu, environment}) async {
             launched.add(serviceIdHex);
             final started = _instance('new-1', name: 'Echo chat', startedAt: 999);
             node.db.add(started);

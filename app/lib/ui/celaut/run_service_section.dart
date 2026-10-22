@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../bridge/api/celaut.dart';
 import '../../bridge/api/celaut_catalog.dart';
+import '../../bridge/api/celaut_env.dart';
 import '../../bridge/api/celaut_home.dart';
 import '../../bridge/api/celaut_service.dart';
 import '../../celaut/celaut_format.dart';
 import '../../celaut/celaut_strings.dart';
+import '../../celaut/env_store.dart';
 import '../../celaut/launcher.dart';
 import '../../bridge/api/celaut_package.dart';
 import '../../celaut/package_channel.dart';
@@ -18,6 +20,7 @@ import '../home/home_style.dart';
 import 'chat_screen.dart';
 import 'client_unknown_dialog.dart';
 import 'deposit_screen.dart';
+import 'env_questions_screen.dart';
 import 'instance_list.dart' show instanceOfLaunch;
 import 'launch_failure_sheet.dart';
 import 'service_transfer_dialog.dart';
@@ -27,6 +30,7 @@ import 'skill_services_sheet.dart';
 typedef LaunchCall = Future<LaunchOutcome> Function({
   required String serviceIdHex,
   String? initialMu,
+  EnvironmentStep? environment,
 });
 
 /// What the picker calls after a start, instead of opening the conversation itself:
@@ -62,7 +66,16 @@ class RunServiceSection extends StatefulWidget {
     this.showTitle = true,
     this.onStarted,
     this.nameInstance,
+    this.declaration,
+    this.envStore,
   });
+
+  /// The environment variables that a service declares: from the file in the library, or
+  /// from the node of the best quote. Tests give their own.
+  final Future<List<DeclaredVariableView>> Function(String serviceId, NodeAddress node)? declaration;
+
+  /// The container of environment variables. Tests give their own.
+  final EnvStore? envStore;
 
   /// What to do after a start. The list of conversations gives it: it goes back to the
   /// list and opens the conversation (`docs/celaut/ui-chat-first.md`). Without it the
@@ -273,16 +286,22 @@ class _RunServiceSectionState extends State<RunServiceSection> {
     setState(() => _running = true);
     try {
       final launch = widget.launch ??
-          ({required serviceIdHex, initialMu}) =>
-              launchService(serviceIdHex: serviceIdHex, initialMu: initialMu);
+          ({required serviceIdHex, initialMu, environment}) => launchService(
+                serviceIdHex: serviceIdHex,
+                initialMu: initialMu,
+                environment: environment,
+              );
       final outcome = await launch(
         serviceIdHex: serviceId,
         initialMu: ServiceStrings.initialDefault,
+        environment: (quotes) => _askEnvironment(serviceId, quotes),
       );
       if (!mounted) return;
       // The progress bar stops before the next screen or sheet, which can stay open.
       setState(() => _running = false);
       await _started(outcome, serviceId);
+    } on LaunchCancelled {
+      // The user cancelled in the question about the variables: nothing to show.
     } on LaunchFailure catch (failure) {
       if (!mounted) return;
       setState(() => _running = false);
@@ -296,6 +315,53 @@ class _RunServiceSectionState extends State<RunServiceSection> {
     } finally {
       if (mounted) setState(() => _running = false);
     }
+  }
+
+  /// The question about the environment variables, after the quotes and before the start
+  /// (`docs/celaut/env-variables.md`). A service that declares none starts at once. If the
+  /// app cannot read the declaration, the user chooses: run with no variables, or cancel.
+  /// Null cancels the launch.
+  Future<List<EnvChoice>?> _askEnvironment(String serviceId, QuotesView quotes) async {
+    if (!mounted) return null;
+    final List<DeclaredVariableView> declared;
+    try {
+      declared = await (widget.declaration ??
+          (id, node) => celautServiceDeclaration(serviceIdHex: id, node: node))(
+        serviceId,
+        quotes.quotes.first.address,
+      );
+    } on CelautError {
+      if (!mounted) return null;
+      return await _confirmWithoutVariables() ? const [] : null;
+    }
+    if (declared.isEmpty) return const [];
+    if (!mounted) return null;
+    return Navigator.of(context).push<List<EnvChoice>>(
+      MaterialPageRoute(
+        builder: (_) => EnvQuestionsScreen(declared: declared, store: widget.envStore),
+      ),
+    );
+  }
+
+  Future<bool> _confirmWithoutVariables() async {
+    final l = context.l10n;
+    final run = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        key: const Key('env-unreadable'),
+        title: Text(l.celautEnvDeclUnreadableTitle),
+        content: Text(l.celautEnvDeclUnreadableBody),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(l.commonCancel)),
+          TextButton(
+            key: const Key('env-run-without'),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l.celautEnvRunWithout),
+          ),
+        ],
+      ),
+    );
+    return run == true;
   }
 
   void _name(String instanceId, String? name) {

@@ -2,8 +2,8 @@
 
 Josemi asked for two things: a container of environment variables in the app, and a
 question to the user, one variable at a time, when a service that declares variables is
-launched. This note is the design. Nothing here is built yet. It follows
-[ui.md](ui.md) (section "Run a service") and [package.md](package.md).
+launched. This note is the design, and the code follows it (section 5 has the files). It
+follows [ui.md](ui.md) (section "Run a service") and [package.md](package.md).
 
 ## 1. What the protocol gives
 
@@ -20,8 +20,8 @@ launched. This note is the design. Nothing here is built yet. It follows
   node does not resolve that domain at the start (the instance can ask for it later). So
   skipping a variable is valid, and it can have an effect that the user does not see.
 
-Today `configuration()` (`celaut_service.rs`) fills only `initial_mu`. The app does not read
-the declaration.
+`configuration()` (`celaut_service.rs`) fills only `initial_mu`, and a quote uses only it.
+`start_configuration()` adds the variables, and only a start calls it.
 
 ## 2. The container
 
@@ -36,9 +36,11 @@ A list of named values that the user keeps in the app and uses in any launch.
   database is encrypted with the key of the Keystore, so a value is as safe as an instance
   token. There is no other copy, and no value goes to a log, an event, or the text of an
   error.
-- **Screen:** Settings, "Environment variables" (`EnvVariablesScreen`). It lists the names.
-  A value shows as dots; a tap on the eye shows it. Add, edit, delete (with a
-  confirmation). A name that exists is an edit, not a second entry.
+- **Screen:** Settings, Developer group, "Environment variables" (`EnvVariablesScreen`). It
+  lists the names with dots in place of the values. Add, edit (the eye in the form shows the
+  value), delete (with a confirmation). A name that exists cannot be added twice: the form
+  says so, and the row is the way to edit it. The screen checks the rules of a name and a
+  value (`env_store.dart`) before it calls Rust, so each reason has its own text.
 - **Rust API** (`wallet-ffi/src/api/celaut_env.rs`):
 
 | Function | What it does |
@@ -57,7 +59,7 @@ in the order of the declaration, a page shows "Variable 2 of 3":
 - three choices:
   1. **Choose from my variables.** A list of the container. The entries with the same name
      as the variable come first, but any entry can be chosen. The values are not shown.
-     With an empty container the choice says so and has a link to the screen of section 2.
+     With an empty container the list says where to add variables (Settings, Environment variables).
   2. **Type a value.** A text field for UTF-8 text. An empty text is not accepted: the user
      skips the variable instead, because "absent" and "empty" are different for a service.
   3. **Skip.** The variable is not in the configuration.
@@ -81,10 +83,20 @@ A quote asks every node. A value must not go to nodes that only price the servic
 1. The quote goes with `initial_mu` only, as now. The price does not depend on the values
    (the node charges a balance, not a variable).
 2. **The declaration is read.** From the loaded file if the service is in the library
-   (`package.rs` already parses the Service); if not, with `GetService` from the best node
-   of the quotes (`GetService` needs a client id, which the app has for a node that quoted).
-   New call: `celaut_service_declaration(service_id, node)`, which gives a list of name,
-   tags and prose. No declaration means no question and no change to the flow.
+   if not, with `GetService` from the best node of the quotes (`GetService` needs a client
+   id, which the app has for a node that quoted). New call:
+   `celaut_service_declaration(service_id, node)`, which gives a list of name, tags and
+   prose. No declaration means no question and no change to the flow.
+
+   The declaration is after the filesystem of the container in the Service, and the
+   filesystem can be hundreds of megabytes (`claude-code.bee` has 536 MB). So
+   `celaut-client/src/declaration.rs` does not decode the Service. It walks the protobuf
+   fields of the Service part as a stream, skips the bytes that it does not need, decodes
+   only the entries of the declaration and stops at the end of the container. On a file it
+   takes about a second and a half for 536 MB. From a node, the node sends the service, so
+   the app stops after 128 MiB: the error is the same as for any other declaration that
+   cannot be read, and the app asks the user to run with no variables or to cancel. A
+   service that the user loaded as a file is always read from the file.
 3. The questions of section 3.
 4. `launchService` starts the service on the nodes in order, and **only a start request
    carries the values**. A node that refuses the start has read them. That is the same
@@ -103,16 +115,24 @@ The node holds them in the file `/__config__` of the instance (`ConfigurationFil
 
 | Change | File |
 |---|---|
-| `EnvVariable`, `CelautData.env_variables`, bounds | `rust/crates/celaut-client/src/db.rs` |
-| Name and value rules (one function, used by set and by start) | `rust/crates/celaut-client/src/env.rs` (new) |
-| `celaut_env_*`, `celaut_service_declaration` | `wallet-ffi/src/api/celaut_env.rs` (new), `celaut_service.rs` |
-| `configuration(initial_mu, environment)` | `celaut_service.rs` |
-| Read `Container.environment_variables` | `celaut-client/src/package.rs`, `GetService` in `session.rs` |
-| The phase of questions between quote and start | `app/lib/celaut/launcher.dart`, `run_service_section.dart` |
-| `EnvVariablesScreen`, the pages of the question | `app/lib/ui/celaut/` |
-| Strings in English and Spanish | `app/lib/l10n/app_en.arb`, `app_es.arb` |
+| `EnvRecord`, `CelautData.env_variables`, `set_env` | `rust/crates/celaut-client/src/db.rs` |
+| Name and value rules (used by set and by start) | `rust/crates/celaut-client/src/env.rs` |
+| Read `Container.environment_variables` as a stream | `rust/crates/celaut-client/src/declaration.rs` |
+| `celaut_env_*`, `celaut_service_declaration`, `EnvChoice` | `rust/crates/wallet-ffi/src/api/celaut_env.rs` |
+| `start_configuration`, the `environment` of `celaut_start_service` | `rust/crates/wallet-ffi/src/api/celaut_service.rs` |
+| The question between quote and start (`EnvironmentStep`, `LaunchCancelled`) | `app/lib/celaut/launcher.dart`, `app/lib/ui/celaut/run_service_section.dart` |
+| The container (`EnvStore`, the rules of a name and a value) | `app/lib/celaut/env_store.dart` |
+| `EnvVariablesScreen`, `EnvQuestionsScreen` | `app/lib/ui/celaut/env_variables_screen.dart`, `env_questions_screen.dart` |
+| Strings in English and Spanish | `app/lib/l10n/app_en.arb`, `app_es.arb` (`celautEnv*`) |
+
+A launch from the screen "Celaut service" of the Developer group has no question: it starts
+with no variables, as before.
 
 ## 6. Checks
+
+The checks are in `celaut-client` (`env.rs`, `db.rs`, `declaration.rs`), `wallet-ffi`
+(`celaut_env.rs`, `celaut_service.rs`) and `app/test` (`celaut_env_test.dart`,
+`celaut_launcher_test.dart`, `celaut_run_section_test.dart`):
 
 - Names: `1A`, `A-B`, a name with a space, `__nodo_instance_name`, an empty name; a value
   with NUL; the limits of entries and size.
@@ -122,13 +142,20 @@ The node holds them in the file `/__config__` of the instance (`ConfigurationFil
   the order of the declaration; a skipped variable is absent, not empty.
 - A quote request never has `environment_variables`; only a start request has them.
 - Cancel on a question sends no request. The values are not in an error message or a log.
+- The declaration is read after a filesystem of 300 000 bytes, with chunks of 1 byte to 1 MiB
+  and a block marker in the middle; a cut service, a false length and a group wire type are
+  errors, not panics. `CELAUT_TEST_BEE=<file> cargo test -p celaut-client --lib real_package --
+  --ignored --nocapture` reads a real package.
 
 ## 7. Open items
 
 - **Declarations are rare today.** The proto says that senders do not set
-  `Container.environment_variables` yet. Until the services declare them, the questions do not
-  appear. An alternative is a free list: the user adds NAME=value for any service
-  from the launch page. Josemi decides if it is wanted before the declaration exists.
+  `Container.environment_variables` yet, so a service in the wild does not declare variables
+  and the questions do not appear. `claude-code.bee` is one of them. An alternative is a free
+  list: the user adds NAME=value for any service from the launch page. Josemi decides if it is
+  wanted before the services declare their variables.
 - Do the eye and the edit of a value need the unlock of the wallet (`wallet_unlock.dart`)?
-  The design says no, as the database is encrypted already.
-- Save a typed value into the container from the question (section 3).
+  The code says no, as the database is encrypted already.
+- Save a typed value into the container from the question (section 3). Not built.
+- A service of more than 128 MiB that is on a node and not in the library cannot be read for
+  its declaration. The user can load the file, or run with no variables.

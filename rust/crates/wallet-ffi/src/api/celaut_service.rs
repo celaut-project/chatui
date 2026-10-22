@@ -23,6 +23,7 @@ use once_cell::sync::Lazy;
 
 use super::celaut::{error_of, invalid, CelautError, CelautErrorKind};
 use super::celaut_db::{db, now_seconds, storage_error};
+use super::celaut_env::{resolve as resolve_environment, EnvChoice};
 
 pub(crate) type Session = Arc<NodeSession<Connection>>;
 
@@ -103,6 +104,17 @@ pub(crate) fn configuration(initial_mu: Option<String>) -> Result<Configuration,
             ..Default::default()
         }),
     }
+}
+
+/// The configuration of a start: the one of [`configuration`] with the environment
+/// variables that the user chose. Only a start has them; a quote uses [`configuration`].
+pub(crate) fn start_configuration(
+    initial_mu: Option<String>,
+    environment: &[EnvChoice],
+) -> Result<Configuration, CelautError> {
+    let mut configuration = configuration(initial_mu)?;
+    configuration.environment_variables = resolve_environment(environment)?;
+    Ok(configuration)
 }
 
 pub(crate) fn service_id(text: &str) -> Result<[u8; 32], CelautError> {
@@ -417,14 +429,20 @@ pub struct InstanceView {
 /// Start the service on the node. The node charges the quote to the balance of the
 /// client of the app on that node. The node runs it itself (no delegation). The
 /// instance goes into the database of the app.
+///
+/// `environment` has the values of the environment variables of the service
+/// (`docs/celaut/env-variables.md`). Only a start carries them: a quote never does, so
+/// a node that only prices the service does not read them. A variable that the user
+/// skipped is not in the list, so it is not in the configuration.
 #[flutter_rust_bridge::frb]
 pub async fn celaut_start_service(
     node: NodeAddress,
     service_id_hex: String,
     initial_mu: Option<String>,
+    environment: Vec<EnvChoice>,
 ) -> Result<InstanceView, CelautError> {
     let id = service_id(&service_id_hex)?;
-    let configuration = configuration(initial_mu)?;
+    let configuration = start_configuration(initial_mu, &environment)?;
     let session = session(&node).await?;
     let before = session.balance().await.ok();
     let started = match session.start(id, configuration).await {
@@ -719,7 +737,7 @@ mod tests {
             port: 0,
         };
         let id = "ab".repeat(32);
-        let err = celaut_start_service(node, id.clone(), None)
+        let err = celaut_start_service(node, id.clone(), None, vec![])
             .await
             .unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);
@@ -727,7 +745,7 @@ mod tests {
             host: "127.0.0.1".into(),
             port: 1,
         };
-        let err = celaut_start_service(node.clone(), "xyz".into(), None)
+        let err = celaut_start_service(node.clone(), "xyz".into(), None, vec![])
             .await
             .unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);
@@ -736,7 +754,7 @@ mod tests {
             .unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);
         for bad in ["0", "-5", "1.5", "lots"] {
-            let err = celaut_start_service(node.clone(), id.clone(), Some(bad.into()))
+            let err = celaut_start_service(node.clone(), id.clone(), Some(bad.into()), vec![])
                 .await
                 .unwrap_err();
             assert_eq!(err.kind, CelautErrorKind::InvalidInput, "{bad}");
@@ -845,6 +863,32 @@ mod tests {
             assert_eq!(err.message, "This instance was stopped.");
         }
         celaut_forget_instance(id).unwrap();
+    }
+
+    #[test]
+    fn only_a_start_carries_the_environment_variables() {
+        let typed = |name: &str, text: &str| EnvChoice {
+            name: name.into(),
+            container: None,
+            text: Some(text.into()),
+        };
+        // No choice: the same message as before the variables existed.
+        assert_eq!(
+            start_configuration(None, &[]).unwrap(),
+            Configuration::default()
+        );
+        let c = start_configuration(Some("5".into()), &[typed("B", "2"), typed("A", "1")]).unwrap();
+        assert_eq!(c.initial_mu, Some(Amount { n: "5".into() }));
+        let names: Vec<_> = c.environment_variables.iter().map(|e| e.key.as_str()).collect();
+        assert_eq!(names, ["B", "A"]);
+        // A quote never has them.
+        assert!(configuration(Some("5".into()))
+            .unwrap()
+            .environment_variables
+            .is_empty());
+        // A bad choice is refused before any node is asked.
+        let err = start_configuration(None, &[typed("1", "x")]).unwrap_err();
+        assert_eq!(err.kind, CelautErrorKind::InvalidInput);
     }
 
     #[test]

@@ -297,6 +297,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
         node: quote.address,
         serviceIdHex: _serviceId,
         initialMu: _initialMu,
+        environment: const [],
       );
       if (!mounted) return;
       setState(() {

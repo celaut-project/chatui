@@ -4395,5 +4395,86 @@
         "type": "String"
       }
     }
-  }
+  },
+  "celautEnvTitle": "Environment variables",
+  "celautEnvRowSubtitle": "Values that a service can get when it starts",
+  "celautEnvIntro": "Named values that you can give to a service when you run it, for example a key. They stay encrypted on this phone. A service only gets the ones that you choose.",
+  "celautEnvEmpty": "No variables yet.",
+  "celautEnvAdd": "Add variable",
+  "celautEnvEditTitle": "Edit {name}",
+  "@celautEnvEditTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "celautEnvName": "Name",
+  "celautEnvValue": "Value",
+  "celautEnvShow": "Show the value",
+  "celautEnvHide": "Hide the value",
+  "celautEnvEdit": "Edit",
+  "celautEnvDelete": "Delete",
+  "celautEnvDeleteTitle": "Delete {name}?",
+  "@celautEnvDeleteTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "celautEnvDeleteBody": "Services that you run later cannot use it. Instances that already run keep what they got.",
+  "celautEnvNameBad": "The name must start with a letter or _ and have only letters, digits and _.",
+  "celautEnvNameReserved": "This name is reserved for the name of the instance.",
+  "celautEnvNameTaken": "A variable with this name exists. Edit it instead.",
+  "celautEnvValueEmpty": "Write a value.",
+  "celautEnvValueLong": "The value is longer than 8192 bytes.",
+  "celautEnvValueNul": "The value cannot have a NUL character.",
+  "celautEnvTooMany": "There are 256 variables. Delete one first.",
+  "celautEnvAskTitle": "Variables of the service",
+  "celautEnvAskStep": "Variable {current} of {total}",
+  "@celautEnvAskStep": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "celautEnvAskNoText": "The service gives no description of this variable.",
+  "celautEnvAskPick": "Choose from my variables",
+  "celautEnvAskPickTitle": "Choose a variable",
+  "celautEnvAskPickEmpty": "You have no variables yet. Add them in Settings, Environment variables.",
+  "celautEnvAskType": "Type a value",
+  "celautEnvAskUse": "Use this value",
+  "celautEnvAskSkip": "Skip",
+  "celautEnvAskSkipHint": "The service does not get this variable.",
+  "celautEnvAskBadName": "The node cannot give this variable, because its name is not valid. You can only skip it.",
+  "celautEnvAskChosen": "Chosen: {what}",
+  "@celautEnvAskChosen": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "celautEnvAskBack": "Back",
+  "celautEnvReviewTitle": "Review",
+  "celautEnvReviewFromContainer": "My variable {name}",
+  "@celautEnvReviewFromContainer": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "celautEnvReviewTyped": "Typed value",
+  "celautEnvReviewSkipped": "Skipped",
+  "celautEnvReviewNote": "The node that starts the service reads these values. A node that refuses the start has read them too.",
+  "celautEnvRun": "Run",
+  "celautEnvDeclUnreadableTitle": "The variables of the service are unknown",
+  "celautEnvDeclUnreadableBody": "The service may ask for variables, and the app could not find out. Run it with none, or cancel.",
+  "celautEnvRunWithout": "Run without variables"
 }

@@ -225,7 +225,7 @@ fn end() {
     *transfer() = None;
 }
 
-fn package_error(e: PackageError) -> CelautError {
+pub(crate) fn package_error(e: PackageError) -> CelautError {
     match e {
         PackageError::Io(e) => CelautError {
             kind: CelautErrorKind::Storage,

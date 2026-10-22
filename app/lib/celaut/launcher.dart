@@ -1,4 +1,5 @@
 import '../bridge/api/celaut.dart';
+import '../bridge/api/celaut_env.dart';
 import '../bridge/api/celaut_health.dart';
 import '../bridge/api/celaut_home.dart';
 import '../bridge/api/celaut_service.dart';
@@ -14,7 +15,23 @@ typedef StartCall = Future<InstanceView> Function({
   required NodeAddress node,
   required String serviceIdHex,
   String? initialMu,
+  required List<EnvChoice> environment,
 });
+
+/// The question about the environment variables of the service (`docs/celaut/env-variables.md`),
+/// asked after the quotes and before the first start. It gives the values that the user
+/// chose (a variable that the user skipped is not in the list), or null if the user
+/// cancelled the launch.
+typedef EnvironmentStep = Future<List<EnvChoice>?> Function(QuotesView quotes);
+
+/// The user cancelled the launch in the question about the variables. Nothing was sent
+/// to a node except the quotes.
+class LaunchCancelled implements Exception {
+  const LaunchCancelled();
+
+  @override
+  String toString() => 'LaunchCancelled()';
+}
 
 /// A node that gave a quote but did not start the service.
 class LaunchSkip {
@@ -168,10 +185,15 @@ String _hostPort(NodeAddress a) => '${a.host}:${a.port}';
 ///   start: it would refuse. It is skipped with [CelautErrorKind.insufficientCredit].
 ///
 /// [nodes] are the nodes to ask. Without them, the known nodes of the app.
+///
+/// [environment] asks the user for the environment variables of the service once the
+/// quotes are in. A quote carries no variable: only a start does, so a node that only
+/// prices the service never reads them. Throws [LaunchCancelled] if the user cancels.
 Future<LaunchOutcome> launchService({
   required String serviceIdHex,
   String? initialMu,
   List<NodeAddress>? nodes,
+  EnvironmentStep? environment,
   QuoteCall quote = celautQuoteService,
   StartCall start = celautStartService,
   List<KnownNodeView> Function() knownNodes = celautKnownNodes,
@@ -189,6 +211,8 @@ Future<LaunchOutcome> launchService({
       leftOut: leftOut,
     );
   }
+  final values = environment == null ? const <EnvChoice>[] : await environment(quotes);
+  if (values == null) throw const LaunchCancelled();
   final skipped = <LaunchSkip>[];
   for (final candidate in quotes.quotes) {
     final credit = BigInt.tryParse(candidate.clientBalanceMu);
@@ -210,6 +234,7 @@ Future<LaunchOutcome> launchService({
         node: candidate.address,
         serviceIdHex: serviceIdHex,
         initialMu: initialMu,
+        environment: values,
       );
       return LaunchOutcome(
         quote: candidate,

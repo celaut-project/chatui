@@ -5,9 +5,10 @@
 
 import '../frb_generated.dart';
 import 'celaut.dart';
+import 'celaut_env.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `address_of_key`, `check`, `configuration`, `cost_so_far`, `forget_if_broken`, `instance`, `key`, `n`, `new_client_session`, `open_session`, `quote_view`, `service_id`, `session`, `state`, `stopped_instance`, `unknown_instance`
+// These functions are ignored because they are not marked as `pub`: `address_of_key`, `check`, `configuration`, `cost_so_far`, `forget_if_broken`, `instance`, `key`, `n`, `new_client_session`, `open_session`, `quote_view`, `service_id`, `session`, `start_configuration`, `state`, `stopped_instance`, `unknown_instance`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `State`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
@@ -33,14 +34,21 @@ Future<QuotesView> celautQuoteService({
 /// Start the service on the node. The node charges the quote to the balance of the
 /// client of the app on that node. The node runs it itself (no delegation). The
 /// instance goes into the database of the app.
+///
+/// `environment` has the values of the environment variables of the service
+/// (`docs/celaut/env-variables.md`). Only a start carries them: a quote never does, so
+/// a node that only prices the service does not read them. A variable that the user
+/// skipped is not in the list, so it is not in the configuration.
 Future<InstanceView> celautStartService({
   required NodeAddress node,
   required String serviceIdHex,
   String? initialMu,
+  required List<EnvChoice> environment,
 }) => RustLib.instance.api.crateApiCelautServiceCelautStartService(
   node: node,
   serviceIdHex: serviceIdHex,
   initialMu: initialMu,
+  environment: environment,
 );
 
 /// The instances that the app started, whichever wallet was open: the ones that run,

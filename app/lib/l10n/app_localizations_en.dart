@@ -5756,4 +5756,155 @@ class AppLocalizationsEn extends AppLocalizations {
   String celautNodeCredit(String credit) {
     return 'Credit: $credit';
   }
+
+  @override
+  String get celautEnvTitle => 'Environment variables';
+
+  @override
+  String get celautEnvRowSubtitle =>
+      'Values that a service can get when it starts';
+
+  @override
+  String get celautEnvIntro =>
+      'Named values that you can give to a service when you run it, for example a key. They stay encrypted on this phone. A service only gets the ones that you choose.';
+
+  @override
+  String get celautEnvEmpty => 'No variables yet.';
+
+  @override
+  String get celautEnvAdd => 'Add variable';
+
+  @override
+  String celautEnvEditTitle(String name) {
+    return 'Edit $name';
+  }
+
+  @override
+  String get celautEnvName => 'Name';
+
+  @override
+  String get celautEnvValue => 'Value';
+
+  @override
+  String get celautEnvShow => 'Show the value';
+
+  @override
+  String get celautEnvHide => 'Hide the value';
+
+  @override
+  String get celautEnvEdit => 'Edit';
+
+  @override
+  String get celautEnvDelete => 'Delete';
+
+  @override
+  String celautEnvDeleteTitle(String name) {
+    return 'Delete $name?';
+  }
+
+  @override
+  String get celautEnvDeleteBody =>
+      'Services that you run later cannot use it. Instances that already run keep what they got.';
+
+  @override
+  String get celautEnvNameBad =>
+      'The name must start with a letter or _ and have only letters, digits and _.';
+
+  @override
+  String get celautEnvNameReserved =>
+      'This name is reserved for the name of the instance.';
+
+  @override
+  String get celautEnvNameTaken =>
+      'A variable with this name exists. Edit it instead.';
+
+  @override
+  String get celautEnvValueEmpty => 'Write a value.';
+
+  @override
+  String get celautEnvValueLong => 'The value is longer than 8192 bytes.';
+
+  @override
+  String get celautEnvValueNul => 'The value cannot have a NUL character.';
+
+  @override
+  String get celautEnvTooMany => 'There are 256 variables. Delete one first.';
+
+  @override
+  String get celautEnvAskTitle => 'Variables of the service';
+
+  @override
+  String celautEnvAskStep(int current, int total) {
+    return 'Variable $current of $total';
+  }
+
+  @override
+  String get celautEnvAskNoText =>
+      'The service gives no description of this variable.';
+
+  @override
+  String get celautEnvAskPick => 'Choose from my variables';
+
+  @override
+  String get celautEnvAskPickTitle => 'Choose a variable';
+
+  @override
+  String get celautEnvAskPickEmpty =>
+      'You have no variables yet. Add them in Settings, Environment variables.';
+
+  @override
+  String get celautEnvAskType => 'Type a value';
+
+  @override
+  String get celautEnvAskUse => 'Use this value';
+
+  @override
+  String get celautEnvAskSkip => 'Skip';
+
+  @override
+  String get celautEnvAskSkipHint => 'The service does not get this variable.';
+
+  @override
+  String get celautEnvAskBadName =>
+      'The node cannot give this variable, because its name is not valid. You can only skip it.';
+
+  @override
+  String celautEnvAskChosen(String what) {
+    return 'Chosen: $what';
+  }
+
+  @override
+  String get celautEnvAskBack => 'Back';
+
+  @override
+  String get celautEnvReviewTitle => 'Review';
+
+  @override
+  String celautEnvReviewFromContainer(String name) {
+    return 'My variable $name';
+  }
+
+  @override
+  String get celautEnvReviewTyped => 'Typed value';
+
+  @override
+  String get celautEnvReviewSkipped => 'Skipped';
+
+  @override
+  String get celautEnvReviewNote =>
+      'The node that starts the service reads these values. A node that refuses the start has read them too.';
+
+  @override
+  String get celautEnvRun => 'Run';
+
+  @override
+  String get celautEnvDeclUnreadableTitle =>
+      'The variables of the service are unknown';
+
+  @override
+  String get celautEnvDeclUnreadableBody =>
+      'The service may ask for variables, and the app could not find out. Run it with none, or cancel.';
+
+  @override
+  String get celautEnvRunWithout => 'Run without variables';
 }

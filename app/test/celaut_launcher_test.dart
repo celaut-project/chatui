@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:argus_wallet/bridge/api/celaut.dart';
+import 'package:argus_wallet/bridge/api/celaut_env.dart';
 import 'package:argus_wallet/bridge/api/celaut_health.dart';
 import 'package:argus_wallet/bridge/api/celaut_home.dart';
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
@@ -77,7 +78,7 @@ void main() {
           expect(initialMu, '7');
           return answer;
         },
-        start: ({required node, required serviceIdHex, initialMu}) async {
+        start: ({required node, required serviceIdHex, initialMu, required environment}) async {
           started.add(node.port);
           final failure = failures[node.port];
           if (failure != null) throw failure;
@@ -330,6 +331,86 @@ void main() {
       expect(problems[2].message, 'closed until 09:00');
       expect(problems[3].leftOut, isTrue);
       expect(problems[4].kind, CelautErrorKind.unreachable, reason: 'no reason in the record');
+    });
+  });
+
+  group('environment variables', () {
+    final nodes = [const NodeAddress(host: 'x', port: 1)];
+
+    Future<LaunchOutcome> withEnvironment(
+      EnvironmentStep? environment,
+      List<String> log, {
+      List<List<EnvChoice>>? starts,
+    }) => launchService(
+      serviceIdHex: _service,
+      nodes: nodes,
+      environment: environment,
+      knownNodes: () => const [],
+      health: () => const [],
+      quote: ({required nodes, required serviceIdHex, initialMu}) async {
+        log.add('quote');
+        return answer;
+      },
+      start: ({required node, required serviceIdHex, initialMu, required environment}) async {
+        log.add('start ${node.port}');
+        starts?.add(environment);
+        if (node.port == 1) throw _error;
+        return _instance('i${node.port}');
+      },
+    );
+
+    test('the question comes after the quotes and before the first start', () async {
+      final log = <String>[];
+      final starts = <List<EnvChoice>>[];
+      final outcome = await withEnvironment(
+        (quotes) async {
+          log.add('ask ${quotes.quotes.length}');
+          return [const EnvChoice(name: 'API_KEY', container: 'MY_KEY')];
+        },
+        log,
+        starts: starts,
+      );
+      expect(log, ['quote', 'ask 3', 'start 1', 'start 2']);
+      expect(outcome.quote.peerId, 'b');
+      // The same values go to each node that is asked to start; no quote has them.
+      expect(starts.length, 2);
+      for (final s in starts) {
+        expect(s.single.name, 'API_KEY');
+        expect(s.single.container, 'MY_KEY');
+        expect(s.single.text, isNull);
+      }
+    });
+
+    test('with no question a start gets no variable', () async {
+      final log = <String>[];
+      final starts = <List<EnvChoice>>[];
+      await withEnvironment(null, log, starts: starts);
+      expect(starts, everyElement(isEmpty));
+    });
+
+    test('an empty answer is a start with no variable', () async {
+      final starts = <List<EnvChoice>>[];
+      await withEnvironment((q) async => const [], [], starts: starts);
+      expect(starts, everyElement(isEmpty));
+    });
+
+    test('a cancelled question starts nothing', () async {
+      final log = <String>[];
+      await expectLater(withEnvironment((q) async => null, log), throwsA(isA<LaunchCancelled>()));
+      expect(log, ['quote']);
+    });
+
+    test('with no quote there is no question', () async {
+      answer = const QuotesView(quotes: [], failures: []);
+      var asked = false;
+      await expectLater(
+        withEnvironment((q) async {
+          asked = true;
+          return const [];
+        }, []),
+        throwsA(isA<LaunchFailure>()),
+      );
+      expect(asked, isFalse);
     });
   });
 }
