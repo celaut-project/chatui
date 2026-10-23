@@ -8,7 +8,8 @@
 //!
 //! One transfer at a time. [`celaut_transfer_progress`] gives its bytes so far, and
 //! [`celaut_cancel_transfer`] stops it: the node gets markers that make it refuse the cut
-//! service, so a node never keeps half a service.
+//! service, so a node never keeps half a service. A node that already has the service
+//! answers after its hash, and the app then stops sending it (`celaut_wire::relay`).
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -330,10 +331,32 @@ pub async fn celaut_send_service(
     }
     let s = session(&node).await?;
     let cancel = begin(TransferStage::Sending, Some(info.bytes))?;
+    // What the node got of the service: it can answer before the end when it already
+    // has the service, and then the rest is not sent.
+    let sent = celaut_wire::SendCounter::new();
     let result = s
-        .quote_with_service(id, configuration, read(path, info.layout, cancel))
+        .quote_with_service(
+            id,
+            configuration,
+            sent.wrap(read(path, info.layout, cancel)),
+        )
         .await;
     end();
+    tracing::info!(
+        "service {}: sent {} bytes in {} Buffers to {}, of a package of {} bytes; {}",
+        hex::encode(id),
+        sent.bytes(),
+        sent.buffers(),
+        s.peer_id(),
+        info.bytes,
+        if sent.ended() {
+            "the whole service went"
+        } else if result.is_ok() {
+            "the node answered first: it has the service"
+        } else {
+            "the transfer stopped"
+        }
+    );
     let quote = result.map_err(|e| {
         forget_if_broken(&node, &e);
         error_of(e)
