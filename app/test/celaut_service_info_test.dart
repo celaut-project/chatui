@@ -308,7 +308,7 @@ void main() {
   });
 
   group('the title of the app', () {
-    testWidgets('is Celaut Chatui, with "ui" in lower case and in the other colour', (tester) async {
+    testWidgets('is Chatui, in lower case except the C, with "ui" in the other colour', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: ThemeData(extensions: const [ArgusColors(muted: Colors.grey, cardBorder: Colors.grey, inset: Colors.grey, chip: Colors.grey)]),
@@ -317,19 +317,19 @@ void main() {
       );
       final rich = tester.widget<RichText>(find.byType(RichText).first);
       final root = rich.text as TextSpan;
-      expect(root.toPlainText(), 'CELAUT CHATui');
+      expect(root.toPlainText(), 'Chatui');
       // The text of each span, with its own style: the first is the accent, the last "ui".
       final spans = <TextSpan>[];
       root.visitChildren((span) {
         if (span is TextSpan && span.text != null) spans.add(span);
         return true;
       });
-      expect(spans.map((s) => s.text), ['CELAUT CHAT', 'ui']);
+      expect(spans.map((s) => s.text), ['Chat', 'ui']);
       final ui = spans.last;
       expect(ui.text, equals(ui.text!.toLowerCase()));
       // Another colour than the rest of the title.
       expect(ui.style!.color, isNot(root.style!.color));
-      expect(CelautWordmark.name, 'Celaut Chatui');
+      expect(CelautWordmark.name, 'Chatui');
     });
   });
 }

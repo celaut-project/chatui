@@ -366,7 +366,7 @@ class SecureStorageHandler(private val context: Context) : MethodChannel.MethodC
             }
         )
         val info = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Unlock Celaut")
+            .setTitle("Unlock Chatui")
             .setNegativeButtonText("Use PIN")
             .build()
         activity.runOnUiThread { prompt.authenticate(info) }
