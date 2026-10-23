@@ -65,7 +65,8 @@ nodo pins bee-rpc-over-grpc-py **v0.0.2** (`nodo:bash/requirements.txt:15`). The
   not overlap. Block contents are chunks; concatenation gives the object. A receiver
   accepts up to 32 levels of nesting (`MAX_BLOCK_NESTING`, `bee_rpc:client.py:317`).
   A deeper block is an error.
-- `skip` (receiver to sender) is optional. A client can ignore it.
+- `skip` (receiver to sender) is optional. A client can ignore it. The app reads it in the
+  calls that carry a service, and stops the blocks that it names (`docs/celaut/package.md`).
 - A request ends when the client half-closes its side.
 
 **Hash types** (`nodo:src/utils/hashing.py`): the type id is the digest of the empty

@@ -21,7 +21,7 @@ use bee_rpc::frame::{serialize_part, ParseOptions, Parser, Part};
 use celaut_proto::celaut::{Amount, Configuration, EstimatedCost};
 use celaut_wire::gateway::ServiceRequest;
 use celaut_wire::relay::{call_with_service, EARLY_ANSWER_WAIT};
-use celaut_wire::{Buffers, SendCounter, WireError};
+use celaut_wire::{Buffers, SendCounter, Skips, WireError};
 use prost::Message;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::{ReceiverStream, TcpListenerStream};
@@ -54,6 +54,10 @@ struct Seen {
     indices: Vec<i32>,
     /// The size of the Service part, if it came whole.
     service_len: Option<usize>,
+    /// The bytes of the block of the Service that the node holds, as it read them.
+    block_bytes: usize,
+    /// The end markers of that block that the node read.
+    block_ends: usize,
     end: Option<End>,
 }
 
@@ -65,6 +69,27 @@ enum Node {
     Lacks,
     /// It has the service and refuses the quote after the Hash.
     Refuses,
+    /// It does not have the service, but it holds the block that the Service carries
+    /// ([`HELD`]): it asks the client to skip it as soon as the block starts, and does not
+    /// read more for a moment. It answers at the end of the request.
+    Holds,
+}
+
+/// The id of the block that a [`Node::Holds`] holds.
+const HELD: [u8; 32] = [9u8; 32];
+
+fn held_marker() -> Buffer {
+    use bee_rpc::buffer::buffer::{block::Hash, Block};
+    Buffer {
+        block: Some(Block {
+            hashes: vec![Hash {
+                r#type: bee_rpc::hash::HashAlgorithm::Sha3_256.hash_type(),
+                value: HELD.to_vec(),
+            }],
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
 }
 
 fn answer() -> Vec<Buffer> {
@@ -94,6 +119,8 @@ async fn node(
     let mut parser = Parser::new(ParseOptions::accepting([1, 2, 3, 4, 5, 6]));
     let mut hash_seen = false;
     let mut answered = false;
+    let mut in_service = false;
+    let mut asked = false;
     loop {
         let buffer = match request.message().await {
             Ok(Some(buffer)) => buffer,
@@ -109,6 +136,12 @@ async fn node(
                     return;
                 }
                 seen.lock().unwrap().end = Some(End::Clean);
+                if kind == Node::Holds {
+                    for b in answer() {
+                        let _ = tx.send(Ok(b)).await;
+                    }
+                    return;
+                }
                 if !answered {
                     let _ = tx
                         .send(Err(Status::unknown("This node does not have the service")))
@@ -121,6 +154,28 @@ async fn node(
                 return;
             }
         };
+        if kind == Node::Holds && buffer.head.as_ref().is_some_and(|h| h.index == 6) {
+            in_service = true;
+        }
+        if in_service {
+            // Raw, as nodo reads a block that it holds: the bytes are read and dropped.
+            if buffer.block.is_some() {
+                if asked {
+                    seen.lock().unwrap().block_ends += 1;
+                } else {
+                    asked = true;
+                    let skip =
+                        bee_rpc::skip::skip_buffer(&HELD, bee_rpc::hash::HashAlgorithm::Sha3_256);
+                    let _ = tx.send(Ok(skip)).await;
+                    // The client goes on until the request arrives: this node does not
+                    // read for a moment, so that what it gets is what the client had
+                    // already sent, and not what the speed of the loopback decides.
+                    tokio::time::sleep(Duration::from_millis(300)).await;
+                }
+            }
+            seen.lock().unwrap().block_bytes += buffer.chunk.as_ref().map_or(0, Vec::len);
+            continue;
+        }
         if hash_seen {
             seen.lock().unwrap().after_hash += 1;
             if kind != Node::Lacks {
@@ -163,7 +218,7 @@ async fn node(
                     // The handler raised: the call ends.
                     return;
                 }
-                (4, Node::Lacks) => hash_seen = true,
+                (4, Node::Lacks | Node::Holds) => hash_seen = true,
                 (6, Node::Lacks) => {
                     seen.lock().unwrap().service_len = Some(part.data.len());
                     answered = true;
@@ -298,6 +353,37 @@ fn service(mib: usize, fail_after: Option<usize>) -> Buffers {
     Box::pin(tokio_stream::iter(all))
 }
 
+/// A service whose Service part is one block of `mib` MiB, in chunks of 1 MiB: the Metadata
+/// (5), the head of the Service (6), the start marker of the block, its chunks, its end
+/// marker, and the end of the part.
+fn service_with_block(mib: usize) -> Buffers {
+    let metadata = serialize_part(&Part::new(5, b"metadata".to_vec())).collect::<Vec<_>>();
+    let start = Buffer {
+        head: Some(Head {
+            index: 6,
+            partitions: Vec::new(),
+        }),
+        ..Default::default()
+    };
+    let chunks = (0..mib).map(|i| {
+        Ok(Buffer {
+            chunk: Some(vec![(i % 251) as u8; MIB]),
+            ..Default::default()
+        })
+    });
+    let end = Buffer {
+        separator: Some(true),
+        ..Default::default()
+    };
+    let all = metadata
+        .into_iter()
+        .chain([start, held_marker()])
+        .map(Ok)
+        .chain(chunks)
+        .chain([Ok(held_marker()), Ok(end)]);
+    Box::pin(tokio_stream::iter(all))
+}
+
 fn cost_of(parts: &[Part]) -> EstimatedCost {
     let part = parts.iter().find(|p| p.index == 1).expect("an answer");
     EstimatedCost::decode(part.data.as_slice()).unwrap()
@@ -318,6 +404,7 @@ async fn a_node_that_lacks_the_service_gets_all_of_it_and_a_clean_end() {
         &[1],
         TIMEOUT,
         EARLY_ANSWER_WAIT,
+        &Skips::new(),
     )
     .await
     .unwrap();
@@ -349,6 +436,7 @@ async fn a_node_that_has_the_service_answers_first_and_gets_none_of_it() {
         &[1],
         TIMEOUT,
         EARLY_ANSWER_WAIT,
+        &Skips::new(),
     )
     .await
     .unwrap();
@@ -377,6 +465,7 @@ async fn with_no_wait_the_service_stops_when_the_answer_comes() {
         &[1],
         TIMEOUT,
         Duration::ZERO,
+        &Skips::new(),
     )
     .await
     .unwrap();
@@ -408,6 +497,7 @@ async fn a_cancel_still_sends_the_markers_and_the_node_refuses() {
         &[1],
         TIMEOUT,
         EARLY_ANSWER_WAIT,
+        &Skips::new(),
     )
     .await
     .unwrap_err();
@@ -437,6 +527,7 @@ async fn a_refusal_after_the_hash_is_the_error_and_stops_the_service() {
         &[1],
         TIMEOUT,
         EARLY_ANSWER_WAIT,
+        &Skips::new(),
     )
     .await
     .unwrap_err();
@@ -447,4 +538,62 @@ async fn a_refusal_after_the_hash_is_the_error_and_stops_the_service() {
     assert!(!counter.ended());
     assert_eq!(counter.buffers(), 0);
     assert_eq!(seen.lock().unwrap().indices, [1, 2, 4]);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_block_that_the_node_holds_stops_when_it_asks() {
+    let total = 64;
+    // The node says that it holds the block, and the stream is not wrapped: a call that
+    // does not take the requests sends the whole block, as to a node of before.
+    let (channel, seen) = serve(Node::Holds).await;
+    let skips = Skips::new();
+    let parts = call_with_service(
+        channel,
+        PATH,
+        head(),
+        service_with_block(total),
+        &[1],
+        TIMEOUT,
+        Duration::ZERO,
+        &skips,
+    )
+    .await
+    .unwrap();
+    assert_eq!(cost_of(&parts).cost.unwrap().n, "42");
+    assert_eq!(end_of(&seen).await, End::Clean);
+    assert_eq!(seen.lock().unwrap().block_bytes, total * MIB);
+    assert_eq!(skips.blocks(), 1);
+
+    // The same node, with the stream wrapped: the body stops, the markers do not.
+    let (channel, seen) = serve(Node::Holds).await;
+    let counter = SendCounter::new();
+    let skips = Skips::new();
+    let parts = call_with_service(
+        channel,
+        PATH,
+        head(),
+        counter.wrap(skips.wrap(service_with_block(total))),
+        &[1],
+        TIMEOUT,
+        Duration::ZERO,
+        &skips,
+    )
+    .await
+    .unwrap();
+    assert_eq!(cost_of(&parts).cost.unwrap().n, "42");
+    assert_eq!(end_of(&seen).await, End::Clean);
+    assert!(counter.ended());
+    assert_eq!(skips.blocks(), 1);
+    let got = seen.lock().unwrap().block_bytes;
+    assert!(
+        got < total * MIB / 2,
+        "the node read {got} bytes of the block"
+    );
+    assert!(
+        counter.bytes() < (total * MIB / 2) as u64,
+        "the call sent {} bytes",
+        counter.bytes()
+    );
+    // The end marker of the block went, once, so that the node can close it.
+    assert_eq!(seen.lock().unwrap().block_ends, 1);
 }

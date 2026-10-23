@@ -24,10 +24,12 @@ pub mod error;
 pub mod gateway;
 pub mod identity;
 pub mod relay;
+pub mod skips;
 pub mod transport;
 pub mod tunnel;
 
 pub use channel::{ConnectOptions, Connection};
 pub use error::{IdentityError, WireError};
+pub use skips::Skips;
 pub use transport::{Buffers, RawAnswer, SendCounter, Skipper, Transport};
 pub use tunnel::{Tunnel, TunnelOpener};

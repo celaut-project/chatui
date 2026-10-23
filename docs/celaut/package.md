@@ -92,21 +92,30 @@ it gives to the call (`SendCounter`), logs them after each send
 A node can lack the service and still hold some of its blocks, when another service has
 the same files (blocks are SHA3-256 of their content; nodo makes a block of each file of
 32 KiB or more). bee-rpc lets a receiver ask the sender to skip such a block
-(`StreamControl`, `Buffer.skip`). nodo does not do it for a service that it receives:
+(`StreamControl`, `Buffer.skip`): a Buffer with `skip` and an empty chunk, in the answer
+direction. The sender stops the body of the block and still sends its end marker.
 
-- `abstract_input_service_iterable.py` parses the request with `BeeClient.parse` and no
-  `control`, so the node never sends a skip request. It reads a block that it holds
-  from the wire and drops it (bee_rpc `save_chunks_to_block`).
-  nodo uses `StreamControl` only in `GetService`, where the node sends.
-- The client cannot skip by itself: it does not know which blocks the node holds. No
-  call tells it, and the node announces no capability for it.
-- With `block_skip` on, the client keeps the request open after its input for skip
-  requests. nodo reads the request to its end before it ends its answer, so such a call
-  waits to its time limit. The app sends these calls without `block_skip`.
-
-So the app sends every block of a service that the node lacks. A change in nodo (a
-`StreamControl` on this input, and an answer that does not wait for the end of the
-request) is needed to save these bytes.
+- A nodo before celaut-project/nodo#584 does not ask. `abstract_input_service_iterable.py`
+  parses the request with no `control`, so it reads a block that it holds from the wire and
+  drops it (bee_rpc `save_chunks_to_block`). It uses `StreamControl` only in `GetService`,
+  where the node sends.
+- A nodo with #584 parses the request with a `StreamControl` and sends the skip requests
+  while it reads the Service. This is the same for `StartService` and
+  `GetServiceEstimatedCost`.
+- The app is the sender, so it reads the requests (`celaut_wire::Skips`, in
+  `relay::call_with_service`) and the stream of the service, wrapped with `Skips::wrap`,
+  drops the body of the blocks that the node asked for. The check is made for each Buffer, so
+  a request that comes in the middle of a block stops the rest of it. The Buffers that were
+  already on the way arrive too, so a block of a few KiB is sent whole.
+- There is no capability flag: the app always wraps. A node that does not send a skip
+  request (an older nodo) gets the whole service, as before.
+- The app does not use the `block_skip` option of bee-rpc. It keeps the request open after
+  its input, for a receiver that has skip requests to send; nodo reads the request to its
+  end before it ends its answer, so such a call waits to its time limit. The app only reads
+  the answer while it sends, and its request ends when the service ends.
+- `SendCounter` counts after the wrap, so it is what left the app. The progress of the
+  transfer counts a record when the call takes it from the file, and the file is read
+  whole, so the bar reaches its end also when blocks are skipped.
 
 ### Measured
 
@@ -127,9 +136,15 @@ answered, and the node logged no error for the reset calls.
 
 For `2e0a23` the node already held 11 630 366 bytes (1.1 %): one of its 11 blocks was
 already in the block directory of the node. They were sent again, and nodo dropped them.
-That is the saving that a skip of held blocks would give for this service. The services
+That is the saving that a skip of held blocks gives for this service, on a node that runs
+nodo#584 (this measure is of a node before it). The services
 of the celaut-basics releases before echo-chat have one block for the whole filesystem,
 so they share no block with the services of the node.
+
+The skip is tested only against an in-process node that sends it
+(`celaut-wire/tests/early_answer.rs`, `a_block_that_the_node_holds_stops_when_it_asks`: a block
+of 64 MiB, and the node reads less than half of it). It is not measured on a live node: the
+one above runs nodo before #584.
 
 ## The screens
 

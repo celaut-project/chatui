@@ -197,15 +197,20 @@ impl<T: Transport> NodeSession<T> {
 
     /// `GetServiceEstimatedCost` with the service: the node stores `service`, and gives
     /// the price. After it, the node has the service, and the other calls need only its
-    /// hash.
+    /// hash. `skips` takes the blocks that the node says it holds: wrap `service` with
+    /// [`celaut_wire::Skips::wrap`] to stop them.
     pub async fn quote_with_service(
         &self,
         service_id: [u8; 32],
         configuration: Configuration,
         service: celaut_wire::Buffers,
+        skips: &celaut_wire::Skips,
     ) -> Result<EstimatedCost, ClientError> {
         let request = self.request(service_id, configuration);
-        Ok(get_service_estimated_cost_with_service(&self.transport, &request, service).await?)
+        Ok(
+            get_service_estimated_cost_with_service(&self.transport, &request, service, skips)
+                .await?,
+        )
     }
 
     /// `StartService`. The node charges the cost to the balance of this client.

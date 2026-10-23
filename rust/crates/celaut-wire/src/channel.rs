@@ -324,6 +324,7 @@ impl Transport for Connection {
         service: crate::transport::Buffers,
         accepted: &[i32],
         timeout: Duration,
+        skips: &crate::Skips,
     ) -> Result<Vec<Part>, WireError> {
         let path = format!("/celaut.Gateway/{method}");
         crate::relay::call_with_service(
@@ -334,6 +335,7 @@ impl Transport for Connection {
             accepted,
             timeout,
             crate::relay::EARLY_ANSWER_WAIT,
+            skips,
         )
         .await
     }

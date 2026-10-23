@@ -164,7 +164,12 @@ pub trait Transport: Send + Sync {
     /// cut service. A failure of `service` is the same as in
     /// [`Transport::call_buffers`]: the node gets the cancel markers.
     ///
-    /// The default sends `head` and all of `service` with [`Transport::call_buffers`].
+    /// A node can also say which blocks of `service` it holds, in its answer: a transport
+    /// that reads it puts the requests in `skips`, and `skips.wrap` on `service` then stops
+    /// those blocks (see [`crate::Skips`]).
+    ///
+    /// The default sends `head` and all of `service` with [`Transport::call_buffers`], and
+    /// reads no skip request.
     fn call_with_service(
         &self,
         method: &str,
@@ -172,8 +177,10 @@ pub trait Transport: Send + Sync {
         service: Buffers,
         accepted: &[i32],
         timeout: Duration,
+        skips: &crate::Skips,
     ) -> impl Future<Output = Result<Vec<Part>, WireError>> + Send {
         use tokio_stream::StreamExt;
+        let _ = skips;
         let head: Vec<Result<Buffer, WireError>> = head
             .iter()
             .flat_map(|p| bee_rpc::frame::serialize_part(p).collect::<Vec<_>>())

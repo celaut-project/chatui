@@ -332,23 +332,28 @@ pub async fn celaut_send_service(
     let s = session(&node).await?;
     let cancel = begin(TransferStage::Sending, Some(info.bytes))?;
     // What the node got of the service: it can answer before the end when it already
-    // has the service, and then the rest is not sent.
+    // has the service, and then the rest is not sent. It can also say which blocks it
+    // holds while it reads (`skips`), and those are not sent. The count is after that.
     let sent = celaut_wire::SendCounter::new();
+    let skips = celaut_wire::Skips::new();
     let result = s
         .quote_with_service(
             id,
             configuration,
-            sent.wrap(read(path, info.layout, cancel)),
+            sent.wrap(skips.wrap(read(path, info.layout, cancel))),
+            &skips,
         )
         .await;
     end();
     tracing::info!(
-        "service {}: sent {} bytes in {} Buffers to {}, of a package of {} bytes; {}",
+        "service {}: sent {} bytes in {} Buffers to {}, of a package of {} bytes, \
+         {} block(s) that the node holds skipped; {}",
         hex::encode(id),
         sent.bytes(),
         sent.buffers(),
         s.peer_id(),
         info.bytes,
+        skips.blocks(),
         if sent.ended() {
             "the whole service went"
         } else if result.is_ok() {

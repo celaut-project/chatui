@@ -5,9 +5,16 @@
 //! time (`nodo:src/gateway/iterables/abstract_input_service_iterable.py`). When a Hash
 //! (index 4) or the Metadata names a service that is already in its registry, it answers
 //! at once: a signal (stop sending), the answer, a signal (send again). Then it reads the
-//! rest of the request to its end and drops it. It has no `StreamControl` on this input,
-//! so it never asks the client to skip a block that it has. nodo's own client takes the
-//! first answer and drops the call (`BeeClient.call_one`).
+//! rest of the request to its end and drops it. nodo's own client takes the first answer
+//! and drops the call (`BeeClient.call_one`).
+//!
+//! A node that has some blocks of a service that it lacks can say so: it sends a skip
+//! request for each block (a Buffer with `skip`) in its answer direction, while it reads
+//! the service (nodo#584). The call reads these requests into [`Skips`]; the stream of the
+//! service, wrapped with [`Skips::wrap`], stops the body of those blocks. A node that does
+//! not send them (an older nodo has no `StreamControl` on this input) gets the whole
+//! service. The request does not wait for skip requests after its end: nothing is left
+//! to skip, so an older node that reads the request to its end does not make the call wait.
 //!
 //! This call does the same:
 //!
@@ -46,7 +53,7 @@ use tonic::codegen::http::uri::PathAndQuery;
 use tonic::Status;
 
 use crate::transport::Buffers;
-use crate::WireError;
+use crate::{Skips, WireError};
 
 /// How long the call waits after the head for the first Buffer of the node, before it
 /// sends the service. A node that has the service answers in about one round trip.
@@ -212,7 +219,9 @@ fn status_error(status: impl std::fmt::Display) -> WireError {
 /// Call `path` on `channel`: send `head`, then `service`, and give the parts of the
 /// answer with the indices `accepted`. See the module docs. `wait` is the time to wait
 /// for the first Buffer of the node after the head ([`EARLY_ANSWER_WAIT`]; zero sends the
-/// service at once). `timeout` limits the whole call.
+/// service at once). `timeout` limits the whole call. `skips` takes the skip requests of the
+/// node: wrap `service` with [`Skips::wrap`] to stop the blocks that it holds.
+#[allow(clippy::too_many_arguments)]
 pub async fn call_with_service(
     channel: tonic::transport::Channel,
     path: &str,
@@ -221,13 +230,15 @@ pub async fn call_with_service(
     accepted: &[i32],
     timeout: Duration,
     wait: Duration,
+    skips: &Skips,
 ) -> Result<Vec<Part>, WireError> {
-    let work = exchange(channel, path, head, service, accepted, timeout, wait);
+    let work = exchange(channel, path, head, service, accepted, timeout, wait, skips);
     tokio::time::timeout(timeout, work)
         .await
         .map_err(|_| WireError::Timeout)?
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn exchange(
     channel: tonic::transport::Channel,
     path: &str,
@@ -236,6 +247,7 @@ async fn exchange(
     accepted: &[i32],
     timeout: Duration,
     wait: Duration,
+    skips: &Skips,
 ) -> Result<Vec<Part>, WireError> {
     let path = PathAndQuery::from_str(path).map_err(status_error)?;
     let signal = Signal::new();
@@ -287,6 +299,9 @@ async fn exchange(
         let Some(buffer) = next.map_err(status_error)? else {
             break;
         };
+        // A skip request is read before the parser, which drops it: the send task asks
+        // `skips` for each Buffer of the service.
+        skips.observe(&buffer);
         let parsed = parser
             .push(buffer)
             .map_err(|e| WireError::Call(e.to_string()))?;

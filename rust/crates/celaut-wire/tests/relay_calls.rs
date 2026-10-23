@@ -12,7 +12,7 @@ use celaut_wire::gateway::{
     get_service_estimated_cost_with_service, get_service_raw, ServiceRequest, SERVICE_TRANSFER_TIMEOUT,
     SHA3_256_TYPE,
 };
-use celaut_wire::{Buffers, Transport, WireError};
+use celaut_wire::{Buffers, Skips, Transport, WireError};
 use prost::Message;
 use tokio_stream::StreamExt;
 
@@ -104,7 +104,7 @@ async fn a_quote_with_the_service_sends_the_request_first_then_the_service() {
     let mut service: Vec<Buffer> = serialize_part(&Part::new(5, b"metadata".to_vec())).collect();
     service.extend(serialize_part(&Part::new(6, vec![3u8; 3 * bee_rpc::CHUNK_SIZE])));
     let input: Buffers = Box::pin(tokio_stream::iter(service.into_iter().map(Ok)));
-    get_service_estimated_cost_with_service(&fake, &request, input)
+    get_service_estimated_cost_with_service(&fake, &request, input, &Skips::new())
         .await
         .unwrap();
 
@@ -144,7 +144,7 @@ async fn an_error_of_the_service_stream_is_the_error_of_the_quote() {
         configuration: Configuration::default(),
     };
     let input: Buffers = Box::pin(tokio_stream::iter(vec![Err(WireError::Relay("cut".into()))]));
-    let error = get_service_estimated_cost_with_service(&Failing, &request, input)
+    let error = get_service_estimated_cost_with_service(&Failing, &request, input, &Skips::new())
         .await
         .unwrap_err();
     assert!(matches!(error, WireError::Relay(ref t) if t == "cut"), "{error}");

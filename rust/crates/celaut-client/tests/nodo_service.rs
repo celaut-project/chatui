@@ -23,7 +23,7 @@ use celaut_proto::celaut::metadata::HashTag;
 use celaut_proto::celaut::service::Container;
 use celaut_proto::celaut::{Configuration, Metadata, Service};
 use celaut_wire::gateway::SHA3_256_TYPE;
-use celaut_wire::{Buffers, ConnectOptions, Connection, WireError};
+use celaut_wire::{Buffers, ConnectOptions, Connection, Skips, WireError};
 use prost::Message;
 
 struct Node {
@@ -151,7 +151,12 @@ async fn a_service_goes_from_the_phone_to_node_a_then_from_node_a_to_node_b() {
     let before = sa.quote(id, Configuration::default()).await.unwrap_err();
     assert_eq!(refusal_of(&before), Some(Refusal::ServiceMissing), "{before}");
     let quote = sa
-        .quote_with_service(id, Configuration::default(), stream(buffers.into_iter().map(Ok).collect()))
+        .quote_with_service(
+            id,
+            Configuration::default(),
+            stream(buffers.into_iter().map(Ok).collect()),
+            &Skips::new(),
+        )
         .await;
     println!("node A, the quote with the service: {quote:?}");
     if let Err(e) = &quote {
@@ -177,7 +182,7 @@ async fn a_service_goes_from_the_phone_to_node_a_then_from_node_a_to_node_b() {
     let mut cut: Vec<Result<Buffer, WireError>> = framed.iter().take(cut_at).cloned().map(Ok).collect();
     cut.push(Err(WireError::Relay("the file is cut".into())));
     let error = sb
-        .quote_with_service(id, Configuration::default(), stream(cut))
+        .quote_with_service(id, Configuration::default(), stream(cut), &Skips::new())
         .await
         .unwrap_err();
     assert!(
@@ -193,7 +198,12 @@ async fn a_service_goes_from_the_phone_to_node_a_then_from_node_a_to_node_b() {
 
     // The whole transfer from the file: node B has it, the same bytes.
     let quote = sb
-        .quote_with_service(id, Configuration::default(), read(from_a.clone(), info.layout, Cancel::new()))
+        .quote_with_service(
+            id,
+            Configuration::default(),
+            read(from_a.clone(), info.layout, Cancel::new()),
+            &Skips::new(),
+        )
         .await;
     println!("node B, the quote with the service: {quote:?}");
     if let Err(e) = &quote {
@@ -225,7 +235,7 @@ async fn a_first_transfer_cut_in_the_service_is_not_stored() {
     let mut items: Vec<Result<Buffer, WireError>> = buffers.into_iter().take(six + 2).map(Ok).collect();
     items.push(Err(WireError::Relay("the file is cut".into())));
     let error = s
-        .quote_with_service(id, Configuration::default(), stream(items))
+        .quote_with_service(id, Configuration::default(), stream(items), &Skips::new())
         .await
         .unwrap_err();
     assert!(

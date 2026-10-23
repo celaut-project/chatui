@@ -205,12 +205,15 @@ pub async fn get_service_skippable<T: Transport>(
 /// request and the error is [`WireError::Relay`].
 ///
 /// A node that already has the service answers after the hash, and the transport then
-/// stops sending the service ([`Transport::call_with_service`]). Wrap `service` in a
-/// [`crate::SendCounter`] to know how much of it went.
+/// stops sending the service ([`Transport::call_with_service`]). A node that has only some
+/// of its blocks can ask for them to be skipped: wrap `service` with [`crate::Skips::wrap`]
+/// to stop them. Wrap `service` in a [`crate::SendCounter`] to know how much of it went,
+/// after that wrap.
 pub async fn get_service_estimated_cost_with_service<T: Transport>(
     transport: &T,
     request: &ServiceRequest,
     service: crate::transport::Buffers,
+    skips: &crate::Skips,
 ) -> Result<EstimatedCost, WireError> {
     let answer = transport
         .call_with_service(
@@ -219,6 +222,7 @@ pub async fn get_service_estimated_cost_with_service<T: Transport>(
             service,
             &[1],
             SERVICE_TRANSFER_TIMEOUT,
+            skips,
         )
         .await?;
     find(&answer, 1, "EstimatedCost")

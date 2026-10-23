@@ -28,7 +28,7 @@ use celaut_client::package::{inspect, read, Cancel};
 use celaut_client::{MemoryPeerStore, NodeSession};
 use celaut_proto::celaut::{Configuration, EstimatedCost};
 use celaut_wire::gateway::SERVICE_TRANSFER_TIMEOUT;
-use celaut_wire::{ConnectOptions, Connection, SendCounter, Transport, WireError};
+use celaut_wire::{ConnectOptions, Connection, SendCounter, Skips, Transport, WireError};
 use prost::Message;
 
 fn env(name: &str) -> Option<String> {
@@ -103,7 +103,7 @@ async fn bytes_of_the_service_that_the_node_gets() {
                 )
             }
             "after" => session
-                .quote_with_service(id, Configuration::default(), service)
+                .quote_with_service(id, Configuration::default(), service, &Skips::new())
                 .await
                 .map_err(|e| e.to_string()),
             "after-nowait" => cost(
@@ -115,6 +115,7 @@ async fn bytes_of_the_service_that_the_node_gets() {
                     &[1],
                     SERVICE_TRANSFER_TIMEOUT,
                     Duration::ZERO,
+                    &Skips::new(),
                 )
                 .await,
             ),
