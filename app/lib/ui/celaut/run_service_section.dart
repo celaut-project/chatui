@@ -25,6 +25,7 @@ import 'deposit_screen.dart';
 import 'env_questions_screen.dart';
 import 'instance_list.dart' show instanceOfLaunch;
 import 'launch_failure_sheet.dart';
+import 'run_confirm_dialog.dart';
 import 'service_info_screen.dart';
 import 'service_transfer_dialog.dart';
 import 'skill_services_sheet.dart';
@@ -33,6 +34,7 @@ import 'skill_services_sheet.dart';
 typedef LaunchCall = Future<LaunchOutcome> Function({
   required String serviceIdHex,
   String? initialMu,
+  Duration? minSurvival,
   EnvironmentStep? environment,
 });
 
@@ -145,6 +147,10 @@ class _RunServiceSectionState extends State<RunServiceSection> {
   /// The name of the last service that the user confirmed: the launch again after a
   /// transfer has no confirmation, and keeps it.
   String? _lastName;
+
+  /// The least time that the user asked for in that confirmation; null for the default
+  /// start balance.
+  Duration? _lastSurvival;
   List<LibraryPackageView> _packages = const [];
   late final PackageLibrary _library = widget.library ?? PackageLibrary();
 
@@ -218,81 +224,26 @@ class _RunServiceSectionState extends State<RunServiceSection> {
   }
 
   /// Ask before a launch: an instance uses credit until it stops. The dialog shows the
-  /// node that the balancer would use now, with its start cost.
-  Future<bool> _confirm(String serviceId, String name) async {
-    final l = context.l10n;
-    final quote = _preview(serviceId);
-    final sure = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        final t = HomeText.of(context);
-        return AlertDialog(
-          key: const Key('run-confirm'),
-          title: Text(l.celautRunConfirmTitle(name)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(l.celautRunConfirmBody),
-              const SizedBox(height: 12),
-              FutureBuilder<QuoteView?>(
-                future: quote,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState != ConnectionState.done) {
-                    return Text(l.celautRunPreviewLoading, style: t.secondary);
-                  }
-                  final best = snapshot.hasError ? null : snapshot.data;
-                  return Text(
-                    best == null
-                        ? l.celautRunConfirmNoQuote
-                        : l.celautRunPreview(
-                            '${best.address.host}:${best.address.port}',
-                            muOrUnknown(best.costMu),
-                          ),
-                    key: const Key('run-confirm-quote'),
-                    style: t.secondary,
-                  );
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              key: const Key('run-confirm-details'),
-              onPressed: () async {
-                QuoteView? best;
-                try {
-                  best = await quote;
-                } catch (_) {
-                  // No quote: the details read the library file, or say that there is none.
-                }
-                if (!context.mounted) return;
-                _details(serviceId, node: best?.address, name: name);
-              },
-              child: Text(l.celautRunConfirmDetails),
-            ),
-            TextButton(
-              key: const Key('run-confirm-cancel'),
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(l.celautSendCancel),
-            ),
-            FilledButton(
-              key: const Key('run-confirm-ok'),
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(l.celautRunButton),
-            ),
-          ],
-        );
-      },
-    );
-    return sure == true;
-  }
+  /// node that the balancer would use now, with its start cost, and asks for the least
+  /// time that the instance must run ([showRunConfirmation]).
+  Future<RunChoice?> _confirm(String serviceId, String name) => showRunConfirmation(
+        context,
+        name: name,
+        quote: _preview(serviceId),
+        onDetails: (best) {
+          if (mounted) _details(serviceId, node: best?.address, name: name);
+        },
+      );
 
   /// Launch [serviceId]. [name] is what the confirmation calls it; with no name the user
   /// has already confirmed (the launch again after a transfer).
   Future<void> _run(String serviceId, {String? name}) async {
-    if (name != null && (!await _confirm(serviceId, name) || !mounted)) return;
-    if (name != null) _lastName = name;
+    if (name != null) {
+      final choice = await _confirm(serviceId, name);
+      if (choice == null || !mounted) return;
+      _lastName = name;
+      _lastSurvival = choice.minSurvival;
+    }
     if (!await ensureOpenFullWallet(context, widget.wallets) || !mounted) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -304,14 +255,16 @@ class _RunServiceSectionState extends State<RunServiceSection> {
     setState(() => _running = true);
     try {
       final launch = widget.launch ??
-          ({required serviceIdHex, initialMu, environment}) => launchService(
+          ({required serviceIdHex, initialMu, minSurvival, environment}) => launchService(
                 serviceIdHex: serviceIdHex,
                 initialMu: initialMu,
+                minSurvival: minSurvival,
                 environment: environment,
               );
       final outcome = await launch(
         serviceIdHex: serviceId,
         initialMu: ServiceStrings.initialDefault,
+        minSurvival: _lastSurvival,
         environment: (quotes) => _inspectBeforeRun(serviceId, quotes),
       );
       if (!mounted) return;

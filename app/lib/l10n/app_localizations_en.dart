@@ -5719,6 +5719,34 @@ class AppLocalizationsEn extends AppLocalizations {
       'No node gave a price yet. Run asks every node of the list.';
 
   @override
+  String get celautRunSurvivalLabel => 'Keep it running at least';
+
+  @override
+  String get celautRunSurvivalHint => 'Empty: the default start balance';
+
+  @override
+  String get celautRunSurvivalWrong => 'From 1 minute to 30 days.';
+
+  @override
+  String celautRunDefaultBalance(String balance) {
+    return 'Start balance $balance (the default).';
+  }
+
+  @override
+  String celautRunDefaultBalanceLasts(String balance, String time) {
+    return 'Start balance $balance (the default): about $time on this node.';
+  }
+
+  @override
+  String get celautRunSurvivalNoPrice =>
+      'This node gives no price for its time. The app uses the default start balance.';
+
+  @override
+  String celautRunSurvivalEstimate(String cost, String balance, String time) {
+    return 'Start cost about $cost, with a balance of $balance for at least $time. The node gives back what the instance does not use.';
+  }
+
+  @override
   String get celautErrorTransferFailed =>
       'The transfer of the service stopped (the file could not be read, it is cut, or it was cancelled). The node did not keep the cut service. Try again.';
 

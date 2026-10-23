@@ -415,4 +415,89 @@ void main() {
       expect(asked, isFalse);
     });
   });
+
+  group('the least time of a launch', () {
+    QuoteView priced(int port, {required String init, required int loop, double variance = 0, String cost = '1000'}) =>
+        QuoteView(
+          address: NodeAddress(host: 'node$port.example', port: port),
+          peerId: 'p$port',
+          costMu: cost,
+          initMaintenanceMu: init,
+          maxMaintenanceMu: init,
+          maintenanceSecondsLoop: loop,
+          variance: variance,
+          comparedNanoErg: '1',
+          clientBalanceMu: '',
+        );
+
+    test('the balance is the periods of the time, plus one, with the margin of the node', () {
+      // 10 minutes of 60-second periods at 1000 MU: 10 periods and the one at the end.
+      expect(survivalBalanceMu(priced(1, init: '1000', loop: 60), const Duration(minutes: 10)), BigInt.from(11000));
+      // A part of a period counts as a whole one.
+      expect(survivalBalanceMu(priced(1, init: '1000', loop: 60), const Duration(seconds: 61)), BigInt.from(3000));
+      // A variance of 0.5: 1500 MU a period.
+      expect(
+        survivalBalanceMu(priced(1, init: '1000', loop: 60, variance: 0.5), const Duration(minutes: 2)),
+        BigInt.from(4500),
+      );
+      // No price per period: no balance.
+      expect(survivalBalanceMu(priced(1, init: '', loop: 60), const Duration(minutes: 1)), isNull);
+      expect(survivalBalanceMu(priced(1, init: '5', loop: 0), const Duration(minutes: 1)), isNull);
+    });
+
+    test('the time of a balance is the inverse', () {
+      final q = priced(1, init: '1000', loop: 60);
+      expect(survivalOf(q, BigInt.from(11000)), const Duration(minutes: 10));
+      expect(survivalOf(q, BigInt.from(500)), Duration.zero);
+      expect(startCostWith(priced(1, init: '1', loop: 1, cost: '1000300'), BigInt.from(1000000), BigInt.from(5000)),
+          BigInt.from(5300));
+    });
+
+    test('the nodes are asked again with the balance for the most expensive one', () async {
+      final initials = <String?>[];
+      final outcome = await launchService(
+        serviceIdHex: _service,
+        initialMu: '1000000',
+        minSurvival: const Duration(minutes: 10),
+        nodes: const [NodeAddress(host: 'node1.example', port: 1), NodeAddress(host: 'node2.example', port: 2)],
+        health: () => const [],
+        quote: ({required nodes, required serviceIdHex, initialMu}) async {
+          initials.add(initialMu);
+          return QuotesView(
+            quotes: [
+              priced(1, init: '1000', loop: 60, cost: '${300 + int.parse(initialMu!)}'),
+              priced(2, init: '2000', loop: 60, cost: '${400 + int.parse(initialMu)}'),
+            ],
+            failures: const [],
+          );
+        },
+        start: ({required node, required serviceIdHex, initialMu, required environment}) async {
+          started.add(node.port);
+          // The start pays the quote of the second round: build plus the balance.
+          expect(initialMu, '22300');
+          return _instance('i');
+        },
+      );
+      // The first round prices the time; the second asks with 11 periods of 2000 MU.
+      expect(initials, ['1000000', '22000']);
+      expect(outcome.quote.address.port, 1);
+      expect(started, [1]);
+    });
+
+    test('without a time, the nodes are asked once, as before', () async {
+      final initials = <String?>[];
+      await launchService(
+        serviceIdHex: _service,
+        initialMu: '1000000',
+        nodes: const [NodeAddress(host: 'node1.example', port: 1)],
+        health: () => const [],
+        quote: ({required nodes, required serviceIdHex, initialMu}) async {
+          initials.add(initialMu);
+          return QuotesView(quotes: [priced(1, init: '1000', loop: 60)], failures: const []);
+        },
+        start: ({required node, required serviceIdHex, initialMu, required environment}) async => _instance('i'),
+      );
+      expect(initials, ['1000000']);
+    });
+  });
 }

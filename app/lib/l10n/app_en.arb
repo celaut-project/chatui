@@ -4335,6 +4335,43 @@
   },
   "celautRunConfirmBody": "The service runs on a node and uses your credit there until it stops. Stop it from its conversation, its info page or the list of conversations.",
   "celautRunConfirmNoQuote": "No node gave a price yet. Run asks every node of the list.",
+  "celautRunSurvivalLabel": "Keep it running at least",
+  "celautRunSurvivalHint": "Empty: the default start balance",
+  "celautRunSurvivalWrong": "From 1 minute to 30 days.",
+  "celautRunDefaultBalance": "Start balance {balance} (the default).",
+  "celautRunDefaultBalanceLasts": "Start balance {balance} (the default): about {time} on this node.",
+  "celautRunSurvivalNoPrice": "This node gives no price for its time. The app uses the default start balance.",
+  "celautRunSurvivalEstimate": "Start cost about {cost}, with a balance of {balance} for at least {time}. The node gives back what the instance does not use.",
+  "@celautRunSurvivalEstimate": {
+    "placeholders": {
+      "cost": {
+        "type": "String"
+      },
+      "balance": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@celautRunDefaultBalanceLasts": {
+    "placeholders": {
+      "balance": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@celautRunDefaultBalance": {
+    "placeholders": {
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
   "celautErrorTransferFailed": "The transfer of the service stopped (the file could not be read, it is cut, or it was cancelled). The node did not keep the cut service. Try again.",
   "celautSendMissingTitle": "The service is not on these nodes",
   "celautSendFromNode": "Send it from {from} to {to}",
