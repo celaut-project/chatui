@@ -423,7 +423,7 @@ class _InstanceRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
-            InstanceAvatar(title: title),
+            InstanceAvatar(instanceId: id),
             const SizedBox(width: 14),
             Expanded(
               child: Column(

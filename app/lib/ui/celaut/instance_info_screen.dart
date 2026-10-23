@@ -10,6 +10,7 @@ import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
 import '../home/home_style.dart';
 import 'instance_actions.dart';
+import 'robot_avatar.dart';
 import 'service_info_screen.dart';
 
 /// The page of one instance, as the info page of a chat in a messenger: the service,
@@ -170,7 +171,7 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
         children: [
           Row(
             children: [
-              InstanceAvatar(title: title, size: 56),
+              InstanceAvatar(instanceId: _instance.instanceId, size: 56),
               const SizedBox(width: 16),
               Expanded(
                 child: Text(
@@ -230,33 +231,15 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
   }
 }
 
-/// The round mark of a conversation: the first letter of the name of the service, as
-/// a messenger shows the initial of a contact without a photo.
+/// The round mark of a conversation: the robot of the instance ([RobotAvatar]), from its
+/// id, as a messenger shows a picture for a contact. Services have no picture of their
+/// own.
 class InstanceAvatar extends StatelessWidget {
-  const InstanceAvatar({super.key, required this.title, this.size = homeMarkSize + 8});
+  const InstanceAvatar({super.key, required this.instanceId, this.size = homeMarkSize + 8});
 
-  final String title;
+  final String instanceId;
   final double size;
 
   @override
-  Widget build(BuildContext context) {
-    final letter = title.trim().isEmpty ? '?' : title.trim().characters.first.toUpperCase();
-    final tones = HomeTones.of(context);
-    return ExcludeSemantics(
-      child: Container(
-        width: size,
-        height: size,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(color: tones.filled, shape: BoxShape.circle),
-        child: Text(
-          letter,
-          style: TextStyle(
-            color: tones.onFilled,
-            fontSize: size * 0.42,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => RobotAvatar(seed: instanceId, size: size);
 }

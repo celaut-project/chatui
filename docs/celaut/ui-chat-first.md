@@ -66,11 +66,17 @@ of the wallet and the pages under a tab open over the bar.
 | Network and Tor | Settings | The network route ([network.md](network.md)) | `NetworkScreen` |
 | About | Settings | The version and the update check | `AboutPage` |
 
-A row of the list has the initial of the service, its name, the cost so far, the last
+A row of the list has the robot of the instance, its name, the cost so far, the last
 message that the app saw in this run (or a note that it saw none), and "state · node". The
 name is the name of the skill or the service file at the start; the database keeps it with
 the instance (`InstanceRecord.name`). An instance of an earlier version has no name: the row
 shows the short service id.
+
+The robot (Josemi, 2026-10-23) stands for the instance as a photo stands for a contact: a
+service has no picture of its own, so every instance gets one. It comes from the instance id
+(FNV-1a of the id picks the head, the eyes, the mouth, the antenna and one of eight hues), so
+it stays the same after a restart. The app draws it with paths (`robot_avatar.dart`): no
+image file, no network, no licence of a third party.
 
 The user can rename an instance (Josemi, 2026-10-23): Rename on the long press of a row, or
 the pencil on its info page, running or stopped. The new name is local: the app keeps it in

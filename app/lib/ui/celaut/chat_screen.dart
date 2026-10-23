@@ -330,7 +330,7 @@ class _ChatScreenState extends State<ChatScreen> {
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Row(
               children: [
-                InstanceAvatar(title: title, size: 38),
+                InstanceAvatar(instanceId: _id, size: 38),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(

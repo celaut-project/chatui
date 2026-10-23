@@ -323,7 +323,7 @@ void main() {
       expect(find.byKey(const Key('run-skill-skill-echo')), findsOneWidget);
     });
 
-    testWidgets('a row has the initial, the name, the cost, the preview, the state and the node', (
+    testWidgets('a row has the robot, the name, the cost, the preview, the state and the node', (
       tester,
     ) async {
       node.db = [_instance('i1')];
@@ -331,7 +331,7 @@ void main() {
       notes.saw('i1', const [ChatMessage(seq: 1, role: 'assistant', text: 'two')]);
       await open(tester);
       expect(find.byKey(const Key('chats-row-i1')), findsOneWidget);
-      expect(find.text('E'), findsOneWidget);
+      expect(find.byKey(const Key('robot-i1')), findsOneWidget);
       expect(find.text('Echo chat'), findsOneWidget);
       expect(find.text('2,500 MU'), findsOneWidget);
       expect(find.text('two'), findsOneWidget);
