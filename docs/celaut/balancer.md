@@ -111,6 +111,13 @@ charges `init_maintenance_cost` once each `maintenance_seconds_loop`. So for a t
   quote less the default balance, plus balance(q, T). With no time, it shows the default
   balance and how long that lasts on the best node.
 - A node that gives no price per period (loop 0, or no amount) gets the default balance.
+- The time holds at the price of the quote. nodo prices each maintenance period against the
+  load of its host at that moment (a scarcity surcharge, up to the `scarcity_max_multiplier`
+  that it advertises), and it takes the tunnel connections (`TUNNEL_OPEN_MU`) and their
+  traffic (`NET_MU_PER_GIB`) from the same balance. On 2026-10-23, on our node with the
+  emulator and a build on the same host, an instance funded for 10 minutes ran out after
+  about 7. The confirmation says so; the automatic top-up ([ui.md](ui.md), section 4b) is the
+  answer for a long conversation.
 
 The app keeps the last time that the user typed (`celaut_min_survival_minutes_v1`). It must
 be from 1 minute to 30 days.

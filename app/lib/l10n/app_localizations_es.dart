@@ -5824,7 +5824,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String celautRunSurvivalEstimate(String cost, String balance, String time) {
-    return 'Coste de inicio de unos $cost, con un saldo de $balance para al menos $time. El nodo devuelve lo que la instancia no usa.';
+    return 'Coste de inicio de unos $cost, con un saldo de $balance para al menos $time al precio actual del nodo. Un nodo ocupado y el tráfico de la conversación cuestan más. El nodo devuelve lo que la instancia no usa.';
   }
 
   @override

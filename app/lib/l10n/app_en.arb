@@ -4349,7 +4349,7 @@
   "celautRunDefaultBalance": "Start balance {balance} (the default).",
   "celautRunDefaultBalanceLasts": "Start balance {balance} (the default): about {time} on this node.",
   "celautRunSurvivalNoPrice": "This node gives no price for its time. The app uses the default start balance.",
-  "celautRunSurvivalEstimate": "Start cost about {cost}, with a balance of {balance} for at least {time}. The node gives back what the instance does not use.",
+  "celautRunSurvivalEstimate": "Start cost about {cost}, with a balance of {balance} for at least {time} at the price of the node now. A busy node, and the traffic of the conversation, cost more. The node gives back what the instance does not use.",
   "celautTopUpTitle": "Automatic top-up",
   "celautTopUpRowOn": "On: the app moves your credit on a node to an instance that runs low",
   "celautTopUpRowOff": "Off",

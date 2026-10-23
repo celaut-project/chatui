@@ -9068,7 +9068,7 @@ abstract class AppLocalizations {
   /// No description provided for @celautRunSurvivalEstimate.
   ///
   /// In en, this message translates to:
-  /// **'Start cost about {cost}, with a balance of {balance} for at least {time}. The node gives back what the instance does not use.'**
+  /// **'Start cost about {cost}, with a balance of {balance} for at least {time} at the price of the node now. A busy node, and the traffic of the conversation, cost more. The node gives back what the instance does not use.'**
   String celautRunSurvivalEstimate(String cost, String balance, String time);
 
   /// No description provided for @celautTopUpTitle.
