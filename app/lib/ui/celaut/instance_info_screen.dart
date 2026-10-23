@@ -28,7 +28,15 @@ class InstanceInfoScreen extends StatefulWidget {
     this.forget,
     this.notes,
     this.loadInfo = readServiceInfo,
+    this.rename,
+    this.onRenamed,
   });
+
+  /// Keep a new name of the instance. Tests give their own.
+  final void Function(String instanceId, String alias)? rename;
+
+  /// The user gave the instance a new name here.
+  final ValueChanged<InstanceListView>? onRenamed;
 
   /// Read what the service says about itself. Tests give their own.
   final ServiceInfoLoader loadInfo;
@@ -58,12 +66,20 @@ class InstanceInfoScreen extends StatefulWidget {
 
 class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
   bool _stopping = false;
+  late InstanceListView _instance = widget.instance;
+
+  Future<void> _rename() async {
+    final renamed = await renameInstance(context, _instance, rename: widget.rename);
+    if (renamed == null || !mounted) return;
+    setState(() => _instance = renamed);
+    widget.onRenamed?.call(renamed);
+  }
 
   Future<void> _stop() async {
     setState(() => _stopping = true);
     final done = await confirmAndStopInstance(
       context,
-      widget.instance,
+      _instance,
       wallets: widget.wallets,
       stop: widget.stop,
       notes: widget.notes,
@@ -77,7 +93,7 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
   /// The details of the service: from the library file, or from the node of the instance,
   /// which has the service.
   void _details() {
-    final i = widget.instance;
+    final i = _instance;
     final parsed = parseHostPort(i.address).value;
     Navigator.of(context).push<void>(
       MaterialPageRoute(
@@ -94,7 +110,7 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
   Future<void> _delete() async {
     final deleted = await confirmAndDeleteInstance(
       context,
-      widget.instance,
+      _instance,
       forget: widget.forget,
       notes: widget.notes,
     );
@@ -106,7 +122,7 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
   Widget build(BuildContext context) {
     final l = context.l10n;
     final t = HomeText.of(context);
-    final i = widget.instance;
+    final i = _instance;
     final title = instanceTitle(i);
     final slot = i.chatSlots.isNotEmpty ? i.chatSlots.first : null;
     final started = formatTxTime(i.startedAt.toInt() * 1000);
@@ -130,6 +146,12 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
       appBar: AppBar(
         title: Text(l.chatsInfoTitle),
         actions: [
+          IconButton(
+            key: const Key('info-rename'),
+            tooltip: l.chatsRename,
+            onPressed: _rename,
+            icon: const Icon(Icons.edit_outlined),
+          ),
           IconButton(
             key: const Key('info-service-details'),
             tooltip: l.chatsInfoServiceDetails,

@@ -517,6 +517,7 @@ pub async fn celaut_start_service(
             _ => None,
         },
         name: None,
+        alias: None,
         stopped_at: None,
         refund_mu: None,
     };
@@ -590,6 +591,8 @@ pub struct InstanceListView {
     pub start_charge_mu: String,
     /// The name of the skill or the service file at the start (empty if unknown).
     pub name: String,
+    /// The name that the user gave the instance in the app (empty if none). Local only.
+    pub alias: String,
     /// The time of the stop, in Unix seconds; none while the instance runs.
     pub stopped_at: Option<i64>,
     /// What the node gave back at the stop, in MU (empty if unknown or not stopped).
@@ -613,6 +616,7 @@ pub fn celaut_instances() -> Vec<InstanceListView> {
                 started_at: r.started_at,
                 start_charge_mu: r.start_charge_mu.clone().unwrap_or_default(),
                 name: r.name.clone().unwrap_or_default(),
+                alias: r.alias.clone().unwrap_or_default(),
                 stopped_at: r.stopped_at,
                 refund_mu: r.refund_mu.clone().unwrap_or_default(),
             })
@@ -629,6 +633,34 @@ pub fn celaut_name_instance(instance_id: String, name: String) -> Result<(), Cel
         .update(|d| match d.instances.get_mut(&instance_id) {
             Some(r) => {
                 r.name = (!name.is_empty()).then_some(name);
+                true
+            }
+            None => false,
+        })
+        .map_err(storage_error)?;
+    if known {
+        Ok(())
+    } else {
+        Err(unknown_instance())
+    }
+}
+
+/// The longest name that the user can give an instance, in characters.
+pub(crate) const ALIAS_MAX_CHARS: usize = 60;
+
+/// Give an instance a name of the user's choice, for this app only (Josemi, 2026-10-23).
+/// The name stays in the Celaut database of the app and never goes to the node. An empty
+/// name removes it: the list shows the name of the skill or the service file again.
+#[flutter_rust_bridge::frb(sync)]
+pub fn celaut_rename_instance(instance_id: String, alias: String) -> Result<(), CelautError> {
+    let alias = alias.split_whitespace().collect::<Vec<_>>().join(" ");
+    if alias.chars().count() > ALIAS_MAX_CHARS {
+        return Err(invalid("The name is too long."));
+    }
+    let known = db()
+        .update(|d| match d.instances.get_mut(&instance_id) {
+            Some(r) => {
+                r.alias = (!alias.is_empty()).then_some(alias);
                 true
             }
             None => false,
@@ -842,6 +874,47 @@ mod tests {
         assert_eq!(name_of(&id).as_deref(), Some(""));
         let err = celaut_name_instance("nope".into(), "x".into()).unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);
+        drop(db().update(|d| d.instances.remove(&id)));
+    }
+
+    #[test]
+    fn a_rename_is_local_and_kept_with_the_name_of_the_start() {
+        let id = "rename-test-instance".to_string();
+        db().update(|d| {
+            d.instances.insert(
+                id.clone(),
+                InstanceRecord {
+                    peer_id: "ab".repeat(32),
+                    token: "token".into(),
+                    name: Some("echo-chat".into()),
+                    ..Default::default()
+                },
+            );
+        })
+        .unwrap();
+        let view = |id: &str| {
+            celaut_instances()
+                .into_iter()
+                .find(|i| i.instance_id == id)
+                .unwrap()
+        };
+        celaut_rename_instance(id.clone(), "  My   echo ".into()).unwrap();
+        let v = view(&id);
+        assert_eq!((v.name.as_str(), v.alias.as_str()), ("echo-chat", "My echo"));
+        // Empty: the alias goes, the name of the start stays.
+        celaut_rename_instance(id.clone(), " ".into()).unwrap();
+        let v = view(&id);
+        assert_eq!((v.name.as_str(), v.alias.as_str()), ("echo-chat", ""));
+        let long = "x".repeat(ALIAS_MAX_CHARS + 1);
+        let err = celaut_rename_instance(id.clone(), long).unwrap_err();
+        assert_eq!(err.kind, CelautErrorKind::InvalidInput);
+        let err = celaut_rename_instance("nope".into(), "x".into()).unwrap_err();
+        assert_eq!(err.kind, CelautErrorKind::InvalidInput);
+        // A stopped instance can be renamed too.
+        db().update(|d| d.instances.get_mut(&id).unwrap().stopped_at = Some(1))
+            .unwrap();
+        celaut_rename_instance(id.clone(), "Old echo".into()).unwrap();
+        assert_eq!(view(&id).alias, "Old echo");
         drop(db().update(|d| d.instances.remove(&id)));
     }
 

@@ -42,6 +42,7 @@ InstanceListView instanceOfLaunch(LaunchOutcome outcome, String serviceId, Strin
     startedAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
     startChargeMu: '',
     name: name ?? '',
+    alias: '',
     refundMu: '',
   );
 }
@@ -70,6 +71,7 @@ class InstanceList extends StatefulWidget {
     this.loadStatus,
     this.stop,
     this.forget,
+    this.rename,
     this.openTunnel,
     this.chatPage,
     this.bottomPadding = 0,
@@ -95,6 +97,9 @@ class InstanceList extends StatefulWidget {
 
   /// Delete a stopped instance from the database. Tests give their own.
   final void Function(String instanceId)? forget;
+
+  /// Keep a name that the user gave an instance. Tests give their own.
+  final void Function(String instanceId, String alias)? rename;
 
   /// A local port for the chat slot. Tests give their own.
   final Future<int> Function(String instanceId, int slot)? openTunnel;
@@ -241,7 +246,7 @@ class InstanceListState extends State<InstanceList> {
   }
 
   Future<void> _openInfo(InstanceListView i, InstanceState state) async {
-    final stopped = await Navigator.of(context).push<bool>(
+    await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => InstanceInfoScreen(
           instance: i,
@@ -251,11 +256,13 @@ class InstanceListState extends State<InstanceList> {
           wallets: widget.wallets,
           stop: widget.stop,
           forget: widget.forget,
+          rename: widget.rename,
           notes: _notes,
         ),
       ),
     );
-    if (stopped == true && mounted) await refresh();
+    // The instance may have stopped, or have a new name.
+    if (mounted) await refresh();
   }
 
   Future<void> _tap(InstanceListView i, InstanceState state) async {
@@ -282,6 +289,12 @@ class InstanceListState extends State<InstanceList> {
               title: Text(l.chatsActionInfo),
               onTap: () => Navigator.pop(context, 'info'),
             ),
+            ListTile(
+              key: const Key('chats-action-rename'),
+              leading: const Icon(Icons.edit_outlined),
+              title: Text(l.chatsRename),
+              onTap: () => Navigator.pop(context, 'rename'),
+            ),
             if (state != InstanceState.stopped)
               ListTile(
                 key: const Key('chats-action-stop'),
@@ -304,6 +317,9 @@ class InstanceListState extends State<InstanceList> {
     switch (action) {
       case 'info':
         await _openInfo(i, state);
+      case 'rename':
+        final renamed = await renameInstance(context, i, rename: widget.rename);
+        if (renamed != null && mounted) await refresh();
       case 'stop':
         final done = await confirmAndStopInstance(
           context,

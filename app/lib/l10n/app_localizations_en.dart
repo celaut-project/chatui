@@ -5442,6 +5442,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatsDelete => 'Delete';
 
   @override
+  String get chatsRename => 'Rename';
+
+  @override
+  String get chatsRenameTitle => 'Rename';
+
+  @override
+  String get chatsRenameNote =>
+      'Only this phone sees this name. The node does not get it. Leave it empty to remove it.';
+
+  @override
+  String chatsRenameNoteOriginal(String name) {
+    return 'Only this phone sees this name. The node does not get it. Leave it empty to show \"$name\" again.';
+  }
+
+  @override
   String chatsStopTitle(String name) {
     return 'Stop $name?';
   }

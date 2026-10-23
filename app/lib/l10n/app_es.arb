@@ -1464,6 +1464,10 @@
   },
   "chatsActionInfo": "Información",
   "chatsDelete": "Eliminar",
+  "chatsRename": "Cambiar nombre",
+  "chatsRenameTitle": "Cambiar nombre",
+  "chatsRenameNote": "Solo este teléfono ve este nombre. El nodo no lo recibe. Déjalo vacío para quitarlo.",
+  "chatsRenameNoteOriginal": "Solo este teléfono ve este nombre. El nodo no lo recibe. Déjalo vacío para volver a mostrar «{name}».",
   "chatsStopTitle": "¿Detener {name}?",
   "@chatsStopTitle": {
     "placeholders": {

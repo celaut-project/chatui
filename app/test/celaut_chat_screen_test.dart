@@ -135,6 +135,7 @@ final _echo = InstanceListView(
   startChargeMu: '1000',
   refundMu: '',
   name: 'Echo chat',
+  alias: '',
 );
 
 void main() {
