@@ -13,9 +13,10 @@ import 'home_style.dart';
 import 'home_widgets.dart';
 import '../../l10n/l10n.dart';
 
-/// One wallet on the overview: name and balance, then a line of facts and
-/// the balance's value. What it keeps on other addresses and what is
-/// pending follow as quiet footnotes when there is any.
+/// The wallet on the overview: the way into its page (activity, tokens, tools and
+/// settings), with its balance, then a line of facts and the balance's value. What it
+/// keeps on other addresses and what is pending follow as quiet footnotes when there is
+/// any. The app holds one wallet, so the row has no name.
 class OverviewWalletRow extends StatelessWidget {
   const OverviewWalletRow({
     super.key,
@@ -114,7 +115,7 @@ class OverviewWalletRow extends StatelessWidget {
       semanticActions: semanticActions,
       hint: context.l10n.homeOpensWallet,
       semanticLabel: spoken([
-        w.name,
+        context.l10n.overviewWalletRowTitle,
         if (w.unlocked) context.l10n.homeSpokenUnlocked,
         if (nano != null) hidden ? context.l10n.homeSpokenBalanceHidden : '$amount ERG',
         if (fiat != null && !hidden) context.l10n.homeSpokenAbout(fiatFigure(fiatValue!, currency, approximate: false), currency.code),
@@ -123,10 +124,10 @@ class OverviewWalletRow extends StatelessWidget {
         if (pending != null) hidden ? context.l10n.homeSpokenSomethingPending : pending,
         if (other != null) context.l10n.homeSpokenIncl(other),
       ].join(', ')),
-      leading: WalletMark(name: w.name),
-      // Each wallet's name in the serif, as its own page's title is.
+      leading: const WalletMark(),
+      // In the serif, as the title of the wallet's own page is.
       title: Text(
-        w.name,
+        context.l10n.overviewWalletRowTitle,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: t.primary.copyWith(fontFamily: headingFont, fontSize: 16.5, fontWeight: FontWeight.w500, height: 1.25),

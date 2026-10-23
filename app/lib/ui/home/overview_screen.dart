@@ -267,9 +267,8 @@ class OverviewView extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                HomeSectionHeader(title: context.l10n.overviewWallets),
                 const SizedBox(height: 6),
-                for (final w in data.wallets) _card(w),
+                _card(data.wallets.first),
               ],
             ),
           ),

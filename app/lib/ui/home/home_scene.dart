@@ -484,9 +484,8 @@ class _Range {
 /// glow, set beside its balance. Decorative: the page's title names the
 /// wallet.
 class WalletMedallion extends StatelessWidget {
-  const WalletMedallion({super.key, required this.letter, this.size = 132});
+  const WalletMedallion({super.key, this.size = 132});
 
-  final String letter;
   final double size;
 
   @override
@@ -501,11 +500,7 @@ class WalletMedallion extends StatelessWidget {
         child: CustomPaint(
           painter: _MedallionPainter(spec: spec, page: page),
           child: Center(
-            child: Text(
-              letter,
-              textScaler: TextScaler.noScaling,
-              style: TextStyle(fontFamily: headingFont, fontSize: size * 0.26, fontWeight: FontWeight.w500, height: 1, color: ink),
-            ),
+            child: Icon(Icons.account_balance_wallet_outlined, size: size * 0.3, color: ink),
           ),
         ),
       ),

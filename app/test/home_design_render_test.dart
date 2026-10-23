@@ -164,11 +164,10 @@ void main() {
       if (scale == 1) {
         // At 2x the list builds rows only as they near the screen.
         expect(
-          find.bySemanticsLabel(RegExp(r'^Main Wallet, unlocked, 107\.71 ERG, about A\$50\.43 AUD, 50 tokens, '
+          find.bySemanticsLabel(RegExp(r'^Wallet details, unlocked, 107\.71 ERG, about A\$50\.43 AUD, 50 tokens, '
               r'\+2\.5 ERG pending · 105\.21 confirmed, incl\. 3\.2 ERG · 4 tokens on another address$')),
           findsOneWidget,
         );
-        expect(find.bySemanticsLabel(RegExp(r'^9evoke9, 0 ERG, empty$')), findsOneWidget);
       }
     });
 
@@ -438,7 +437,7 @@ void main() {
     );
     expect(tester.takeException(), isNull);
     expect(find.bySemanticsLabel('Total balance loading'), findsOneWidget);
-    expect(find.bySemanticsLabel(RegExp(r'^Fresh restore, loading…')), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp(r'^Wallet details, loading…')), findsOneWidget);
     expect(find.bySemanticsLabel('Syncing…, Block 1,888,681'), findsOneWidget);
     expect(find.bySemanticsLabel('ERG price unavailable, SigmaUSD oracle'), findsOneWidget);
   });

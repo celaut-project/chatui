@@ -199,7 +199,7 @@ class WalletPageView extends StatelessWidget {
   static const activityLimit = 3;
 
   Future<void> _more(BuildContext context) async {
-    final tool = await showWalletToolsSheet(context, tools: data.tools, walletName: data.wallet.name);
+    final tool = await showWalletToolsSheet(context, tools: data.tools);
     if (tool != null) onTool?.call(tool);
   }
 
@@ -256,7 +256,6 @@ class WalletPageView extends StatelessWidget {
     final other = wallet.otherAddresses;
     final address = wallet.address;
     final t = HomeText.of(context);
-    final name = wallet.name.trim();
     const medallion = WalletPageScreen.medallionSize;
     return Padding(
       padding: const EdgeInsets.fromLTRB(homeGutter, 18, homeGutter, 14),
@@ -287,10 +286,7 @@ class WalletPageView extends StatelessWidget {
               PositionedDirectional(
                 top: -18,
                 end: -(homeGutter - WalletPageScreen.medallionInset),
-                child: WalletMedallion(
-                  letter: name.isEmpty ? '?' : String.fromCharCode(name.runes.first).toUpperCase(),
-                  size: medallion,
-                ),
+                child: const WalletMedallion(size: medallion),
               ),
             ],
           ),

@@ -213,7 +213,6 @@ Widget _locked() => WalletPageScreen(
       title: 'Main Wallet',
       onBack: _noop,
       body: UnlockGate(
-        name: 'Main Wallet',
         method: UnlockMethod.biometric,
         pinController: TextEditingController(),
         busy: false,

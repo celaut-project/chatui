@@ -182,24 +182,4 @@ void main() {
     await disposeHome(tester);
   });
 
-  testWidgets('switching keeps the open wallet until the next one is unlocked', (tester) async {
-    final keystore = await launch(tester, biometricResult: 'wrap-key');
-    await openDaily(tester);
-    expect(walletService.activeWalletId, 'unlock-w1');
-    await tester.tap(find.byTooltip('Back'));
-    await tester.pumpAndSettle();
-    keystore.biometricResult = null;
-    await tester.tap(find.byKey(const ValueKey('overview-row-seed-unlock-w2')));
-    await tester.pumpAndSettle();
-    expect(keystore.prompts, 2);
-    expect(find.byType(UnlockGate), findsOneWidget);
-    // Cancelled: the first wallet is still the unlocked one.
-    expect(walletService.activeWalletId, 'unlock-w1');
-    keystore.biometricResult = 'wrap-key';
-    await tester.tap(find.byKey(const Key('gate-unlock')));
-    await tester.pumpAndSettle();
-    expect(walletService.activeWalletId, 'unlock-w2');
-    expect(find.byType(UnlockGate), findsNothing);
-    await disposeHome(tester);
-  });
 }

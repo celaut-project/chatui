@@ -48,9 +48,10 @@ void main() {
     );
     await pump(tester, const SettingsScreen(walletId: 'hub-wallet'));
     expect(find.text('THIS WALLET'), findsOneWidget);
-    expect(find.text('Name, addresses and backup'), findsOneWidget);
+    expect(find.text('Addresses and backup'), findsOneWidget);
     expect(find.text('Security'), findsOneWidget);
-    expect(find.text('Savings'), findsWidgets);
+    // The one wallet has no name.
+    expect(find.text('Savings'), findsNothing);
     // One wallet: no way to all wallets, no count of wallets.
     expect(find.text('All wallets'), findsNothing);
     expect(find.textContaining('on this device'), findsNothing);

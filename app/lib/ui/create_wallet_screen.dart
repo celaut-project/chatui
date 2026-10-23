@@ -22,7 +22,6 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
   final _confirmCtrl = TextEditingController();
   final _pinCtrl = TextEditingController();
   final _pinConfirmCtrl = TextEditingController();
-  final _nameCtrl = TextEditingController();
   bool _busy = false;
   bool _revealed = false;
   int _step = 0;
@@ -42,7 +41,6 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
     _confirmCtrl.dispose();
     _pinCtrl.dispose();
     _pinConfirmCtrl.dispose();
-    _nameCtrl.dispose();
     super.dispose();
   }
 
@@ -109,7 +107,8 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
         phrase: phrase,
         passphrase: '',
         pin: _pinCtrl.text,
-        name: _nameCtrl.text,
+        // One wallet: the app shows no name, and the core keeps its default.
+        name: '',
       );
       if (!mounted) return null;
       await offerBiometricUnlock(context, walletId: walletId, pin: _pinCtrl.text);
@@ -276,15 +275,6 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
         Text(context.l10n.createPinBody),
         const SizedBox(height: 20),
         PinFields(pin: _pinCtrl, confirm: _pinConfirmCtrl),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _nameCtrl,
-          textCapitalization: TextCapitalization.words,
-          decoration: InputDecoration(
-            labelText: context.l10n.createWalletNameLabel,
-            hintText: context.l10n.createWalletNameHint,
-          ),
-        ),
         const SizedBox(height: 20),
         FilledButton(
           onPressed: _busy ? null : _finish,

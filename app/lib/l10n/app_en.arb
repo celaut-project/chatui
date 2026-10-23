@@ -296,8 +296,8 @@
   "settingsAboutRowTitle": "About Chatui",
   "settingsAboutRowSubtitle": "Version, release notes, licenses",
   "settingsSeedWalletScope": "Seed wallet",
-  "settingsWalletRowTitle": "Name, addresses and backup",
-  "settingsWalletRowSubtitle": "Rename, primary address, change policy, remove",
+  "settingsWalletRowTitle": "Addresses and backup",
+  "settingsWalletRowSubtitle": "Primary address, change policy, remove",
   "settingsSecurityWalletSubtitle": "PIN, biometric unlock, auto-lock",
   "settingsAppGroup": "App",
   "settingsSecurityAppSubtitle": "Auto-lock, screenshots, unconfirmed funds",
@@ -678,15 +678,7 @@
   "updateDownloadFailed": "The download failed.",
   "updateInstallPermission": "Android needs your permission first. Allow Chatui to install apps on the next screen, then tap Install again.",
   "updateInstallerFailed": "Android could not open its installer. The releases page has the file.",
-  "walletSettingsRenameFailed": "Could not rename wallet",
-  "walletSettingsRemoveTitle": "Remove {name}?",
-  "@walletSettingsRemoveTitle": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
+  "walletSettingsRemoveTitle": "Remove the wallet?",
   "walletSettingsRemoveBody": "This removes the wallet from this device. Chatui does not keep a copy of the recovery phrase; the paper you wrote when creating this wallet is the only way back in. After that, you can create or restore another wallet.",
   "walletSettingsRemoveFailed": "Could not remove wallet",
   "walletSettingsPinIndexTitle": "Pin address index",
@@ -1918,7 +1910,7 @@
   "overviewNotLoadedYet": "Not loaded yet",
   "overviewTagline": "Decentralized compute",
   "overviewTotalBalance": "Total balance",
-  "overviewWallets": "Wallet",
+  "overviewWalletRowTitle": "Wallet details",
   "overviewPrototypeTitle": "Prototype software",
   "overviewPrototypeBody": "Chatui is an unaudited prototype. Transactions on Ergo are irreversible — use only funds you can afford to lose.",
   "overviewGotIt": "Got it",
@@ -2264,8 +2256,6 @@
   "createSkipCheck": "Skip this check",
   "createSetPin": "Set a PIN",
   "createPinBody": "The PIN unwraps the key on this device. It is not a backup.",
-  "createWalletNameLabel": "Wallet name (optional)",
-  "createWalletNameHint": "e.g. Savings, Trading",
   "createReplaceTitle": "Replace existing wallet?",
   "createReplaceBody": "A wallet is already stored on this device. Replacing it overwrites the encrypted seed. The recovery phrase is the only way to recover the old wallet.",
   "createReplace": "Replace",
@@ -2415,8 +2405,6 @@
   "dialogEnable": "Enable",
   "dialogBiometricEnabled": "Biometric unlock enabled",
   "dialogBiometricFailed": "Could not enable biometrics; try again under Settings › Security",
-  "dialogRenameTitle": "Rename wallet",
-  "dialogRename": "Rename",
   "entryCurrentPin": "Current PIN",
   "entryContinue": "Continue",
   "labelDialogTitle": "Address label",

@@ -198,7 +198,8 @@ OverviewEntry _activeEntry(WalletInfo w, ActiveWalletFigures active) {
   final identity = w.displayAddress;
   return OverviewEntry(
     ref: WalletRef.seed(w.walletId),
-    name: w.name,
+    // The app holds one wallet and shows no name for it.
+    name: appL10n.commonWallet,
     state: OverviewRowState.unlocked,
     address: identity,
     balanceNano: active.totalNano,
@@ -230,7 +231,8 @@ OverviewEntry _lockedEntry(
   final identity = w.displayAddress;
   return OverviewEntry(
     ref: WalletRef.seed(w.walletId),
-    name: w.name,
+    // The app holds one wallet and shows no name for it.
+    name: appL10n.commonWallet,
     state: unlocked ? OverviewRowState.unlocked : OverviewRowState.locked,
     address: identity,
     balanceNano: known?.balanceNano,

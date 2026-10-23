@@ -821,13 +821,13 @@ abstract class AppLocalizations {
   /// No description provided for @settingsWalletRowTitle.
   ///
   /// In en, this message translates to:
-  /// **'Name, addresses and backup'**
+  /// **'Addresses and backup'**
   String get settingsWalletRowTitle;
 
   /// No description provided for @settingsWalletRowSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Rename, primary address, change policy, remove'**
+  /// **'Primary address, change policy, remove'**
   String get settingsWalletRowSubtitle;
 
   /// No description provided for @settingsSecurityWalletSubtitle.
@@ -2010,17 +2010,11 @@ abstract class AppLocalizations {
   /// **'Android could not open its installer. The releases page has the file.'**
   String get updateInstallerFailed;
 
-  /// No description provided for @walletSettingsRenameFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Could not rename wallet'**
-  String get walletSettingsRenameFailed;
-
   /// No description provided for @walletSettingsRemoveTitle.
   ///
   /// In en, this message translates to:
-  /// **'Remove {name}?'**
-  String walletSettingsRemoveTitle(String name);
+  /// **'Remove the wallet?'**
+  String get walletSettingsRemoveTitle;
 
   /// No description provided for @walletSettingsRemoveBody.
   ///
@@ -4182,11 +4176,11 @@ abstract class AppLocalizations {
   /// **'Total balance'**
   String get overviewTotalBalance;
 
-  /// No description provided for @overviewWallets.
+  /// No description provided for @overviewWalletRowTitle.
   ///
   /// In en, this message translates to:
-  /// **'Wallet'**
-  String get overviewWallets;
+  /// **'Wallet details'**
+  String get overviewWalletRowTitle;
 
   /// No description provided for @overviewPrototypeTitle.
   ///
@@ -5094,18 +5088,6 @@ abstract class AppLocalizations {
   /// **'The PIN unwraps the key on this device. It is not a backup.'**
   String get createPinBody;
 
-  /// No description provided for @createWalletNameLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Wallet name (optional)'**
-  String get createWalletNameLabel;
-
-  /// No description provided for @createWalletNameHint.
-  ///
-  /// In en, this message translates to:
-  /// **'e.g. Savings, Trading'**
-  String get createWalletNameHint;
-
   /// No description provided for @createReplaceTitle.
   ///
   /// In en, this message translates to:
@@ -5555,18 +5537,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not enable biometrics; try again under Settings › Security'**
   String get dialogBiometricFailed;
-
-  /// No description provided for @dialogRenameTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Rename wallet'**
-  String get dialogRenameTitle;
-
-  /// No description provided for @dialogRename.
-  ///
-  /// In en, this message translates to:
-  /// **'Rename'**
-  String get dialogRename;
 
   /// No description provided for @entryCurrentPin.
   ///

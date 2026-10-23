@@ -210,7 +210,7 @@ void main() {
     await unlocked(tester);
     await tester.pumpWidget(
       const MaterialApp(
-        home: WalletSettingsPage(walletId: dialogWallet, walletName: 'Daily'),
+        home: WalletSettingsPage(walletId: dialogWallet),
       ),
     );
     await tester.pumpAndSettle();
@@ -229,6 +229,16 @@ void main() {
     expect(await walletService.getPinnedAddressIndex(walletId: dialogWallet), 3);
     expect(find.text('Primary address: index #3'), findsOneWidget);
     expect(find.text('Pinned index 3 · addr3'), findsOneWidget);
+  });
+
+  testWidgets('the settings of the wallet have no name and no Rename', (tester) async {
+    tallView(tester);
+    await unlocked(tester);
+    await tester.pumpWidget(const MaterialApp(home: WalletSettingsPage(walletId: dialogWallet)));
+    await tester.pumpAndSettle();
+    expect(find.text('Wallet'), findsOneWidget);
+    expect(find.text('Name'), findsNothing);
+    expect(find.byIcon(Icons.edit_outlined), findsNothing);
   });
 
   testWidgets('Add contact and Edit contact: Cancel, then save each', (

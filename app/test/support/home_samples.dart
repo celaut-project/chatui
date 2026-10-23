@@ -57,17 +57,9 @@ final mainWallet = WalletSummary(
   address: mainAddress,
 );
 
-const emptyWallet = WalletSummary(
-  ref: WalletRef.seed('9evoke9'),
-  name: '9evoke9',
-  nanoErg: 0,
-  fiatValue: 0,
-  tokenCount: 0,
-);
-
 OverviewData sampleOverview({bool hidden = false, List<WalletSummary>? wallets}) =>
     OverviewData(
-      wallets: wallets ?? [emptyWallet, mainWallet],
+      wallets: wallets ?? [mainWallet],
       currency: aud,
       network: connected,
       totalNano: _nano(25529.3427),
