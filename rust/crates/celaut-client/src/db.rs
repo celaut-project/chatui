@@ -170,6 +170,10 @@ pub struct InstanceRecord {
     /// node never gets it. The list shows it before [`InstanceRecord::name`].
     #[serde(default)]
     pub alias: Option<String>,
+    /// What the app moved from the credit of the client to the instance after the start,
+    /// in MU (the automatic top-up, `ModifyDeposit`). The cost so far counts it.
+    #[serde(default)]
+    pub topped_up_mu: Option<String>,
     /// The time of the stop, in Unix seconds. A stopped instance stays in the database
     /// until the user deletes it (`docs/celaut/ui-chat-first.md`). An old record has
     /// none: it runs.
@@ -681,6 +685,7 @@ mod tests {
                 start_charge_mu: Some("100".into()),
                 name: Some("Echo".into()),
                 alias: Some("My echo".into()),
+                topped_up_mu: Some("50".into()),
                 stopped_at: None,
                 refund_mu: None,
             },

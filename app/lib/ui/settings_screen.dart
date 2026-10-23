@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../celaut/auto_top_up.dart';
 import '../celaut/celaut_strings.dart';
 import '../celaut/compute_home_flag.dart';
 import '../celaut/deposit_strings.dart';
@@ -11,6 +12,7 @@ import '../services/network_controller.dart';
 import '../services/wallet_service.dart';
 import '../theme/argus_theme.dart';
 import '../theme/theme_controller.dart';
+import 'celaut/auto_top_up_screen.dart';
 import 'celaut/network_screen.dart';
 import 'celaut/node_connect_screen.dart';
 import 'celaut/deposit_screen.dart';
@@ -183,6 +185,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: DepositStrings.rowTitle,
           subtitle: DepositStrings.rowSubtitle,
           onTap: () => _open(const DepositScreen()),
+        ),
+        ListenableBuilder(
+          listenable: autoTopUp,
+          builder: (context, _) => SettingsRow(
+            key: const Key('settings-top-up'),
+            icon: Icons.autorenew,
+            title: t.celautTopUpTitle,
+            subtitle: autoTopUp.on ? t.celautTopUpRowOn : t.celautTopUpRowOff,
+            onTap: () => _open(const AutoTopUpScreen()),
+          ),
         ),
         SettingsRow(
           key: const Key('settings-tor'),

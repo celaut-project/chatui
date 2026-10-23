@@ -4350,6 +4350,37 @@
   "celautRunDefaultBalanceLasts": "Start balance {balance} (the default): about {time} on this node.",
   "celautRunSurvivalNoPrice": "This node gives no price for its time. The app uses the default start balance.",
   "celautRunSurvivalEstimate": "Start cost about {cost}, with a balance of {balance} for at least {time}. The node gives back what the instance does not use.",
+  "celautTopUpTitle": "Automatic top-up",
+  "celautTopUpRowOn": "On: the app moves your credit on a node to an instance that runs low",
+  "celautTopUpRowOff": "Off",
+  "celautTopUpSwitch": "Top up instances that run low",
+  "celautTopUpThreshold": "When an instance has less than",
+  "celautTopUpAmount": "Move this much of your credit on its node",
+  "celautTopUpRange": "From {min} to {max}.",
+  "celautTopUpNote": "The app checks your running instances when the list of conversations opens and once a minute while the app runs. A top-up moves credit that you already have on the node of the instance (ModifyDeposit): nothing is paid on the blockchain and nothing is signed. If that credit is too low, the app does not pay: it asks you, and a deposit always needs your confirmation and your PIN or fingerprint. To turn this on, open the wallet.",
+  "celautTopUpNeed": "Automatic top-up: your credit on {node} is less than {amount}. Make a deposit to keep its instances running.",
+  "celautTopUpNeedLater": "Later",
+  "celautTopUpNeedDeposit": "Deposit",
+  "@celautTopUpNeed": {
+    "placeholders": {
+      "node": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@celautTopUpRange": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
   "@celautRunSurvivalEstimate": {
     "placeholders": {
       "cost": {

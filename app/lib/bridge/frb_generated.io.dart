@@ -356,6 +356,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SysresourcesView dco_decode_sysresources_view(dynamic raw);
 
   @protected
+  TopUpView dco_decode_top_up_view(dynamic raw);
+
+  @protected
   TransferStage dco_decode_transfer_stage(dynamic raw);
 
   @protected
@@ -773,6 +776,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SysresourcesView sse_decode_sysresources_view(SseDeserializer deserializer);
+
+  @protected
+  TopUpView sse_decode_top_up_view(SseDeserializer deserializer);
 
   @protected
   TransferStage sse_decode_transfer_stage(SseDeserializer deserializer);
@@ -1325,6 +1331,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     SysresourcesView self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_top_up_view(TopUpView self, SseSerializer serializer);
 
   @protected
   void sse_encode_transfer_stage(TransferStage self, SseSerializer serializer);

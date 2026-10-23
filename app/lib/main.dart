@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'services/preview/preview_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'celaut/auto_top_up.dart';
 import 'celaut/background_work.dart';
 import 'l10n/l10n.dart';
 import 'services/address_label_service.dart';
@@ -85,6 +88,9 @@ class _ArgusAppState extends State<ArgusApp> with WidgetsBindingObserver {
     walletService.onBroadcast = (txId, delta) =>
         walletSyncController.noteBroadcast(txId, valueNano: delta);
     DeepLinkChannel.start();
+    // The automatic top-up checks the instances once a minute, only if the user turned it
+    // on (Settings, Compute).
+    unawaited(autoTopUp.start());
     notificationService.init().then((_) => notificationService.openLaunchTap());
   }
 

@@ -92,3 +92,7 @@
   the foreground service holds the process and a partial wake lock while they run. The
   auto-lock still locks the wallet on time; while one of them runs it does not close its
   page. See [ui-chat-first.md](ui-chat-first.md), section 8.
+- **Automatic top-up (2026-10-23, Josemi):** off by default. It moves credit that the app
+  already has on a node to a running instance under a threshold (`ModifyDeposit`). It never
+  makes an on-chain deposit: with too little credit it asks the user, and a deposit keeps its
+  own confirmation and PIN. See [ui.md](ui.md), section 4b.

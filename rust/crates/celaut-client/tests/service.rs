@@ -16,7 +16,8 @@ use celaut_proto::celaut::metadata::hash_tag::Hash;
 use celaut_proto::celaut::service::container::Architecture;
 use celaut_proto::celaut::{
     Amount, ArchitectureResources, BytesKeyValue, Client, Configuration, Contract, ContractRate,
-    EstimatedCost, Instance, Metrics, Peer, RecursionGuard, Refund, ServiceInstance,
+    EstimatedCost, Instance, Metrics, ModifyDepositInput, ModifyDepositOutput, Peer,
+    RecursionGuard, Refund, ServiceInstance,
     Sysresources, TokenMessage,
 };
 use celaut_wire::gateway::SHA3_256_TYPE;
@@ -256,6 +257,38 @@ async fn stop_gives_the_refund_and_metrics_the_balance() {
         s.client_id()
     );
     assert_eq!(s.stop("other").await.unwrap(), 0);
+}
+
+#[tokio::test]
+async fn a_top_up_moves_credit_to_the_instance_with_modify_deposit() {
+    let s = session(vec![
+        stream_of(
+            1,
+            &ModifyDepositOutput {
+                success: true,
+                message: "Deposit modified correctly".into(),
+            },
+        ),
+        stream_of(
+            1,
+            &ModifyDepositOutput {
+                success: false,
+                message: "Error charging the father".into(),
+            },
+        ),
+    ])
+    .await;
+    s.top_up("instance-token", 250_000).await.unwrap();
+    let (method, parts) = s.transport().request(2);
+    assert_eq!(method, "ModifyDeposit");
+    assert_eq!(parts.len(), 1);
+    assert_eq!(parts[0].index, 1);
+    let input = ModifyDepositInput::decode(parts[0].data.as_slice()).unwrap();
+    assert_eq!(input.service_token, "instance-token");
+    assert_eq!(input.difference.unwrap().n, "250000");
+    // The node refuses: the client has less credit than that.
+    let err = s.top_up("instance-token", 9).await.unwrap_err();
+    assert!(err.to_string().contains("Error charging the father"), "{err}");
 }
 
 #[tokio::test]

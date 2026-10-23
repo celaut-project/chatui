@@ -10,7 +10,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `address_of_key`, `check`, `configuration`, `cost_so_far`, `forget_if_broken_key`, `forget_if_broken`, `instance`, `key`, `n`, `new_client_session`, `open_session`, `quote_view`, `service_id`, `session_pinned`, `session_with`, `session`, `start_configuration`, `state`, `stopped_instance`, `unknown_instance`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `State`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
 
 /// Make a new client on the node, after the node forgot the stored client id and the
@@ -96,6 +96,20 @@ Future<InstanceStatusView> celautInstanceStatus({required String instanceId}) =>
     RustLib.instance.api.crateApiCelautServiceCelautInstanceStatus(
       instanceId: instanceId,
     );
+
+/// Move `amount_mu` MU of the credit of the app on the node of the instance to the
+/// instance (`ModifyDeposit`), for the automatic top-up (Josemi, 2026-10-23). This moves
+/// credit that the client already has: nothing goes on a ledger, nothing is signed. If
+/// the credit is less than the amount, nothing is asked of the node and the error is
+/// [`CelautErrorKind::InsufficientCredit`]; the app then asks the user, who can make a
+/// deposit, which has its own confirmation and PIN.
+Future<TopUpView> celautTopUpInstance({
+  required String instanceId,
+  required String amountMu,
+}) => RustLib.instance.api.crateApiCelautServiceCelautTopUpInstance(
+  instanceId: instanceId,
+  amountMu: amountMu,
+);
 
 /// Close the local ports of the instance and stop it on the node. When the node
 /// confirms the stop, the database marks the instance stopped, with the refund; it
@@ -446,5 +460,30 @@ class StopView {
       other is StopView &&
           runtimeType == other.runtimeType &&
           refundMu == other.refundMu &&
+          clientBalanceMu == other.clientBalanceMu;
+}
+
+/// The balances after an automatic top-up.
+class TopUpView {
+  /// The balance of the instance on the node, in MU (empty if the app could not read it).
+  final String instanceBalanceMu;
+
+  /// The credit of the client on the node, in MU (empty if the app could not read it).
+  final String clientBalanceMu;
+
+  const TopUpView({
+    required this.instanceBalanceMu,
+    required this.clientBalanceMu,
+  });
+
+  @override
+  int get hashCode => instanceBalanceMu.hashCode ^ clientBalanceMu.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TopUpView &&
+          runtimeType == other.runtimeType &&
+          instanceBalanceMu == other.instanceBalanceMu &&
           clientBalanceMu == other.clientBalanceMu;
 }

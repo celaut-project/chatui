@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../bridge/api/celaut.dart';
 import '../../bridge/api/celaut_service.dart';
+import '../../celaut/auto_top_up.dart';
 import '../../celaut/celaut_format.dart';
 import '../../celaut/celaut_strings.dart';
 import '../../celaut/chat_client.dart';
@@ -77,7 +78,12 @@ class InstanceList extends StatefulWidget {
     this.chatPage,
     this.bottomPadding = 0,
     this.filter,
+    this.topUp,
   });
+
+  /// The automatic top-up, which sees each balance that the list reads. Tests give their
+  /// own.
+  final AutoTopUp? topUp;
 
   /// The filter that hides the stopped instances. Tests give their own.
   final StoppedFilter? filter;
@@ -181,7 +187,10 @@ class InstanceListState extends State<InstanceList> {
       for (final i in mine)
         if (i.stoppedAt == null)
           load(i.instanceId).then(
-            (s) => _set(i.instanceId, _Check.ok(s)),
+            (s) {
+              _set(i.instanceId, _Check.ok(s));
+              unawaited((widget.topUp ?? autoTopUp).observe(i, s));
+            },
             onError: (Object e) => _set(
               i.instanceId,
               _Check.failed(

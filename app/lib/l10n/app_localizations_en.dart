@@ -5753,6 +5753,45 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get celautTopUpTitle => 'Automatic top-up';
+
+  @override
+  String get celautTopUpRowOn =>
+      'On: the app moves your credit on a node to an instance that runs low';
+
+  @override
+  String get celautTopUpRowOff => 'Off';
+
+  @override
+  String get celautTopUpSwitch => 'Top up instances that run low';
+
+  @override
+  String get celautTopUpThreshold => 'When an instance has less than';
+
+  @override
+  String get celautTopUpAmount => 'Move this much of your credit on its node';
+
+  @override
+  String celautTopUpRange(String min, String max) {
+    return 'From $min to $max.';
+  }
+
+  @override
+  String get celautTopUpNote =>
+      'The app checks your running instances when the list of conversations opens and once a minute while the app runs. A top-up moves credit that you already have on the node of the instance (ModifyDeposit): nothing is paid on the blockchain and nothing is signed. If that credit is too low, the app does not pay: it asks you, and a deposit always needs your confirmation and your PIN or fingerprint. To turn this on, open the wallet.';
+
+  @override
+  String celautTopUpNeed(String node, String amount) {
+    return 'Automatic top-up: your credit on $node is less than $amount. Make a deposit to keep its instances running.';
+  }
+
+  @override
+  String get celautTopUpNeedLater => 'Later';
+
+  @override
+  String get celautTopUpNeedDeposit => 'Deposit';
+
+  @override
   String get celautErrorTransferFailed =>
       'The transfer of the service stopped (the file could not be read, it is cut, or it was cancelled). The node did not keep the cut service. Try again.';
 
