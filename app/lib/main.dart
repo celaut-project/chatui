@@ -2,6 +2,7 @@ import 'services/preview/preview_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'celaut/background_work.dart';
 import 'l10n/l10n.dart';
 import 'services/address_label_service.dart';
 import 'services/contacts_service.dart';
@@ -100,9 +101,9 @@ class _ArgusAppState extends State<ArgusApp> with WidgetsBindingObserver {
   }
 
   void _onUnlockChanged() {
-    if (!walletService.unlocked.value) {
-      navigatorKey.currentState?.popUntil((route) => route.isFirst);
-    }
+    // A lock closes the pages over the home screen, except while a launch, a transfer or
+    // an import of a service runs (`BackgroundWork`).
+    if (!walletService.unlocked.value) backgroundWork.onWalletLocked(navigatorKey.currentState);
   }
 
   @override

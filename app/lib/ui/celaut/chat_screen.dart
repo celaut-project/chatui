@@ -124,10 +124,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
   /// A running instance can have messages already: read them, then the cost.
   Future<void> _open() async {
+    // The wait for a service that just started goes on with the screen off.
+    if (widget.starting) unawaited(_keepAlive.waiting(true));
     try {
       await (widget.starting ? _chat.syncWhenStarted() : _chat.sync());
     } on ChatException catch (e) {
       if (mounted) setState(() => _error = e.kind);
+    } finally {
+      if (widget.starting) unawaited(_keepAlive.waiting(false));
     }
     // Answered or not, the wait of the start is over: the list shows the check of the
     // node again.

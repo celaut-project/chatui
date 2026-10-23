@@ -87,3 +87,8 @@
   Tor, the environment variables, the node check and the Celaut service screen. General:
   security and auto-lock, display, the first screen, About. There is no Developer group.
   The app has no setting for the language: it follows the language of the phone.
+- **Sleep and the auto-lock (2026-10-23, Josemi):** a launch, a transfer of a service file
+  and an import of a service file go on with the screen off or the app in the background:
+  the foreground service holds the process and a partial wake lock while they run. The
+  auto-lock still locks the wallet on time; while one of them runs it does not close its
+  page. See [ui-chat-first.md](ui-chat-first.md), section 8.
