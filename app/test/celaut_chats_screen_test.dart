@@ -456,7 +456,72 @@ void main() {
       expect(node.stops, isEmpty);
     });
 
-    testWidgets('a tunnel that fails says why and opens nothing', (tester) async {
+    testWidgets('the conversation shows at once, with a spinner while the tunnel opens', (
+      tester,
+    ) async {
+      node.db = [_instance('i1', name: 'Echo chat')];
+      final tunnel = Completer<int>();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: argusTheme(watchful: false),
+          home: Scaffold(
+            body: InstanceList(
+              chats: true,
+              notes: notes,
+              load: node.load,
+              loadStatus: node.status,
+              openTunnel: (_, _) => tunnel.future,
+              chatPage: (i, port, s) => Text('chat $port'),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('chats-row-i1')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byKey(const Key('chat-connecting')), findsOneWidget);
+      expect(find.descendant(of: find.byType(AppBar), matching: find.text('Echo chat')), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      tunnel.complete(4321);
+      await tester.pump();
+      expect(find.byKey(const Key('chat-connecting')), findsNothing);
+      expect(find.text('chat 4321'), findsOneWidget);
+    });
+
+    testWidgets('back while the tunnel opens goes back to the list', (tester) async {
+      node.db = [_instance('i1')];
+      final tunnel = Completer<int>();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: argusTheme(watchful: false),
+          home: Scaffold(
+            body: InstanceList(
+              chats: true,
+              notes: notes,
+              load: node.load,
+              loadStatus: node.status,
+              openTunnel: (_, _) => tunnel.future,
+              chatPage: (i, port, s) => Text('chat $port'),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('chats-row-i1')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-connecting')), findsNothing);
+      expect(find.byKey(const Key('chats-row-i1')), findsOneWidget);
+      tunnel.complete(4321);
+      await tester.pumpAndSettle();
+      expect(find.text('chat 4321'), findsNothing);
+      expect(find.byType(SnackBar), findsNothing);
+    });
+
+    testWidgets('a tunnel that fails closes the conversation and says why', (tester) async {
       node.db = [_instance('i1')];
       await tester.pumpWidget(
         MaterialApp(
@@ -478,7 +543,9 @@ void main() {
       await tester.tap(find.byKey(const Key('chats-row-i1')));
       await tester.pumpAndSettle();
       expect(find.text('chat'), findsNothing);
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byKey(const Key('chat-connecting')), findsNothing);
+      expect(find.byKey(const Key('chats-row-i1')), findsOneWidget);
+      expect(find.text(appL10n.celautErrorUnreachable), findsOneWidget);
     });
 
     testWidgets('a tap on a stopped instance opens its info page, with the refund and Delete', (

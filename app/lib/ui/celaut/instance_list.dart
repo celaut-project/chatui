@@ -199,35 +199,44 @@ class InstanceListState extends State<InstanceList> {
 
   /// Open the conversation of [instance]. [starting]: the instance has just started, and
   /// the screen waits for its service.
+  ///
+  /// The page shows at once and the tunnel to the chat slot opens under it: a tunnel to a
+  /// far node, or over Tor, can take seconds. If the tunnel fails, the page closes and
+  /// the list says why.
   Future<void> openChat(InstanceListView instance, {bool starting = false}) async {
     final slot = instance.chatSlots.first;
-    final int port;
-    try {
-      port = await (widget.openTunnel ?? (id, s) => celautOpenTunnel(instanceId: id, slot: s))(
-          instance.instanceId, slot);
-    } on CelautError catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(CelautStrings.errorText(e.kind))),
-        );
-      }
-      return;
-    }
-    if (!mounted) return;
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: (_) =>
-            widget.chatPage?.call(instance, port, starting) ??
-            ChatScreen(
-              instance: instance,
-              port: port,
-              starting: starting,
-              wallets: widget.wallets,
-              notes: _notes,
-              stopInstance: widget.stop,
-            ),
+    final tunnel = (widget.openTunnel ?? (id, s) => celautOpenTunnel(instanceId: id, slot: s))(
+            instance.instanceId, slot)
+        .then<_Tunnel>(
+      (port) => (port: port, error: null),
+      onError: (Object e) => (
+        port: null,
+        error: e is CelautError ? e : CelautError(kind: CelautErrorKind.protocol, message: '$e'),
       ),
     );
+    final failed = await Navigator.of(context).push<CelautError>(
+      MaterialPageRoute(
+        builder: (_) => _TunnelPage(
+          title: instanceTitle(instance),
+          tunnel: tunnel,
+          chat: (port) =>
+              widget.chatPage?.call(instance, port, starting) ??
+              ChatScreen(
+                instance: instance,
+                port: port,
+                starting: starting,
+                wallets: widget.wallets,
+                notes: _notes,
+                stopInstance: widget.stop,
+              ),
+        ),
+      ),
+    );
+    if (failed != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(CelautStrings.errorText(failed.kind))),
+      );
+    }
     if (mounted) await refresh();
   }
 
@@ -459,6 +468,52 @@ class _InstanceRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The local port of a tunnel, or why it did not open.
+typedef _Tunnel = ({int? port, CelautError? error});
+
+/// The conversation while the tunnel to its chat slot opens: the name of the instance
+/// and a spinner, then the conversation in place. A failed tunnel closes the page with
+/// its error.
+class _TunnelPage extends StatefulWidget {
+  const _TunnelPage({required this.title, required this.tunnel, required this.chat});
+
+  final String title;
+  final Future<_Tunnel> tunnel;
+  final Widget Function(int port) chat;
+
+  @override
+  State<_TunnelPage> createState() => _TunnelPageState();
+}
+
+class _TunnelPageState extends State<_TunnelPage> {
+  int? _port;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.tunnel.then((tunnel) {
+      if (!mounted) return;
+      final error = tunnel.error;
+      if (error != null) {
+        Navigator.of(context).pop(error);
+      } else {
+        setState(() => _port = tunnel.port);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final port = _port;
+    if (port != null) return widget.chat(port);
+    return Scaffold(
+      key: const Key('chat-connecting'),
+      appBar: AppBar(titleSpacing: 0, title: Text(widget.title)),
+      body: const Center(child: CircularProgressIndicator()),
     );
   }
 }

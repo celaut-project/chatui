@@ -97,7 +97,9 @@ is not asked for.
   "Other instances".
 - **Open a conversation again.** A tap on a row opens the local port of the chat slot and
   reads the history from 0 ([chat.md](chat.md), section 6.2). This works after the lock of the
-  app closed the screen, and after a restart of the app.
+  app closed the screen, and after a restart of the app. The screen shows at once, with the
+  name of the instance and a spinner, while the port opens: a far node, or Tor, can take
+  seconds. If the port does not open, the screen closes and the list says why.
 - **Leave.** Back goes to the list at once. The instance runs on, the node keeps charging,
   and the row shows its cost.
 - **Stop.** From ⋮ in the conversation, from its info page, from a long press in the list,
