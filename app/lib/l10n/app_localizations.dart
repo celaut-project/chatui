@@ -8585,6 +8585,30 @@ abstract class AppLocalizations {
   /// **'Delete'**
   String get chatsDelete;
 
+  /// No description provided for @chatsRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get chatsRename;
+
+  /// No description provided for @chatsRenameTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get chatsRenameTitle;
+
+  /// No description provided for @chatsRenameNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Only this phone sees this name. The node does not get it. Leave it empty to remove it.'**
+  String get chatsRenameNote;
+
+  /// No description provided for @chatsRenameNoteOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Only this phone sees this name. The node does not get it. Leave it empty to show \"{name}\" again.'**
+  String chatsRenameNoteOriginal(String name);
+
   /// No description provided for @chatsStopTitle.
   ///
   /// In en, this message translates to:

@@ -438,6 +438,7 @@ void main() {
         startChargeMu: '',
         refundMu: '',
         name: '',
+        alias: '',
       ),
     ];
     await pump(tester, fullWallet: false);
@@ -475,6 +476,7 @@ void main() {
         startChargeMu: '1000000',
         refundMu: '',
         name: '',
+        alias: '',
       ),
     ];
     // The full wallet is locked and the user does not give the PIN: nothing stops.
@@ -507,6 +509,7 @@ void main() {
         startChargeMu: '1000000',
         refundMu: '',
         name: '',
+        alias: '',
       ),
     ];
     final wallets = await pump(tester, open: false);
@@ -531,6 +534,7 @@ void main() {
         startChargeMu: '1000000',
         refundMu: '',
         name: '',
+        alias: '',
       ),
     ];
     await pump(tester);

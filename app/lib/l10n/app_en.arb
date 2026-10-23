@@ -4134,6 +4134,17 @@
   },
   "chatsActionInfo": "Info",
   "chatsDelete": "Delete",
+  "chatsRename": "Rename",
+  "chatsRenameTitle": "Rename",
+  "chatsRenameNote": "Only this phone sees this name. The node does not get it. Leave it empty to remove it.",
+  "chatsRenameNoteOriginal": "Only this phone sees this name. The node does not get it. Leave it empty to show \"{name}\" again.",
+  "@chatsRenameNoteOriginal": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "chatsStopTitle": "Stop {name}?",
   "@chatsStopTitle": {
     "placeholders": {

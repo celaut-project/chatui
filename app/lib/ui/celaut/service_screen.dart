@@ -359,6 +359,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
       startChargeMu: '',
       refundMu: '',
       name: '',
+      alias: '',
     );
   }
 

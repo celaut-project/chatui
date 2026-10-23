@@ -5,10 +5,30 @@ import '../format.dart';
 import '../l10n/l10n.dart';
 import 'chat_client.dart';
 
-/// The name of an instance for the user: the name of its skill or service file, or a
-/// short service id when the app does not know the name.
-String instanceTitle(InstanceListView i) =>
-    i.name.trim().isNotEmpty ? i.name.trim() : shorten(i.serviceId, head: 8, tail: 6);
+/// The name of an instance for the user: the name that the user gave it in the app, or
+/// the name of its skill or service file, or a short service id when the app does not
+/// know a name.
+String instanceTitle(InstanceListView i) {
+  if (i.alias.trim().isNotEmpty) return i.alias.trim();
+  if (i.name.trim().isNotEmpty) return i.name.trim();
+  return shorten(i.serviceId, head: 8, tail: 6);
+}
+
+/// [i] with the name that the user gave it ([alias]; empty for none).
+InstanceListView withAlias(InstanceListView i, String alias) => InstanceListView(
+      instanceId: i.instanceId,
+      peerId: i.peerId,
+      address: i.address,
+      serviceId: i.serviceId,
+      slots: i.slots,
+      chatSlots: i.chatSlots,
+      startedAt: i.startedAt,
+      startChargeMu: i.startChargeMu,
+      name: i.name,
+      alias: alias,
+      stoppedAt: i.stoppedAt,
+      refundMu: i.refundMu,
+    );
 
 /// The text of a message for a list or a notice, in one line: its text, or, when the
 /// text is blank, its first file as "Photo" or "Audio" with the name if there is one.

@@ -72,6 +72,12 @@ name is the name of the skill or the service file at the start; the database kee
 the instance (`InstanceRecord.name`). An instance of an earlier version has no name: the row
 shows the short service id.
 
+The user can rename an instance (Josemi, 2026-10-23): Rename on the long press of a row, or
+the pencil on its info page, running or stopped. The new name is local: the app keeps it in
+the Celaut database (`InstanceRecord.alias`, `celaut_rename_instance`, at most 60
+characters) and never sends it to the node. The list, the conversation and the info page
+show it before the name of the start. An empty name removes it.
+
 The states of a row:
 
 | State | When |

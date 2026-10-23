@@ -130,3 +130,95 @@ Future<bool> confirmAndDeleteInstance(
   (notes ?? conversationNotes).remove(instance.instanceId);
   return true;
 }
+
+/// The longest name that the user can give an instance (`celaut_rename_instance`).
+const instanceAliasMaxChars = 60;
+
+/// Ask the user for a new name of [instance], and keep it in the Celaut database of the
+/// app. The name is local: the node never gets it. An empty name removes it, and the
+/// name of the skill or the service file shows again. Gives the instance with its new
+/// name, or null if nothing changed.
+Future<InstanceListView?> renameInstance(
+  BuildContext context,
+  InstanceListView instance, {
+  void Function(String instanceId, String alias)? rename,
+}) async {
+  final alias = await showDialog<String>(
+    context: context,
+    builder: (_) => _RenameDialog(instance: instance),
+  );
+  if (alias == null || alias == instance.alias.trim() || !context.mounted) return null;
+  try {
+    (rename ?? (id, a) => celautRenameInstance(instanceId: id, alias: a))(
+      instance.instanceId,
+      alias,
+    );
+  } on CelautError catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(CelautStrings.errorText(e.kind))),
+    );
+    return null;
+  }
+  return withAlias(instance, alias);
+}
+
+class _RenameDialog extends StatefulWidget {
+  const _RenameDialog({required this.instance});
+
+  final InstanceListView instance;
+
+  @override
+  State<_RenameDialog> createState() => _RenameDialogState();
+}
+
+class _RenameDialogState extends State<_RenameDialog> {
+  late final _field = TextEditingController(text: instanceTitle(widget.instance));
+
+  @override
+  void dispose() {
+    _field.dispose();
+    super.dispose();
+  }
+
+  void _save() => Navigator.pop(context, _field.text.trim().replaceAll(RegExp(r'\s+'), ' '));
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final original = widget.instance.name.trim();
+    return AlertDialog(
+      key: const Key('rename-dialog'),
+      title: Text(l.chatsRenameTitle),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            key: const Key('rename-field'),
+            controller: _field,
+            autofocus: true,
+            maxLength: instanceAliasMaxChars,
+            textCapitalization: TextCapitalization.sentences,
+            onSubmitted: (_) => _save(),
+          ),
+          Text(
+            original.isEmpty ? l.chatsRenameNote : l.chatsRenameNoteOriginal(original),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          key: const Key('rename-cancel'),
+          onPressed: () => Navigator.pop(context),
+          child: Text(l.celautSendCancel),
+        ),
+        FilledButton(
+          key: const Key('rename-ok'),
+          onPressed: _save,
+          child: Text(l.commonSave),
+        ),
+      ],
+    );
+  }
+}

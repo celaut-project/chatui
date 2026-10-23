@@ -45,6 +45,7 @@ InstanceListView _instance(
       startedAt: startedAt,
       startChargeMu: '1000',
       name: name,
+      alias: '',
       stoppedAt: stoppedAt,
       refundMu: refundMu,
     );
@@ -59,6 +60,7 @@ InstanceListView _stopped(InstanceListView i, String refundMu) => InstanceListVi
       startedAt: i.startedAt,
       startChargeMu: i.startChargeMu,
       name: i.name,
+      alias: i.alias,
       stoppedAt: 500,
       refundMu: refundMu,
     );
@@ -105,8 +107,15 @@ class _Node {
   final stops = <String>[];
   final forgotten = <String>[];
   final tunnels = <String>[];
+  final renamed = <String>[];
 
   List<InstanceListView> load() => List.of(db);
+
+  /// As `celaut_rename_instance`: the name stays in the database; the node gets nothing.
+  void rename(String id, String alias) {
+    renamed.add('$id $alias');
+    db = [for (final i in db) i.instanceId == id ? withAlias(i, alias) : i];
+  }
 
   Future<InstanceStatusView> status(String id) async {
     final a = answers[id];
@@ -213,6 +222,7 @@ void main() {
         loadStatus: node.status,
         stop: node.stop,
         forget: node.forget,
+        rename: node.rename,
         openTunnel: node.openTunnel,
         chatPage: (i, port, starting) => Scaffold(
           appBar: AppBar(),
@@ -593,6 +603,60 @@ void main() {
       expect(find.byKey(const Key('chats-action-info')), findsOneWidget);
       expect(find.byKey(const Key('chats-action-stop')), findsOneWidget);
       expect(find.byKey(const Key('chats-action-delete')), findsNothing);
+    });
+
+    testWidgets('Rename keeps a local name, and an empty name shows the name of the start again', (
+      tester,
+    ) async {
+      node.db = [_instance('i1')];
+      node.answers['i1'] = _status('1');
+      await open(tester);
+      await tester.longPress(find.byKey(const Key('chats-row-i1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('chats-action-rename')));
+      await tester.pumpAndSettle();
+      expect(find.text(appL10n.chatsRenameNoteOriginal('Echo chat')), findsOneWidget);
+      await tester.enterText(find.byKey(const Key('rename-field')), '  My   echo ');
+      await tester.tap(find.byKey(const Key('rename-ok')));
+      await tester.pumpAndSettle();
+      expect(node.renamed, ['i1 My echo']);
+      expect(tester.widget<Text>(find.byKey(const Key('chats-name-i1'))).data, 'My echo');
+      // Only the database has it: no stop, no start, no call to the node.
+      expect(node.stops, isEmpty);
+      // Cancel changes nothing.
+      await tester.longPress(find.byKey(const Key('chats-row-i1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('chats-action-rename')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('rename-cancel')));
+      await tester.pumpAndSettle();
+      expect(node.renamed, ['i1 My echo']);
+      // Empty: the name of the skill again.
+      await tester.longPress(find.byKey(const Key('chats-row-i1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('chats-action-rename')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('rename-field')), '');
+      await tester.tap(find.byKey(const Key('rename-ok')));
+      await tester.pumpAndSettle();
+      expect(node.renamed, ['i1 My echo', 'i1 ']);
+      expect(tester.widget<Text>(find.byKey(const Key('chats-name-i1'))).data, 'Echo chat');
+    });
+
+    testWidgets('a stopped instance can be renamed from its info page', (tester) async {
+      node.db = [_instance('i1', stoppedAt: 400, refundMu: '700')];
+      await open(tester);
+      await tester.tap(find.byKey(const Key('chats-row-i1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('info-rename')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('rename-field')), 'Old echo');
+      await tester.tap(find.byKey(const Key('rename-ok')));
+      await tester.pumpAndSettle();
+      expect(find.text('Old echo'), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(tester.widget<Text>(find.byKey(const Key('chats-name-i1'))).data, 'Old echo');
     });
 
     testWidgets('Info opens the info page', (tester) async {

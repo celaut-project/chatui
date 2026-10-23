@@ -5513,6 +5513,21 @@ class AppLocalizationsEs extends AppLocalizations {
   String get chatsDelete => 'Eliminar';
 
   @override
+  String get chatsRename => 'Cambiar nombre';
+
+  @override
+  String get chatsRenameTitle => 'Cambiar nombre';
+
+  @override
+  String get chatsRenameNote =>
+      'Solo este teléfono ve este nombre. El nodo no lo recibe. Déjalo vacío para quitarlo.';
+
+  @override
+  String chatsRenameNoteOriginal(String name) {
+    return 'Solo este teléfono ve este nombre. El nodo no lo recibe. Déjalo vacío para volver a mostrar «$name».';
+  }
+
+  @override
   String chatsStopTitle(String name) {
     return '¿Detener $name?';
   }

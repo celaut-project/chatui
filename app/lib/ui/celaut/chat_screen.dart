@@ -110,6 +110,9 @@ class _ChatScreenState extends State<ChatScreen> {
   ChatErrorKind? _error;
   String? _costMu;
 
+  /// The instance, with the name that the user may give it on its info page.
+  late InstanceListView _instance = widget.instance;
+
   String get _id => widget.instance.instanceId;
 
   @override
@@ -267,7 +270,7 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _stopping = true);
     final done = await confirmAndStopInstance(
       context,
-      widget.instance,
+      _instance,
       wallets: widget.wallets,
       stop: widget.stopInstance,
       notes: _notes,
@@ -280,12 +283,15 @@ class _ChatScreenState extends State<ChatScreen> {
     final stopped = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => InstanceInfoScreen(
-          instance: widget.instance,
+          instance: _instance,
           state: _state,
           costMu: _costMu,
           wallets: widget.wallets,
           stop: widget.stopInstance,
           notes: _notes,
+          onRenamed: (renamed) {
+            if (mounted) setState(() => _instance = renamed);
+          },
         ),
       ),
     );
@@ -308,10 +314,10 @@ class _ChatScreenState extends State<ChatScreen> {
     final scheme = Theme.of(context).colorScheme;
     final messages = _chat.messages;
     final error = _error == null ? null : _errorText(_error!);
-    final title = instanceTitle(widget.instance);
+    final title = instanceTitle(_instance);
     final subtitle = [
       instanceStateText(context, _state),
-      widget.instance.address,
+      _instance.address,
       muOrUnknown(_costMu),
     ].join(' · ');
     return Scaffold(

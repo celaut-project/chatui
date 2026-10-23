@@ -166,6 +166,10 @@ pub struct InstanceRecord {
     /// file. The list of conversations shows it. An old record has none.
     #[serde(default)]
     pub name: Option<String>,
+    /// The name that the user gave the instance in the app, if any. It is local: the
+    /// node never gets it. The list shows it before [`InstanceRecord::name`].
+    #[serde(default)]
+    pub alias: Option<String>,
     /// The time of the stop, in Unix seconds. A stopped instance stays in the database
     /// until the user deletes it (`docs/celaut/ui-chat-first.md`). An old record has
     /// none: it runs.
@@ -676,6 +680,7 @@ mod tests {
                 started_at: 1,
                 start_charge_mu: Some("100".into()),
                 name: Some("Echo".into()),
+                alias: Some("My echo".into()),
                 stopped_at: None,
                 refund_mu: None,
             },

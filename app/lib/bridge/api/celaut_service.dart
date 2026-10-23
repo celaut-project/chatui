@@ -64,6 +64,17 @@ void celautNameInstance({required String instanceId, required String name}) =>
       name: name,
     );
 
+/// Give an instance a name of the user's choice, for this app only (Josemi, 2026-10-23).
+/// The name stays in the Celaut database of the app and never goes to the node. An empty
+/// name removes it: the list shows the name of the skill or the service file again.
+void celautRenameInstance({
+  required String instanceId,
+  required String alias,
+}) => RustLib.instance.api.crateApiCelautServiceCelautRenameInstance(
+  instanceId: instanceId,
+  alias: alias,
+);
+
 /// Delete a stopped instance: take it out of the database. The user asks for it on a
 /// stopped row of the list. An instance that was not stopped is refused and kept: the
 /// app never forgets the token of an instance that may still run, even if its node
@@ -116,6 +127,9 @@ class InstanceListView {
   /// The name of the skill or the service file at the start (empty if unknown).
   final String name;
 
+  /// The name that the user gave the instance in the app (empty if none). Local only.
+  final String alias;
+
   /// The time of the stop, in Unix seconds; none while the instance runs.
   final PlatformInt64? stoppedAt;
 
@@ -132,6 +146,7 @@ class InstanceListView {
     required this.startedAt,
     required this.startChargeMu,
     required this.name,
+    required this.alias,
     this.stoppedAt,
     required this.refundMu,
   });
@@ -147,6 +162,7 @@ class InstanceListView {
       startedAt.hashCode ^
       startChargeMu.hashCode ^
       name.hashCode ^
+      alias.hashCode ^
       stoppedAt.hashCode ^
       refundMu.hashCode;
 
@@ -164,6 +180,7 @@ class InstanceListView {
           startedAt == other.startedAt &&
           startChargeMu == other.startChargeMu &&
           name == other.name &&
+          alias == other.alias &&
           stoppedAt == other.stoppedAt &&
           refundMu == other.refundMu;
 }
