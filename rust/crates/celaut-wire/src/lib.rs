@@ -8,6 +8,8 @@
 //! - [`transport`]: the [`Transport`] trait. One method sends bee-rpc parts to one
 //!   Gateway method and returns the parts of the answer. A test can replace it.
 //! - [`gateway`]: the typed calls of milestones M1 to M3.
+//! - [`relay`]: the call that gives a service to a node, and stops when the node
+//!   answers before the end (it already has the service).
 //! - [`tunnel`]: `ServiceTunnel`, a byte stream to one port of an instance.
 //!
 //! Input from a peer must never make this crate panic.
@@ -21,10 +23,11 @@ pub mod channel;
 pub mod error;
 pub mod gateway;
 pub mod identity;
+pub mod relay;
 pub mod transport;
 pub mod tunnel;
 
 pub use channel::{ConnectOptions, Connection};
 pub use error::{IdentityError, WireError};
-pub use transport::{Buffers, RawAnswer, Skipper, Transport};
+pub use transport::{Buffers, RawAnswer, SendCounter, Skipper, Transport};
 pub use tunnel::{Tunnel, TunnelOpener};

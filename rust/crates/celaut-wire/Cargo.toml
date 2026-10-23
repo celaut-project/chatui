@@ -24,5 +24,6 @@ thiserror = { workspace = true }
 prost = "0.14"
 
 [dev-dependencies]
-tokio-stream = { version = "0.1", default-features = false }
+# TcpListenerStream, for the in-process gRPC server of tests/early_answer.rs.
+tokio-stream = { version = "0.1", default-features = false, features = ["net"] }
 tokio = { workspace = true, features = ["net", "time", "io-util"] }

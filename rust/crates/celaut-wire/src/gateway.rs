@@ -202,23 +202,20 @@ pub async fn get_service_skippable<T: Transport>(
 /// Buffers of a service with the `StartService` indices 4, 5 and 6). The node stores the
 /// service, so later calls need only its hash. If `service` fails, the node refuses the
 /// request and the error is [`WireError::Relay`].
+///
+/// A node that already has the service answers after the hash, and the transport then
+/// stops sending the service ([`Transport::call_with_service`]). Wrap `service` in a
+/// [`crate::SendCounter`] to know how much of it went.
 pub async fn get_service_estimated_cost_with_service<T: Transport>(
     transport: &T,
     request: &ServiceRequest,
     service: crate::transport::Buffers,
 ) -> Result<EstimatedCost, WireError> {
-    use tokio_stream::StreamExt;
-    let head: Vec<Result<bee_rpc::buffer::Buffer, WireError>> = request
-        .parts()
-        .iter()
-        .flat_map(|p| bee_rpc::frame::serialize_part(p).collect::<Vec<_>>())
-        .map(Ok)
-        .collect();
-    let input = tokio_stream::iter(head).chain(service);
     let answer = transport
-        .call_buffers(
+        .call_with_service(
             "GetServiceEstimatedCost",
-            Box::pin(input),
+            request.parts(),
+            service,
             &[1],
             SERVICE_TRANSFER_TIMEOUT,
         )
