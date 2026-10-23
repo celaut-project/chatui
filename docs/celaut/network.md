@@ -4,7 +4,7 @@ By default the app connects to Celaut nodes, to the Ergo explorer and to GitHub 
 updater) from the phone, so each of them sees the IP address of the phone. With Tor on,
 they see a Tor exit.
 
-## What the user can choose (Settings, Developer, Tor)
+## What the user can choose (Settings, Compute, Tor)
 
 | Choice | What it does |
 |---|---|

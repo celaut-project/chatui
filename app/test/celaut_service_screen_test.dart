@@ -554,7 +554,7 @@ void main() {
     expect(find.text('Detail: bad id'), findsOneWidget);
   });
 
-  testWidgets('Settings has a Developer row that opens the screen', (tester) async {
+  testWidgets('Settings has a Compute row that opens the screen', (tester) async {
     SharedPreferences.setMockInitialValues({});
     const channel = MethodChannel('com.argus.wallet/secure_storage');
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(

@@ -216,12 +216,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get dateUnknownDay => 'Día desconocido';
 
   @override
-  String get celautDeveloperGroup => 'Desarrollador';
-
-  @override
-  String get celautDeveloperScope => 'Toda la app';
-
-  @override
   String get celautNodeRowTitle => 'Nodo Celaut';
 
   @override
@@ -410,9 +404,6 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get settingsScopeAppWide => 'Toda la app';
-
-  @override
   String get aboutTitle => 'Acerca de';
 
   @override
@@ -435,9 +426,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'Versión, notas de la versión, licencias';
 
   @override
-  String get settingsSeedWalletScope => 'Billetera con frase';
-
-  @override
   String get settingsWalletRowTitle => 'Direcciones y copia de seguridad';
 
   @override
@@ -449,7 +437,16 @@ class AppLocalizationsEs extends AppLocalizations {
       'PIN, desbloqueo biométrico, bloqueo automático';
 
   @override
-  String get settingsAppGroup => 'App';
+  String get settingsErgoGroup => 'Ergo';
+
+  @override
+  String get settingsComputeGroup => 'Cómputo';
+
+  @override
+  String get settingsGeneralGroup => 'General';
+
+  @override
+  String get settingsScopeAppWide => 'Toda la app';
 
   @override
   String get settingsSecurityAppSubtitle =>

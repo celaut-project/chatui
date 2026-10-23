@@ -51,7 +51,7 @@ of the wallet and the pages under a tab open over the bar.
 | Chats | The instances with a chat slot: the running ones, newest first, then the stopped ones. The pencil button opens "New conversation"; only this tab has it | `ChatsScreen`, `InstanceList` (`chats_screen.dart`, `instance_list.dart`) |
 | Wallet | The overview of the wallet: balance, Send, Receive, More, the wallet row (it opens the page of the wallet), then "Deposit to a node". With no wallet: create or restore | `WalletsOverviewScreen`, `DepositScreen` |
 | Compute | The compute view of [ui.md](ui.md), section 2: the running instances with Stop, "Run a service", the card of state (nodes, credit on the nodes, ERG of the wallet). Under it: Nodes, Services, Other instances | `ComputeHomeScreen` |
-| Settings | The settings of the app, with Network and Tor, Developer (node connect, Celaut service, nodes, deposit, the switch of the home screen) and About | `SettingsScreen` |
+| Settings | The settings of the app in three sections (2026-10-23): Ergo (the wallet, the Ergo network, the address book, the remote previews), Compute (nodes, deposit, automatic top-up, Tor, environment variables, node check, Celaut service) and General (security, display, the switch of the home screen, About) | `SettingsScreen` |
 
 | Place | Where | What it holds | Code |
 |---|---|---|---|
@@ -117,7 +117,7 @@ The last message of each conversation and the starting instances are in memory o
 (`ConversationNotes`, `app/lib/celaut/conversations.dart`). The app writes no message to the
 Celaut database.
 
-The setting "Chats home" (Settings, Developer; key `celaut_compute_home_v1`) chooses the
+The setting "Chats home" (Settings, General; key `celaut_compute_home_v1`) chooses the
 first screen: the tabs, on Chats (on, the default), or the wallets list (off). The compute
 view is the Compute tab, not a first screen.
 

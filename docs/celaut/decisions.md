@@ -80,3 +80,8 @@
   the list without a question. The instance runs on and the node keeps charging. Stop is
   in the menu, on the info page and on a long press. See
   [ui-chat-first.md](ui-chat-first.md), section 5.
+- **Settings (2026-10-23, Josemi):** three sections. Ergo: the wallet, the Ergo network, the
+  address book, the remote previews. Compute: the nodes, the deposit, the automatic top-up,
+  Tor, the environment variables, the node check and the Celaut service screen. General:
+  security and auto-lock, display, the first screen, About. There is no Developer group.
+  The app has no setting for the language: it follows the language of the phone.

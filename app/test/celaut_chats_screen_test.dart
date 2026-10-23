@@ -760,12 +760,13 @@ void main() {
       });
     }
 
-    testWidgets('Settings has Network and Tor, Developer and About', (tester) async {
+    testWidgets('Settings has the sections Ergo, Compute and General', (tester) async {
       await open(tester);
       await show(tester, HomeTab.settings);
       expect(find.byKey(const Key('settings-tor')), findsOneWidget);
       expect(find.byKey(const Key('settings-nodes')), findsOneWidget);
-      // settings-nodes is a row of the Developer group.
+      // settings-nodes is a row of Compute.
+      expect(find.byKey(const Key('settings-section-compute')), findsOneWidget);
       await tester.dragUntilVisible(
         find.byKey(const Key('settings-about')),
         find.byType(ListView),

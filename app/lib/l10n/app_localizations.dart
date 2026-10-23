@@ -446,18 +446,6 @@ abstract class AppLocalizations {
   /// **'Unknown day'**
   String get dateUnknownDay;
 
-  /// No description provided for @celautDeveloperGroup.
-  ///
-  /// In en, this message translates to:
-  /// **'Developer'**
-  String get celautDeveloperGroup;
-
-  /// No description provided for @celautDeveloperScope.
-  ///
-  /// In en, this message translates to:
-  /// **'App-wide'**
-  String get celautDeveloperScope;
-
   /// No description provided for @celautNodeRowTitle.
   ///
   /// In en, this message translates to:
@@ -764,12 +752,6 @@ abstract class AppLocalizations {
   /// **'{mu} MU per base unit'**
   String celautPerUnit(String mu);
 
-  /// No description provided for @settingsScopeAppWide.
-  ///
-  /// In en, this message translates to:
-  /// **'App-wide'**
-  String get settingsScopeAppWide;
-
   /// No description provided for @aboutTitle.
   ///
   /// In en, this message translates to:
@@ -812,12 +794,6 @@ abstract class AppLocalizations {
   /// **'Version, release notes, licenses'**
   String get settingsAboutRowSubtitle;
 
-  /// No description provided for @settingsSeedWalletScope.
-  ///
-  /// In en, this message translates to:
-  /// **'Seed wallet'**
-  String get settingsSeedWalletScope;
-
   /// No description provided for @settingsWalletRowTitle.
   ///
   /// In en, this message translates to:
@@ -836,11 +812,29 @@ abstract class AppLocalizations {
   /// **'PIN, biometric unlock, auto-lock'**
   String get settingsSecurityWalletSubtitle;
 
-  /// No description provided for @settingsAppGroup.
+  /// No description provided for @settingsErgoGroup.
   ///
   /// In en, this message translates to:
-  /// **'App'**
-  String get settingsAppGroup;
+  /// **'Ergo'**
+  String get settingsErgoGroup;
+
+  /// No description provided for @settingsComputeGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Compute'**
+  String get settingsComputeGroup;
+
+  /// No description provided for @settingsGeneralGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get settingsGeneralGroup;
+
+  /// No description provided for @settingsScopeAppWide.
+  ///
+  /// In en, this message translates to:
+  /// **'App-wide'**
+  String get settingsScopeAppWide;
 
   /// No description provided for @settingsSecurityAppSubtitle.
   ///
