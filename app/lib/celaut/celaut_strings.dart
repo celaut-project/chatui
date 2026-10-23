@@ -8,8 +8,6 @@ class CelautStrings {
   const CelautStrings._();
 
   // Settings
-  static String get developerGroup => appL10n.celautDeveloperGroup;
-  static String get developerScope => appL10n.celautDeveloperScope;
   static String get nodeRowTitle => appL10n.celautNodeRowTitle;
   static String get nodeRowSubtitle => appL10n.celautNodeRowSubtitle;
 

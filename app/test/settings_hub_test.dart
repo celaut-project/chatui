@@ -1,4 +1,5 @@
 import 'package:argus_wallet/services/wallet_service.dart';
+import 'package:argus_wallet/theme/argus_theme.dart';
 import 'package:argus_wallet/ui/settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _channel = MethodChannel('com.argus.wallet/secure_storage');
+
+// The settings are in three sections: Ergo, Compute and General (Josemi, 2026-10-23).
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -21,39 +24,78 @@ void main() {
   }
 
   Future<void> pump(WidgetTester tester, Widget home) async {
-    tester.view.physicalSize = const Size(390, 2400);
+    tester.view.physicalSize = const Size(390, 3200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(MaterialApp(home: home));
+    await tester.pumpWidget(MaterialApp(theme: argusTheme(watchful: false), home: home));
     await tester.pumpAndSettle();
   }
 
-  testWidgets('without a wallet the hub is app-wide only', (tester) async {
+  /// The titles of the rows of a section, in order.
+  List<String> rowsOf(WidgetTester tester, String section) => [
+        for (final row in tester.widgetList<Text>(
+          find.descendant(of: find.byKey(Key('settings-section-$section')), matching: find.byType(Text)),
+        ))
+          ?row.data,
+      ];
+
+  testWidgets('the sections are Ergo, Compute and General, in this order', (tester) async {
     listWallets(tester, const []);
     await pump(tester, const SettingsScreen());
-    for (final text in ['Security', 'Network', 'Display', 'Address book', 'About Chatui']) {
-      expect(find.text(text), findsOneWidget, reason: text);
-    }
-    // The wallet is created and restored on the overview; there is no
-    // wallet list here, no offline signing and no default payer.
-    for (final text in ['Manage', 'Watch-only', 'THIS WALLET', 'No wallet selected', 'Offline signing']) {
-      expect(find.text(text), findsNothing, reason: text);
-    }
+    final ergo = tester.getTopLeft(find.byKey(const Key('settings-section-ergo'))).dy;
+    final compute = tester.getTopLeft(find.byKey(const Key('settings-section-compute'))).dy;
+    final general = tester.getTopLeft(find.byKey(const Key('settings-section-general'))).dy;
+    expect(ergo, lessThan(compute));
+    expect(compute, lessThan(general));
+    expect(find.text('ERGO'), findsOneWidget);
+    expect(find.text('COMPUTE'), findsOneWidget);
+    expect(find.text('GENERAL'), findsOneWidget);
+    // No other group: everything is in one of the three.
+    expect(find.text('DEVELOPER'), findsNothing);
+    expect(find.text('APP'), findsNothing);
   });
 
-  testWidgets("a seed wallet's hub leads to its own settings", (tester) async {
+  testWidgets('each setting is in its section', (tester) async {
     listWallets(tester, const ['hub-wallet']);
     await tester.runAsync(
       () => walletService.saveWalletInfo('hub-wallet', name: 'Savings', createdAt: DateTime(2026)),
     );
-    await pump(tester, const SettingsScreen(walletId: 'hub-wallet'));
-    expect(find.text('THIS WALLET'), findsOneWidget);
-    expect(find.text('Addresses and backup'), findsOneWidget);
-    expect(find.text('Security'), findsOneWidget);
+    await pump(tester, const SettingsScreen());
+    final ergo = rowsOf(tester, 'ergo');
+    for (final text in ['Addresses and backup', 'Network', 'Address book', 'Remote previews']) {
+      expect(ergo, contains(text), reason: text);
+    }
+    final compute = rowsOf(tester, 'compute');
+    for (final text in ['Nodes', 'Celaut deposit', 'Tor', 'Environment variables', 'Celaut node', 'Celaut service']) {
+      expect(compute, contains(text), reason: text);
+    }
+    final general = rowsOf(tester, 'general');
+    for (final text in ['Security', 'Display', 'Chats home', 'About Chatui']) {
+      expect(general, contains(text), reason: text);
+    }
     // The one wallet has no name.
     expect(find.text('Savings'), findsNothing);
-    // One wallet: no way to all wallets, no count of wallets.
-    expect(find.text('All wallets'), findsNothing);
+  });
+
+  testWidgets('without a wallet, Ergo has no wallet row and Security is app-wide', (tester) async {
+    listWallets(tester, const []);
+    await pump(tester, const SettingsScreen());
+    expect(find.byKey(const Key('settings-wallet')), findsNothing);
+    expect(find.text('Auto-lock, screenshots, unconfirmed funds'), findsOneWidget);
+    for (final text in ['Manage', 'Watch-only', 'No wallet selected', 'Offline signing', 'All wallets']) {
+      expect(find.text(text), findsNothing, reason: text);
+    }
+  });
+
+  testWidgets('the page of the wallet shows the same sections', (tester) async {
+    listWallets(tester, const ['hub-wallet']);
+    await tester.runAsync(
+      () => walletService.saveWalletInfo('hub-wallet', name: 'Savings', createdAt: DateTime(2026)),
+    );
+    await pump(tester, const SettingsScreen(walletId: 'hub-wallet', embedded: true));
+    expect(find.byKey(const Key('settings-wallet')), findsOneWidget);
+    expect(find.byKey(const Key('settings-section-compute')), findsOneWidget);
+    expect(find.text('PIN, biometric unlock, auto-lock'), findsOneWidget);
     expect(find.textContaining('on this device'), findsNothing);
   });
 }

@@ -36,7 +36,7 @@ A list of named values that the user keeps in the app and uses in any launch.
   database is encrypted with the key of the Keystore, so a value is as safe as an instance
   token. There is no other copy, and no value goes to a log, an event, or the text of an
   error.
-- **Screen:** Settings, Developer group, "Environment variables" (`EnvVariablesScreen`). It
+- **Screen:** Settings, Compute section, "Environment variables" (`EnvVariablesScreen`). It
   lists the names with dots in place of the values. Add, edit (the eye in the form shows the
   value), delete (with a confirmation). A name that exists cannot be added twice: the form
   says so, and the row is the way to edit it. The screen checks the rules of a name and a
@@ -127,7 +127,7 @@ The node holds them in the file `/__config__` of the instance (`ConfigurationFil
 | `EnvVariablesScreen`, `EnvQuestionsScreen` | `app/lib/ui/celaut/env_variables_screen.dart`, `env_questions_screen.dart` |
 | Strings in English and Spanish | `app/lib/l10n/app_en.arb`, `app_es.arb` (`celautEnv*`) |
 
-A launch from the screen "Celaut service" of the Developer group has no question: it starts
+A launch from the screen "Celaut service" of the Compute section has no question: it starts
 with no variables, as before.
 
 ## 6. Checks

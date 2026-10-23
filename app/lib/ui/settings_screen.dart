@@ -28,8 +28,13 @@ import 'settings/update_notice.dart';
 import 'settings/wallet_settings_page.dart';
 import 'widgets/soft_card.dart';
 
-/// Settings hub: the open wallet on top, then short groups whose rows open
-/// their own page. Per-wallet and app-wide scopes are labelled.
+/// The settings of the app, in three sections (Josemi, 2026-10-23):
+///
+/// - Ergo: the wallet, the Ergo network (nodes and explorer), the address book and the
+///   remote previews;
+/// - Compute: the Celaut nodes, the credit on them, the automatic top-up, Tor, the
+///   environment variables, and the tools that check a node or run a service by its id;
+/// - General: security and auto-lock, display, the first screen, and About.
 ///
 /// The app holds one wallet, with no name. Creating and restoring it live on the
 /// overview; removing it lives in its own settings.
@@ -42,13 +47,14 @@ class SettingsScreen extends StatefulWidget {
     this.onWalletRemoved,
   });
 
-  /// The seed wallet whose page hosts these settings.
+  /// The seed wallet whose page hosts these settings. Null: the one wallet of the app,
+  /// if there is one.
   final String? walletId;
 
   /// Hosted as a wallet page's tab: no app bar of its own.
   final bool embedded;
 
-  /// The wallet was renamed or its pinned address changed.
+  /// The pinned address of the wallet changed.
   final VoidCallback? onWalletChanged;
 
   /// The wallet was removed; carries its id.
@@ -60,10 +66,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late Future<List<WalletInfo>> _walletsFuture = walletService.listWallets();
-
-  /// Only the page of the wallet has the wallet; the settings of the overview
-  /// have none.
-  String? get _walletId => widget.walletId;
 
   Future<void> _open(Widget page) async {
     await Navigator.push(context, fadeRoute(page));
@@ -91,9 +93,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             future: _walletsFuture,
             builder: (context, snapshot) {
               final wallets = snapshot.data ?? const <WalletInfo>[];
+              // The wallet of the page, or else the one wallet of the app.
               WalletInfo? current;
               for (final w in wallets) {
-                if (w.walletId == _walletId) current = w;
+                if (w.walletId == (widget.walletId ?? w.walletId)) {
+                  current = w;
+                  break;
+                }
               }
               return ListView(
                 padding: EdgeInsets.fromLTRB(16, 8, 16, 32 + MediaQuery.paddingOf(context).bottom),
@@ -102,79 +108,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   if (current != null) ...[
                     _walletHeader(context, current),
                     const SizedBox(height: 24),
-                    _seedGroup(current),
                   ],
-                  _appGroup(includeSecurity: current == null),
-                  SettingsGroup(
-                    title: CelautStrings.developerGroup,
-                    scope: CelautStrings.developerScope,
-                    children: [
-                      SettingsRow(
-                        icon: Icons.dns_outlined,
-                        title: CelautStrings.nodeRowTitle,
-                        subtitle: CelautStrings.nodeRowSubtitle,
-                        onTap: () => _open(const NodeConnectScreen()),
-                      ),
-                      SettingsRow(
-                        key: const Key('settings-tor'),
-                        icon: Icons.shield_outlined,
-                        title: NetworkStrings.rowTitle,
-                        subtitle: NetworkStrings.rowSubtitle,
-                        onTap: () => _open(const NetworkScreen()),
-                      ),
-                      SettingsRow(
-                        icon: Icons.play_circle_outline,
-                        title: ServiceStrings.rowTitle,
-                        subtitle: ServiceStrings.rowSubtitle,
-                        onTap: () => _open(const ServiceScreen()),
-                      ),
-                      SettingsRow(
-                        key: const Key('settings-nodes'),
-                        icon: Icons.hub_outlined,
-                        title: context.l10n.celautNodesTitle,
-                        subtitle: context.l10n.celautNodesRowSubtitle,
-                        onTap: () => _open(const KnownNodesScreen()),
-                      ),
-                      SettingsRow(
-                        key: const Key('settings-env'),
-                        icon: Icons.key_outlined,
-                        title: context.l10n.celautEnvTitle,
-                        subtitle: context.l10n.celautEnvRowSubtitle,
-                        onTap: () => _open(const EnvVariablesScreen()),
-                      ),
-                      SettingsRow(
-                        icon: Icons.account_balance_wallet_outlined,
-                        title: DepositStrings.rowTitle,
-                        subtitle: DepositStrings.rowSubtitle,
-                        onTap: () => _open(const DepositScreen()),
-                      ),
-                      ValueListenableBuilder<bool>(
-                        valueListenable: computeHomeFlag,
-                        builder: (context, on, _) => SettingsRow(
-                          icon: Icons.memory_outlined,
-                          title: context.l10n.celautComputeHomeRowTitle,
-                          subtitle: context.l10n.celautComputeHomeRowSubtitle,
-                          trailing: Switch(
-                            key: const Key('settings-compute-home'),
-                            value: on,
-                            onChanged: computeHomeFlag.set,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SettingsGroup(
-                    title: context.l10n.aboutTitle,
-                    children: [
-                      SettingsRow(
-                        key: const Key('settings-about'),
-                        icon: Icons.info_outline,
-                        title: context.l10n.settingsAboutRowTitle,
-                        subtitle: context.l10n.settingsAboutRowSubtitle,
-                        onTap: () => _open(const AboutPage()),
-                      ),
-                    ],
-                  ),
+                  _ergoGroup(current),
+                  _computeGroup(),
+                  _generalGroup(current),
                 ],
               );
             },
@@ -184,60 +121,115 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _seedGroup(WalletInfo current) {
+  Widget _ergoGroup(WalletInfo? current) {
     final t = context.l10n;
     return SettingsGroup(
-      title: t.commonThisWallet,
-      // The header above names the wallet; a long name as the scope tag
-      // would run off the label row.
-      scope: t.settingsSeedWalletScope,
+      key: const Key('settings-section-ergo'),
+      title: t.settingsErgoGroup,
       children: [
-        SettingsRow(
-          icon: Icons.account_balance_wallet_outlined,
-          title: t.settingsWalletRowTitle,
-          subtitle: t.settingsWalletRowSubtitle,
-          onTap: () => _open(
-            WalletSettingsPage(
-              walletId: current.walletId,
-              onChanged: widget.onWalletChanged,
-              onRemoved: widget.onWalletRemoved,
+        if (current != null)
+          SettingsRow(
+            key: const Key('settings-wallet'),
+            icon: Icons.account_balance_wallet_outlined,
+            title: t.settingsWalletRowTitle,
+            subtitle: t.settingsWalletRowSubtitle,
+            onTap: () => _open(
+              WalletSettingsPage(
+                walletId: current.walletId,
+                onChanged: widget.onWalletChanged,
+                onRemoved: widget.onWalletRemoved,
+              ),
             ),
           ),
+        SettingsRow(
+          key: const Key('settings-network'),
+          icon: Icons.language_outlined,
+          title: t.networkTitle,
+          subtitle: networkController.statusLabel,
+          onTap: () => _open(const NetworkSettingsPage()),
         ),
         SettingsRow(
-          icon: Icons.lock_outline,
-          title: t.securityTitle,
-          subtitle: t.settingsSecurityWalletSubtitle,
-          onTap: () => _open(SecuritySettingsPage(walletId: current.walletId)),
+          icon: Icons.contacts_outlined,
+          title: t.addressBookTitle,
+          subtitle: t.settingsContactsCount(contactsService.contacts.length),
+          onTap: () => _open(const AddressBookPage()),
         ),
-      ],
-    );
-  }
-
-  Widget _appGroup({required bool includeSecurity}) {
-    final t = context.l10n;
-    return SettingsGroup(
-      title: t.settingsAppGroup,
-      scope: t.settingsScopeAppWide,
-      children: [
-        if (includeSecurity)
-          SettingsRow(
-            icon: Icons.lock_outline,
-            title: t.securityTitle,
-            subtitle: t.settingsSecurityAppSubtitle,
-            onTap: () => _open(const SecuritySettingsPage()),
-          ),
         SettingsRow(
           icon: Icons.image_outlined,
           title: t.settingsRemotePreviewsTitle,
           subtitle: t.settingsRemotePreviewsSubtitle,
           onTap: () => _open(const PreviewSettingsPage()),
         ),
+      ],
+    );
+  }
+
+  Widget _computeGroup() {
+    final t = context.l10n;
+    return SettingsGroup(
+      key: const Key('settings-section-compute'),
+      title: t.settingsComputeGroup,
+      children: [
         SettingsRow(
+          key: const Key('settings-nodes'),
           icon: Icons.hub_outlined,
-          title: t.networkTitle,
-          subtitle: networkController.statusLabel,
-          onTap: () => _open(const NetworkSettingsPage()),
+          title: t.celautNodesTitle,
+          subtitle: t.celautNodesRowSubtitle,
+          onTap: () => _open(const KnownNodesScreen()),
+        ),
+        SettingsRow(
+          key: const Key('settings-deposit'),
+          icon: Icons.savings_outlined,
+          title: DepositStrings.rowTitle,
+          subtitle: DepositStrings.rowSubtitle,
+          onTap: () => _open(const DepositScreen()),
+        ),
+        SettingsRow(
+          key: const Key('settings-tor'),
+          icon: Icons.shield_outlined,
+          title: NetworkStrings.rowTitle,
+          subtitle: NetworkStrings.rowSubtitle,
+          onTap: () => _open(const NetworkScreen()),
+        ),
+        SettingsRow(
+          key: const Key('settings-env'),
+          icon: Icons.key_outlined,
+          title: t.celautEnvTitle,
+          subtitle: t.celautEnvRowSubtitle,
+          onTap: () => _open(const EnvVariablesScreen()),
+        ),
+        SettingsRow(
+          key: const Key('settings-node-check'),
+          icon: Icons.dns_outlined,
+          title: CelautStrings.nodeRowTitle,
+          subtitle: CelautStrings.nodeRowSubtitle,
+          onTap: () => _open(const NodeConnectScreen()),
+        ),
+        SettingsRow(
+          key: const Key('settings-service'),
+          icon: Icons.play_circle_outline,
+          title: ServiceStrings.rowTitle,
+          subtitle: ServiceStrings.rowSubtitle,
+          onTap: () => _open(const ServiceScreen()),
+        ),
+      ],
+    );
+  }
+
+  Widget _generalGroup(WalletInfo? current) {
+    final t = context.l10n;
+    return SettingsGroup(
+      key: const Key('settings-section-general'),
+      title: t.settingsGeneralGroup,
+      children: [
+        SettingsRow(
+          key: const Key('settings-security'),
+          icon: Icons.lock_outline,
+          title: t.securityTitle,
+          subtitle: current != null ? t.settingsSecurityWalletSubtitle : t.settingsSecurityAppSubtitle,
+          onTap: () => _open(
+            current != null ? SecuritySettingsPage(walletId: current.walletId) : const SecuritySettingsPage(),
+          ),
         ),
         SettingsRow(
           icon: Icons.palette_outlined,
@@ -245,11 +237,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
           subtitle: '${_appearanceName()} · ${networkController.fiatCode.toUpperCase()}',
           onTap: () => _open(const DisplaySettingsPage()),
         ),
+        ValueListenableBuilder<bool>(
+          valueListenable: computeHomeFlag,
+          builder: (context, on, _) => SettingsRow(
+            icon: Icons.forum_outlined,
+            title: t.celautComputeHomeRowTitle,
+            subtitle: t.celautComputeHomeRowSubtitle,
+            trailing: Switch(
+              key: const Key('settings-compute-home'),
+              value: on,
+              onChanged: computeHomeFlag.set,
+            ),
+          ),
+        ),
         SettingsRow(
-          icon: Icons.contacts_outlined,
-          title: t.addressBookTitle,
-          subtitle: t.settingsContactsCount(contactsService.contacts.length),
-          onTap: () => _open(const AddressBookPage()),
+          key: const Key('settings-about'),
+          icon: Icons.info_outline,
+          title: t.settingsAboutRowTitle,
+          subtitle: t.settingsAboutRowSubtitle,
+          onTap: () => _open(const AboutPage()),
         ),
       ],
     );

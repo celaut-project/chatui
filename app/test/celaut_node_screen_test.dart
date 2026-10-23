@@ -298,7 +298,7 @@ void main() {
     expect(find.text(CelautStrings.connect), findsOneWidget);
   });
 
-  testWidgets('Settings has a Developer row that opens the screen', (tester) async {
+  testWidgets('Settings has a Compute row that opens the screen', (tester) async {
     const channel = MethodChannel('com.argus.wallet/secure_storage');
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       channel,
@@ -312,7 +312,7 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
     await tester.pumpAndSettle();
-    expect(find.text(CelautStrings.developerGroup.toUpperCase()), findsOneWidget);
+    expect(find.text('COMPUTE'), findsOneWidget);
     await tester.tap(find.text(CelautStrings.nodeRowTitle));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('celaut-connect')), findsOneWidget);

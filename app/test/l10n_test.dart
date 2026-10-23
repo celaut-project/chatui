@@ -57,7 +57,7 @@ void main() {
     // Names, units and figures that read the same in both languages.
     const same = {
       'appTitle', 'commonToken', 'commonTokens', 'dateDayMonthYear',
-      'celautCpuLabel', 'settingsAppGroup', 'updateCardVersion',
+      'celautCpuLabel', 'settingsErgoGroup', 'settingsGeneralGroup', 'updateCardVersion',
       'updateCardVersionDate', 'utxoTokenCount', 'rentWhenMonthYear',
       'priceAgeMinutes', 'priceAgeHours', 'nftKindAudio', 'nftKindVideo',
       'dashboardStartupError', 'homeTokenCount', 'homeSpokenIncl', 'txIdLabel',

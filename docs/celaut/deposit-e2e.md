@@ -72,7 +72,7 @@ and the hash of `config.yaml` stay the same.
    emulator reaches the host at `10.0.2.2`.
 2. In the app, create a new wallet (the test wallet), a full wallet. Send 0.02 ERG to
    its first address from the funding wallet. Wait for one confirmation. Keep it open.
-3. Dry run, no transaction: Settings, Developer, Celaut deposit. The paying wallet is
+3. Dry run, no transaction: Settings, Compute, Celaut deposit. The paying wallet is
    the test wallet (only full wallets are offered). Node `10.0.2.2:18460`,
    Check the node. The card shows the pay-to address above, 1 MU per nanoERG and
    4 500 000 MU. Amount 0.01, Prepare the deposit. The sheet shows 0.01 ERG, 10,000,000 MU,

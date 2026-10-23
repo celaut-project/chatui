@@ -202,8 +202,6 @@
     }
   },
   "dateUnknownDay": "Unknown day",
-  "celautDeveloperGroup": "Developer",
-  "celautDeveloperScope": "App-wide",
   "celautNodeRowTitle": "Celaut node",
   "celautNodeRowSubtitle": "Connect to a node and show its advertisement",
   "celautScreenTitle": "Celaut node",
@@ -287,7 +285,6 @@
       }
     }
   },
-  "settingsScopeAppWide": "App-wide",
   "aboutTitle": "About",
   "securityTitle": "Security",
   "networkTitle": "Network",
@@ -295,11 +292,13 @@
   "addressBookTitle": "Address book",
   "settingsAboutRowTitle": "About Chatui",
   "settingsAboutRowSubtitle": "Version, release notes, licenses",
-  "settingsSeedWalletScope": "Seed wallet",
   "settingsWalletRowTitle": "Addresses and backup",
   "settingsWalletRowSubtitle": "Primary address, change policy, remove",
   "settingsSecurityWalletSubtitle": "PIN, biometric unlock, auto-lock",
-  "settingsAppGroup": "App",
+  "settingsErgoGroup": "Ergo",
+  "settingsComputeGroup": "Compute",
+  "settingsGeneralGroup": "General",
+  "settingsScopeAppWide": "App-wide",
   "settingsSecurityAppSubtitle": "Auto-lock, screenshots, unconfirmed funds",
   "settingsRemotePreviewsTitle": "Remote previews",
   "settingsRemotePreviewsSubtitle": "IPFS gateway and Never load remote previews",
