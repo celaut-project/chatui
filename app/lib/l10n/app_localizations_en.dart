@@ -5749,7 +5749,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String celautRunSurvivalEstimate(String cost, String balance, String time) {
-    return 'Start cost about $cost, with a balance of $balance for at least $time. The node gives back what the instance does not use.';
+    return 'Start cost about $cost, with a balance of $balance for at least $time at the price of the node now. A busy node, and the traffic of the conversation, cost more. The node gives back what the instance does not use.';
   }
 
   @override
