@@ -172,6 +172,31 @@ Tor). "Check now" under the node cards checks all the nodes. A check changes onl
 cards: the overview (the figures) is not loaded again. Nothing is checked while Tor is
 starting or has failed.
 
+## 4b. Automatic top-up (2026-10-23, Josemi)
+
+An instance stops when its balance on the node runs out. The automatic top-up moves credit
+to it before that. It is off by default; Settings, Compute, "Automatic top-up" turns it on.
+
+- **What it moves.** When a running instance has less than the threshold (default
+  200 000 MU; 10 000 to 50 000 000), the app moves the amount (default 1 000 000 MU;
+  10 000 to 10 000 000) from the credit of its client on that node to the instance, with
+  `ModifyDeposit` (`celaut_top_up_instance`). That credit is already on the node: nothing goes
+  on the blockchain and nothing is signed. The instance keeps the sum of its top-ups
+  (`InstanceRecord.topped_up_mu`), and the cost so far counts it.
+- **No transaction without the user.** The app checks the credit first. If it is less than
+  the amount, the app moves nothing and pays nothing: the list of conversations shows a
+  banner, and its Deposit button opens the deposit screen, where the user chooses the amount
+  and confirms the transaction with the PIN or the fingerprint, as for any deposit. Choice:
+  the automatic top-up never makes an on-chain deposit, also not a small one with a cap;
+  only node credit moves without a question.
+- **Turning it on** needs the wallet open (PIN or fingerprint), because from then on the
+  app moves credit without asking each time.
+- **When it checks.** When the list of conversations reads the balances (it opens, the user
+  comes back, a pull), and once a minute while the app runs and the top-up is on. With the
+  top-up off, nothing polls. After a top-up of an instance the app waits a minute before the
+  next one for it; after a failure, ten minutes. The app does not run when it is closed: then
+  nothing tops up, and the node stops the instance when its balance runs out.
+
 ## 5. Open items
 
 - The exact layout, colors and motion of the compute screen. Use the celaut-design

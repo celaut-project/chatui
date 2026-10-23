@@ -3,12 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../bridge/api/celaut_service.dart';
+import '../../celaut/auto_top_up.dart';
+import '../../celaut/celaut_format.dart';
 import '../../celaut/conversations.dart';
 import '../../celaut/launcher.dart';
 import '../../celaut/payers.dart';
 import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
 import '../home/home_style.dart';
+import 'deposit_screen.dart';
 import 'instance_list.dart';
 import 'run_service_screen.dart';
 import 'run_service_section.dart' show StartedCall;
@@ -31,7 +34,16 @@ class ChatsScreen extends StatefulWidget {
     this.list,
     this.runPage,
     this.onConversation,
+    this.topUp,
+    this.openDeposit,
   });
+
+  /// The automatic top-up: a top-up that needs a deposit shows as a banner on the list.
+  /// Tests give their own.
+  final AutoTopUp? topUp;
+
+  /// Open the deposit screen. Tests give their own.
+  final VoidCallback? openDeposit;
 
   final FullWallets wallets;
   final ConversationNotes? notes;
@@ -156,15 +168,22 @@ class ChatsScreenState extends State<ChatsScreen> {
         onPressed: _newChat,
         child: const Icon(Icons.edit_outlined),
       ),
-      body: widget.list?.call(_list, empty) ??
-          InstanceList(
-            key: _list,
-            chats: true,
-            empty: empty,
-            wallets: widget.wallets,
-            notes: _notes,
-            bottomPadding: 88,
+      body: Column(
+        children: [
+          _TopUpBanner(topUp: widget.topUp ?? autoTopUp, openDeposit: widget.openDeposit),
+          Expanded(
+            child: widget.list?.call(_list, empty) ??
+                InstanceList(
+                  key: _list,
+                  chats: true,
+                  empty: empty,
+                  wallets: widget.wallets,
+                  notes: _notes,
+                  bottomPadding: 88,
+                ),
           ),
+        ],
+      ),
     );
   }
 }
@@ -206,6 +225,55 @@ class OtherInstancesScreen extends StatelessWidget {
               ),
             ),
           ),
+    );
+  }
+}
+
+/// A top-up that the app could not make, for lack of credit on the node ([TopUpNeed]).
+/// The app does not pay a node by itself: Deposit opens the deposit screen, where the
+/// user chooses the amount and confirms it with the PIN or the fingerprint.
+class _TopUpBanner extends StatelessWidget {
+  const _TopUpBanner({required this.topUp, this.openDeposit});
+
+  final AutoTopUp topUp;
+  final VoidCallback? openDeposit;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: topUp,
+      builder: (context, _) {
+        final need = topUp.need;
+        if (need == null) return const SizedBox.shrink();
+        final l = context.l10n;
+        return MaterialBanner(
+          key: const Key('top-up-need'),
+          leading: const Icon(Icons.savings_outlined),
+          content: Text(l.celautTopUpNeed(need.address, muOrUnknown(topUp.amount.toString()))),
+          actions: [
+            TextButton(
+              key: const Key('top-up-need-dismiss'),
+              onPressed: topUp.dismissNeed,
+              child: Text(l.celautTopUpNeedLater),
+            ),
+            TextButton(
+              key: const Key('top-up-need-deposit'),
+              onPressed: () {
+                topUp.dismissNeed();
+                final open = openDeposit;
+                if (open != null) {
+                  open();
+                } else {
+                  Navigator.of(context).push<void>(
+                    MaterialPageRoute(builder: (_) => const DepositScreen()),
+                  );
+                }
+              },
+              child: Text(l.celautTopUpNeedDeposit),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -9071,6 +9071,72 @@ abstract class AppLocalizations {
   /// **'Start cost about {cost}, with a balance of {balance} for at least {time}. The node gives back what the instance does not use.'**
   String celautRunSurvivalEstimate(String cost, String balance, String time);
 
+  /// No description provided for @celautTopUpTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic top-up'**
+  String get celautTopUpTitle;
+
+  /// No description provided for @celautTopUpRowOn.
+  ///
+  /// In en, this message translates to:
+  /// **'On: the app moves your credit on a node to an instance that runs low'**
+  String get celautTopUpRowOn;
+
+  /// No description provided for @celautTopUpRowOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get celautTopUpRowOff;
+
+  /// No description provided for @celautTopUpSwitch.
+  ///
+  /// In en, this message translates to:
+  /// **'Top up instances that run low'**
+  String get celautTopUpSwitch;
+
+  /// No description provided for @celautTopUpThreshold.
+  ///
+  /// In en, this message translates to:
+  /// **'When an instance has less than'**
+  String get celautTopUpThreshold;
+
+  /// No description provided for @celautTopUpAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Move this much of your credit on its node'**
+  String get celautTopUpAmount;
+
+  /// No description provided for @celautTopUpRange.
+  ///
+  /// In en, this message translates to:
+  /// **'From {min} to {max}.'**
+  String celautTopUpRange(String min, String max);
+
+  /// No description provided for @celautTopUpNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The app checks your running instances when the list of conversations opens and once a minute while the app runs. A top-up moves credit that you already have on the node of the instance (ModifyDeposit): nothing is paid on the blockchain and nothing is signed. If that credit is too low, the app does not pay: it asks you, and a deposit always needs your confirmation and your PIN or fingerprint. To turn this on, open the wallet.'**
+  String get celautTopUpNote;
+
+  /// No description provided for @celautTopUpNeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic top-up: your credit on {node} is less than {amount}. Make a deposit to keep its instances running.'**
+  String celautTopUpNeed(String node, String amount);
+
+  /// No description provided for @celautTopUpNeedLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get celautTopUpNeedLater;
+
+  /// No description provided for @celautTopUpNeedDeposit.
+  ///
+  /// In en, this message translates to:
+  /// **'Deposit'**
+  String get celautTopUpNeedDeposit;
+
   /// No description provided for @celautErrorTransferFailed.
   ///
   /// In en, this message translates to:

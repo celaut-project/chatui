@@ -9,7 +9,7 @@ use celaut_balancer::{amount, erg_rate};
 use celaut_proto::celaut::service::Api;
 use celaut_proto::celaut::{Configuration, EstimatedCost, Instance, Payment};
 use celaut_wire::gateway::{
-    generate_deposit_token, get_metrics, get_service_estimated_cost,
+    generate_deposit_token, get_metrics, modify_deposit, get_service_estimated_cost,
     get_service_estimated_cost_with_service, get_service_raw, get_service_skippable, payable,
     start_service,
     stop_service, ServiceRequest,
@@ -227,6 +227,20 @@ impl<T: Transport> NodeSession<T> {
     pub async fn stop(&self, token: &str) -> Result<u128, ClientError> {
         let refund = stop_service(&self.transport, token).await?;
         Ok(amount(refund.amount.as_ref())?)
+    }
+
+    /// `ModifyDeposit`: move `mu` MU of the credit of this client on the node to the
+    /// instance `token`. Nothing goes on a ledger. An error if the node did not move it.
+    pub async fn top_up(&self, token: &str, mu: u128) -> Result<(), ClientError> {
+        let answer = modify_deposit(&self.transport, token, mu).await?;
+        if answer.success {
+            Ok(())
+        } else {
+            Err(ClientError::Protocol(format!(
+                "the node did not move the credit: {}",
+                answer.message
+            )))
+        }
     }
 
     /// `GetMetrics` for this client: its balance in MU of the node.

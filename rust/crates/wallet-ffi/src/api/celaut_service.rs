@@ -518,6 +518,7 @@ pub async fn celaut_start_service(
         },
         name: None,
         alias: None,
+        topped_up_mu: None,
         stopped_at: None,
         refund_mu: None,
     };
@@ -738,11 +739,17 @@ pub struct InstanceStatusView {
     pub last_tunnel_error: Option<String>,
 }
 
-/// What an instance cost so far: the charge of the start less the balance that the
-/// instance still has. `None` if the charge is not known.
-pub(crate) fn cost_so_far(start_charge_mu: Option<&str>, instance_balance: u128) -> Option<u128> {
+/// What an instance cost so far: the charge of the start, plus what the app moved to it
+/// later (the automatic top-up), less the balance that the instance still has. `None` if
+/// the charge is not known.
+pub(crate) fn cost_so_far(
+    start_charge_mu: Option<&str>,
+    topped_up_mu: Option<&str>,
+    instance_balance: u128,
+) -> Option<u128> {
     let charge: u128 = start_charge_mu?.parse().ok()?;
-    Some(charge.saturating_sub(instance_balance))
+    let topped: u128 = topped_up_mu.and_then(|t| t.parse().ok()).unwrap_or(0);
+    Some((charge + topped).saturating_sub(instance_balance))
 }
 
 /// The balance of the instance and the use of its tunnels.
@@ -765,11 +772,81 @@ pub async fn celaut_instance_status(
         .map_err(error_of)?;
     Ok(InstanceStatusView {
         instance_balance_mu: balance.to_string(),
-        cost_so_far_mu: cost_so_far(record.start_charge_mu.as_deref(), balance)
+        cost_so_far_mu: cost_so_far(
+            record.start_charge_mu.as_deref(),
+            record.topped_up_mu.as_deref(),
+            balance,
+        )
             .map(|c| c.to_string())
             .unwrap_or_default(),
         streams_opened: streams,
         last_tunnel_error: last,
+    })
+}
+
+/// The balances after an automatic top-up.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TopUpView {
+    /// The balance of the instance on the node, in MU (empty if the app could not read it).
+    pub instance_balance_mu: String,
+    /// The credit of the client on the node, in MU (empty if the app could not read it).
+    pub client_balance_mu: String,
+}
+
+/// The most that one top-up moves, in MU.
+pub(crate) const TOP_UP_MAX_MU: u128 = 100_000_000;
+
+/// Move `amount_mu` MU of the credit of the app on the node of the instance to the
+/// instance (`ModifyDeposit`), for the automatic top-up (Josemi, 2026-10-23). This moves
+/// credit that the client already has: nothing goes on a ledger, nothing is signed. If
+/// the credit is less than the amount, nothing is asked of the node and the error is
+/// [`CelautErrorKind::InsufficientCredit`]; the app then asks the user, who can make a
+/// deposit, which has its own confirmation and PIN.
+#[flutter_rust_bridge::frb]
+pub async fn celaut_top_up_instance(
+    instance_id: String,
+    amount_mu: String,
+) -> Result<TopUpView, CelautError> {
+    let mu: u128 = amount_mu
+        .trim()
+        .parse()
+        .map_err(|_| invalid("The amount is not a number of MU."))?;
+    if mu == 0 || mu > TOP_UP_MAX_MU {
+        return Err(invalid("The amount of a top-up must be from 1 to 100,000,000 MU."));
+    }
+    let (session, record) = instance(&instance_id).await?;
+    let credit = session.balance().await.map_err(error_of)?;
+    if credit < mu {
+        return Err(CelautError {
+            kind: CelautErrorKind::InsufficientCredit,
+            message: format!("credit {credit} MU, top-up {mu} MU"),
+        });
+    }
+    session.top_up(&record.token, mu).await.map_err(error_of)?;
+    db().update(|d| {
+        if let Some(r) = d.instances.get_mut(&instance_id) {
+            let before: u128 = r
+                .topped_up_mu
+                .as_deref()
+                .and_then(|t| t.parse().ok())
+                .unwrap_or(0);
+            r.topped_up_mu = Some((before + mu).to_string());
+        }
+    })
+    .map_err(storage_error)?;
+    let instance_balance = session
+        .instance_balance(&record.token)
+        .await
+        .map(|b| b.to_string())
+        .unwrap_or_default();
+    let client_balance = session
+        .balance()
+        .await
+        .map(|b| b.to_string())
+        .unwrap_or_default();
+    Ok(TopUpView {
+        instance_balance_mu: instance_balance,
+        client_balance_mu: client_balance,
     })
 }
 
@@ -875,6 +952,43 @@ mod tests {
         let err = celaut_name_instance("nope".into(), "x".into()).unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);
         drop(db().update(|d| d.instances.remove(&id)));
+    }
+
+    #[test]
+    fn the_cost_so_far_counts_the_top_ups() {
+        assert_eq!(cost_so_far(Some("1000"), None, 400), Some(600));
+        // 1000 at the start, 500 moved later, 700 left: 800 spent.
+        assert_eq!(cost_so_far(Some("1000"), Some("500"), 700), Some(800));
+        assert_eq!(cost_so_far(None, Some("500"), 700), None);
+    }
+
+    #[tokio::test]
+    async fn a_top_up_refuses_a_bad_amount_and_a_stopped_instance_before_any_call() {
+        for amount in ["", "x", "0", "100000001", "-5"] {
+            let err = celaut_top_up_instance("any".into(), amount.into())
+                .await
+                .unwrap_err();
+            assert_eq!(err.kind, CelautErrorKind::InvalidInput, "{amount}");
+        }
+        let id = "top-up-stopped-instance".to_string();
+        db().update(|d| {
+            d.instances.insert(
+                id.clone(),
+                InstanceRecord {
+                    peer_id: "ab".repeat(32),
+                    address: "127.0.0.1:1".into(),
+                    token: "token".into(),
+                    stopped_at: Some(1),
+                    ..Default::default()
+                },
+            );
+        })
+        .unwrap();
+        let err = celaut_top_up_instance(id.clone(), "10".into())
+            .await
+            .unwrap_err();
+        assert_eq!(err.message, "This instance was stopped.");
+        celaut_forget_instance(id).unwrap();
     }
 
     #[test]

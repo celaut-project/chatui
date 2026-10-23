@@ -5828,6 +5828,46 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String get celautTopUpTitle => 'Recarga automática';
+
+  @override
+  String get celautTopUpRowOn =>
+      'Activada: la app pasa tu crédito en un nodo a una instancia que se queda sin saldo';
+
+  @override
+  String get celautTopUpRowOff => 'Desactivada';
+
+  @override
+  String get celautTopUpSwitch => 'Recargar las instancias con poco saldo';
+
+  @override
+  String get celautTopUpThreshold => 'Cuando una instancia tenga menos de';
+
+  @override
+  String get celautTopUpAmount =>
+      'Pasar esta cantidad de tu crédito en su nodo';
+
+  @override
+  String celautTopUpRange(String min, String max) {
+    return 'De $min a $max.';
+  }
+
+  @override
+  String get celautTopUpNote =>
+      'La app revisa tus instancias en marcha cuando se abre la lista de conversaciones y una vez por minuto mientras la app está abierta. Una recarga pasa crédito que ya tienes en el nodo de la instancia (ModifyDeposit): no se paga nada en la cadena de bloques y no se firma nada. Si ese crédito no basta, la app no paga: te lo pregunta, y un depósito siempre necesita tu confirmación y tu PIN o tu huella. Para activarla, abre la billetera.';
+
+  @override
+  String celautTopUpNeed(String node, String amount) {
+    return 'Recarga automática: tu crédito en $node es menor que $amount. Haz un depósito para mantener sus instancias en marcha.';
+  }
+
+  @override
+  String get celautTopUpNeedLater => 'Más tarde';
+
+  @override
+  String get celautTopUpNeedDeposit => 'Depositar';
+
+  @override
   String get celautErrorTransferFailed =>
       'La transferencia del servicio se detuvo (no se pudo leer el fichero, está cortado o se canceló). El nodo no guardó el servicio cortado. Inténtalo de nuevo.';
 

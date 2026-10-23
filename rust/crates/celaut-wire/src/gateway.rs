@@ -7,8 +7,9 @@ use std::time::Duration;
 use bee_rpc::frame::Part;
 use celaut_proto::celaut::metadata::hash_tag::Hash;
 use celaut_proto::celaut::{
-    Client, Configuration, EstimatedCost, Metrics, Payment, Peer, PoWRequired, RecursionGuard,
-    Refund, ServiceInstance, TokenMessage,
+    Amount, Client, Configuration, EstimatedCost, Metrics, ModifyDepositInput,
+    ModifyDepositOutput, Payment, Peer, PoWRequired, RecursionGuard, Refund, ServiceInstance,
+    TokenMessage,
 };
 use prost::Message;
 
@@ -284,6 +285,32 @@ pub async fn get_metrics<T: Transport>(transport: &T, token: &str) -> Result<Met
     match answer.iter().find(|p| p.index == 1) {
         Some(part) => decode(part, "the Metrics"),
         None => Ok(Metrics::default()),
+    }
+}
+
+/// `ModifyDeposit`: move `difference_mu` MU from the parent of the instance (the client
+/// that started it) to the instance of the token `token`. The node moves nothing if the
+/// parent has less (`nodo:src/manager/manager.py`, `modify_deposit`): then `success` is
+/// false and `message` says why. Nothing goes on a ledger: this moves credit that the
+/// client already has on the node.
+pub async fn modify_deposit<T: Transport>(
+    transport: &T,
+    token: &str,
+    difference_mu: u128,
+) -> Result<ModifyDepositOutput, WireError> {
+    let input = ModifyDepositInput {
+        difference: Some(Amount {
+            n: difference_mu.to_string(),
+        }),
+        service_token: token.to_string(),
+    };
+    let answer = transport
+        .call("ModifyDeposit", vec![Part::new(1, input.encode_to_vec())], &[1])
+        .await?;
+    match answer.iter().find(|p| p.index == 1) {
+        Some(part) => decode(part, "the ModifyDepositOutput"),
+        // A false bool and an empty text have no bytes.
+        None => Ok(ModifyDepositOutput::default()),
     }
 }
 
