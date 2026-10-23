@@ -57,6 +57,80 @@ The skill catalog does not give a source for a package today (`docs/celaut/catal
   markers** before it ends the request (bee-rpc 0.2: block A opens, block B opens, block A
   closes). nodo refuses them with `IntersectionError`, and does not store the service.
 
+## A node that already has the service
+
+The app sends the hash of the service first (index 4), before the Metadata and the
+Service. nodo looks for the hash in its registry as soon as it reads it
+(`abstract_input_service_iterable.py`, `__pattern_matching`). If it has the service, it
+answers at once: a signal (stop sending), the answer, and for a quote a second signal
+(send again). Then it reads the rest of the request to its end and drops it. nodo's own
+client takes the first answer and drops the call (`BeeClient.call_one`).
+
+The app does the same (`celaut_wire::relay`):
+
+- After the head (Client, guard, Configuration, Hash), it waits at most 2 seconds
+  (`EARLY_ANSWER_WAIT`) for the first Buffer of the node. A node that has the service
+  answers in about one round trip. A node that does not have it answers nothing until the
+  end of the request, so the wait only delays the start of the Service.
+- It sends the Service while it reads the answer. It stops when an answer comes before
+  the end of the Service: it sends no more Buffers and resets the request (HTTP/2
+  `RST_STREAM`). A reset is not a clean end, so the node cannot take the cut Service for
+  a complete one. The early answer comes only for a service that the node already had
+  when it read the hash, so nothing is stored from this call.
+- A node that does not have the service gets all of it, and a clean end, as before.
+- A cancel or a file error still sends the cancel markers, then a clean end.
+- `StartService` of nodo sends no second signal. A client that waits for the signal
+  before it sends more would wait to its time limit; this call stops at the answer.
+
+So a node that has the service (a retry, a second transfer, or a node that got it from
+another client meanwhile) gets almost no Service bytes. The app counts the Buffers that
+it gives to the call (`SendCounter`), logs them after each send
+(`celaut_send_service`), and the progress of the transfer shows them.
+
+### Blocks that the node already has
+
+A node can lack the service and still hold some of its blocks, when another service has
+the same files (blocks are SHA3-256 of their content; nodo makes a block of each file of
+32 KiB or more). bee-rpc lets a receiver ask the sender to skip such a block
+(`StreamControl`, `Buffer.skip`). nodo does not do it for a service that it receives:
+
+- `abstract_input_service_iterable.py` parses the request with `BeeClient.parse` and no
+  `control`, so the node never sends a skip request. It reads a block that it holds
+  from the wire and drops it (bee_rpc `save_chunks_to_block`).
+  nodo uses `StreamControl` only in `GetService`, where the node sends.
+- The client cannot skip by itself: it does not know which blocks the node holds. No
+  call tells it, and the node announces no capability for it.
+- With `block_skip` on, the client keeps the request open after its input for skip
+  requests. nodo reads the request to its end before it ends its answer, so such a call
+  waits to its time limit. The app sends these calls without `block_skip`.
+
+So the app sends every block of a service that the node lacks. A change in nodo (a
+`StreamControl` on this input, and an answer that does not wait for the end of the
+request) is needed to save these bytes.
+
+### Measured
+
+Live node (nodo `ec1274d8`, the same WSL host, loopback), 2026-10-23, with
+`celaut-client/tests/real_node_transfer.rs`. Bytes are the encoded Buffers of the
+Service part that the app gave to the call. "Before" is the call of the app before this
+change (`Transport::call_buffers`); "after" is `NodeSession::quote_with_service`.
+
+| Service | The node | Before | After |
+|---|---|---|---|
+| echo-chat v1 `653cdd`, 122.7 MB, 631 blocks | has it | 122 677 814 B (all), 0.9 s | 0 B, 0.02 to 0.1 s |
+| `2e0a23` (snake-challenge), 1.05 GB, 11 blocks | lacks it; holds 1 of the blocks | not measured (the first send stores it) | 1 051 165 779 B (all), 41 s; stored |
+| `2e0a23` again | has it now | 1 051 165 779 B (all), 19 s | 0 B, 0.02 s |
+
+With no wait after the head (`call_with_service` with a wait of zero), echo-chat sent
+763 309 B (9 Buffers) before the answer stopped it, on loopback. All quotes were
+answered, and the node logged no error for the reset calls.
+
+For `2e0a23` the node already held 11 630 366 bytes (1.1 %): one of its 11 blocks was
+already in the block directory of the node. They were sent again, and nodo dropped them.
+That is the saving that a skip of held blocks would give for this service. The services
+of the celaut-basics releases before echo-chat have one block for the whole filesystem,
+so they share no block with the services of the node.
+
 ## The screens
 
 When a launch from the home screen fails and some node says that it does not have the
@@ -90,7 +164,7 @@ when the node refuses the markers before its first answer, as nodo does.
 
 | Where | What |
 |---|---|
-| `rust/crates/celaut-wire` | `Transport::call_buffers` and `call_raw`; `gateway::get_service_raw` and `get_service_estimated_cost_with_service`; `WireError::Relay` |
+| `rust/crates/celaut-wire` | `Transport::call_buffers`, `call_with_service` and `call_raw`; `relay::call_with_service` (stops when the node answers first); `SendCounter`; `gateway::get_service_raw` and `get_service_estimated_cost_with_service`; `WireError::Relay` |
 | `rust/crates/celaut-client/src/package.rs` | Save the answer of `GetService` to a `.bee` file, inspect a file (layout, service id), read it for a node, cancel, and load a file into the library (`import`) |
 | `rust/crates/wallet-ffi/src/api/celaut_package.rs` | `celaut_fetch_service`, `celaut_inspect_package`, `celaut_send_service`, `celaut_transfer_progress`, `celaut_cancel_transfer`; the library: `celaut_import_package`, `celaut_packages`, `celaut_remove_package` |
 
@@ -100,6 +174,13 @@ when the node refuses the markers before its first answer, as nodo does.
   `nodo export` file, a node that does not have the service, an error and a cancel that
   leave no file, a cut file, files that are not packages.
 - `celaut-wire/tests/relay_calls.rs`: what the node gets, in order.
+- `celaut-wire/tests/early_answer.rs`, against an in-process gRPC server that answers as
+  nodo does: a node that lacks the service gets all of it and a clean end; a node that
+  has it answers after the hash, gets no Service Buffer, and sees a reset; with no wait,
+  the Service stops when the answer comes; a cancel sends the markers and the node
+  refuses; a refusal after the hash stops the Service.
+- `celaut-client/tests/real_node_transfer.rs` (ignored; needs a real node and a
+  package): the bytes of the table above.
 - `celaut-client/tests/nodo_service.rs` (ignored; needs nodo, see its header), against two
   real nodo Gateways (nodo master `5649c2c`, bee_rpc v0.0.2), on 2026-10-15:
   - the app gives a service of 3 MiB to node A with a quote, and A stores it;
@@ -111,6 +192,6 @@ when the node refuses the markers before its first answer, as nodo does.
   - a first transfer cut in the Service is not stored.
   The quotes themselves were refused (the test service declares no architecture, and the
   test Gateway has no manager): the transfer works, the price is the business of the node.
-- Not checked: a service that nodo splits into blocks (the service of the test was too
-  small for that; the blocks are checked in bee-rpc against the vectors of the reference),
-  a phone, and mobile data.
+- Services with blocks went to the live node on 2026-10-23 ("Measured", above).
+- Not checked: a phone, mobile data, and Tor (a longer round trip than the wait after the
+  head lets more of the Service go before the answer).

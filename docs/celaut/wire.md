@@ -43,7 +43,9 @@ nodo pins bee-rpc-over-grpc-py **v0.0.2** (`nodo:bash/requirements.txt:15`). The
 - Fewer than 1 MiB: one `Buffer{chunk, head{index}, separator=true}`.
 - 1 MiB or more: `Buffer{head{index}}`, then chunks of 1 MiB or less, then
   `Buffer{separator=true}`.
-- A client sends everything inline. It does not send blocks.
+- A client sends its own messages inline. A client that relays a service (from
+  `GetService` or a `.celaut.bee` file) sends its Buffers as they are, with their blocks
+  (`docs/celaut/package.md`).
 
 **Receive** (`bee_rpc:client.py:617-965`, `parse_from_buffer`):
 
@@ -55,8 +57,10 @@ nodo pins bee-rpc-over-grpc-py **v0.0.2** (`nodo:bash/requirements.txt:15`). The
   all-default proto3 message never arrives. "Nothing received" can mean "all-default
   message".
 - `signal=true` toggles "pause/resume sending". In StartService and
-  GetServiceEstimatedCost the server sends one signal to mean "I have the service, stop
-  uploading". It never sends the resume.
+  GetServiceEstimatedCost the server sends a signal when it has the service ("stop
+  uploading"), then its answer. GetServiceEstimatedCost then sends the resume;
+  StartService does not. In both, the server reads the rest of the request to its end
+  and drops it, so a client stops at the answer (`docs/celaut/package.md`).
 - Blocks: `Buffer{block}` opens a block, the same hashes close it; they can nest and must
   not overlap. Block contents are chunks; concatenation gives the object. A receiver
   accepts up to 32 levels of nesting (`MAX_BLOCK_NESTING`, `bee_rpc:client.py:317`).
