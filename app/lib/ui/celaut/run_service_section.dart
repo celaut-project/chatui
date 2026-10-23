@@ -25,6 +25,7 @@ import 'deposit_screen.dart';
 import 'env_questions_screen.dart';
 import 'instance_list.dart' show instanceOfLaunch;
 import 'launch_failure_sheet.dart';
+import 'launch_rocket.dart';
 import 'run_confirm_dialog.dart';
 import 'service_info_screen.dart';
 import 'service_transfer_dialog.dart';
@@ -253,6 +254,7 @@ class _RunServiceSectionState extends State<RunServiceSection> {
       return;
     }
     setState(() => _running = true);
+    _showRocket(serviceId);
     try {
       final launch = widget.launch ??
           ({required serviceIdHex, initialMu, minSurvival, environment}) => launchService(
@@ -267,13 +269,17 @@ class _RunServiceSectionState extends State<RunServiceSection> {
         minSurvival: _lastSurvival,
         environment: (quotes) => _inspectBeforeRun(serviceId, quotes),
       );
+      // The rocket lifts off before the next screen.
+      await _rocket?.liftOff();
+      _rocket = null;
       if (!mounted) return;
-      // The progress bar stops before the next screen or sheet, which can stay open.
+      // The progress stops before the next screen or sheet, which can stay open.
       setState(() => _running = false);
       await _started(outcome, serviceId);
     } on LaunchCancelled {
       // The user cancelled in the question about the variables: nothing to show.
     } on LaunchFailure catch (failure) {
+      _hideRocket();
       if (!mounted) return;
       setState(() => _running = false);
       await _showFailure(failure, serviceId);
@@ -284,6 +290,7 @@ class _RunServiceSectionState extends State<RunServiceSection> {
         );
       }
     } finally {
+      _hideRocket();
       if (mounted) setState(() => _running = false);
     }
   }
@@ -300,6 +307,27 @@ class _RunServiceSectionState extends State<RunServiceSection> {
   /// cannot read it (an error, or a service too large to read from a node), the user chooses:
   /// run it anyway, or cancel. Null cancels the launch.
   Future<List<EnvChoice>?> _inspectBeforeRun(String serviceId, QuotesView quotes) async {
+    // The questions show without the rocket, which comes back for the start.
+    _hideRocket();
+    final answer = await _askBeforeRun(serviceId, quotes);
+    if (answer != null && mounted) _showRocket(serviceId);
+    return answer;
+  }
+
+  /// The rocket of the launch, while the app asks the nodes or starts the service.
+  LaunchRocket? _rocket;
+
+  void _showRocket(String serviceId) {
+    _rocket?.dismiss();
+    _rocket = LaunchRocket.show(context, name: _lastName ?? serviceId.substring(0, 8));
+  }
+
+  void _hideRocket() {
+    _rocket?.dismiss();
+    _rocket = null;
+  }
+
+  Future<List<EnvChoice>?> _askBeforeRun(String serviceId, QuotesView quotes) async {
     if (!mounted) return null;
     final ServiceInfoView info;
     try {
@@ -753,12 +781,7 @@ class _RunServiceSectionState extends State<RunServiceSection> {
               label: Text(l.celautPkgImport),
             ),
           ),
-          if (_running) ...[
-            const SizedBox(height: 8),
-            const LinearProgressIndicator(key: Key('run-progress')),
-            const SizedBox(height: 4),
-            Text(l.celautRunStarting, style: t.secondary),
-          ],
+          // While a launch runs, its rocket is over the screen ([LaunchRocket]).
         ],
       ),
     );

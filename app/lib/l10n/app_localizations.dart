@@ -8849,11 +8849,17 @@ abstract class AppLocalizations {
   /// **'Run'**
   String get celautRunButton;
 
-  /// No description provided for @celautRunStarting.
+  /// No description provided for @celautRunLaunching.
   ///
   /// In en, this message translates to:
-  /// **'Starting…'**
-  String get celautRunStarting;
+  /// **'Launching {name}…'**
+  String celautRunLaunching(String name);
+
+  /// No description provided for @celautRunLaunchingNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The app asks the nodes, then starts the service on the best one.'**
+  String get celautRunLaunchingNote;
 
   /// No description provided for @celautRunStarted.
   ///

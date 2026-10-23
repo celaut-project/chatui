@@ -7,6 +7,7 @@ import 'package:argus_wallet/ui/celaut/chats_screen.dart';
 import 'package:argus_wallet/ui/celaut/compute_home_screen.dart';
 import 'package:argus_wallet/ui/celaut/instance_info_screen.dart';
 import 'package:argus_wallet/ui/celaut/known_nodes_screen.dart';
+import 'package:argus_wallet/ui/celaut/launch_rocket.dart';
 import 'package:argus_wallet/ui/celaut/network_screen.dart';
 import 'package:argus_wallet/ui/celaut/run_service_screen.dart';
 import 'package:argus_wallet/ui/home/overview_screen.dart';
@@ -201,6 +202,20 @@ void main() {
       }
     }, reportKey: 'settings_pages');
     await tab('chats');
+    await idle(1000);
+
+    // The rocket of a launch over the Chats tab, with no launch: it hovers, then lifts off.
+    // Nothing is started and nothing is spent.
+    await binding.traceAction(() async {
+      for (var i = 0; i < _rounds; i++) {
+        final rocket = LaunchRocket.show(tester.element(tabPage['chats']!), name: 'echo-chat');
+        await idle(2000);
+        final lifted = rocket.liftOff();
+        await idle(800);
+        await lifted;
+        await idle(300);
+      }
+    }, reportKey: 'launch_rocket');
     await idle(500);
 
     binding.reportData ??= {};

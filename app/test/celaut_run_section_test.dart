@@ -160,6 +160,8 @@ void main() {
   late int deposits;
   late LaunchOutcome Function() outcome;
   Object? launchError;
+  // A launch that waits for the test: the rocket shows meanwhile.
+  Completer<void>? launchGate;
   List<EnvChoice>? envChosen;
   Object? skillsError;
   var skills = <SkillView>[_sat, _summary];
@@ -198,6 +200,7 @@ void main() {
               previewQuote: (id) async => preview,
               launch: ({required serviceIdHex, initialMu, minSurvival, environment}) async {
                 launched.add('$serviceIdHex $initialMu${minSurvival == null ? '' : ' ${minSurvival.inMinutes} min'}');
+                if (launchGate != null) await launchGate!.future;
                 if (launchError != null) throw launchError!;
                 if (askEnvironment) {
                   final quotes = QuotesView(quotes: [_quote()], failures: const []);
@@ -234,6 +237,7 @@ void main() {
     changed = 0;
     deposits = 0;
     launchError = null;
+    launchGate = null;
     envChosen = null;
     skillsError = null;
     skills = [_sat, _summary];
@@ -379,6 +383,60 @@ void main() {
     // The next confirmation starts with the same time.
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getInt('celaut_min_survival_minutes_v1'), 90);
+  });
+
+  group('the rocket of a launch', () {
+    Future<void> confirm(WidgetTester tester) async {
+      await tester.tap(find.byKey(const Key('run-skill-skill-sat')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('skill-sheet-run')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('run-confirm-ok')));
+      // The launch waits: the rocket hovers, so the frames never settle.
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+    }
+
+    testWidgets('it shows while the app launches, then lifts off and goes', (tester) async {
+      launchGate = Completer<void>();
+      await open(tester);
+      await confirm(tester);
+      expect(find.byKey(const Key('launch-rocket')), findsOneWidget);
+      expect(find.text(appL10n.celautRunLaunching('Boolean SAT Solver')), findsOneWidget);
+      expect(tester.binding.hasScheduledFrame, isTrue, reason: 'it moves');
+      launchGate!.complete();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('launch-rocket')), findsNothing);
+      expect(launched, hasLength(1));
+    });
+
+    testWidgets('a failed launch takes it away before the sheet of the failure', (tester) async {
+      launchGate = Completer<void>();
+      launchError = const LaunchFailure(LaunchFailureKind.noQuotes);
+      await open(tester);
+      await confirm(tester);
+      expect(find.byKey(const Key('launch-rocket')), findsOneWidget);
+      launchGate!.complete();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('launch-rocket')), findsNothing);
+    });
+
+    testWidgets('with animations off in Android, it stands still', (tester) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+      launchGate = Completer<void>();
+      await open(tester);
+      await confirm(tester);
+      expect(find.byKey(const Key('launch-rocket')), findsOneWidget);
+      // Nothing moves: no frame waits.
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('launch-rocket')), findsOneWidget);
+      launchGate!.complete();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('launch-rocket')), findsNothing);
+    });
   });
 
   testWidgets('Cancel in the confirmation starts nothing', (tester) async {

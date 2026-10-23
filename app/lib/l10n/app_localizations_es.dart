@@ -5679,7 +5679,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get celautRunButton => 'Ejecutar';
 
   @override
-  String get celautRunStarting => 'Iniciando…';
+  String celautRunLaunching(String name) {
+    return 'Lanzando $name…';
+  }
+
+  @override
+  String get celautRunLaunchingNote =>
+      'La app pregunta a los nodos y arranca el servicio en el mejor.';
 
   @override
   String celautRunStarted(String node, String cost) {
