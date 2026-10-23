@@ -265,8 +265,8 @@ impl Connection {
     }
 
     /// The tonic channel, for the calls that are not one request and one answer
-    /// (`ServiceTunnel`).
-    pub(crate) fn channel(&self) -> Channel {
+    /// (`ServiceTunnel`, [`crate::relay`]).
+    pub fn channel(&self) -> Channel {
         self.channel.clone()
     }
 }
@@ -315,6 +315,27 @@ impl Transport for Connection {
                 }
                 other => wire_error(other),
             })
+    }
+
+    async fn call_with_service(
+        &self,
+        method: &str,
+        head: Vec<Part>,
+        service: crate::transport::Buffers,
+        accepted: &[i32],
+        timeout: Duration,
+    ) -> Result<Vec<Part>, WireError> {
+        let path = format!("/celaut.Gateway/{method}");
+        crate::relay::call_with_service(
+            self.channel.clone(),
+            &path,
+            head,
+            service,
+            accepted,
+            timeout,
+            crate::relay::EARLY_ANSWER_WAIT,
+        )
+        .await
     }
 
     async fn call_raw(
