@@ -11,6 +11,7 @@ import 'package:argus_wallet/celaut/conversations.dart';
 import 'package:argus_wallet/celaut/launcher.dart';
 import 'package:argus_wallet/celaut/package_library.dart';
 import 'package:argus_wallet/celaut/payers.dart';
+import 'package:argus_wallet/celaut/stopped_filter.dart';
 import 'package:argus_wallet/celaut/wallet_money.dart';
 import 'package:argus_wallet/l10n/l10n.dart';
 import 'package:argus_wallet/theme/argus_theme.dart';
@@ -195,8 +196,11 @@ void main() {
   late int computeLoads;
   late List<String> named;
   late List<String> launched;
+  // Most tests show the stopped instances; the group "the filter of stopped instances"
+  // checks the default, which hides them.
+  late StoppedFilter filter;
 
-  setUp(() {
+  setUp(() async {
     // The Settings tab is the settings screen of the app.
     SharedPreferences.setMockInitialValues({});
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -209,6 +213,8 @@ void main() {
     computeLoads = 0;
     named = [];
     launched = [];
+    filter = StoppedFilter();
+    await filter.set(false);
   });
 
   InstanceList list(GlobalKey<InstanceListState> key, Widget empty, {bool full = true}) =>
@@ -224,6 +230,7 @@ void main() {
         forget: node.forget,
         rename: node.rename,
         openTunnel: node.openTunnel,
+        filter: filter,
         chatPage: (i, port, starting) => Scaffold(
           appBar: AppBar(),
           body: Text('chat ${i.instanceId} ${i.name} $port ${starting ? 'starting' : 'running'}'),
@@ -969,6 +976,112 @@ void main() {
         tester.widget<SelectableText>(find.byKey(const Key('info-slot'))).data,
         appL10n.chatsInfoNoChatSlot,
       );
+    });
+  });
+
+  group('the filter of stopped instances', () {
+    setUp(() async {
+      // The default of the app: no choice kept yet.
+      SharedPreferences.setMockInitialValues({});
+      filter = StoppedFilter();
+      await filter.load();
+    });
+
+    testWidgets('hides the stopped instances by default, and a button shows them', (tester) async {
+      expect(filter.value, isTrue);
+      node.db = [
+        _instance('run', startedAt: 300),
+        _instance('old', stoppedAt: 400, refundMu: '700'),
+      ];
+      node.answers['run'] = _status('1');
+      await open(tester);
+      expect(find.byKey(const Key('chats-row-run')), findsOneWidget);
+      expect(find.byKey(const Key('chats-row-old')), findsNothing);
+      expect(find.text(appL10n.chatsShowStopped(1)), findsOneWidget);
+      await tester.tap(find.byKey(const Key('chats-show-stopped')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chats-row-old')), findsOneWidget);
+      // The choice is kept for the next start of the app.
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool(StoppedFilter.key), isFalse);
+      // A shown stopped instance can be deleted.
+      await tester.longPress(find.byKey(const Key('chats-row-old')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('chats-action-delete')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('delete-ok')));
+      await tester.pumpAndSettle();
+      expect(node.forgotten, ['old']);
+      expect(find.byKey(const Key('chats-row-old')), findsNothing);
+    });
+
+    testWidgets('a stop hides the row, and Hide hides the shown ones again', (tester) async {
+      node.db = [_instance('a', startedAt: 300), _instance('b', stoppedAt: 400)];
+      node.answers['a'] = _status('1');
+      await open(tester);
+      await tester.longPress(find.byKey(const Key('chats-row-a')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('chats-action-stop')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('stop-ok')));
+      await tester.pumpAndSettle();
+      expect(node.stops, ['a']);
+      expect(find.byKey(const Key('chats-row-a')), findsNothing);
+      // With no row left, the empty list still offers the stopped ones.
+      expect(find.byKey(const Key('chats-empty')), findsOneWidget);
+      expect(find.text(appL10n.chatsShowStopped(2)), findsOneWidget);
+      await tester.tap(find.byKey(const Key('chats-show-stopped')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chats-row-a')), findsOneWidget);
+      expect(find.byKey(const Key('chats-row-b')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('chats-hide-stopped')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chats-row-a')), findsNothing);
+      expect(find.byKey(const Key('chats-row-b')), findsNothing);
+    });
+
+    testWidgets('Other instances hides them too', (tester) async {
+      node.db = [
+        _instance('plain', chat: false, startedAt: 300),
+        _instance('plain-old', chat: false, stoppedAt: 400),
+      ];
+      node.answers['plain'] = _status('5');
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: argusTheme(watchful: false),
+          home: OtherInstancesScreen(
+            list: InstanceList(
+              chats: false,
+              notes: notes,
+              load: node.load,
+              loadStatus: node.status,
+              filter: filter,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chats-row-plain')), findsOneWidget);
+      expect(find.byKey(const Key('chats-row-plain-old')), findsNothing);
+      await tester.tap(find.byKey(const Key('chats-show-stopped')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chats-row-plain-old')), findsOneWidget);
+    });
+
+    testWidgets('the button is in Spanish too', (tester) async {
+      node.db = [_instance('old', stoppedAt: 400)];
+      setAppLocale(const Locale('es'));
+      addTearDown(() => setAppLocale(const Locale('en')));
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: argusTheme(watchful: false),
+          home: Scaffold(
+            body: InstanceList(chats: true, notes: notes, load: node.load, filter: filter),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Mostrar 1 instancia detenida'), findsOneWidget);
     });
   });
 }

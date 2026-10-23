@@ -5528,6 +5528,20 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String chatsShowStopped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Mostrar $count instancias detenidas',
+      one: 'Mostrar 1 instancia detenida',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get chatsHideStopped => 'Ocultar instancias detenidas';
+
+  @override
   String chatsStopTitle(String name) {
     return '¿Detener $name?';
   }

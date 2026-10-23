@@ -45,7 +45,9 @@
   token on its own, or because its node does not answer. A stopped instance stays in the
   database until the user deletes it; only a stopped instance can be deleted
   (`celaut_forget_instance` refuses the others). See
-  [ui-chat-first.md](ui-chat-first.md), section 3.
+  [ui-chat-first.md](ui-chat-first.md), section 3. **Changed on 2026-10-23 (Josemi):** the
+  lists hide the stopped instances by default, with a button that shows them; they stay in
+  the database.
 - **Payments:** a deposit per node. A separate client id per node, not linked to the
   others.
 - **Access to instances:** `ServiceTunnel` through the node.

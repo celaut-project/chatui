@@ -4138,6 +4138,15 @@
   "chatsRenameTitle": "Rename",
   "chatsRenameNote": "Only this phone sees this name. The node does not get it. Leave it empty to remove it.",
   "chatsRenameNoteOriginal": "Only this phone sees this name. The node does not get it. Leave it empty to show \"{name}\" again.",
+  "chatsShowStopped": "{count, plural, =1{Show 1 stopped instance} other{Show {count} stopped instances}}",
+  "chatsHideStopped": "Hide stopped instances",
+  "@chatsShowStopped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "@chatsRenameNoteOriginal": {
     "placeholders": {
       "name": {

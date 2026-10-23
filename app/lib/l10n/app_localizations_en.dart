@@ -5457,6 +5457,20 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String chatsShowStopped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Show $count stopped instances',
+      one: 'Show 1 stopped instance',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get chatsHideStopped => 'Hide stopped instances';
+
+  @override
   String chatsStopTitle(String name) {
     return 'Stop $name?';
   }
