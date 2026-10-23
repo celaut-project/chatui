@@ -189,3 +189,26 @@ Flows:
 - **A slow service.** If the service takes more than 30 seconds, the app waits. It reads
   the history every 5 seconds, for up to 3 minutes. After that, it says that the service
   does not answer.
+
+## 8. Sleep, the background and the auto-lock (2026-10-23, Josemi)
+
+A launch, the transfer of a service file to a node, and the import of a service file do
+not stop when the phone sleeps or the app goes to the background.
+
+- **The process and the CPU.** The foreground service of the conversations
+  (`ConversationService.kt`) holds them too. Dart takes a hold for each reason
+  (`ForegroundHolds`, `app/lib/celaut/conversation_keep_alive.dart`): conversation, launch,
+  transfer, import. The service runs while one hold is taken, and the notification names
+  the most urgent reason. While a launch, a transfer or an import holds it, the service also
+  takes a partial wake lock (at most 30 minutes), so the work goes on with the screen off.
+  The wait of a new conversation for its service (`ChatClient.syncWhenStarted`) holds a
+  launch too. A conversation alone takes no wake lock.
+- **The auto-lock.** The lock does not change: when the app is in the background for the
+  time of the auto-lock (2 seconds by default), the wallet locks and its keys leave the
+  memory. What changes is the pages. A lock closes every page over the home screen; that
+  closed the page of an import, because the file picker of Android puts the app in the
+  background. While a work runs (`BackgroundWork`, `app/lib/celaut/background_work.dart`),
+  the lock locks the wallet but leaves the pages. When the last work ends, the pages over
+  the page of the work close, if the wallet is still locked. The pages of a launch and of an
+  import show no secret, and a step that needs the wallet (a stop, a deposit) asks for the
+  PIN or the fingerprint again.

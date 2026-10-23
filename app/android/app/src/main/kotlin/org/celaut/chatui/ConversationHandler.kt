@@ -21,7 +21,9 @@ object ConversationHandler {
     fun registerWith(engine: FlutterEngine, activity: Activity) {
         MethodChannel(engine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
-                "start" -> result.success(ConversationService.start(activity))
+                "start" -> result.success(
+                    ConversationService.start(activity, call.argument<List<String>>("reasons"))
+                )
                 "stop" -> {
                     ConversationService.stop(activity)
                     result.success(null)

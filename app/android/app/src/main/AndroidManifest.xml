@@ -10,6 +10,9 @@
          transfers that end, and on Android 15 the system stops it after 6 hours. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+    <!-- The same service keeps a launch, a transfer or an import of a service going with
+         the screen off: it holds a partial wake lock while one of them runs. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <!-- Opt-in update check: lets the app hand a downloaded, signature-checked APK
          to the system installer. Android still asks the user to allow it for
          the app, and nothing is installed without the installer's own prompt. -->
@@ -70,7 +73,7 @@
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Keeps the connection of an open conversation with a Celaut service while the app is in the background" />
+                android:value="Keeps the connection of an open conversation with a Celaut service, and the launch or the transfer of a service, while the app is in the background" />
         </service>
         <!-- Shares the verified update APK (cache/updates only) with the system
              installer. Not exported: access is granted per intent. -->

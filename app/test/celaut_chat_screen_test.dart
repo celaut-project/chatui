@@ -102,9 +102,13 @@ class _FakeChat extends ChatClient {
 /// A keep-alive that writes down what the screen asks of it.
 class _FakeKeepAlive implements ConversationKeepAlive {
   final events = <String>[];
+  final waits = <bool>[];
 
   @override
   Future<void> start() async => events.add('start');
+
+  @override
+  Future<void> waiting(bool on) async => waits.add(on);
 
   @override
   Future<void> stop() async => events.add('stop');
@@ -665,6 +669,18 @@ void main() {
       (tester) async {
     await open(tester);
     expect(keepAlive.events, ['start']);
+  });
+
+  testWidgets('the wait for a service that just started keeps the phone awake, until it answers',
+      (tester) async {
+    await open(tester, starting: true);
+    await tester.pumpAndSettle();
+    expect(keepAlive.waits, [true, false]);
+  });
+
+  testWidgets('a running service needs no wait', (tester) async {
+    await open(tester);
+    expect(keepAlive.waits, isEmpty);
   });
 
   testWidgets('stopping the instance stops the keep-alive', (tester) async {

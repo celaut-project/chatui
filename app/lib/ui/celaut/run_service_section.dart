@@ -7,7 +7,9 @@ import '../../bridge/api/celaut_service_info.dart';
 import '../../bridge/api/celaut_home.dart';
 import '../../bridge/api/celaut_service.dart';
 import '../../celaut/celaut_format.dart';
+import '../../celaut/background_work.dart';
 import '../../celaut/celaut_strings.dart';
+import '../../celaut/conversation_keep_alive.dart';
 import '../../celaut/env_store.dart';
 import '../../celaut/launcher.dart';
 import '../../bridge/api/celaut_package.dart';
@@ -74,7 +76,11 @@ class RunServiceSection extends StatefulWidget {
     this.nameInstance,
     this.inspect,
     this.envStore,
+    this.work,
   });
+
+  /// The launch, the transfer and the import run as background work. Tests give their own.
+  final BackgroundWork? work;
 
   /// What a service says about itself (`docs/celaut/service-info.md`): from the file in the
   /// library, or from the node of the best quote. The launch reads it once, for the check of
@@ -263,15 +269,20 @@ class _RunServiceSectionState extends State<RunServiceSection> {
                 minSurvival: minSurvival,
                 environment: environment,
               );
-      final outcome = await launch(
-        serviceIdHex: serviceId,
-        initialMu: ServiceStrings.initialDefault,
-        minSurvival: _lastSurvival,
-        environment: (quotes) => _inspectBeforeRun(serviceId, quotes),
-      );
-      // The rocket lifts off before the next screen.
-      await _rocket?.liftOff();
-      _rocket = null;
+      // The launch goes on with the screen off or the app in the background, and the
+      // auto-lock does not close this page meanwhile (`BackgroundWork`).
+      final outcome = await (widget.work ?? backgroundWork).run(context, KeepAliveReason.launch, () async {
+        final outcome = await launch(
+          serviceIdHex: serviceId,
+          initialMu: ServiceStrings.initialDefault,
+          minSurvival: _lastSurvival,
+          environment: (quotes) => _inspectBeforeRun(serviceId, quotes),
+        );
+        // The rocket lifts off before the next screen.
+        await _rocket?.liftOff();
+        _rocket = null;
+        return outcome;
+      });
       if (!mounted) return;
       // The progress stops before the next screen or sheet, which can stay open.
       setState(() => _running = false);
@@ -526,7 +537,12 @@ class _RunServiceSectionState extends State<RunServiceSection> {
   /// Pick a `.celaut.bee` file and load it into the library of the app. Gives the loaded
   /// service, or null if the user did not pick a file or the file is refused (the user
   /// has been told).
-  Future<LibraryPackageView?> _loadPickedFile() async {
+  Future<LibraryPackageView?> _loadPickedFile() =>
+      // The file picker of Android puts the app in the background: the import goes on, and
+      // the auto-lock does not close this page meanwhile (`BackgroundWork`).
+      (widget.work ?? backgroundWork).run(context, KeepAliveReason.import, _pickAndLoad);
+
+  Future<LibraryPackageView?> _pickAndLoad() async {
     final packages = widget.packages ?? const AndroidPackageChannel();
     final PickedPackage? picked;
     try {
@@ -629,12 +645,17 @@ class _RunServiceSectionState extends State<RunServiceSection> {
       }
       path = loaded.path;
     }
-    final result = await showServiceTransfer(
+    // The transfer goes on with the screen off or the app in the background.
+    final result = await (widget.work ?? backgroundWork).run(
       context,
-      transfer: transfer,
-      work: () => offer.source == TransferSource.node
-          ? transfer.fromNode(offer, serviceId, ServiceStrings.initialDefault)
-          : transfer.fromLibrary(offer.to, serviceId, ServiceStrings.initialDefault, path!),
+      KeepAliveReason.transfer,
+      () => showServiceTransfer(
+        context,
+        transfer: transfer,
+        work: () => offer.source == TransferSource.node
+            ? transfer.fromNode(offer, serviceId, ServiceStrings.initialDefault)
+            : transfer.fromLibrary(offer.to, serviceId, ServiceStrings.initialDefault, path!),
+      ),
     );
     if (!mounted) return;
     final error = result.error;
