@@ -113,7 +113,8 @@ impl Cancel {
         self.cancelled.load(Ordering::Acquire)
     }
 
-    /// The bytes that the transfer moved so far (the records of the `.bee` file).
+    /// The bytes that the transfer moved so far: the records of the `.bee` file that
+    /// [`save`] wrote, or that the call took from [`read`].
     pub fn bytes(&self) -> u64 {
         self.bytes.load(Ordering::Acquire)
     }
@@ -301,9 +302,13 @@ pub async fn inspect(path: &Path) -> Result<PackageInfo, PackageError> {
 
 /// The Buffers of the package at `path` for a node, with the indices of `StartService`.
 /// The file is read while the Buffers are sent. An error of the file, or a cancel, is
-/// an error of the stream (the node then refuses the input).
+/// an error of the stream (the node then refuses the input). `cancel` counts a record
+/// when the call takes it, not when the file gives it: a call that stops early (the node
+/// has the service) does not count the records that were read ahead.
 pub fn read(path: PathBuf, layout: Layout, cancel: Cancel) -> Buffers {
+    use tokio_stream::StreamExt;
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Buffer, WireError>>(4);
+    let counter = cancel.clone();
     tokio::spawn(async move {
         let failed = |e: PackageError| Err(WireError::Relay(e.to_string()));
         let file = match tokio::fs::File::open(&path).await {
@@ -324,7 +329,6 @@ pub fn read(path: PathBuf, layout: Layout, cancel: Cancel) -> Buffers {
                     if let Some(head) = buffer.head.as_mut() {
                         head.index = layout.for_node(head.index);
                     }
-                    cancel.add(4 + buffer.encoded_len() as u64);
                     Ok(buffer)
                 }
                 Ok(None) => return,
@@ -336,7 +340,14 @@ pub fn read(path: PathBuf, layout: Layout, cancel: Cancel) -> Buffers {
             }
         }
     });
-    Box::pin(tokio_stream::wrappers::ReceiverStream::new(rx))
+    Box::pin(
+        tokio_stream::wrappers::ReceiverStream::new(rx).map(move |item| {
+            if let Ok(buffer) = &item {
+                counter.add(4 + buffer.encoded_len() as u64);
+            }
+            item
+        }),
+    )
 }
 
 /// The folder of the library inside `dir`, a private directory of the app.
