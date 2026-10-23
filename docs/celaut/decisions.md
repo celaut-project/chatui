@@ -8,7 +8,8 @@
   more than one wallet, watch-only addresses and accounts, offline (cold) signing.
 - **Updater:** reads the releases of celaut-project/chatui.
 - **QR scanner:** flutter_zxing (no Google ML Kit).
-- **App:** label "Celaut", applicationId `org.celaut.chatui`. Android only (GrapheneOS
+- **App:** label "Chatui" (2026-10-23, Josemi; it was "Celaut"), applicationId
+  `org.celaut.chatui` (unchanged). Android only (GrapheneOS
   without Play Services must work). APK built in GitHub Actions, published in GitHub
   Releases. UI in English and Spanish.
 - **No third-party services:** no Firebase or similar. Ergo data comes from public Ergo
@@ -63,8 +64,8 @@
 - **Service details and the chat check (2026-10-22, Josemi):** the app reads the Service as a
   stream and never keeps its filesystem. It shows what the service declares (prose, resources,
   interface, networks, variables) and, before a launch, warns if the interface is not the chat
-  convention of Chatui. The title of the app is Celaut Chatui, with "ui" in lower case and in the
-  other colour. See [service-info.md](service-info.md).
+  convention of Chatui. The title of the app is Chatui (2026-10-23, Josemi; it was Celaut Chatui), in lower
+  case except the C, with "ui" in the other colour. See [service-info.md](service-info.md).
 - **Chat attachments (2026-10-22, Josemi):** a message can carry image and audio files
   (JPEG, PNG, MP3, WAV; at most 4 files of 4 MiB each). A service that accepts them
   announces `accepts` in the history read, and the app shows the attach button only then.

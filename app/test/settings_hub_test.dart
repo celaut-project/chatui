@@ -31,7 +31,7 @@ void main() {
   testWidgets('without a wallet the hub is app-wide only', (tester) async {
     listWallets(tester, const []);
     await pump(tester, const SettingsScreen());
-    for (final text in ['Security', 'Network', 'Display', 'Address book', 'About Celaut']) {
+    for (final text in ['Security', 'Network', 'Display', 'Address book', 'About Chatui']) {
       expect(find.text(text), findsOneWidget, reason: text);
     }
     // The wallet is created and restored on the overview; there is no

@@ -853,16 +853,16 @@ class CellMarkPainter extends CustomPainter {
       oldDelegate.live != live || oldDelegate.born != born || oldDelegate.grid != grid;
 }
 
-/// The wordmark beside [CellMark]: CELAUT CHAT in Playfair Display 800, widely tracked, in
-/// the accent's text colour, as on the landing page, and then "ui" in lower case and in
-/// mint, the other colour of the mark: Celaut Chatui.
+/// The wordmark beside [CellMark]: "Chat" in Playfair Display 800, in the accent's text
+/// colour, as on the landing page, and then "ui" in mint, the other colour of the mark:
+/// Chatui, in lower case except the C.
 class CelautWordmark extends StatelessWidget {
   const CelautWordmark({super.key, this.size = 26, this.textAlign});
   final double size;
   final TextAlign? textAlign;
 
   /// The name of the app, for a screen reader and for a title.
-  static const name = 'Celaut Chatui';
+  static const name = 'Chatui';
 
   @override
   Widget build(BuildContext context) {
@@ -871,12 +871,12 @@ class CelautWordmark extends StatelessWidget {
       fontWeight: FontWeight.w800,
       fontSize: size,
       height: 1.1,
-      letterSpacing: size * 0.06,
+      letterSpacing: size * 0.02,
       color: accentTextOf(context),
     );
     return Text.rich(
       TextSpan(
-        text: 'CELAUT CHAT',
+        text: 'Chat',
         children: [
           TextSpan(text: 'ui', style: TextStyle(color: mintOf(context))),
         ],

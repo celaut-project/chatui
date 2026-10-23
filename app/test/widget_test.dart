@@ -7,6 +7,6 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(const ArgusApp());
     await tester.pump();
-    expect(find.text('CELAUT CHATui', findRichText: true), findsWidgets);
+    expect(find.text('Chatui', findRichText: true), findsWidgets);
   });
 }
