@@ -31,8 +31,7 @@ apps: name and status in the bar, a tap on it opens the info page, and ⋮ has t
 Not taken from the messengers:
 
 - **Unread counts.** A service answers only to a message of the user, while the
-  conversation is open (one answer for each message, no streaming, [chat.md](chat.md)). There
-  is nothing unread.
+  conversation is open ([chat.md](chat.md)). There is nothing unread.
 - **Archived chats.** An instance costs money while it runs, so it is not hidden: the user
   stops it. The instances without a chat slot have their own page ("Other instances"), which
   is the nearest thing.

@@ -37,9 +37,40 @@ class _FakeChat extends ChatClient {
   /// The reads fail while this is true, as when the service is not up yet.
   bool broken = false;
 
+  /// The reads that the screen made, and what the fake service does at each one.
+  int syncs = 0;
+  void Function()? onSync;
+
+  /// While this is true the service makes no answer: each message waits.
+  bool holdAnswers = false;
+  int _unanswered = 0;
+
+  /// The service makes the answers that it held.
+  void releaseAnswers() {
+    holdAnswers = false;
+    _flush();
+  }
+
+  void _flush() {
+    for (; _unanswered > 0; _unanswered--) {
+      _messages.add(ChatMessage(
+        seq: _messages.length,
+        role: 'assistant',
+        text: 'echo: ${_messages.where((m) => m.fromUser).toList()[_messages.where((m) => !m.fromUser).length].text}',
+      ));
+    }
+  }
+
+  @override
+  bool get awaitingAnswer =>
+      _messages.any((m) => m.isOpen) ||
+      _messages.where((m) => m.fromUser).length > _messages.where((m) => !m.fromUser).length;
+
   @override
   Future<void> sync() async {
+    syncs++;
     if (broken) throw const ChatException(ChatErrorKind.unreachable);
+    onSync?.call();
   }
 
   @override
@@ -85,17 +116,17 @@ class _FakeChat extends ChatClient {
     if (failure != null) throw failure;
     sent.add(text);
     sentFiles.add(attachments);
-    _messages
-      ..add(ChatMessage(
-        seq: _messages.length,
-        role: 'user',
-        text: text,
-        attachments: [
-          for (final f in attachments)
-            ChatAttachment(kind: f.kind!, mime: f.mime, size: f.bytes.length, name: f.name),
-        ],
-      ))
-      ..add(ChatMessage(seq: _messages.length, role: 'assistant', text: 'echo: $text'));
+    _messages.add(ChatMessage(
+      seq: _messages.length,
+      role: 'user',
+      text: text,
+      attachments: [
+        for (final f in attachments)
+          ChatAttachment(kind: f.kind!, mime: f.mime, size: f.bytes.length, name: f.name),
+      ],
+    ));
+    _unanswered++;
+    if (!holdAnswers) _flush();
   }
 }
 
@@ -275,6 +306,147 @@ void main() {
     expect(find.text(appL10n.chatErrorBusy), findsOneWidget);
     expect(tester.widget<TextField>(find.byKey(const Key('chat-input'))).controller!.text,
         'first\nsecond');
+  });
+
+  testWidgets('the user can send a second message while the first is still on its way',
+      (tester) async {
+    chat.gate = Completer<void>();
+    await open(tester);
+    await tester.enterText(find.byKey(const Key('chat-input')), 'first');
+    await tester.tap(find.byKey(const Key('chat-send')));
+    await tester.pump();
+    await tester.enterText(find.byKey(const Key('chat-input')), 'second');
+    await tester.tap(find.byKey(const Key('chat-send')));
+    await tester.pump();
+    expect(find.byKey(const Key('chat-flying')), findsNWidgets(2));
+    expect(find.text('first'), findsOneWidget);
+    expect(find.text('second'), findsOneWidget);
+    expect(tester.widget<TextField>(find.byKey(const Key('chat-input'))).controller!.text, '');
+
+    chat.gate!.complete();
+    await tester.pumpAndSettle();
+    expect(chat.sent, ['first', 'second']);
+    expect(find.byKey(const Key('chat-flying')), findsNothing);
+    expect(find.text('echo: first'), findsOneWidget);
+    expect(find.text('echo: second'), findsOneWidget);
+  });
+
+  testWidgets('a message that the service has shows as sent, and the dots wait for the answer',
+      (tester) async {
+    chat.holdAnswers = true;
+    await open(tester);
+    await tester.enterText(find.byKey(const Key('chat-input')), 'think hard');
+    await tester.tap(find.byKey(const Key('chat-send')));
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('chat-flying')), findsNothing);
+    expect(find.byKey(const Key('chat-bubble-0')), findsOneWidget);
+    expect(find.byKey(const Key('chat-typing')), findsOneWidget);
+    // The send is not blocked: the user can write on.
+    expect(tester.widget<IconButton>(find.byKey(const Key('chat-send'))).onPressed, isNotNull);
+
+    // The screen reads the conversation every 2 seconds while it waits.
+    final before = chat.syncs;
+    await tester.pump(const Duration(seconds: 2));
+    expect(chat.syncs, before + 1);
+    await tester.pump(const Duration(seconds: 6));
+    expect(find.text(appL10n.chatWaitingSeconds(8)), findsOneWidget);
+
+    chat.releaseAnswers();
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
+    expect(find.text('echo: think hard'), findsOneWidget);
+    expect(find.byKey(const Key('chat-typing')), findsNothing);
+    expect(notes.lastMessage('i1')?.text, 'echo: think hard');
+  });
+
+  testWidgets('an idle conversation is read every 10 seconds', (tester) async {
+    await open(tester);
+    final before = chat.syncs;
+    await tester.pump(const Duration(seconds: 9));
+    expect(chat.syncs, before);
+    await tester.pump(const Duration(seconds: 1));
+    expect(chat.syncs, before + 1);
+  });
+
+  testWidgets('an answer that grows shows its text and its reasoning apart, until it is done',
+      (tester) async {
+    chat = _FakeChat(history: [
+      const ChatMessage(seq: 0, role: 'user', text: 'why?'),
+      const ChatMessage(
+        seq: 1,
+        role: 'assistant',
+        text: '',
+        status: ChatMessage.statusStreaming,
+        reasoning: 'Let me think.',
+        replyTo: 0,
+      ),
+    ]);
+    await open(tester);
+    // No text yet: the reasoning is open, and the dots are not shown over it.
+    expect(find.byKey(const Key('chat-reasoning-text')), findsOneWidget);
+    expect(find.text('Let me think.'), findsOneWidget);
+    expect(find.byKey(const Key('chat-typing')), findsNothing);
+
+    chat.onSync = () => chat._messages[1] = const ChatMessage(
+          seq: 1,
+          role: 'assistant',
+          text: 'Because.',
+          status: ChatMessage.statusStreaming,
+          reasoning: 'Let me think. Yes.',
+          replyTo: 0,
+        );
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
+    expect(find.text('Because.'), findsOneWidget);
+    // The text started: the reasoning closes by itself, and a tap opens it.
+    expect(find.byKey(const Key('chat-reasoning-text')), findsNothing);
+    await tester.tap(find.byKey(const Key('chat-reasoning-toggle')));
+    await tester.pump();
+    expect(find.text('Let me think. Yes.'), findsOneWidget);
+
+    chat.onSync = () => chat._messages[1] = const ChatMessage(
+          seq: 1,
+          role: 'assistant',
+          text: 'Because it is.',
+          reasoning: 'Let me think. Yes.',
+          replyTo: 0,
+        );
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
+    expect(find.text('Because it is.'), findsOneWidget);
+    // The user opened it: it stays open. The wait is over, so the reads slow down.
+    expect(find.text('Let me think. Yes.'), findsOneWidget);
+    expect(chat.awaitingAnswer, isFalse);
+  });
+
+  testWidgets('an answer that failed says so, and keeps what it has', (tester) async {
+    chat = _FakeChat(history: [
+      const ChatMessage(seq: 0, role: 'user', text: 'why?'),
+      const ChatMessage(
+        seq: 1,
+        role: 'assistant',
+        text: 'Half',
+        status: ChatMessage.statusFailed,
+      ),
+    ]);
+    await open(tester);
+    expect(find.text('Half'), findsOneWidget);
+    expect(find.byKey(const Key('chat-failed-1')), findsOneWidget);
+    expect(find.byKey(const Key('chat-typing')), findsNothing);
+  });
+
+  testWidgets('a read that fails shows the error, and the next one that works clears it',
+      (tester) async {
+    await open(tester);
+    chat.broken = true;
+    await tester.pump(const Duration(seconds: 10));
+    await tester.pump();
+    expect(find.byKey(const Key('chat-error')), findsOneWidget);
+    chat.broken = false;
+    await tester.pump(const Duration(seconds: 10));
+    await tester.pump();
+    expect(find.byKey(const Key('chat-error')), findsNothing);
   });
 
   testWidgets('a service that accepts text only has no attach button', (tester) async {

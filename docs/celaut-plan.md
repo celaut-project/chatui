@@ -420,7 +420,7 @@ Android foreground service while a conversation is open. After a launch, the scr
 says that the service starts and reads the history again until the service answers
 (`ChatClient.syncWhenStarted`, chat.md section 9).
 
-Attachments (2026-10-22): `chat.md` is at revision 4. It is a specification in ASD-STE100
+Attachments (2026-10-22): `chat.md` was at revision 4 then (revision 5, of 2026-10-23, sends with no wait and adds streaming). It is a specification in ASD-STE100
 that covers the protocol only, and its section 10 has the conformance tests that a chat
 service must pass. The app sends image and audio files (`file_picker`, the system document
 picker), shows them in the bubbles and gives the text and the files back to the field when a

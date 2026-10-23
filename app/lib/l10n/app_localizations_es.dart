@@ -5338,7 +5338,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get chatErrorBusy =>
-      'El servicio está ocupado con otro mensaje. Inténtalo de nuevo en un momento.';
+      'El servicio está demasiado ocupado para recibir este mensaje. Inténtalo de nuevo en un momento.';
 
   @override
   String get chatErrorOther => 'El servicio rechazó el mensaje.';
@@ -5407,6 +5407,12 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get chatSending => 'Enviando…';
+
+  @override
+  String get chatReasoning => 'Razonamiento';
+
+  @override
+  String get chatAnswerFailed => 'La respuesta se detuvo antes de terminar.';
 
   @override
   String chatWaitingSeconds(int seconds) {

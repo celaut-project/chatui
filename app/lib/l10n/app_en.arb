@@ -4038,7 +4038,7 @@
   "chatErrorUnreachable": "The service did not answer. Your message may not have arrived. Try again.",
   "chatErrorBadAnswer": "The service answered in a way that this app does not understand.",
   "chatErrorHistoryFull": "This conversation is full. Start a new instance for a new conversation.",
-  "chatErrorBusy": "The service is busy with another message. Try again in a moment.",
+  "chatErrorBusy": "The service is too busy to take this message. Try again in a moment.",
   "chatErrorOther": "The service refused the message.",
   "chatAttach": "Attach a photo or an audio file",
   "chatAttachmentRemove": "Remove the file",
@@ -4073,6 +4073,8 @@
   "chatImage": "Image",
   "chatTyping": "The service is answering…",
   "chatSending": "Sending…",
+  "chatReasoning": "Reasoning",
+  "chatAnswerFailed": "The answer stopped before the end.",
   "chatWaitingSeconds": "Still working… {seconds} s",
   "@chatWaitingSeconds": {
     "placeholders": {

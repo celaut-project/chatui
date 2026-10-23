@@ -23,6 +23,10 @@ import 'instance_info_screen.dart';
 /// opens, keeps a copy in memory, and writes nothing to the Celaut database. The last
 /// message goes to the notes of the list of conversations, in memory.
 ///
+/// A send does not wait for the answer, so the user can send many messages one after the
+/// other. The screen reads the conversation every few seconds ([ChatClient.sync]) and shows
+/// an answer that grows, with its reasoning apart from its text, while the service makes it.
+///
 /// The bar has the name of the service, and under it the state, the node and the cost so
 /// far. A tap on the name, or ⋮ then Info, opens the info page of the instance; ⋮ also has
 /// Stop. Back goes to the list: the instance runs on, and the list keeps it.
@@ -40,7 +44,12 @@ class ChatScreen extends StatefulWidget {
     this.starting = false,
     this.notes,
     this.pickFiles,
+    this.pollEvery,
   });
+
+  /// How often the screen reads the conversation. Null: [ChatClient.pollWaiting] while it
+  /// waits for an answer, and [ChatClient.pollIdle] otherwise. Tests give their own.
+  final Duration? pollEvery;
 
   /// The instance has just started: the screen waits until the service answers
   /// (`ChatClient.syncWhenStarted`), and says that it starts.
@@ -94,16 +103,17 @@ class _ChatScreenState extends State<ChatScreen> {
   late final ConversationKeepAlive _keepAlive = widget.keepAlive ?? ChannelConversationKeepAlive();
   late final ConversationNotes _notes = widget.notes ?? conversationNotes;
 
-  bool _sending = false;
+  /// The messages that are on their way: each shows as a bubble at once, until the
+  /// service has it.
+  final List<({String text, List<OutgoingAttachment> files})> _flying = [];
 
-  /// The message that is on its way: shown as a bubble at once, so the screen does not
-  /// look stuck while the service makes its answer.
-  String _flyingText = '';
-  List<OutgoingAttachment> _flyingFiles = const [];
-
-  /// Seconds since the send began. A tick each second while a send runs.
+  /// Seconds that the screen has waited for an answer. A tick each second while it waits.
   int _waited = 0;
   Timer? _ticker;
+
+  /// The timer of the next read of the conversation.
+  Timer? _poll;
+  bool _wasWaiting = false;
   final List<OutgoingAttachment> _pending = [];
   bool _stopping = false;
   late bool _waitingStart = widget.starting;
@@ -114,6 +124,9 @@ class _ChatScreenState extends State<ChatScreen> {
   late InstanceListView _instance = widget.instance;
 
   String get _id => widget.instance.instanceId;
+
+  /// A message is on its way, or the service still makes an answer.
+  bool get _waiting => _flying.isNotEmpty || _chat.awaitingAnswer;
 
   @override
   void initState() {
@@ -138,8 +151,54 @@ class _ChatScreenState extends State<ChatScreen> {
     _notes.answered(_id);
     _notes.saw(_id, _chat.messages);
     if (mounted) setState(() => _waitingStart = false);
+    _syncTicker();
+    _schedulePoll();
     await _refreshCost();
     _scrollToEnd();
+  }
+
+  /// The ticker of the seconds runs only while the screen waits for an answer.
+  void _syncTicker() {
+    if (_waiting && _ticker == null) {
+      _waited = 0;
+      _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() => _waited++);
+      });
+    } else if (!_waiting && _ticker != null) {
+      _ticker!.cancel();
+      _ticker = null;
+    }
+  }
+
+  void _schedulePoll() {
+    _poll?.cancel();
+    if (!mounted) return;
+    final every =
+        widget.pollEvery ?? (_waiting ? ChatClient.pollWaiting : ChatClient.pollIdle);
+    _poll = Timer(every, _pollOnce);
+  }
+
+  /// Read the new messages and the growth of the open ones, then plan the next read.
+  Future<void> _pollOnce() async {
+    if (!mounted) return;
+    if (!_waitingStart && !_stopping) {
+      final atEnd = !_scroll.hasClients ||
+          _scroll.position.maxScrollExtent - _scroll.position.pixels < 80;
+      try {
+        await _chat.sync();
+        if (mounted && _error == ChatErrorKind.unreachable) setState(() => _error = null);
+      } on ChatException catch (e) {
+        if (mounted) setState(() => _error = e.kind);
+      }
+      if (!mounted) return;
+      _notes.saw(_id, _chat.messages);
+      setState(() {});
+      _syncTicker();
+      if (atEnd) _scrollToEnd();
+      if (_wasWaiting && !_waiting) unawaited(_refreshCost());
+      _wasWaiting = _waiting;
+    }
+    _schedulePoll();
   }
 
   Future<void> _refreshCost() async {
@@ -162,6 +221,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
     _notes.saw(_id, _chat.messages);
     if (mounted) setState(() {});
+    _syncTicker();
     _scrollToEnd();
   }
 
@@ -192,22 +252,18 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _send() async {
     final text = _input.text.trim();
-    if ((text.isEmpty && _pending.isEmpty) || _sending) return;
+    if ((text.isEmpty && _pending.isEmpty) || _stopping) return;
     final files = List.of(_pending);
+    final flying = (text: text, files: files);
     setState(() {
-      _sending = true;
       _error = null;
-      _flyingText = text;
-      _flyingFiles = files;
-      _waited = 0;
-      // The field is free at once: the user can write the next message while the
-      // service answers.
+      _flying.add(flying);
+      // The field is free at once: the user can write the next message, and send it,
+      // while the service answers.
       _input.clear();
       _pending.clear();
     });
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _waited++);
-    });
+    _syncTicker();
     _scrollToEnd();
     try {
       await _chat.send(text, attachments: files);
@@ -222,12 +278,14 @@ class _ChatScreenState extends State<ChatScreen> {
         });
       }
     } finally {
-      _ticker?.cancel();
-      _ticker = null;
+      _flying.remove(flying);
       _notes.saw(_id, _chat.messages);
-      if (mounted) setState(() => _sending = false);
+      if (mounted) setState(() {});
+      _syncTicker();
     }
-    await _refreshCost();
+    _wasWaiting = _waiting;
+    // The service has the message: read the answer soon, at the pace of a wait.
+    _schedulePoll();
     _scrollToEnd();
   }
 
@@ -242,6 +300,10 @@ class _ChatScreenState extends State<ChatScreen> {
       if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
     });
   }
+
+  /// The message has something to show: text, reasoning or a file.
+  static bool _hasContent(ChatMessage m) =>
+      m.text.isNotEmpty || m.reasoning.isNotEmpty || m.attachments.isNotEmpty;
 
   String _errorText(ChatErrorKind kind) {
     final l10n = context.l10n;
@@ -306,6 +368,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     unawaited(_keepAlive.stop());
     _ticker?.cancel();
+    _poll?.cancel();
     _input.dispose();
     _scroll.dispose();
     if (widget.http == null) _http.close();
@@ -317,6 +380,8 @@ class _ChatScreenState extends State<ChatScreen> {
     final l10n = context.l10n;
     final scheme = Theme.of(context).colorScheme;
     final messages = _chat.messages;
+    // The dots show while the service has nothing to show yet for the answer.
+    final typing = _waiting && !messages.any((m) => m.isOpen && _hasContent(m));
     final error = _error == null ? null : _errorText(_error!);
     final title = instanceTitle(_instance);
     final subtitle = [
@@ -385,7 +450,7 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: messages.isEmpty && !_sending
+            child: messages.isEmpty && _flying.isEmpty
                 ? Center(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
@@ -406,7 +471,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     key: const Key('chat-messages'),
                     controller: _scroll,
                     padding: const EdgeInsets.all(16),
-                    itemCount: messages.length + (_sending ? 2 : 0),
+                    itemCount: messages.length + _flying.length + (typing ? 1 : 0),
                     itemBuilder: (context, i) {
                       if (i < messages.length) {
                         return _Bubble(
@@ -416,10 +481,11 @@ class _ChatScreenState extends State<ChatScreen> {
                           onLoaded: _fileLoaded,
                         );
                       }
-                      if (i == messages.length) {
+                      if (i < messages.length + _flying.length) {
+                        final flying = _flying[i - messages.length];
                         return _FlyingBubble(
-                          text: _flyingText,
-                          files: _flyingFiles,
+                          text: flying.text,
+                          files: flying.files,
                           scheme: scheme,
                         );
                       }
@@ -442,7 +508,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ),
                   ),
-                  if (_error == ChatErrorKind.unreachable && !_sending)
+                  if (_error == ChatErrorKind.unreachable)
                     TextButton(
                       key: const Key('chat-retry'),
                       onPressed: _retry,
@@ -474,7 +540,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           ),
                         ),
                         deleteButtonTooltipMessage: l10n.chatAttachmentRemove,
-                        onDeleted: _sending ? null : () => setState(() => _pending.removeAt(i)),
+                        onDeleted: () => setState(() => _pending.removeAt(i)),
                       ),
                     ),
                 ],
@@ -489,10 +555,9 @@ class _ChatScreenState extends State<ChatScreen> {
                     IconButton(
                       key: const Key('chat-attach'),
                       tooltip: l10n.chatAttach,
-                      onPressed:
-                          _sending || _stopping || _pending.length >= ChatClient.maxAttachments
-                              ? null
-                              : _attach,
+                      onPressed: _stopping || _pending.length >= ChatClient.maxAttachments
+                          ? null
+                          : _attach,
                       icon: const Icon(Icons.attach_file),
                     ),
                   Expanded(
@@ -508,7 +573,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   IconButton(
                     key: const Key('chat-send'),
                     tooltip: l10n.chatSend,
-                    onPressed: _sending || _stopping ? null : _send,
+                    onPressed: _stopping ? null : _send,
                     icon: const Icon(Icons.send),
                   ),
                 ],
@@ -696,6 +761,8 @@ class _Bubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // An answer that has started but has nothing to show: the typing bubble stands for it.
+    if (message.isOpen && !_ChatScreenState._hasContent(message)) return const SizedBox.shrink();
     final mine = message.fromUser;
     const r = Radius.circular(16);
     const tail = Radius.circular(4);
@@ -728,10 +795,89 @@ class _Bubble extends StatelessWidget {
                 onLoaded: onLoaded,
                 color: color,
               ),
+            if (message.reasoning.isNotEmpty)
+              _Reasoning(
+                key: Key('chat-reasoning-${message.seq}'),
+                text: message.reasoning,
+                // The user sees the reasoning grow until the text starts.
+                openByDefault: message.isOpen && message.text.isEmpty,
+                color: scheme.onSurfaceVariant,
+              ),
             if (message.text.isNotEmpty)
               SelectableText(message.text, style: TextStyle(color: color)),
+            if (message.isFailed)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  context.l10n.chatAnswerFailed,
+                  key: Key('chat-failed-${message.seq}'),
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelSmall
+                      ?.copyWith(color: scheme.error),
+                ),
+              ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The reasoning of the model, apart from the text of the answer: a line with its name
+/// that opens and closes with a tap. It is open while the answer has no text yet, until
+/// the user taps it.
+class _Reasoning extends StatefulWidget {
+  const _Reasoning({
+    super.key,
+    required this.text,
+    required this.openByDefault,
+    required this.color,
+  });
+
+  final String text;
+  final bool openByDefault;
+  final Color color;
+
+  @override
+  State<_Reasoning> createState() => _ReasoningState();
+}
+
+class _ReasoningState extends State<_Reasoning> {
+  /// What the user chose with a tap, or null: follow [_Reasoning.openByDefault].
+  bool? _choice;
+
+  @override
+  Widget build(BuildContext context) {
+    final open = _choice ?? widget.openByDefault;
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: widget.color,
+          fontStyle: FontStyle.italic,
+        );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          InkWell(
+            key: const Key('chat-reasoning-toggle'),
+            onTap: () => setState(() => _choice = !open),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(open ? Icons.expand_less : Icons.expand_more, size: 18, color: widget.color),
+                const SizedBox(width: 4),
+                Text(context.l10n.chatReasoning, style: style),
+              ],
+            ),
+          ),
+          if (open)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: SelectableText(widget.text, key: const Key('chat-reasoning-text'), style: style),
+            ),
+        ],
       ),
     );
   }

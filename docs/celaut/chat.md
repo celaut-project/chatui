@@ -1,6 +1,6 @@
 # Chat interface (HTTP with JSON)
 
-Revision 4 (2026-10-22). Language: ASD-STE100 (Simplified Technical English).
+Revision 5 (2026-10-23). Language: ASD-STE100 (Simplified Technical English).
 
 This document is the specification of the "chat" interface. A service that follows it can
 be used from the conversation screen of chatui. This document is the only source of truth
@@ -38,13 +38,16 @@ Text in a table or in a list that does not use these words is a fact or an examp
 | service | The program in the instance. It answers the requests of this document |
 | client | The program that sends the requests. In chatui, the app |
 | instance | One running copy of a service. One instance holds one conversation |
-| message | One text of the conversation, with `seq`, `role`, `text` and, optional, `attachments` (section 5) |
+| message | One text of the conversation, with `seq`, `role`, `text` and, optional, other fields (section 5) |
 | attachment | One file of a message. Section 5.1 describes it. Section 6.4 gives its bytes |
 | `kind` | The class of a file: `image` or `audio` (section 5.1) |
 | `accepts` | The list of kinds that the service accepts in a send (section 6.2) |
 | `count` | The number of messages that the service holds. The `seq` of the next message is `count` |
-| `expect` | The `count` that the client believes that the service has |
+| `cid` | A name that the client gives to a send. It lets the client send again with no risk (section 6.1) |
 | send | One `POST /chat/messages` request |
+| answer | The assistant message that the service makes for a user message (section 5.2) |
+| open message | A message with `status` equal to `streaming`. Its `text` and `reasoning` can still grow |
+| final message | A message with `status` equal to `done` or `failed`. It never changes |
 | history | The list of all messages of the instance, in order of `seq` |
 
 ## 2. Decisions
@@ -54,7 +57,9 @@ Text in a table or in a list that does not use these words is a fact or an examp
 | History | 2026-10-14 | The service keeps the history. The client does not send it with each message |
 | Session | 2026-10-14 | One session for each instance. The instance is the conversation. When the instance stops, the conversation ends |
 | Synchronization | 2026-10-14 | Each message has a number. The client can ask the service for the history at any time |
-| Answers | 2026-10-14 | One complete answer for each message. Streaming is not in this revision |
+| Sends | 2026-10-23 | A send only gives the message to the service: `POST /chat/messages` replies 200 with the user message at once. It does not wait for the answer. The client can send many messages at the same time. The client reads the conversation with `GET /chat/messages`, every few seconds. The interface stays basic and follows REST |
+| Filters | 2026-10-23 | `GET /chat/messages` has filters, so that a read is small: `from`, `last` and `limit` (section 6.2) |
+| Streaming | 2026-10-23 | A service can make an answer in parts. The answer is a message with `status` `streaming`. Each read shows the text that exists at that time. A service can also give the `reasoning` of the model. A service that does not stream gives the whole answer with `status` `done`. Both kinds of service are valid |
 | Attachments | 2026-10-22 | A message can have image files and audio files (section 5.1). The client sends the files in the send, in base64 (section 6.1). The client reads a file with a separate request (section 6.4). The service lists the kinds that it accepts in `accepts` (section 6.2). A service with no `accepts` accepts text only |
 | Discovery | 2026-10-14 | The service declares the interface in its `Service.Api` (section 3). There is no discovery endpoint |
 | Version | 2026-10-14 | The tag has no version. The interface only grows with new optional fields (section 11) |
@@ -125,21 +130,30 @@ A message has these fields:
 |---|---|---|
 | `seq` | integer, 0 or more | The position of the message in the conversation. The first message has `seq` 0. User messages and assistant messages share the same count |
 | `role` | string | `user` or `assistant` |
-| `text` | string | The text, in UTF-8. It is empty only if the message has an attachment |
+| `text` | string | The text, in UTF-8. It is empty only if the message has an attachment, or if it is an assistant message that has not got its first text |
 | `attachments` | list, optional | The files of the message (section 5.1). If the message has no file, the field is absent or the list is empty |
+| `status` | string, optional | `streaming`, `done` or `failed` (section 5.2). If the field is absent, the value is `done` |
+| `reasoning` | string, optional | The reasoning of the model. Only an assistant message has it (section 5.2) |
+| `reply_to` | integer, optional | The `seq` of the user message that this assistant message answers. Only an assistant message has it |
+| `cid` | string, optional | The `cid` of the send. Only a user message has it, and only if the send had it (section 6.1) |
 
 Rules:
 
 - The service must keep `count`. The next message gets `seq` equal to `count`.
 - The history has no gaps. A message has `seq` equal to its index in the history.
-- The service must not change or delete a message that it holds.
-- The roles alternate. A user message has an even `seq`. The assistant message that answers
-  it has the next `seq`.
+- The service must give a user message its `seq` when it takes the send. The service must give
+  an assistant message its `seq` when the answer starts, before the first text.
+- The service must not delete a message that it holds. The service must not change a final
+  message. Section 5.2 gives the only change that is permitted to an open message.
+- The roles do not alternate. The client can send a new message before the answer to the
+  messages before it is complete. The answers can be in a different order from the user
+  messages. `reply_to` links an answer to its user message.
 - `text` of a user message must be the text that the client sent, without a change. The
   service must not remove, add or change a character, including space characters.
 - The service must keep and return a message in the same order and with the same `seq`
   each time.
 - A `seq` is a JSON integer. The service must not write it as a float (`4.0`) or a string.
+- A user message always has `status` `done`.
 
 ### 5.1 Attachments
 
@@ -168,6 +182,38 @@ Media types that a service must accept, if it says that it accepts the kind (sec
 A service can accept more media types. A service can give an attachment in an assistant
 message, for example an image that it makes.
 
+### 5.2 Answers and streaming
+
+A service makes the answer to a user message in one of two ways. Each way is valid.
+
+- **Whole answer.** The service adds the assistant message when the answer is ready. The
+  message has `status` `done`, or has no `status`.
+- **Streaming.** The service adds the assistant message when the answer starts. The message
+  has `status` `streaming`, and `text` and `reasoning` hold what the service has made so far.
+  The service changes the message while the answer grows. When the answer ends, the service
+  sets `status` to `done`. If the answer cannot end, the service sets `status` to `failed`.
+
+Rules for an open message:
+
+- The service can change only `text`, `reasoning` and `status` of an open message.
+- A new `text` must start with the old `text`. A new `reasoning` must start with the old
+  `reasoning`. The service must only add characters at the end.
+- `status` changes once: from `streaming` to `done` or to `failed`. Then the message is
+  final.
+- A reader sees one state of the message at each read. The state is never half changed.
+- `count` does not change when the text of an open message grows.
+
+`reasoning` is the text that the model writes before its answer, if the model gives it. It
+is not part of `text`. A service that has no reasoning does not send the field. The client
+shows `reasoning` apart from `text`, and the user can hide it.
+
+A `failed` message keeps the `text` and `reasoning` that exist at that time. The service
+must not remove the message. The conversation goes on: the user can send a new message.
+
+The service must end each answer: the service must set `status` to `done` or `failed`. A
+user message with no assistant message after a long time is a service that does not follow
+this document.
+
 ## 6. Requests
 
 ### 6.1 Send a message
@@ -176,13 +222,13 @@ message, for example an image that it makes.
 POST /chat/messages
 Content-Type: application/json
 
-{"expect": 4, "text": "Hello"}
+{"cid": "k7Qe0b", "text": "Hello"}
 ```
 
 | Field | Type | Rule |
 |---|---|---|
-| `expect` | integer, 0 or more | Required. The `count` that the client believes that the service has |
 | `text` | string | Required. The text of the message. It must not be empty, unless the request has `attachments` |
+| `cid` | string, optional | A name for this send. It has 1 to 64 characters from `A-Z`, `a-z`, `0-9`, `-` and `_`. The client uses a new `cid` for each message |
 | `attachments` | list, optional | The files of the message. A request has 1 to 4 files. See below |
 
 An item of `attachments` has `mime` (string, required), `name` (string, optional) and
@@ -190,7 +236,7 @@ An item of `attachments` has `mime` (string, required), `name` (string, optional
 line break). The rules for the client to send `attachments` are in section 9. Example:
 
 ```
-{"expect": 4, "text": "What is this?",
+{"cid": "k7Qe0c", "text": "What is this?",
  "attachments": [{"mime": "image/jpeg", "name": "tree.jpg", "data": "/9j/4AAQ..."}]}
 ```
 
@@ -198,12 +244,12 @@ The service must check the request in this order and stop at the first failure:
 
 | Step | Check | Failure |
 |---|---|---|
-| 1 | The body is valid JSON and an object. `expect` is an integer of 0 or more (not a float, not a string, not a boolean). `text` is a string. `text` is not empty, unless `attachments` has an item. `attachments`, if present, is a list of 1 to 4 items. Each item has a `mime` string and a `data` string of valid base64 | 400 `bad_request` |
+| 1 | The body is valid JSON and an object. `text` is a string. `text` is not empty, unless `attachments` has an item. `cid`, if present, is a valid string. `attachments`, if present, is a list of 1 to 4 items. Each item has a `mime` string and a `data` string of valid base64 | 400 `bad_request` |
 | 2 | The size of the body, of `text` and of each file is in the limit of the service (section 7) | 400 `bad_request` |
 | 3 | Each `mime` is a type that the service accepts (see below) | 415 `unsupported_media` |
-| 4 | The service has no other send in progress | 503 `busy` |
-| 5 | `expect` is equal to `count` | 409 `out_of_sync` |
-| 6 | The history has room for two more messages | 413 `history_full` |
+| 4 | A user message with the same `cid` is in the history | 200, with that message. The service changes nothing (see below) |
+| 5 | The history has room for the user message and its answer | 413 `history_full` |
+| 6 | The service can keep one more message that waits for an answer | 503 `busy` |
 
 A body above the limit of the service gets status 400 `bad_request`. It does not get status
 413, because 413 is `history_full`. The check of the size (step 2) is before the check of
@@ -215,31 +261,37 @@ is accepted if its kind is in `accepts` (section 6.2) and the service supports t
 A send with attachments to a service that has no `accepts` gets 415 `unsupported_media`.
 A `mime` of a kind that is not in `accepts` gets 415 too.
 
+For step 4, the same `cid` means the same send. The service does not compare the other
+fields. The service must reply with the user message that it has, and must not add a message
+or start an answer. This lets the client send again after a lost connection (section 6.3).
+
 If all checks pass, the service must do these steps:
 
-1. Make the answer for `text`.
-2. Add the user message with `seq` equal to `expect`, and the assistant message with the
-   next `seq`. The service must add the two messages at the same time. A reader never
-   sees one of them without the other.
+1. Add the user message with `seq` equal to `count`, `status` `done` and the `cid`.
+2. Start the answer in the background. The service must not wait for the answer.
 3. Reply with status 200:
 
 ```
-{"count": 6,
- "messages": [{"seq": 4, "role": "user", "text": "Hello"},
-              {"seq": 5, "role": "assistant", "text": "Hello"}]}
+{"count": 5,
+ "message": {"seq": 4, "role": "user", "text": "Hello", "status": "done", "cid": "k7Qe0b"}}
 ```
 
-`messages` has the two messages that this send added, in order. The user message has
-`attachments` with the description of each file (section 5.1), without `data`. `count` is
-the `count` after the send.
+`message` is the user message that this send added. It has `attachments` with the description
+of each file (section 5.1), without `data`. `count` is the `count` after the send.
 
-If the service fails to make the answer, the service must change nothing. The service must
-not change `count`. The service must not keep the user message. The service must reply with
-status 500 and `{"error": "service_error"}`. The `message` field is optional.
+The service must reply to a send at once. The service must not hold the reply until the
+answer is ready. The service must accept a send while it makes the answer to an earlier
+message. Many sends can be in progress at the same time. The service decides how it makes the
+answers: one after the other, or at the same time.
+
+If the service fails to take the message, the service must change nothing. The service must
+reply with status 500 and `{"error": "service_error"}`. The `message` field is optional. A
+failure to make the answer is not this case: the service adds an assistant message with
+`status` `failed` (section 5.2).
 
 If a check of the table fails, the service must change nothing.
 
-### 6.2 Read the history
+### 6.2 Read the conversation
 
 ```
 GET /chat/messages?from=4
@@ -248,11 +300,17 @@ GET /chat/messages?from=4
 | Parameter | Type | Rule |
 |---|---|---|
 | `from` | integer, 0 or more | Optional. The first `seq` that the client wants. Default: 0 |
+| `last` | integer, 1 or more | Optional. The client wants the last `last` messages of the history, or all of them if there are fewer. It must not be in the same request as `from` or `limit` |
+| `limit` | integer, 1 or more | Optional. The most messages in the answer. The service can give fewer |
 
-`from` is valid only if it is a string of one or more ASCII digits (`0` to `9`). The value
+The filters are for a small read. The client uses `from` to read only what is new. A client
+that wants to show the end of a long conversation uses `last`.
+
+A value is valid only if it is a string of one or more ASCII digits (`0` to `9`). The value
 has no sign, no space, no decimal point and no other character. The service must
-reply with status 400 and `bad_request` to a value that is not valid. Digits that are
-not ASCII, such as `²`, are not valid. The service must not close the connection.
+reply with status 400 and `bad_request` to a value that is not valid, and to a `last` or a
+`limit` of 0. Digits that are not ASCII, such as `²`, are not valid. The service must not
+close the connection.
 
 If `from` is more than `count`, the service must reply with status 400 and `bad_request`.
 If `from` is equal to `count`, the service replies with status 200 and an empty list.
@@ -263,53 +321,52 @@ The service replies with status 200:
 {"count": 6, "accepts": ["image", "audio"], "messages": [{"seq": 4, ...}, {"seq": 5, ...}]}
 ```
 
-`accepts` is optional. It is the only optional field of the answer, with `attachments` in
-a message. It is the list of the kinds of attachment that the service accepts in a send:
-`image`, `audio`, or both. If `accepts` is absent or empty, the service accepts text only.
-The service must put the same `accepts` in each answer, for the whole life of the
+`accepts` is optional. It is the list of the kinds of attachment that the service accepts in
+a send: `image`, `audio`, or both. If `accepts` is absent or empty, the service accepts text
+only. The service must put the same `accepts` in each answer, for the whole life of the
 instance. A message in `messages` can have `attachments` (section 5.1).
 
 `count` is the total number of messages of the history. It is not the number of messages in
 the answer.
 
-`messages` has the messages with `seq` equal to or more than `from`, in order. If the
-history is empty, `count` is 0 and `messages` is an empty list. The answer has `accepts`
-if the service accepts attachments.
+`messages` has the messages that the filters choose, in order of `seq`, with no gap between
+the first and the last. Each message has its state at the time of the read. If the history is
+empty, `count` is 0 and `messages` is an empty list. The answer has `accepts` if the service
+accepts attachments.
 
-The body of the answer must be 1 MiB (1 048 576 bytes) or less. If the messages from `from`
-are more than that, the service must give fewer messages. The service must give the messages
-in order, from `from`, with no gap. The service must give at least one message if `from` is
-less than `count`. The client reads the rest with a new read from its own count (section 9).
+The body of the answer must be 1 MiB (1 048 576 bytes) or less. If the messages are more than
+that, the service must give fewer messages. The service must give the messages in order, with
+no gap, and must give at least one message if the filters choose one. The client reads the
+rest with a new read from its own count (section 9).
 
-The service must answer this request also when a send is in progress. The reply holds only
-the messages that the service has added. It does not hold the message of the send in
-progress (section 6.1, step 2). The service must not answer this request with 503.
+The service must answer this request at any time, also when it makes answers. The service
+must not answer this request with 503.
 
 The client uses this request:
 
 - to start the screen again when the instance runs;
-- to repair a lost answer (section 6.3);
+- to read the new messages, and the growth of the open messages, every few seconds
+  (section 9);
+- to repair a lost send (section 6.3);
 - to wait for a service that starts (section 9).
 
 ### 6.3 Lost connection
 
 A client that loses the connection after a send does not know if the service got the
-message.
+message. The `cid` of the send gives the way to know.
 
-1. The client must not send the message again at once.
-2. The client must read the history (section 6.2) from its own `count`.
-3. If the message is in the history, the send worked. The client uses the history as
-   the answer.
-4. If the message is not in the history, the send did not happen. The client tells the
-   user. The user decides to send the message again. The client must not send it again
-   by itself.
+1. The client must read the history (section 6.2) from its own `count`.
+2. If a user message with the `cid` is in the history, the send worked.
+3. If it is not, the client can send the same request again, with the same `cid`. If the
+   service got the first send in the meantime, step 4 of section 6.1 stops a second message.
+4. If the client does not send again, the client tells the user. The user decides.
 
-If a send takes more time than the client waits for, the service can still add the two
-messages after that time. The client then reads them at the next read of the history.
+A client that sends a message with no `cid` must not send it again by itself. A service that
+does not give `cid` in the user message cannot help the client to find the message.
 
 The client waits 30 seconds for a request that has no files. The client waits 120 seconds
-for a send that has files (`TunnelHttp`). A service that makes an answer in more time than
-30 seconds must use the rules of section 7.
+for a send that has files (`TunnelHttp`). The service replies to a send in much less time
+than 30 seconds (section 7).
 
 ### 6.4 Read an attachment
 
@@ -338,15 +395,17 @@ The client can keep the bytes in memory. It must not write them to the Celaut da
 
 | Limit | Value |
 |---|---|
-| Time to answer a send | The service must make the answer in 30 seconds or less. The service counts the time from the end of the request body. If the service needs more time, the client sees a lost connection (section 6.3). The client then reads the history. If the two messages are in the history, the send worked. The client does not send the message again |
+| Time to reply to a send | The service must reply to a send in 30 seconds or less. The service counts the time from the end of the request body. The service does not wait for the answer, so it needs this time only to check and keep the message |
+| Time to make an answer | There is no limit in this document. An answer can take minutes. The client reads the conversation until the answer is final |
 | Size of `text` | The service must accept `text` of 16 384 bytes (UTF-8) or less. The service can accept more. The service must reply with status 400 to a `text` above its own limit |
 | Size of a request body, text only | The service must accept a body of 128 KiB (131 072 bytes) or less. The service can accept more |
 | Size of a request body, with attachments | A service that accepts attachments must accept a body of 24 MiB (25 165 824 bytes) or less. The service can accept more |
 | Body above the limit | The service must reply with status 400 `bad_request`. The service must not reply with status 413 |
 | Size of a file | A service that accepts attachments must accept a file of 4 MiB (4 194 304 bytes) or less. The service can accept more. The service must reply with status 400 to a file above its own limit |
 | Number of files | A service that accepts attachments must accept 4 files in one send |
-| Size of the history | The service decides. When the history has no room for two more messages, the service replies with status 413 `history_full` |
-| Size of the answer to a read | The body of the answer to a read of the history must be 1 MiB (1 048 576 bytes) or less (section 6.2) |
+| Messages that wait | The service decides how many user messages can wait for an answer. When it cannot keep one more, it replies to a send with status 503 `busy` |
+| Size of the history | The service decides. When the history has no room for the user message and its answer, the service replies with status 413 `history_full` |
+| Size of the answer to a read | The body of the answer to a read of the conversation must be 1 MiB (1 048 576 bytes) or less (section 6.2) |
 
 The limit of 128 KiB is more than 6 x 16 384 + 1 024 bytes (99 328 bytes). In JSON, one
 control character of `text` can use 6 bytes (`\u0000`). A `text` of 16 384 bytes then fits in
@@ -356,10 +415,6 @@ The limit of 24 MiB comes from this sum. One file of 4 MiB is 5 592 408 bytes in
 (4 x 1 398 102). Four files are 22 369 632 bytes. The other 2 796 192 bytes are for `text`
 (up to 98 304 bytes in JSON), the names and the JSON syntax.
 
-A service that does not make an answer in 30 seconds must reply with status 503 `busy` to
-the next send until the answer is in the history. This is the rule of step 4 of
-section 6.1.
-
 ## 8. Errors
 
 | Status | `error` | Meaning |
@@ -367,47 +422,48 @@ section 6.1.
 | 400 | `bad_request` | A request is not valid. The list below gives the cases |
 | 404 | `not_found` | The path is not defined in this document, or the message or the attachment of section 6.4 does not exist |
 | 405 | `method_not_allowed` | The method is not GET or POST for `/chat/messages`, or not GET for a path of section 6.4 |
-| 409 | `out_of_sync` | `expect` is not equal to `count`. The body has `count` |
 | 413 | `history_full` | The service does not keep more messages. The client tells the user to start a new instance |
 | 415 | `unsupported_media` | A `mime` of a file is not accepted, or the service accepts text only. The service changed nothing |
-| 500 | `service_error` | The service failed to make the answer. The service changed nothing |
-| 503 | `busy` | The service makes the answer for a message already. The client tries again later |
+| 500 | `service_error` | The service failed to take the message. The service changed nothing |
+| 503 | `busy` | The service cannot keep one more message that waits for an answer. The client tries again later. The service changed nothing |
 
 A 400 answer is for one of these cases:
 
 - The body is not valid JSON, or is not an object.
 - A field is missing or has the wrong type.
-- `expect` is less than 0.
 - `text` is empty and there is no attachment.
+- `cid` is not valid.
 - `text` is above the limit of the service.
 - The body is above the limit of the service.
 - `attachments` is an empty list, or has more than 4 items.
 - A file is above the limit of the service.
 - The `data` of a file is not valid base64.
-- `from` is not valid, or is more than `count`.
+- `from`, `last` or `limit` is not valid, or `from` is more than `count`, or `last` is in the
+  same request as `from` or `limit`.
 - A number of a path of section 6.4 is not valid.
 
 An error body is `{"error": "<name>", "message": "<text for the user>"}`. `message` is
-optional. If `message` is present, it is text that the client can show to the user. The
-409 body also has `count`, for example `{"error": "out_of_sync", "count": 6}`.
+optional. If `message` is present, it is text that the client can show to the user.
 
 A service must not use a status that is not in this table for a request that this
 document defines. A client treats a status that is not in this table as an error that it
 does not know (`ChatErrorKind.other`).
 
-A service must keep only one send in progress. The service must never change `count` for a
-send that failed.
+The service must never change `count` for a send that failed.
 
 ## 9. Client rules
 
 These rules cover the protocol only. The screens, the cost, the stop of an instance and the
 storage of the app are not part of this document ([ui-chat-first.md](ui-chat-first.md)).
 
-- The client must send one request at a time. A new send waits for the end of the send
-  before it.
+- The client can send a message at any time. It does not wait for the answer to an earlier
+  message, and it does not wait for an earlier send to end.
+- The client must use one connection for all its requests, so its requests go one after the
+  other on the wire (see below). A send replies at once, so the requests do not wait long.
+- The client must give each send a new `cid` (section 6.1).
 - The client must not send a message that has an empty `text` and no attachment.
-- The client must send `attachments` only if the last read of the history had the kind in
-  `accepts` (section 6.2).
+- The client must send `attachments` only if the last read of the conversation had the kind
+  in `accepts` (section 6.2).
 - The client must not send more than 4 files in one send. The client must not send a file
   above 4 MiB. The client does not know if the service accepts more.
 - The client must send only the media types of the table in section 5.1.
@@ -416,85 +472,103 @@ storage of the app are not part of this document ([ui-chat-first.md](ui-chat-fir
   client tells the user.
 - If the answer to a send is 400, the client must not send the same send again by itself.
   The client tells the user.
+- If the answer to a send is 503, the client tells the user. The user decides to send again.
 - The client must read the history from 0 when it opens a conversation that it does not
   have.
-- If a read of the history has fewer messages than `count` minus `from`, the client must read
-  again from its own count. The client stops when its count is equal to `count`.
+- The client waits for an answer when the messages that it has include an open message, or
+  more user messages than assistant messages.
+- The client reads the conversation again and again, to get new messages and the growth of
+  open messages:
+  - The client reads from the `seq` of its first open message. If it has no open message, it
+    reads from its own count.
+  - The client must replace a message that it has as open with the message of the same `seq`
+    in the answer. The client must not change a final message that it has.
+  - While the client waits for an answer, it reads every 2 seconds. Otherwise it reads every
+    10 seconds, or less often. The client must not read more than one time each second.
+- If a read has fewer messages than `count` minus `from`, the client must read again from its
+  own count. The client stops when its count is equal to `count`.
 - A service can need some seconds to listen after the start of its instance. Until then, a
   request fails to connect. The client can read the history again until the service
   answers. It must not send a message before a read of the history works.
 - A client that gets a `seq` that is not the next one (a gap) must treat the answer as an
-  error. A client skips a message that it has already.
+  error. A client skips a message that it has already, if that message is final.
+- The client must show `reasoning` apart from `text`. It must not mix them.
 - The client must use HTTP keep-alive and open one connection for the whole conversation.
   Each connection through the tunnel is one `ServiceTunnel` stream, and the node charges
-  for each stream (`TUNNEL_OPEN_MU`).
+  for each stream (`TUNNEL_OPEN_MU`). For this reason the service does not hold a read open
+  to push data: a held read would block the one connection of the client.
 - The client must send `Content-Length` on each request that has a body (section 4).
 - The client must follow section 6.3 after a lost connection.
 
 ## 10. Conformance
 
-A service follows revision 4 if it obeys each "must" and "must not" of sections 3 to 8. A
-client follows revision 4 if it obeys each "must" and "must not" of sections 6.3 and 9.
+A service follows revision 5 if it obeys each "must" and "must not" of sections 3 to 8. A
+client follows revision 5 if it obeys each "must" and "must not" of sections 6.3 and 9.
 
 ### 10.1 Tests
 
 Run these tests on a new instance. `$B` is the base URL of the tunnel, for example
-`http://127.0.0.1:PORT`. `N` is the `count` of the service at the time of the test. Each
-test gives the expected result. A service that accepts attachments sends `accepts` in each
-answer to a read of the history. A service that accepts text only does not send it.
+`http://127.0.0.1:PORT`. `N` is the `count` of the service at the time of the test. "Wait for
+the answer" means: read `GET /chat/messages?from=<seq>` every second, until the assistant
+message with `reply_to` equal to `<seq>` is final. Each test gives the expected result. A
+service that accepts attachments sends `accepts` in each answer to a read. A service that
+accepts text only does not send it.
 
 | # | Request | Expected result |
 |---|---|---|
-| 1 | `GET /chat/messages` | 200, `count` 0, `messages` is an empty list. `accepts` is as in test 19 |
+| 1 | `GET /chat/messages` | 200, `count` 0, `messages` is an empty list. `accepts` is as in test 20 |
 | 2 | `GET /chat/messages?from=0` | 200, same body as test 1 |
 | 3 | `GET /chat/messages?from=1` | 400 `bad_request` |
 | 4 | `GET /chat/messages?from=²` | 400 `bad_request`, and the connection stays open |
-| 5 | `GET /chat/messages?from=-1`, `?from=1.0`, `?from=` , `?from=a` | 400 `bad_request` for each |
-| 6 | `POST` with body `{"expect":0,"text":"one"}` | 200, `count` 2, two messages: `seq` 0 `user` "one", `seq` 1 `assistant` |
-| 7 | `POST` with body `{"expect":0,"text":"again"}` | 409 `out_of_sync`, `count` 2. A `GET` after it still has `count` 2 |
-| 8 | `POST` with body `{"expect":2,"text":"two"}` | 200, `count` 4, `seq` 2 and 3 |
-| 9 | `GET /chat/messages?from=2` | 200, `count` 4, two messages with `seq` 2 and 3 |
-| 10 | `GET /chat/messages?from=4` | 200, `count` 4, `"messages":[]`. `accepts` is as in test 19 |
-| 11 | `POST` with body `not json` | 400 `bad_request` |
-| 12 | `POST` with bodies `{}`, `{"expect":4}`, `{"text":"x"}`, `{"expect":"4","text":"x"}`, `{"expect":4.0,"text":"x"}`, `{"expect":-1,"text":"x"}`, `{"expect":4,"text":""}`, `{"expect":4,"text":5}` | 400 `bad_request` for each. `count` stays 4 |
-| 13 | `POST` with body `{"expect":4,"text":"  x  é ✓"}` | 200. The `text` of the user message is `  x  é ✓`, without a change |
-| 14 | `POST` with `text` of 16 384 bytes. Use a second request with a `text` of 16 384 newline characters | 200 for each |
-| 15 | `PUT /chat/messages`, then `GET /chat/other` | 405 with `Allow: GET, POST`, then 404 |
-| 16 | `POST` with an unknown field, for example `{"expect":N,"text":"x","extra":1}` | 200. The service ignores `extra` |
-| 17 | Five requests on one keep-alive connection | All five get an answer on the same connection |
-| 18 | While a send takes time (a slow service): `GET /chat/messages`, and a second `POST` | The `GET` gets 200, without the message in progress. The `POST` gets 503 `busy` |
-| 19 | `GET /chat/messages` on a service that accepts attachments | `accepts` is a list that has `image`, `audio` or both. A service that accepts text only has no `accepts` or an empty list |
-| 20 | `POST` with `{"expect":N,"text":"","attachments":[{"mime":"image/png","data":"<a valid PNG in base64>"}]}` (only if `accepts` has `image`) | 200. The user message has `attachments` `[{"kind":"image","mime":"image/png","size":<bytes>}]` and no `data`. `size` is the number of bytes of the PNG |
-| 21 | `GET /chat/messages/<seq>/attachments/0` for the message of test 20 | 200. The body is the same bytes. `Content-Type: image/png`. `Content-Length` is `size` |
-| 22a | `GET /chat/messages/<seq>/attachments/1` | 404 `not_found`, with a JSON error body |
-| 22b | `GET /chat/messages/9999/attachments/0` | 404 `not_found`, with a JSON error body |
-| 22c | `GET /chat/messages/x/attachments/0` | 400 `bad_request`, with a JSON error body |
-| 23 | `POST` with an attachment of `"mime":"application/pdf"` | 415 `unsupported_media`. `count` does not change |
-| 24a | `POST` with `"data":"not base64!"` | 400 `bad_request`. `count` does not change |
-| 24b | `POST` with 5 files | 400 `bad_request`. `count` does not change |
-| 24c | `POST` with `"text":""` and no `attachments` | 400 `bad_request`. `count` does not change |
-| 24d | `POST` with a file of 4 MiB + 1 byte (only if the limit of the service is 4 MiB) | 400 `bad_request`. `count` does not change |
-| 25a | `POST` with one file of exactly 4 MiB (only if `accepts` has the kind) | 200 |
-| 25b | `POST` with 4 files of 4 MiB each, `expect` equal to `N` (only if `accepts` has the kind). The body is about 22.4 MB | 200 |
-| 26a | `POST` with an attachment of `"mime":"image/png"` to a service that has no `accepts` | 415 `unsupported_media`. `count` does not change |
-| 26b | `POST` with an attachment of a kind that is not in `accepts`, for example `"mime":"audio/mpeg"` to a service with `"accepts":["image"]` | 415 `unsupported_media`. `count` does not change |
-| 27 | `POST` with body `{"expect":true,"text":"x"}` | 400 `bad_request`. `count` does not change |
-| 28 | `POST` with `"attachments":[]` | 400 `bad_request`. `count` does not change |
-| 29 | `POST` with `text` of 16 385 bytes (only if the limit of the service is 16 384 bytes) | 400 `bad_request`. `count` does not change |
-| 30 | `GET /chat/messages` at the start, after a send, and after the last test | `accepts` is the same in each answer |
-| 31 | `POST` with `"mime":"IMAGE/PNG"` and a valid PNG (only if `accepts` has `image`) | 200. The attachment has `"kind":"image"` and `"mime":"image/png"` |
-| 32 | `POST` and `HEAD` for `/chat/messages/<seq>/attachments/0`, then `HEAD /chat/messages` | 405 with `Allow: GET`, 405 with `Allow: GET`, then 405 with `Allow: GET, POST` |
-| 33 | `GET /chat/messages/00<seq>/attachments/00` for the message of test 20, then `GET /chat/messages/99999999999999999999/attachments/0` | 200 with the same bytes, then 404 `not_found` |
-| 34 | While a send with an attachment takes time: `GET /chat/messages/<seq of the send>/attachments/0` | 404 `not_found` |
-| 35 | Send messages until the history is full (optional) | 413 `history_full`. `count` does not change |
-| 36 | `POST` while the service fails to make the answer (optional) | 500 `service_error`. `count` does not change. A `GET` does not show the user message |
+| 5 | `GET /chat/messages?from=-1`, `?from=1.0`, `?from=` , `?from=a`, `?last=0`, `?last=a`, `?limit=0` | 400 `bad_request` for each |
+| 6 | `POST` with body `{"cid":"t6","text":"one"}` | 200. `count` is 1 or more. `message` has `seq` 0, `role` `user`, `text` "one", `cid` "t6" and `status` `done` or no `status` |
+| 7 | Wait for the answer to test 6 | The history has an assistant message with `reply_to` 0, and `status` `done` or `failed`. Its `seq` is more than 0 |
+| 8 | `POST` with body `{"cid":"t6","text":"one"}` again | 200, with the same `message` as test 6. `count` does not change |
+| 9 | Two `POST` requests at the same time, with different `cid` | 200 for each, with two different `seq`. After the answers, the history has the two user messages and one answer for each |
+| 10 | `POST` while the service makes an answer (a slow service) | 200 at once. It does not wait for the answer. It is not 503 |
+| 11 | `GET /chat/messages?last=2`, when the history has 4 messages or more | 200, `count` is the total, `messages` has the last two messages in order |
+| 12 | `GET /chat/messages?last=1000` | 200, all the messages |
+| 13 | `GET /chat/messages?from=2&limit=1` | 200, `messages` has the message with `seq` 2 only |
+| 14 | `GET /chat/messages?from=1&last=1` and `?last=1&limit=1` | 400 `bad_request` for each |
+| 15 | `GET /chat/messages?from=N` | 200, `count` is `N`, `"messages":[]`. `accepts` is as in test 20 |
+| 16 | `POST` with bodies `not json`, `{}`, `{"text":5}`, `{"text":""}`, `{"text":"x","cid":5}`, `{"text":"x","cid":"a b"}`, a `cid` of 65 characters | 400 `bad_request` for each. `count` stays the same |
+| 17 | `POST` with body `{"cid":"t17","text":"  x  é ✓"}` | 200. The `text` of the user message is `  x  é ✓`, without a change |
+| 18 | `POST` with `text` of 16 384 bytes. Use a second request with a `text` of 16 384 newline characters | 200 for each |
+| 19 | `PUT /chat/messages`, then `GET /chat/other` | 405 with `Allow: GET, POST`, then 404 |
+| 20 | `GET /chat/messages` on a service that accepts attachments | `accepts` is a list that has `image`, `audio` or both. A service that accepts text only has no `accepts` or an empty list |
+| 21 | `POST` with an unknown field, for example `{"text":"x","extra":1}`, and with the old field `{"expect":99,"text":"x"}` | 200 for each. The service ignores the field |
+| 22 | Five requests on one keep-alive connection | All five get an answer on the same connection |
+| 23 | After the answer of test 7 is final, `GET` the same message two times | The two messages are equal. A final message does not change |
+| 24 | While a service that streams makes an answer: `GET` the assistant message at least two times | The `status` is `streaming` in the first read. Each `text` starts with the `text` of the read before it. At the end the `status` is `done`. `count` does not change while the text grows |
+| 25 | While a service that gives reasoning makes an answer: `GET` the assistant message at least two times | `reasoning` is a string. Each `reasoning` starts with the `reasoning` of the read before it. `reasoning` is not in `text` |
+| 26 | `POST` while the service fails to make the answer (optional) | 200. The answer is a message with `status` `failed`. The next `POST` works |
+| 27 | `POST` while the service fails to take the message (optional) | 500 `service_error`. `count` does not change. A `GET` does not show the user message |
+| 28 | Send messages until the history is full (optional) | 413 `history_full`. `count` does not change |
+| 29 | `POST` with `{"cid":"t29","text":"","attachments":[{"mime":"image/png","data":"<a valid PNG in base64>"}]}` (only if `accepts` has `image`) | 200. The user message has `attachments` `[{"kind":"image","mime":"image/png","size":<bytes>}]` and no `data`. `size` is the number of bytes of the PNG |
+| 30 | `GET /chat/messages/<seq>/attachments/0` for the message of test 29 | 200. The body is the same bytes. `Content-Type: image/png`. `Content-Length` is `size` |
+| 31a | `GET /chat/messages/<seq>/attachments/1` | 404 `not_found`, with a JSON error body |
+| 31b | `GET /chat/messages/9999/attachments/0` | 404 `not_found`, with a JSON error body |
+| 31c | `GET /chat/messages/x/attachments/0` | 400 `bad_request`, with a JSON error body |
+| 32 | `POST` with an attachment of `"mime":"application/pdf"` | 415 `unsupported_media`. `count` does not change |
+| 33a | `POST` with `"data":"not base64!"` | 400 `bad_request`. `count` does not change |
+| 33b | `POST` with 5 files | 400 `bad_request`. `count` does not change |
+| 33c | `POST` with `"text":""` and no `attachments` | 400 `bad_request`. `count` does not change |
+| 33d | `POST` with a file of 4 MiB + 1 byte (only if the limit of the service is 4 MiB) | 400 `bad_request`. `count` does not change |
+| 34a | `POST` with one file of exactly 4 MiB (only if `accepts` has the kind) | 200 |
+| 34b | `POST` with 4 files of 4 MiB each (only if `accepts` has the kind). The body is about 22.4 MB | 200 |
+| 35a | `POST` with an attachment of `"mime":"image/png"` to a service that has no `accepts` | 415 `unsupported_media`. `count` does not change |
+| 35b | `POST` with an attachment of a kind that is not in `accepts`, for example `"mime":"audio/mpeg"` to a service with `"accepts":["image"]` | 415 `unsupported_media`. `count` does not change |
+| 36 | `POST` with `"attachments":[]` | 400 `bad_request`. `count` does not change |
+| 37 | `POST` with `text` of 16 385 bytes (only if the limit of the service is 16 384 bytes) | 400 `bad_request`. `count` does not change |
+| 38 | `GET /chat/messages` at the start, after a send, and after the last test | `accepts` is the same in each answer |
+| 39 | `POST` with `"mime":"IMAGE/PNG"` and a valid PNG (only if `accepts` has `image`) | 200. The attachment has `"kind":"image"` and `"mime":"image/png"` |
+| 40 | `POST` and `HEAD` for `/chat/messages/<seq>/attachments/0`, then `HEAD /chat/messages` | 405 with `Allow: GET`, 405 with `Allow: GET`, then 405 with `Allow: GET, POST` |
+| 41 | `GET /chat/messages/00<seq>/attachments/00` for the message of test 29, then `GET /chat/messages/99999999999999999999/attachments/0` | 200 with the same bytes, then 404 `not_found` |
 
-Tests 18 and 34 apply to a service that takes time to answer. A service that answers at once
-can skip them. The rule of step 4 is then not tested.
-
-Test 35 is optional. A service with a large history limit does not fill the history in a test.
-Test 36 is optional. A service can fail on request only if it has a way to make it fail, for
-example a test mode.
+Tests 10, 24 and 25 apply to a service that takes time to answer, streams, or gives
+reasoning. A service that does not do these things can skip them. Tests 26, 27 and 28 are
+optional. A service can fail on request only if it has a way to make it fail, for example a
+test mode. A service with a large history limit does not fill the history in a test.
 
 ## 11. Changes to the interface
 
@@ -508,8 +582,10 @@ A change must not break a service or a client that follows this document.
   defines, unless the document gives a rule that an old client can follow.
 - A change to a "must" is a new revision. The revision history (section 13) lists it.
 
-Streaming is a future change. It will add an optional way to read a partial answer, and a
-service without it stays valid.
+Revision 5 is an exception to this rule. It breaks revision 4: a send gets no answer in its
+reply, and `expect` and the status 409 are gone. A service of revision 4 and a client of
+revision 5 do not work together, and the opposite is true too. All the services and the clients of this
+repository follow revision 5.
 
 ## 12. Reference services
 
@@ -517,15 +593,22 @@ service without it stays valid.
 
 The echo service is the check of M4. It follows this document. The `text` of each answer is
 the `text` of the message that it answers. It keeps the messages in a list in memory. It
-answers at once, so it does not need the rules for long answers (sections 6.3 and 7).
+makes the answer at once, as a whole answer with `status` `done`, so it does not need the
+rules for answers in progress (section 5.2).
 
 ### 12.2 Claude remote service
 
 The Claude remote service sends each user message to a language model. An answer can take
-more than 30 seconds. The service must follow section 7: it must reply with status 503
-`busy` to a send while an answer is in progress, and it must add the two messages only when
-the answer is ready. The service must keep the whole history, in the order of `seq`, and
-must not change a message after it adds it.
+more than 30 seconds. The service must follow these rules:
+
+- It must reply to a send at once, and must accept a new send while it makes an answer.
+- It must stream: it must add the assistant message when the answer starts, with `status`
+  `streaming`, and must add the text of the model to `text` while the model writes it.
+- It must give the reasoning of the model in `reasoning`, and must not put it in `text`.
+- It must set `status` to `done` when the answer ends, and to `failed` if the model call
+  fails.
+- It must give `reply_to` in each assistant message.
+- It must keep the whole history, in the order of `seq`.
 
 ## 13. Revision history
 
@@ -535,3 +618,4 @@ must not change a message after it adds it.
 | 2 | 2026-10-22 | The text is a specification in ASD-STE100, with requirement words. The tests 1 to 18 are new. New rules for the service: transport (section 4), the order of the checks (section 6.1), the strict value of `from`, the status 404, 405 and 500, the limits (section 7), and the conformance tests (section 10). The service must add the two messages of a send at the same time. The rules for the app (leave the screen, stop, cost, storage) leave this document |
 | 3 | 2026-10-22 | Attachments: `attachments` in a message and in a send. `accepts` in the read of the history. The read of an attachment (section 6.4). The status 415. The limits for files. The tests 19 to 26. A service that does not know them stays valid for text only |
 | 4 | 2026-10-22 | Clarifications. The meaning of revision 3 does not change for a service that follows it, with three exceptions. First, the body limit for text only is 128 KiB (it was 32 768 bytes). Second, a send with attachments to a text-only service gets 415 only (it was 400 or 415). Third, the answer to a read of the history must be 1 MiB or less.<br>The checks of section 6.1 have the numbers 1 to 6. A body above the limit gets 400, not 413. The `Allow` header is `GET` for the paths of section 6.4. HEAD gets 405. Section 4 has rules for `Content-Length` of requests and of answers.<br>Section 5.1 defines `kind`, `mime` and `size`. Section 6.3 gives the two waits of the client: 30 seconds, and 120 seconds for a send with files. The 30 seconds of the service start at the end of the request body. Section 6.4 gives the open cases. Section 9 has new rules for the client on files, 415, 400 and the read in parts.<br>The tests 22, 24, 25 and 26 are split in numbered rows. The tests 27 to 36 are new. The tests 1, 2 and 10 accept `accepts`. Section 3 says that this document fixes no port number |
+| 5 | 2026-10-23 | The send does not wait for the answer: `POST /chat/messages` replies 200 with the user message (`message`) at once. Many sends can be in progress. The client reads the conversation with `GET /chat/messages` every few seconds. New `last` and `limit` filters (section 6.2). New message fields `status`, `reasoning`, `reply_to` and `cid` (section 5). Streaming: an answer can be an open message that grows (section 5.2). The `cid` makes a send safe to repeat (sections 6.1 and 6.3). The roles do not alternate. Removed: `expect`, the status 409 `out_of_sync`, the rule of one send at a time, the 30 seconds to make an answer. 503 `busy` now means that the queue of the service is full. The tests are new (section 10.1). The Claude remote service must stream and give `reasoning` (section 12.2) |

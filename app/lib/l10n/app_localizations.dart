@@ -8324,7 +8324,7 @@ abstract class AppLocalizations {
   /// No description provided for @chatErrorBusy.
   ///
   /// In en, this message translates to:
-  /// **'The service is busy with another message. Try again in a moment.'**
+  /// **'The service is too busy to take this message. Try again in a moment.'**
   String get chatErrorBusy;
 
   /// No description provided for @chatErrorOther.
@@ -8404,6 +8404,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sending…'**
   String get chatSending;
+
+  /// No description provided for @chatReasoning.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning'**
+  String get chatReasoning;
+
+  /// No description provided for @chatAnswerFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The answer stopped before the end.'**
+  String get chatAnswerFailed;
 
   /// No description provided for @chatWaitingSeconds.
   ///

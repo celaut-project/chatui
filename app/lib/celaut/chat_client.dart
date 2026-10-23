@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'tunnel_http.dart';
@@ -82,18 +83,36 @@ class ChatMessage {
     required this.role,
     required this.text,
     this.attachments = const [],
+    this.status = statusDone,
+    this.reasoning = '',
+    this.replyTo,
+    this.cid,
   });
+
+  /// The values of [status] (`docs/celaut/chat.md`, section 5.2).
+  static const statusStreaming = 'streaming';
+  static const statusDone = 'done';
+  static const statusFailed = 'failed';
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     final seq = json['seq'];
     final role = json['role'];
     final text = json['text'];
     final attachments = json['attachments'];
+    final status = json['status'] ?? statusDone;
+    final reasoning = json['reasoning'] ?? '';
+    final replyTo = json['reply_to'];
+    final cid = json['cid'];
     if (seq is! int ||
         seq < 0 ||
         role is! String ||
         text is! String ||
-        (attachments != null && attachments is! List)) {
+        (attachments != null && attachments is! List) ||
+        status is! String ||
+        !const {statusStreaming, statusDone, statusFailed}.contains(status) ||
+        reasoning is! String ||
+        (replyTo != null && replyTo is! int) ||
+        (cid != null && cid is! String)) {
       throw const ChatException(ChatErrorKind.badAnswer);
     }
     return ChatMessage(
@@ -107,6 +126,10 @@ class ChatMessage {
           else
             throw const ChatException(ChatErrorKind.badAnswer),
       ],
+      status: status,
+      reasoning: reasoning,
+      replyTo: replyTo as int?,
+      cid: cid as String?,
     );
   }
 
@@ -115,7 +138,23 @@ class ChatMessage {
   final String text;
   final List<ChatAttachment> attachments;
 
+  /// `streaming` while the service still makes the answer, then `done` or `failed`.
+  final String status;
+
+  /// The reasoning of the model, apart from [text]. Empty if the service gives none.
+  final String reasoning;
+
+  /// The `seq` of the user message that this message answers, if the service says it.
+  final int? replyTo;
+
+  /// The `cid` of the send of a user message, if the service gives it.
+  final String? cid;
+
   bool get fromUser => role == 'user';
+
+  /// An answer that grows: its [text] and [reasoning] are not final yet.
+  bool get isOpen => status == statusStreaming;
+  bool get isFailed => status == statusFailed;
 }
 
 enum ChatErrorKind {
@@ -131,7 +170,7 @@ enum ChatErrorKind {
   /// 413: the service cannot keep more messages.
   historyFull,
 
-  /// 503: the service makes an answer already. Try again later.
+  /// 503: the service cannot keep one more message that waits. Try again later.
   busy,
 
   /// 415, or the service does not accept the kind of file: no attachment is sent.
@@ -158,24 +197,24 @@ class ChatException implements Exception {
 ///
 /// The service keeps the history. This object keeps a copy in memory only, and it
 /// writes nothing to the Celaut database. [count] is the number of messages that the
-/// client knows: the `expect` of the next send.
+/// client knows.
+///
+/// A send only gives the message to the service, so the user can send many messages at
+/// once. The answers come with [sync], which the screen calls every few seconds: an
+/// answer that the service still makes is an open message ([ChatMessage.isOpen]) that
+/// grows from one read to the next.
 class ChatClient {
   ChatClient({
     required this.port,
     required TunnelHttp http,
     this.sendTimeout = defaultSendTimeout,
-    Future<void> Function(Duration wait)? wait,
-  })  : _http = http,
-        _pause = wait ?? ((d) => Future<void>.delayed(d));
+  }) : _http = http;
 
   final int port;
   final TunnelHttp _http;
 
-  /// The wait for the answer of a send. Tests make it short.
+  /// The wait for the reply of a send. Tests make it short.
   final Duration sendTimeout;
-
-  /// The wait between the reads of a late answer. Tests give their own.
-  final Future<void> Function(Duration wait) _pause;
   final List<ChatMessage> _messages = [];
   final Map<(int, int), Uint8List> _files = {};
   Set<String> _accepts = const {};
@@ -183,7 +222,7 @@ class ChatClient {
   /// Sends that are queued or running: the reads of files wait while there is one.
   int _sends = 0;
 
-  /// Calls run one after the other: the service allows one send at a time.
+  /// Calls run one after the other: they share one connection.
   Future<void> _tail = Future.value();
 
   /// The reads of files, one after the other, before they join [_tail].
@@ -196,16 +235,15 @@ class ChatClient {
   static const maxAttachments = 4;
   static const maxAttachmentBytes = 4 * 1024 * 1024;
 
-  /// The wait for the answer of every send, with files or not. The convention gives the
-  /// service 30 seconds from the end of the request body, and a service that makes an
-  /// answer (an LLM) can use them all, so the client waits longer than that. A read keeps
-  /// the 30 seconds of [TunnelHttp.get].
+  /// The wait for the reply of every send, with files or not. The service replies at once
+  /// (it does not wait for the answer), but a send with files is a large upload, so the
+  /// client waits longer than the 30 seconds of a read ([TunnelHttp.get]).
   static const defaultSendTimeout = Duration(minutes: 2);
 
-  /// How long, and how often, the client reads the history for an answer that comes late
-  /// after a send that timed out or lost its connection.
-  static const lateAnswerLimit = Duration(minutes: 3);
-  static const lateAnswerEvery = Duration(seconds: 5);
+  /// How often the client reads the conversation (`docs/celaut/chat.md`, section 9): while
+  /// it waits for an answer, and otherwise.
+  static const pollWaiting = Duration(seconds: 2);
+  static const pollIdle = Duration(seconds: 10);
 
   /// The most bytes of files that stay in memory. Past it, the files of the other
   /// messages are dropped: the service gives them again.
@@ -221,8 +259,21 @@ class ChatClient {
   Set<String> get accepts => _accepts;
   int get count => _messages.length;
 
-  /// Read the history that the client does not have, and add it to [messages].
-  /// Use it when the screen opens a running instance and to repair a lost answer.
+  /// The client waits for an answer: a message is open, or there are more user messages
+  /// than assistant messages (`docs/celaut/chat.md`, section 9).
+  bool get awaitingAnswer {
+    var users = 0;
+    var replies = 0;
+    for (final message in _messages) {
+      if (message.isOpen) return true;
+      message.fromUser ? users++ : replies++;
+    }
+    return users > replies;
+  }
+
+  /// Read what is new in the conversation, and the growth of the open messages, and put
+  /// it in [messages]. Use it when the screen opens a running instance, and again every
+  /// [pollWaiting] or [pollIdle].
   Future<void> sync() => _serial(_sync);
 
   /// The waits between the reads of [syncWhenStarted]: they get longer, then stay at
@@ -261,12 +312,13 @@ class ChatClient {
         }
       });
 
-  /// Send [text] and add the user message and the answer to [messages].
+  /// Send [text] and add the user message to [messages]. It does not wait for the answer:
+  /// the answer comes with [sync].
   ///
-  /// If the service says that the client is out of sync (409), or the connection
-  /// breaks, the client reads the history first. If the message is in it, the send
-  /// worked. If not, the client does not send it again by itself: it throws, and the
-  /// user decides to try again (`docs/celaut/chat.md`, section 6.3).
+  /// Each send has its own `cid`. If the connection breaks, the client reads the history
+  /// first. If the message is in it, the send worked. If not, the client sends the same
+  /// request again once, with the same `cid`, so the service cannot add it twice
+  /// (`docs/celaut/chat.md`, section 6.3).
   ///
   /// [attachments] are sent only if the service accepts their kinds ([accepts]). A send
   /// with files and no text is valid.
@@ -356,43 +408,54 @@ class ChatClient {
 
   Future<void> _send(String text, List<OutgoingAttachment> attachments) async {
     _checkAttachments(text, attachments);
-    final expect = count;
+    final cid = _newCid();
     TunnelAnswer answer;
     try {
-      answer = await _http.postJson(
-          port,
-          _path,
-          {
-            'expect': expect,
-            'text': text,
-            if (attachments.isNotEmpty)
-              'attachments': [
-                for (final file in attachments)
-                  {
-                    'mime': file.mime,
-                    if (file.name != null) 'name': file.name,
-                    'data': base64Encode(file.bytes),
-                  },
-              ],
-          },
-          timeout: sendTimeout);
+      answer = await _post(cid, text, attachments);
     } on ChatException {
       rethrow;
     } on Exception {
-      // The client does not know if the service got the message, or if its answer is
-      // still on its way: read the history, and wait for the answer if it is late.
-      await _recover(expect, text, attachments, late: true);
-      return;
+      // The client does not know if the service got the message: read the history.
+      if (await _recovered(cid, attachments)) return;
+      try {
+        answer = await _post(cid, text, attachments);
+      } on Exception {
+        throw const ChatException(ChatErrorKind.unreachable);
+      }
     }
-    switch (answer.status) {
-      case 200:
-        _add(_readMessages(answer.body).messages);
-        _keepFiles(expect, attachments);
-      case 409:
-        await _recover(expect, text, attachments);
-      default:
-        throw _error(answer);
-    }
+    if (answer.status != 200) throw _error(answer);
+    final sent = _readSent(answer.body);
+    await _addSent(sent);
+    _keepFiles(sent.seq, attachments);
+  }
+
+  Future<TunnelAnswer> _post(String cid, String text, List<OutgoingAttachment> attachments) =>
+      _http.postJson(
+        port,
+        _path,
+        {
+          'cid': cid,
+          'text': text,
+          if (attachments.isNotEmpty)
+            'attachments': [
+              for (final file in attachments)
+                {
+                  'mime': file.mime,
+                  if (file.name != null) 'name': file.name,
+                  'data': base64Encode(file.bytes),
+                },
+            ],
+        },
+        timeout: sendTimeout,
+      );
+
+  /// A name for a send: 22 characters from the set that the convention allows.
+  static String _newCid() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    final random = Random.secure();
+    return String.fromCharCodes([
+      for (var i = 0; i < 22; i++) chars.codeUnitAt(random.nextInt(chars.length)),
+    ]);
   }
 
   /// The user message of a send is at [seq]: keep the bytes that the client has, so that
@@ -403,68 +466,83 @@ class ChatClient {
     }
   }
 
-  /// Read the history, then check that the message with [expect] is the one that the
-  /// client sent. If it is not, the send did not happen: throw `unreachable`.
-  ///
-  /// With [late], the answer may still come: while the message is not in the history, or
-  /// it is there with no answer after it, the client reads again every
-  /// [lateAnswerEvery] for up to [lateAnswerLimit]. A message that is in the history
-  /// counts as sent, answer or not. A message that never shows is not sent again here
-  /// (`docs/celaut/chat.md`, section 6.3): the call throws, and the user decides.
-  Future<void> _recover(
-    int expect,
-    String text,
-    List<OutgoingAttachment> attachments, {
-    bool late = false,
-  }) async {
-    var waited = Duration.zero;
-    while (true) {
-      var read = true;
-      try {
-        await _sync();
-      } on Exception {
-        read = false;
+  /// Read the history, and say if it has the user message with [cid]. A read that fails
+  /// counts as "no": the caller sends again, and that fails too if the service is gone.
+  Future<bool> _recovered(String cid, List<OutgoingAttachment> attachments) async {
+    try {
+      await _sync();
+    } on Exception {
+      return false;
+    }
+    for (final message in _messages) {
+      if (message.fromUser && message.cid == cid) {
+        _keepFiles(message.seq, attachments);
+        return true;
       }
-      final sent = _messages.length > expect &&
-          _messages[expect].fromUser &&
-          _messages[expect].text == text &&
-          _messages[expect].attachments.length == attachments.length;
-      final answered = _messages.length > expect + 1;
-      if (sent) _keepFiles(expect, attachments);
-      if (read && sent && answered) return;
-      // The history says the message is not there, and nothing is coming: stop.
-      final other = read && _messages.length > expect && !sent;
-      if (!late || other || waited >= lateAnswerLimit) {
-        if (sent) return;
-        throw const ChatException(ChatErrorKind.unreachable);
-      }
-      await _pause(lateAnswerEvery);
-      waited += lateAnswerEvery;
+    }
+    return false;
+  }
+
+  /// The user message of the reply to a send (`docs/celaut/chat.md`, section 6.1).
+  ChatMessage _readSent(String body) {
+    try {
+      final json = jsonDecode(body);
+      final message = json is Map<String, dynamic> ? json['message'] : null;
+      if (message is! Map<String, dynamic>) throw const FormatException();
+      return ChatMessage.fromJson(message);
+    } on ChatException {
+      rethrow;
+    } on Object {
+      throw const ChatException(ChatErrorKind.badAnswer);
     }
   }
 
+  /// Add the user message of a send. The service can have added answers to earlier
+  /// messages since the last read, so the message can be past the end: read the gap.
+  Future<void> _addSent(ChatMessage message) async {
+    if (message.seq <= _messages.length) return _add([message]);
+    await _sync();
+  }
+
+  /// The `seq` from which the next read starts: the first open message, or the end.
+  int get _readFrom {
+    final open = _messages.indexWhere((m) => m.isOpen);
+    return open < 0 ? _messages.length : open;
+  }
+
+  /// Read from [_readFrom] until the client has all the messages (a read can be shorter
+  /// than the history: section 6.2).
   Future<void> _sync() async {
-    final TunnelAnswer answer;
-    try {
-      answer = await _http.get(
-        port,
-        '$_path?from=$count',
-        maxBytes: maxHistoryBytes,
-      );
-    } on Exception {
-      throw const ChatException(ChatErrorKind.unreachable);
+    while (true) {
+      final TunnelAnswer answer;
+      try {
+        answer = await _http.get(
+          port,
+          '$_path?from=$_readFrom',
+          maxBytes: maxHistoryBytes,
+        );
+      } on Exception {
+        throw const ChatException(ChatErrorKind.unreachable);
+      }
+      if (answer.status != 200) throw _error(answer);
+      final read = _readMessages(answer.body);
+      _accepts = read.accepts;
+      _add(read.messages);
+      if (_messages.length >= read.count) return;
+      // The service has more, but this read gave nothing new: do not loop.
+      if (read.messages.isEmpty) throw const ChatException(ChatErrorKind.badAnswer);
     }
-    if (answer.status != 200) throw _error(answer);
-    final read = _readMessages(answer.body);
-    _accepts = read.accepts;
-    _add(read.messages);
   }
 
   /// Add the messages that follow the ones that the client has. A message that the
-  /// client has is skipped; a gap is an answer that does not follow the convention.
+  /// client has as open is replaced by its new state; a final one is skipped. A gap is an
+  /// answer that does not follow the convention.
   void _add(List<ChatMessage> incoming) {
     for (final message in incoming) {
-      if (message.seq < _messages.length) continue;
+      if (message.seq < _messages.length) {
+        if (_messages[message.seq].isOpen) _messages[message.seq] = message;
+        continue;
+      }
       if (message.seq != _messages.length) {
         throw const ChatException(ChatErrorKind.badAnswer);
       }

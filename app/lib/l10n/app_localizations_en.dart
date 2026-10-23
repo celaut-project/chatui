@@ -5270,7 +5270,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatErrorBusy =>
-      'The service is busy with another message. Try again in a moment.';
+      'The service is too busy to take this message. Try again in a moment.';
 
   @override
   String get chatErrorOther => 'The service refused the message.';
@@ -5337,6 +5337,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatSending => 'Sending…';
+
+  @override
+  String get chatReasoning => 'Reasoning';
+
+  @override
+  String get chatAnswerFailed => 'The answer stopped before the end.';
 
   @override
   String chatWaitingSeconds(int seconds) {

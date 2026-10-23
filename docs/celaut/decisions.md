@@ -74,8 +74,15 @@
   The files stay in memory only. The app does not play audio: a tap hands the file to the
   share sheet of the system. See [chat.md](chat.md) and
   [ui-chat-first.md](ui-chat-first.md), section 7.
+- **Chat without a wait, with streaming (2026-10-23, Josemi):** a send (`POST`) replies at
+  once with the user message, and the app reads the conversation (`GET`, with the filters
+  `from`, `last` and `limit`) every 2 seconds while it waits for an answer, and every 10
+  seconds otherwise. The user can send many messages at the same time. An answer can grow
+  while the service makes it (`status` `streaming`), with the `reasoning` of the model
+  apart from the `text` (the Claude remote service). A service that sends the whole answer
+  stays valid. This is revision 5 of [chat.md](chat.md).
 - **Specification of the chat interface (2026-10-22):** [chat.md](chat.md) is written in
-  ASD-STE100, has a revision number (4), covers the protocol only, and has conformance
+  ASD-STE100, has a revision number (4 on that day, 5 since 2026-10-23), covers the protocol only, and has conformance
   tests (section 10). A service follows the interface if it passes them. The rules for the
   app are in [ui-chat-first.md](ui-chat-first.md).
 - **Leaving a conversation (proposed on 2026-10-21, for Josemi to confirm):** Back goes to
