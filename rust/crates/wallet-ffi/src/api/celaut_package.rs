@@ -105,9 +105,11 @@ fn library_view(service_id: &str, r: &PackageRecord) -> LibraryPackageView {
 /// Load the service file at `path` (a copy of the file that the user chose, in the cache of
 /// the app) into the library of the app, which keeps it in a private directory `dir` under
 /// the id of its service. The file is moved, not copied. `name` is the name of the file
-/// that the user chose. A file that is not a package of a service, or that does not say
-/// which service it is, is refused (kind `invalidInput`) and stays where it is. A second
-/// load of the same service replaces the first.
+/// that the user chose. A file that is not a package of a service, that does not say which
+/// service it is, or that has a block that does not hash to its id, is refused (kind
+/// `invalidInput`) and stays where it is. While it checks the file, the load is the
+/// transfer that `celaut_transfer_progress` tells, and `celaut_cancel_transfer` stops it.
+/// A second load of the same service replaces the first.
 #[flutter_rust_bridge::frb]
 pub async fn celaut_import_package(
     path: String,
@@ -117,9 +119,12 @@ pub async fn celaut_import_package(
     if dir.trim().is_empty() {
         return Err(invalid("the app has no directory for the package"));
     }
-    let imported = import(&PathBuf::from(&path), &PathBuf::from(dir))
-        .await
-        .map_err(package_error)?;
+    let source = PathBuf::from(&path);
+    let size = std::fs::metadata(&source).map_err(|e| package_error(e.into()))?.len();
+    let cancel = begin(TransferStage::Checking, Some(size))?;
+    let imported = import(&source, &PathBuf::from(dir), &cancel).await;
+    end();
+    let imported = imported.map_err(package_error)?;
     let id = hex::encode(imported.service_id);
     let record = PackageRecord {
         name: clean_name(&name, &id),
@@ -183,6 +188,9 @@ pub enum TransferStage {
     Fetching,
     /// The app gives the service to a node.
     Sending,
+    /// The app checks the blocks of a file that the user loads: the bytes that it read
+    /// so far, of the size of the file.
+    Checking,
 }
 
 /// The transfer that runs, if any.

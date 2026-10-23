@@ -4443,6 +4443,8 @@
   "celautSendFetching": "Getting the service from the node…",
   "celautSendSending": "Giving the service to the node…",
   "celautSendStarting": "Starting the transfer…",
+  "celautImportChecking": "Checking the service file…",
+  "celautImportNote": "The app hashes every block, so a damaged file is found here and not after it goes to a node.",
   "celautSendProgress": "{done} of {total} ({percent}%)",
   "@celautSendProgress": {
     "placeholders": {

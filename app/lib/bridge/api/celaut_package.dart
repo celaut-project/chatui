@@ -15,9 +15,11 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// Load the service file at `path` (a copy of the file that the user chose, in the cache of
 /// the app) into the library of the app, which keeps it in a private directory `dir` under
 /// the id of its service. The file is moved, not copied. `name` is the name of the file
-/// that the user chose. A file that is not a package of a service, or that does not say
-/// which service it is, is refused (kind `invalidInput`) and stays where it is. A second
-/// load of the same service replaces the first.
+/// that the user chose. A file that is not a package of a service, that does not say which
+/// service it is, or that has a block that does not hash to its id, is refused (kind
+/// `invalidInput`) and stays where it is. While it checks the file, the load is the
+/// transfer that `celaut_transfer_progress` tells, and `celaut_cancel_transfer` stops it.
+/// A second load of the same service replaces the first.
 Future<LibraryPackageView> celautImportPackage({
   required String path,
   required String name,
@@ -197,6 +199,10 @@ enum TransferStage {
 
   /// The app gives the service to a node.
   sending,
+
+  /// The app checks the blocks of a file that the user loads: the bytes that it read
+  /// so far, of the size of the file.
+  checking,
 }
 
 /// The transfer that runs, if any.

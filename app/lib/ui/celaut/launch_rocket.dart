@@ -15,33 +15,33 @@ import '../home/home_style.dart';
 /// It is drawn with a few paths ([RocketPainter]): no image, no blur, no shader, so it
 /// adds almost nothing to the raster work of a frame (`docs/performance.md`).
 class LaunchRocket {
-  LaunchRocket._(this._navigator, this._route, this._card);
+  LaunchRocket._(this._navigator, this._route, this._stage);
 
   final NavigatorState _navigator;
   final Route<void> _route;
-  final GlobalKey<_RocketCardState> _card;
+  final GlobalKey<RocketStageState> _stage;
 
   /// Show the rocket over [context], for the launch of [name].
   static LaunchRocket show(BuildContext context, {required String name}) {
     final navigator = Navigator.of(context);
-    final card = GlobalKey<_RocketCardState>();
+    final stage = GlobalKey<RocketStageState>();
     final route = RawDialogRoute<void>(
       barrierDismissible: false,
       barrierColor: Colors.black54,
       pageBuilder: (context, animation, secondary) => Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: _RocketCard(key: card, name: name),
+          child: _RocketCard(name: name, stage: stage),
         ),
       ),
     );
     unawaited(navigator.push(route));
-    return LaunchRocket._(navigator, route, card);
+    return LaunchRocket._(navigator, route, stage);
   }
 
   /// The service started: the rocket lifts off, then the card goes.
   Future<void> liftOff() async {
-    await _card.currentState?.liftOff();
+    await _stage.currentState?.liftOff();
     dismiss();
   }
 
@@ -52,18 +52,64 @@ class LaunchRocket {
   }
 }
 
-class _RocketCard extends StatefulWidget {
-  const _RocketCard({super.key, required this.name});
+class _RocketCard extends StatelessWidget {
+  const _RocketCard({required this.name, required this.stage});
 
   final String name;
+  final GlobalKey<RocketStageState> stage;
 
   @override
-  State<_RocketCard> createState() => _RocketCardState();
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final t = HomeText.of(context);
+    return Material(
+      key: const Key('run-progress'),
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(28, 24, 28, 22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RocketStage(key: stage),
+            const SizedBox(height: 12),
+            Text(
+              l.celautRunLaunching(name),
+              style: t.title,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              l.celautRunLaunchingNote,
+              style: t.secondary,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-class _RocketCardState extends State<_RocketCard> with TickerProviderStateMixin {
-  late final _hover = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
-  late final _lift = AnimationController(vsync: this, duration: const Duration(milliseconds: 450));
+/// The rocket itself, with its animations: it hovers on its flame until [RocketStageState.liftOff]
+/// takes it up and out of its box. The launch card and the import card both hold one.
+class RocketStage extends StatefulWidget {
+  const RocketStage({super.key});
+
+  @override
+  State<RocketStage> createState() => RocketStageState();
+}
+
+class RocketStageState extends State<RocketStage>
+    with TickerProviderStateMixin {
+  late final _hover = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
+  late final _lift = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 450),
+  );
   bool _still = false;
 
   @override
@@ -92,42 +138,23 @@ class _RocketCardState extends State<_RocketCard> with TickerProviderStateMixin 
 
   @override
   Widget build(BuildContext context) {
-    final l = context.l10n;
-    final t = HomeText.of(context);
     final scheme = Theme.of(context).colorScheme;
-    return Material(
-      key: const Key('run-progress'),
-      color: scheme.surface,
-      borderRadius: BorderRadius.circular(20),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(28, 24, 28, 22),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 96,
-              height: 132,
-              child: ClipRect(
-                child: RepaintBoundary(
-                  child: CustomPaint(
-                    key: const Key('launch-rocket'),
-                    painter: RocketPainter(
-                      hover: _hover,
-                      lift: _lift,
-                      body: scheme.onSurface,
-                      window: accentOf(context),
-                      flame: rustFor(context),
-                      still: _still,
-                    ),
-                  ),
-                ),
-              ),
+    return SizedBox(
+      width: 96,
+      height: 132,
+      child: ClipRect(
+        child: RepaintBoundary(
+          child: CustomPaint(
+            key: const Key('launch-rocket'),
+            painter: RocketPainter(
+              hover: _hover,
+              lift: _lift,
+              body: scheme.onSurface,
+              window: accentOf(context),
+              flame: rustFor(context),
+              still: _still,
             ),
-            const SizedBox(height: 12),
-            Text(l.celautRunLaunching(widget.name), style: t.title, textAlign: TextAlign.center),
-            const SizedBox(height: 4),
-            Text(l.celautRunLaunchingNote, style: t.secondary, textAlign: TextAlign.center),
-          ],
+          ),
         ),
       ),
     );
@@ -222,5 +249,8 @@ class RocketPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(RocketPainter old) =>
-      old.body != body || old.window != window || old.flame != flame || old.still != still;
+      old.body != body ||
+      old.window != window ||
+      old.flame != flame ||
+      old.still != still;
 }

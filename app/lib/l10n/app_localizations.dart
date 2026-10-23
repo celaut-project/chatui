@@ -9227,6 +9227,18 @@ abstract class AppLocalizations {
   /// **'Starting the transfer…'**
   String get celautSendStarting;
 
+  /// No description provided for @celautImportChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking the service file…'**
+  String get celautImportChecking;
+
+  /// No description provided for @celautImportNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The app hashes every block, so a damaged file is found here and not after it goes to a node.'**
+  String get celautImportNote;
+
   /// No description provided for @celautSendProgress.
   ///
   /// In en, this message translates to:

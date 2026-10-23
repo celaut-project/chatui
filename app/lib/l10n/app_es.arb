@@ -1702,6 +1702,8 @@
   "celautSendFetching": "Obteniendo el servicio del nodo…",
   "celautSendSending": "Entregando el servicio al nodo…",
   "celautSendStarting": "Empezando la transferencia…",
+  "celautImportChecking": "Comprobando el archivo del servicio…",
+  "celautImportNote": "La app calcula el hash de cada bloque, así un archivo dañado se detecta aquí y no después de enviarlo a un nodo.",
   "celautSendProgress": "{done} de {total} ({percent} %)",
   "@celautSendProgress": {
     "placeholders": {

@@ -273,7 +273,7 @@ async fn a_package_is_loaded_into_the_library_under_its_service_id() {
     save(stream(get_service_answer(&content)), &source, &Cancel::new()).await.unwrap();
     let size = std::fs::metadata(&source).unwrap().len();
 
-    let imported = import(&source, &d).await.unwrap();
+    let imported = import(&source, &d, &Cancel::new()).await.unwrap();
     assert_eq!(imported.service_id, SERVICE_ID);
     assert_eq!(imported.path, library_path(&d, &SERVICE_ID));
     assert_eq!(imported.path, d.join("packages/library").join(format!("{}.bee", hex::encode(SERVICE_ID))));
@@ -301,10 +301,10 @@ async fn a_nodo_export_is_loaded_and_a_second_load_of_the_same_service_replaces_
         std::fs::write(&path, raw).unwrap();
         path
     };
-    let first = import(&make("one.celaut.bee", b"first"), &d).await.unwrap();
+    let first = import(&make("one.celaut.bee", b"first"), &d, &Cancel::new()).await.unwrap();
     assert_eq!(first.info.layout, Layout::NodoExport);
     let first_size = std::fs::metadata(&first.path).unwrap().len();
-    let second = import(&make("two.celaut.bee", b"a longer filesystem than the first"), &d)
+    let second = import(&make("two.celaut.bee", b"a longer filesystem than the first"), &d, &Cancel::new())
         .await
         .unwrap();
     assert_eq!(second.path, first.path);
@@ -323,7 +323,7 @@ async fn a_file_that_is_not_a_service_is_refused_and_stays_where_it_is() {
     let mut raw = Vec::new();
     bee_rpc::bee_file::write_bee(&mut raw, file).unwrap();
     std::fs::write(&no_id, raw).unwrap();
-    let error = import(&no_id, &d).await.unwrap_err();
+    let error = import(&no_id, &d, &Cancel::new()).await.unwrap_err();
     assert!(matches!(&error, PackageError::Invalid(t) if t.contains("which service")), "{error}");
     assert!(no_id.exists());
 
@@ -332,15 +332,15 @@ async fn a_file_that_is_not_a_service_is_refused_and_stays_where_it_is() {
     let mut raw = Vec::new();
     bee_rpc::bee_file::write_bee(&mut raw, serialize_part(&Part::new(1, metadata()))).unwrap();
     std::fs::write(&only_metadata, raw).unwrap();
-    let error = import(&only_metadata, &d).await.unwrap_err();
+    let error = import(&only_metadata, &d, &Cancel::new()).await.unwrap_err();
     assert!(matches!(&error, PackageError::Invalid(t) if t.contains("no Service")), "{error}");
 
     // Not a .bee file at all, and a missing file.
     let junk = d.join("junk.bee");
     std::fs::write(&junk, b"hello, this is text").unwrap();
-    assert!(import(&junk, &d).await.is_err());
+    assert!(import(&junk, &d, &Cancel::new()).await.is_err());
     assert!(junk.exists());
-    assert!(matches!(import(&d.join("missing.bee"), &d).await, Err(PackageError::Io(_))));
+    assert!(matches!(import(&d.join("missing.bee"), &d, &Cancel::new()).await, Err(PackageError::Io(_))));
     assert!(!d.join("packages/library").exists() || std::fs::read_dir(d.join("packages/library")).unwrap().count() == 0);
     std::fs::remove_dir_all(d).unwrap();
 }
@@ -354,5 +354,103 @@ async fn removing_a_package_file_that_is_gone_is_not_an_error() {
     remove_file(&path).await.unwrap();
     assert!(!path.exists());
     remove_file(&path).await.unwrap();
+    std::fs::remove_dir_all(d).unwrap();
+}
+
+/// A nodo export with `service` as its Service part, at `d/name`.
+fn export_file(d: &std::path::Path, name: &str, service: Vec<Buffer>) -> PathBuf {
+    let path = d.join(name);
+    let mut file: Vec<Buffer> = serialize_part(&Part::new(1, metadata())).collect();
+    file.extend(service);
+    let mut raw = Vec::new();
+    bee_rpc::bee_file::write_bee(&mut raw, file).unwrap();
+    std::fs::write(&path, raw).unwrap();
+    path
+}
+
+#[tokio::test]
+async fn a_package_with_a_block_that_is_not_its_id_is_refused_and_stays_where_it_is() {
+    use celaut_client::package::{import, verify_blocks};
+    let d = dir();
+    let mut service = service_buffers(2, b"the filesystem");
+    service[2].chunk = Some(b"another filesystem".to_vec());
+    let path = export_file(&d, "bad.celaut.bee", service);
+    let id = hex::encode(HashAlgorithm::Sha3_256.digest(b"the filesystem"));
+    let error = verify_blocks(&path, &Cancel::new()).await.unwrap_err();
+    assert!(matches!(&error, PackageError::Invalid(t) if t.contains(&id)), "{error}");
+    let error = import(&path, &d, &Cancel::new()).await.unwrap_err();
+    assert!(matches!(&error, PackageError::Invalid(t) if t.contains("holds other bytes")), "{error}");
+    assert!(path.exists());
+    assert!(!d.join("packages/library").exists() || std::fs::read_dir(d.join("packages/library")).unwrap().count() == 0);
+    std::fs::remove_dir_all(d).unwrap();
+}
+
+#[tokio::test]
+async fn a_block_inside_a_block_counts_in_the_id_of_both() {
+    use celaut_client::package::verify_blocks;
+    let d = dir();
+    let marker = |id: &[u8]| Buffer {
+        block: Some(block_pointer(id, HashAlgorithm::Sha3_256, false)),
+        ..Default::default()
+    };
+    let chunk = |c: &[u8]| Buffer {
+        chunk: Some(c.to_vec()),
+        ..Default::default()
+    };
+    let inner = HashAlgorithm::Sha3_256.digest(b"inner");
+    let outer = HashAlgorithm::Sha3_256.digest(b"a-inner-b");
+    let service = |outer: &[u8]| {
+        vec![
+            Buffer {
+                head: Some(Head { index: 2, partitions: vec![] }),
+                ..Default::default()
+            },
+            marker(outer),
+            chunk(b"a-"),
+            marker(&inner),
+            chunk(b"inner"),
+            marker(&inner),
+            chunk(b"-b"),
+            marker(outer),
+            Buffer {
+                separator: Some(true),
+                ..Default::default()
+            },
+        ]
+    };
+    verify_blocks(&export_file(&d, "nested.celaut.bee", service(&outer)), &Cancel::new()).await.unwrap();
+    // An id that leaves out the block inside it is not the id of the outer block.
+    let flat = HashAlgorithm::Sha3_256.digest(b"a--b");
+    let error = verify_blocks(&export_file(&d, "flat.celaut.bee", service(&flat)), &Cancel::new()).await.unwrap_err();
+    assert!(matches!(&error, PackageError::Invalid(t) if t.contains(&hex::encode(&flat))), "{error}");
+    std::fs::remove_dir_all(d).unwrap();
+}
+
+#[tokio::test]
+async fn a_package_cut_inside_a_block_is_refused() {
+    use celaut_client::package::verify_blocks;
+    let d = dir();
+    let mut service = service_buffers(2, b"the filesystem");
+    service.truncate(3);
+    let error = verify_blocks(&export_file(&d, "cut.celaut.bee", service), &Cancel::new()).await.unwrap_err();
+    assert!(matches!(&error, PackageError::Invalid(t) if t.contains("cut inside")), "{error}");
+    std::fs::remove_dir_all(d).unwrap();
+}
+
+#[tokio::test]
+async fn the_check_counts_the_bytes_it_read_and_a_cancel_stops_it() {
+    use celaut_client::package::verify_blocks;
+    let d = dir();
+    let path = export_file(&d, "ok.celaut.bee", service_buffers(2, &vec![9u8; 100_000]));
+    let size = std::fs::metadata(&path).unwrap().len();
+    let cancel = Cancel::new();
+    verify_blocks(&path, &cancel).await.unwrap();
+    // Every record that the file has, with its length: the progress ends at the size.
+    assert_eq!(cancel.bytes(), size);
+
+    let stopped = Cancel::new();
+    stopped.cancel();
+    let error = verify_blocks(&path, &stopped).await.unwrap_err();
+    assert!(matches!(error, PackageError::Cancelled), "{error}");
     std::fs::remove_dir_all(d).unwrap();
 }

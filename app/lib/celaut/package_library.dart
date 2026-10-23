@@ -19,16 +19,26 @@ class PackageLibrary {
     List<LibraryPackageView> Function()? list,
     Future<void> Function(String serviceId)? remove,
     Future<String?> Function()? privateDir,
+    TransferView Function()? progress,
+    void Function()? cancel,
   })  : _import = importPackage ??
             ((path, name, dir) => celautImportPackage(path: path, name: name, dir: dir)),
         _list = list ?? celautPackages,
         _remove = remove ?? ((id) => celautRemovePackage(serviceIdHex: id)),
-        _privateDir = privateDir ?? _appPrivateDir;
+        _privateDir = privateDir ?? _appPrivateDir,
+        progress = progress ?? celautTransferProgress,
+        cancel = cancel ?? celautCancelTransfer;
 
   final Future<LibraryPackageView> Function(String, String, String) _import;
   final List<LibraryPackageView> Function() _list;
   final Future<void> Function(String) _remove;
   final Future<String?> Function() _privateDir;
+
+  /// The load that runs now: the bytes that the app checked so far.
+  final TransferView Function() progress;
+
+  /// Stop the load that runs.
+  final void Function() cancel;
 
   /// The directory of the Celaut database: private to the app.
   static Future<String?> _appPrivateDir() async {

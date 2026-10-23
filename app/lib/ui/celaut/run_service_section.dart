@@ -27,6 +27,7 @@ import 'deposit_screen.dart';
 import 'env_questions_screen.dart';
 import 'instance_list.dart' show instanceOfLaunch;
 import 'launch_failure_sheet.dart';
+import 'import_rocket.dart';
 import 'launch_rocket.dart';
 import 'run_confirm_dialog.dart';
 import 'service_info_screen.dart';
@@ -551,10 +552,18 @@ class _RunServiceSectionState extends State<RunServiceSection> {
       return null;
     }
     if (picked == null || !mounted) return null;
+    final file = picked;
     try {
-      final loaded = await _library.importPicked(picked);
+      final loaded = await runWithImportRocket(
+        context,
+        work: () => _library.importPicked(file),
+        progress: _library.progress,
+        cancel: _library.cancel,
+      );
       if (mounted) setState(_readPackages);
       return loaded;
+    } on ImportCancelled {
+      // The user stopped the check: the file stays where it was.
     } on CelautError catch (e) {
       if (mounted) await _showBadFile(e);
     } on PackageRefused {

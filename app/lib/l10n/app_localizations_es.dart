@@ -5921,6 +5921,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get celautSendStarting => 'Empezando la transferencia…';
 
   @override
+  String get celautImportChecking => 'Comprobando el archivo del servicio…';
+
+  @override
+  String get celautImportNote =>
+      'La app calcula el hash de cada bloque, así un archivo dañado se detecta aquí y no después de enviarlo a un nodo.';
+
+  @override
   String celautSendProgress(String done, String total, String percent) {
     return '$done de $total ($percent %)';
   }

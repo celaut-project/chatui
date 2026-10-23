@@ -7,6 +7,7 @@ import 'package:argus_wallet/bridge/api/celaut_env.dart';
 import 'package:argus_wallet/bridge/api/celaut_service_info.dart';
 import 'package:argus_wallet/bridge/api/celaut_package.dart';
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
+import 'package:argus_wallet/celaut/celaut_strings.dart';
 import 'package:argus_wallet/celaut/env_store.dart';
 import 'package:argus_wallet/celaut/launcher.dart';
 import 'package:argus_wallet/celaut/package_channel.dart';
@@ -107,6 +108,13 @@ class _Lib {
   var stored = <LibraryPackageView>[];
   Object? importError;
 
+  /// An import that waits for the test: the rocket shows meanwhile.
+  Completer<void>? importGate;
+
+  /// What the check of the file read so far, of 4000 bytes.
+  var checked = 0;
+  var cancels = 0;
+
   /// The service that an imported file holds.
   String imports = _best;
 
@@ -124,6 +132,7 @@ class _Lib {
   PackageLibrary get library => PackageLibrary(
     importPackage: (path, name, dir) async {
       calls.add('import $path $name');
+      if (importGate != null) await importGate!.future;
       if (importError != null) throw importError!;
       final v = view(id: imports, name: name.replaceAll('.celaut.bee', ''));
       stored = [...stored.where((p) => p.serviceId != v.serviceId), v];
@@ -135,6 +144,16 @@ class _Lib {
       stored = [for (final p in stored) if (p.serviceId != id) p];
     },
     privateDir: () async => '/data',
+    progress: () => TransferView(
+      stage: TransferStage.checking,
+      bytes: BigInt.from(checked),
+      total: BigInt.from(4000),
+    ),
+    cancel: () {
+      cancels++;
+      importError = const CelautError(kind: CelautErrorKind.transferFailed, message: 'cancelled');
+      importGate?.complete();
+    },
   );
 }
 
@@ -613,6 +632,41 @@ void main() {
       expect(find.byKey(const Key('pkg-empty')), findsNothing);
       // Nothing was sent or launched: loading a file only keeps it.
       expect(launched, isEmpty);
+    });
+
+    testWidgets('while the file is checked, the rocket shows the bytes read', (tester) async {
+      packages.picked = const PickedPackage(path: '/cache/picked.bee', bytes: 10, name: 'echo.celaut.bee');
+      lib.importGate = Completer<void>();
+      await open(tester, packages: packages, lib: lib);
+      await tester.tap(find.byKey(const Key('pkg-import')));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.byKey(const Key('import-progress')), findsOneWidget);
+      expect(find.byKey(const Key('launch-rocket')), findsOneWidget);
+      expect(find.text(appL10n.celautImportChecking), findsOneWidget);
+      lib.checked = 1000;
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(find.text(appL10n.celautSendProgress(CelautStrings.bytes(1000), CelautStrings.bytes(4000), '25')), findsOneWidget);
+      final bar = tester.widget<LinearProgressIndicator>(find.byKey(const Key('import-bar')));
+      expect(bar.value, 0.25);
+      // The check ends: the rocket lifts off, and the card goes.
+      lib.importGate!.complete();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('import-progress')), findsNothing);
+      expect(find.text(appL10n.celautPkgLoaded('echo')), findsOneWidget);
+    });
+
+    testWidgets('Cancel stops the check, says nothing and loads nothing', (tester) async {
+      packages.picked = const PickedPackage(path: '/cache/picked.bee', bytes: 10, name: 'echo.celaut.bee');
+      lib.importGate = Completer<void>();
+      await open(tester, packages: packages, lib: lib);
+      await tester.tap(find.byKey(const Key('pkg-import')));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.byKey(const Key('import-cancel')));
+      await tester.pumpAndSettle();
+      expect(lib.cancels, 1);
+      expect(find.byKey(const Key('import-progress')), findsNothing);
+      expect(find.byType(SnackBar), findsNothing);
+      expect(find.byKey(const Key('pkg-empty')), findsOneWidget);
     });
 
     testWidgets('closing the picker loads nothing', (tester) async {

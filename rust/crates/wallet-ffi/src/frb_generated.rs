@@ -5061,6 +5061,7 @@ impl SseDecode for crate::api::celaut_package::TransferStage {
             0 => crate::api::celaut_package::TransferStage::Idle,
             1 => crate::api::celaut_package::TransferStage::Fetching,
             2 => crate::api::celaut_package::TransferStage::Sending,
+            3 => crate::api::celaut_package::TransferStage::Checking,
             _ => unreachable!("Invalid variant for TransferStage: {}", inner),
         };
     }
@@ -6724,6 +6725,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::celaut_package::TransferStage
             Self::Idle => 0.into_dart(),
             Self::Fetching => 1.into_dart(),
             Self::Sending => 2.into_dart(),
+            Self::Checking => 3.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -7919,6 +7921,7 @@ impl SseEncode for crate::api::celaut_package::TransferStage {
                 crate::api::celaut_package::TransferStage::Idle => 0,
                 crate::api::celaut_package::TransferStage::Fetching => 1,
                 crate::api::celaut_package::TransferStage::Sending => 2,
+                crate::api::celaut_package::TransferStage::Checking => 3,
                 _ => {
                     unimplemented!("");
                 }

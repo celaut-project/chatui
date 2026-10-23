@@ -14,7 +14,12 @@ type, because the file has no MIME type of its own). The app then:
 
 1. checks it: the file must be a package of a service, with a Service part, and it must say
    which service it is, in its Metadata or in a hash part. The app does not hash a whole
-   service on the phone, so a file with no id is refused, with that reason;
+   service on the phone, so a file with no id is refused, with that reason. It hashes each
+   block (SHA3-256, with the blocks inside it) and refuses a file with a block that does
+   not hash to its id, or that is cut inside a block: a node refuses that block, but only
+   after the whole file was sent to it. While it checks, a card with the rocket (the one of
+   a launch) shows the bytes read of the size of the file, and Cancel stops the check and
+   leaves the file where it was. The count is `celaut_transfer_progress` (stage `checking`);
 2. **moves** it (the picker's copy is in the cache of the app) to
    `<private dir>/packages/library/<service id>.bee`, through a partial file that is
    renamed when it is complete, so the library never holds a cut file;

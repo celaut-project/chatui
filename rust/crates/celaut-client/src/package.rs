@@ -11,6 +11,7 @@
 //! - [`save`] writes the Buffers of `GetService` to a `.bee` file.
 //! - [`inspect`] reads the head of a `.bee` file: its layout, and the service id from
 //!   the Metadata or from a hash part. It stops before the Service.
+//! - [`verify_blocks`] checks that each block of a `.bee` file hashes to its id.
 //! - [`read`] gives the Buffers of a `.bee` file for a node: the head indices of a
 //!   `nodo export` file (1 Metadata, 2 Service) become 5 and 6.
 //!
@@ -300,6 +301,63 @@ pub async fn inspect(path: &Path) -> Result<PackageInfo, PackageError> {
     })
 }
 
+/// Check that each block of the package at `path` holds what its id names: the bytes of
+/// its chunks, with those of the blocks inside it, hash (SHA3-256) to its id. A node
+/// refuses a block that does not, but only after it got the whole package. The file is
+/// read once, one record at a time. `cancel` counts the records that were read, and stops
+/// the check when it is cancelled.
+pub async fn verify_blocks(path: &Path, cancel: &Cancel) -> Result<(), PackageError> {
+    let file = tokio::fs::File::open(path).await?;
+    let mut reader = BufReader::new(file);
+    // The open blocks, outermost first: their id and the hash of what they hold so far.
+    let mut open: Vec<([u8; 32], bee_rpc::hash::Hasher)> = Vec::new();
+    while let Some(buffer) = next_record(&mut reader).await? {
+        if cancel.is_cancelled() {
+            return Err(PackageError::Cancelled);
+        }
+        cancel.add(4 + buffer.encoded_len() as u64);
+        if let Some(block) = &buffer.block {
+            let id = block
+                .hashes
+                .iter()
+                .find_map(|h| {
+                    (h.r#type == SHA3_256_TYPE).then(|| h.value.as_slice().try_into().ok())?
+                })
+                .ok_or_else(|| PackageError::Invalid("a block has no SHA3-256 id".into()))?;
+            if let Some((_, hasher)) = open.pop_if(|(last, _)| *last == id) {
+                // The end marker of the innermost open block.
+                let got = hasher.finalize();
+                if got != id {
+                    return Err(PackageError::Invalid(format!(
+                        "the block {} holds other bytes: they hash to {}",
+                        hex::encode(id),
+                        hex::encode(got)
+                    )));
+                }
+            } else if open.iter().any(|(other, _)| *other == id) {
+                return Err(PackageError::Invalid(format!(
+                    "the block {} ends inside a block that it holds",
+                    hex::encode(id)
+                )));
+            } else {
+                open.push((id, bee_rpc::hash::HashAlgorithm::Sha3_256.hasher()));
+            }
+        }
+        if let Some(chunk) = &buffer.chunk {
+            for (_, hasher) in open.iter_mut() {
+                hasher.update(chunk);
+            }
+        }
+    }
+    match open.last() {
+        Some((id, _)) => Err(PackageError::Invalid(format!(
+            "the file is cut inside the block {}",
+            hex::encode(id)
+        ))),
+        None => Ok(()),
+    }
+}
+
 /// The Buffers of the package at `path` for a node, with the indices of `StartService`.
 /// The file is read while the Buffers are sent. An error of the file, or a cancel, is
 /// an error of the stream (the node then refuses the input). `cancel` counts a record
@@ -372,14 +430,20 @@ pub struct Imported {
 
 /// Load the package at `source` into the library under `dir`: check it, then move it to
 /// `<dir>/packages/library/<service id>.bee`. A file that is not a package of a service,
-/// or that does not say which service it is, is refused and left where it is. The id comes
-/// from the Metadata or from a hash part: the app does not hash a whole service on the
-/// phone. A package of a service that the library already has replaces it.
+/// that does not say which service it is, or that has a block that does not hold what its
+/// id names ([`verify_blocks`]), is refused and left where it is. The id comes from the
+/// Metadata or from a hash part: the app does not hash a whole service on the phone, only
+/// its blocks. A package of a service that the library already has replaces it. `cancel`
+/// counts the bytes that the check read, and stops it.
 ///
 /// The file is moved when `source` is on the same disk (the copy of the file picker is in
 /// the cache of the app), and copied otherwise, so a large service is never in memory and
 /// is not on the phone twice for long.
-pub async fn import(source: &Path, dir: &Path) -> Result<Imported, PackageError> {
+pub async fn import(
+    source: &Path,
+    dir: &Path,
+    cancel: &Cancel,
+) -> Result<Imported, PackageError> {
     let info = inspect(source).await?;
     if !info.has_service {
         return Err(PackageError::Invalid("the file has no Service part".into()));
@@ -387,6 +451,7 @@ pub async fn import(source: &Path, dir: &Path) -> Result<Imported, PackageError>
     let service_id = info.service_id.ok_or_else(|| {
         PackageError::Invalid("the file does not say which service it is".into())
     })?;
+    verify_blocks(source, cancel).await?;
     let folder = library_dir(dir);
     tokio::fs::create_dir_all(&folder).await?;
     let target = library_path(dir, &service_id);
