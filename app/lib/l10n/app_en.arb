@@ -4220,7 +4220,15 @@
     }
   },
   "celautRunButton": "Run",
-  "celautRunStarting": "Starting…",
+  "celautRunLaunching": "Launching {name}…",
+  "celautRunLaunchingNote": "The app asks the nodes, then starts the service on the best one.",
+  "@celautRunLaunching": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "celautRunStarted": "Started on {node}. Start cost: {cost}.",
   "@celautRunStarted": {
     "placeholders": {

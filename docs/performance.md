@@ -17,6 +17,7 @@ The test starts the app and makes each move four times (`PERF_ROUNDS`):
 | `wallet_page` | The page of the wallet from the Wallet tab, back |
 | `compute_pages` | Nodes and Services from the Compute tab, back |
 | `settings_pages` | Security, Network and Tor, Nodes and About from the Settings tab, back |
+| `launch_rocket` | The rocket of a launch over the Chats tab: it hovers for 2 s, then lifts off. No launch, nothing spent |
 
 Each trace gives a timeline summary: the frames, the build and raster time of each frame,
 and the frames over the budget of 16 ms. For each move, the test also takes the time from
@@ -105,3 +106,17 @@ the conversation follows in place.
   costs about 1 ms.
 - The catalog of skills is cached in the core. The list of nodes checks the nodes after it
   shows; the move does not wait for the check.
+
+## 4. The improvements of 2026-10-23
+
+Same setup, two runs of each build: master (`39d8ba8`) and the branch of the improvements
+(rocket, robots, filter, Settings in three sections, the wallet without a name). Our node
+on the same host, one conversation running, a host load of 6 to 14.
+
+- **No move got slower.** Every trace had the same frames, build and raster times as
+  master, within the spread of two runs (for example, `tabs` raster 19.2 → 20.1 ms on
+  average, `settings_pages` 19.6 → 19.6 ms; no frame over 100 ms outside `tabs_first`,
+  which has the 3 slow frames it had before).
+- **The rocket** (`launch_rocket`, new): 270 frames, 1 render pass a frame and one
+  texture in the whole trace, raster 19.4 ms on average and 28 to 38 ms at worst. It costs
+  what a plain page costs on SwiftShader.
