@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 
-import '../../theme/argus_theme.dart';
 
 import 'home_glass.dart';
 import 'home_style.dart';
@@ -266,11 +265,9 @@ class _HomeEntranceState extends State<HomeEntrance> with SingleTickerProviderSt
   }
 }
 
-/// A wallet's mark: its initial on the same disc a token gets.
+/// The wallet's mark: a wallet on the same disc a token gets.
 class WalletMark extends StatelessWidget {
-  const WalletMark({super.key, required this.name});
-
-  final String name;
+  const WalletMark({super.key});
 
   /// The disc every wallet's mark sits on: a deep, cool shade a step off
   /// the page, the same for every wallet so the names, not the colours,
@@ -284,15 +281,10 @@ class WalletMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = HomeText.of(context);
-    final trimmed = name.trim();
     return ExcludeSemantics(
       child: HomeDisc(
         fill: discOf(context),
-        child: Text(
-          trimmed.isEmpty ? '?' : String.fromCharCode(trimmed.runes.first).toUpperCase(),
-          textScaler: TextScaler.noScaling,
-          style: TextStyle(fontFamily: headingFont, fontSize: 20, fontWeight: FontWeight.w500, height: 1, color: t.ink),
-        ),
+        child: Icon(Icons.account_balance_wallet_outlined, size: 20, color: t.ink),
       ),
     );
   }

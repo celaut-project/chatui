@@ -55,7 +55,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(
-      find.text('Overview'),
+      find.text('Wallet details'),
       findsWidgets,
       reason: tester
           .widgetList<Text>(find.byType(Text))

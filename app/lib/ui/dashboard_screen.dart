@@ -259,7 +259,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     for (final tx in fresh) {
       notificationService.incomingPayment(
         nanoErg: (tx['value_nano_erg'] as num?)?.toInt() ?? 0,
-        walletName: _walletName(_walletId),
+        walletName: context.l10n.commonWallet,
         pending: ((tx['height'] as num?)?.toInt() ?? 0) == 0,
       );
     }
@@ -518,7 +518,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _onWalletRemoved(String walletId) async {
     if (!mounted) return;
-    final name = _walletName(walletId);
+    final name = context.l10n.commonWallet;
     if (_open?.id == walletId) _closeWallet();
     if (_walletId == walletId) {
       setState(() {
@@ -915,9 +915,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     showDiscoverSheet(context, feature: feature, onGo: () => _go(discoverExplainers[feature]!.route));
   }
 
-  String _walletName(String? walletId) =>
-      (walletId == null ? null : _overview.wallet(walletId)?.name) ?? context.l10n.commonWallet;
-
   bool get _balanceHidden => privacyService.hideBalances;
 
   // ── Build ─────────────────────────────────────────────────────────────
@@ -1026,7 +1023,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Widget _seedPage(String walletId) {
     final info = _overview.wallet(walletId);
-    final name = info?.name ?? context.l10n.commonWallet;
+    final name = context.l10n.commonWallet;
     final unlocked = _walletUnlocked && _walletId == walletId;
     final owns = unlocked && _sync.ownsWallet(walletId);
     final tab = _tabOrder[_tab];
@@ -1087,7 +1084,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     final known = _overview.lastKnown(walletId);
     final ready = _methodsFor == walletId && _walletId == walletId;
     return UnlockGate(
-      name: info?.name ?? context.l10n.commonWallet,
       address: info?.displayAddress,
       pinnedIndex: info?.pinnedAddressIndex,
       lastKnownNano: known?.balanceNano,

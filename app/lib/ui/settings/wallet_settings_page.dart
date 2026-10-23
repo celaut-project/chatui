@@ -5,24 +5,21 @@ import '../../l10n/l10n.dart';
 import '../../services/privacy_service.dart';
 import '../../services/wallet_service.dart';
 import '../../theme/argus_theme.dart';
-import '../wallet_dialogs.dart';
 import 'settings_shared.dart';
 import '../widgets/entry_dialogs.dart';
 
-/// Settings scoped to one wallet: its name, primary address, change policy,
-/// backup, and removing it from this device.
+/// Settings of the wallet: its primary address, change policy, backup, and removing it
+/// from this device. The app holds one wallet, so it has no name to show or change.
 class WalletSettingsPage extends StatefulWidget {
   const WalletSettingsPage({
     super.key,
     this.walletId,
-    required this.walletName,
     this.onChanged,
     this.onRemoved,
   });
   final String? walletId;
-  final String walletName;
 
-  /// The name or the pinned address changed.
+  /// The pinned address changed.
   final VoidCallback? onChanged;
 
   /// The wallet was removed from this device; carries its id. Called even
@@ -36,7 +33,6 @@ class WalletSettingsPage extends StatefulWidget {
 
 class _WalletSettingsPageState extends State<WalletSettingsPage> {
   late Future<int> _pinnedIndexFuture;
-  late String _name = widget.walletName;
 
   String? get _walletId => widget.walletId ?? walletService.activeWalletId;
 
@@ -58,30 +54,6 @@ class _WalletSettingsPageState extends State<WalletSettingsPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  Future<WalletInfo?> _info() async {
-    final id = _walletId;
-    if (id == null) return null;
-    for (final w in await walletService.listWallets()) {
-      if (w.walletId == id) return w;
-    }
-    return null;
-  }
-
-  Future<void> _rename() async {
-    final t = context.l10n;
-    try {
-      final w = await _info();
-      if (w == null || !mounted) return;
-      if (await renameWalletDialog(context, w)) {
-        final renamed = await _info();
-        if (mounted && renamed != null) setState(() => _name = renamed.name);
-        widget.onChanged?.call();
-      }
-    } catch (_) {
-      _snack(t.walletSettingsRenameFailed);
-    }
-  }
-
   Future<void> _remove() async {
     final id = _walletId;
     if (id == null) return;
@@ -89,7 +61,7 @@ class _WalletSettingsPageState extends State<WalletSettingsPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(t.walletSettingsRemoveTitle(_name)),
+        title: Text(t.walletSettingsRemoveTitle),
         content: Text(t.walletSettingsRemoveBody),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t.commonCancel)),
@@ -160,20 +132,8 @@ class _WalletSettingsPageState extends State<WalletSettingsPage> {
     return ListenableBuilder(
       listenable: privacyService,
       builder: (context, _) => SettingsPage(
-        title: _name,
+        title: t.commonWallet,
         children: [
-          SettingsGroup(
-            title: t.commonWallet,
-            scope: t.commonThisWallet,
-            children: [
-              SettingsRow(
-                icon: Icons.edit_outlined,
-                title: t.commonName,
-                subtitle: _name,
-                onTap: _rename,
-              ),
-            ],
-          ),
           SettingsGroup(
             title: t.commonAddresses,
             scope: t.commonThisWallet,

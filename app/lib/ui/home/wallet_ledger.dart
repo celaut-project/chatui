@@ -97,7 +97,7 @@ class WalletLedger extends StatelessWidget {
         final data = _data(holdings: holdings, identity: identity, addresses: addresses, shown: shown, hidden: hidden);
         void breakdown({required bool all}) => showAddressBreakdownSheet(
               context,
-              walletName: w?.name ?? appL10n.commonThisWallet,
+              walletName: appL10n.commonThisWallet,
               holdings: addresses,
               identity: identity,
               hidden: hidden,

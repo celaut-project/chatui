@@ -71,7 +71,9 @@ void main() {
     await wallets(tester, pinnedSnapshot: snapshot('ov-pinned', 12000000000));
     await pumpHome(tester);
     expect(walletService.isUnlocked, isFalse);
-    expect(find.text('Vanity'), findsOneWidget);
+    // One wallet, with no name.
+    expect(find.text('Vanity'), findsNothing);
+    expect(find.text('Wallet details'), findsOneWidget);
     expect(plainOf(tester, find.byKey(const Key('overview-total'))), '12 ERG');
     expect(textPlainContaining('not loaded'), findsNothing);
     // One wallet: no way to add another.

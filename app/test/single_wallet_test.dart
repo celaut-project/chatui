@@ -128,6 +128,26 @@ void main() {
       await disposeHome(tester);
     });
 
+    testWidgets('the Wallet tab shows no name of the wallet and no list of wallets', (tester) async {
+      FakeKeystore(wallets: ['w-only']).install(tester);
+      await tester.runAsync(() => saveWallet('w-only', name: 'Savings'));
+      await pumpHome(tester, computeHome: true);
+      await tester.tap(find.byKey(const Key('tab-wallet')));
+      await tester.pumpAndSettle();
+      // One row, into the page of the wallet, with no name and no header of a list.
+      expect(find.byKey(const ValueKey('overview-row-seed-w-only')), findsOneWidget);
+      expect(find.text('Wallet details'), findsOneWidget);
+      expect(find.text('Savings'), findsNothing);
+      expect(find.text('WALLET'), findsNothing);
+      // The page of the wallet and its gate do not name it either.
+      await tester.tap(find.byKey(const ValueKey('overview-row-seed-w-only')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('gate-unlock')), findsOneWidget);
+      expect(find.text('Savings'), findsNothing);
+      expect(find.text('Wallet'), findsWidgets);
+      await disposeHome(tester);
+    });
+
     testWidgets('with no wallet, the Wallet tab offers to create or restore one', (tester) async {
       FakeKeystore(wallets: const []).install(tester);
       await pumpHome(tester, computeHome: true);

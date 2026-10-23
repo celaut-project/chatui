@@ -32,7 +32,6 @@ enum UnlockMethod {
 class UnlockGate extends StatelessWidget {
   const UnlockGate({
     super.key,
-    required this.name,
     required this.method,
     required this.pinController,
     required this.busy,
@@ -51,7 +50,6 @@ class UnlockGate extends StatelessWidget {
     this.statusIsError = false,
   });
 
-  final String name;
   final String? address;
   final int? pinnedIndex;
 
@@ -84,7 +82,6 @@ class UnlockGate extends StatelessWidget {
     final spinner = const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2));
     final showPin = method == UnlockMethod.pin || (method == UnlockMethod.biometric && usePin);
     final age = lastKnownAge;
-    final initial = name.trim().isEmpty ? '?' : String.fromCharCode(name.trim().runes.first).toUpperCase();
     const medallion = WalletPageScreen.medallionSize;
     return ListView(
       key: const ValueKey('gate'),
@@ -123,7 +120,7 @@ class UnlockGate extends StatelessWidget {
                         ],
                       ),
                     ),
-                  PositionedDirectional(top: -18, end: -14, child: WalletMedallion(letter: initial, size: medallion)),
+                  PositionedDirectional(top: -18, end: -14, child: const WalletMedallion(size: medallion)),
                 ],
               ),
               if (address != null) ...[

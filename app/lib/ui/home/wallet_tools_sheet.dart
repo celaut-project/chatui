@@ -94,13 +94,11 @@ class HomeSheetHeader extends StatelessWidget {
 Future<WalletTool?> showWalletToolsSheet(
   BuildContext context, {
   required List<WalletToolEntry> tools,
-  required String walletName,
 }) {
   return showHomeSheet<WalletTool>(
     context,
     builder: (ctx) => WalletToolsSheet(
       tools: tools,
-      walletName: walletName,
       onSelect: (tool) => Navigator.pop(ctx, tool),
     ),
   );
@@ -110,10 +108,9 @@ Future<WalletTool?> showWalletToolsSheet(
 /// action row. Protocols live in the Discover tab; this is only what acts
 /// on the wallet itself, with Lock set apart under a rule.
 class WalletToolsSheet extends StatelessWidget {
-  const WalletToolsSheet({super.key, required this.tools, required this.walletName, required this.onSelect});
+  const WalletToolsSheet({super.key, required this.tools, required this.onSelect});
 
   final List<WalletToolEntry> tools;
-  final String walletName;
   final ValueChanged<WalletTool> onSelect;
 
   @override
@@ -128,7 +125,7 @@ class WalletToolsSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            HomeSheetHeader(title: context.l10n.homeActionMore, subject: walletName),
+            HomeSheetHeader(title: context.l10n.homeActionMore),
             for (final entry in main) _row(context, entry),
             if (lock.isNotEmpty) ...[
               const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: HomeRule()),

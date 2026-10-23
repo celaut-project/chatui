@@ -41,7 +41,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
         if (w.walletId == active) continue;
         final addr = w.pinnedAddress ?? w.address0;
         if (addr != null && addr.isNotEmpty) {
-          out.add(WalletContact(id: 'wallet:${w.walletId}', name: w.name, address: addr));
+          out.add(WalletContact(id: 'wallet:${w.walletId}', name: appL10n.commonWallet, address: addr));
         }
       }
       if (mounted) setState(() => _ownWallets = out);

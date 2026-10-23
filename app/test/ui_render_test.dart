@@ -214,7 +214,7 @@ void main() {
       await tester.tap(find.widgetWithText(NavigationDestination, 'Settings'));
       await tester.pumpAndSettle();
       await renderPng(tester, 'wallet-settings-tab$tag');
-      await tester.tap(find.text('Name, addresses and backup'));
+      await tester.tap(find.text('Addresses and backup'));
       await tester.pumpAndSettle();
       await renderPng(tester, 'wallet-settings-page$tag');
       await tester.scrollUntilVisible(

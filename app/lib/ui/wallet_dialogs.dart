@@ -4,7 +4,6 @@ import '../l10n/l10n.dart';
 import '../services/secure_storage.dart';
 import '../services/session_lock.dart';
 import '../services/wallet_service.dart';
-import 'home/name_dialog.dart';
 
 /// Right after a wallet gets its PIN: offer biometric unlock while the PIN
 /// is still in hand, so the user need not find it in Settings later. Does
@@ -54,16 +53,3 @@ Future<void> offerBiometricUnlock(
   }
 }
 
-/// Rename dialog for a wallet's own settings. Returns true when the name
-/// changed.
-Future<bool> renameWalletDialog(BuildContext context, WalletInfo w) async {
-  final name = await showNameDialog(
-    context,
-    title: context.l10n.dialogRenameTitle,
-    initial: w.name,
-    confirm: context.l10n.dialogRename,
-  );
-  if (name == null || name.isEmpty || name == w.name) return false;
-  await walletService.renameWallet(w.walletId, name);
-  return true;
-}

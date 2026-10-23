@@ -31,8 +31,8 @@ import 'widgets/soft_card.dart';
 /// Settings hub: the open wallet on top, then short groups whose rows open
 /// their own page. Per-wallet and app-wide scopes are labelled.
 ///
-/// The app holds one wallet. Creating and restoring it live on the overview;
-/// renaming and removing it live in its own settings.
+/// The app holds one wallet, with no name. Creating and restoring it live on the
+/// overview; removing it lives in its own settings.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
     super.key,
@@ -199,7 +199,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           onTap: () => _open(
             WalletSettingsPage(
               walletId: current.walletId,
-              walletName: current.name,
               onChanged: widget.onWalletChanged,
               onRemoved: widget.onWalletRemoved,
             ),
@@ -304,7 +303,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return _header(
       context,
       icon: Icons.account_balance_wallet_outlined,
-      name: current.name,
+      name: t.commonWallet,
       detail: unlocked ? t.settingsUnlocked : t.settingsLocked,
     );
   }

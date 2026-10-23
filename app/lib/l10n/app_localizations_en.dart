@@ -436,11 +436,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsSeedWalletScope => 'Seed wallet';
 
   @override
-  String get settingsWalletRowTitle => 'Name, addresses and backup';
+  String get settingsWalletRowTitle => 'Addresses and backup';
 
   @override
   String get settingsWalletRowSubtitle =>
-      'Rename, primary address, change policy, remove';
+      'Primary address, change policy, remove';
 
   @override
   String get settingsSecurityWalletSubtitle =>
@@ -1156,12 +1156,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Android could not open its installer. The releases page has the file.';
 
   @override
-  String get walletSettingsRenameFailed => 'Could not rename wallet';
-
-  @override
-  String walletSettingsRemoveTitle(String name) {
-    return 'Remove $name?';
-  }
+  String get walletSettingsRemoveTitle => 'Remove the wallet?';
 
   @override
   String get walletSettingsRemoveBody =>
@@ -2612,7 +2607,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get overviewTotalBalance => 'Total balance';
 
   @override
-  String get overviewWallets => 'Wallet';
+  String get overviewWalletRowTitle => 'Wallet details';
 
   @override
   String get overviewPrototypeTitle => 'Prototype software';
@@ -3164,12 +3159,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'The PIN unwraps the key on this device. It is not a backup.';
 
   @override
-  String get createWalletNameLabel => 'Wallet name (optional)';
-
-  @override
-  String get createWalletNameHint => 'e.g. Savings, Trading';
-
-  @override
   String get createReplaceTitle => 'Replace existing wallet?';
 
   @override
@@ -3424,12 +3413,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get dialogBiometricFailed =>
       'Could not enable biometrics; try again under Settings › Security';
-
-  @override
-  String get dialogRenameTitle => 'Rename wallet';
-
-  @override
-  String get dialogRename => 'Rename';
 
   @override
   String get entryCurrentPin => 'Current PIN';

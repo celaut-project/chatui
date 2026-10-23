@@ -438,12 +438,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get settingsSeedWalletScope => 'Billetera con frase';
 
   @override
-  String get settingsWalletRowTitle =>
-      'Nombre, direcciones y copia de seguridad';
+  String get settingsWalletRowTitle => 'Direcciones y copia de seguridad';
 
   @override
   String get settingsWalletRowSubtitle =>
-      'Renombrar, dirección principal, política de cambio, quitar';
+      'Dirección principal, política de cambio, quitar';
 
   @override
   String get settingsSecurityWalletSubtitle =>
@@ -1176,12 +1175,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'Android no pudo abrir su instalador. La página de versiones tiene el archivo.';
 
   @override
-  String get walletSettingsRenameFailed => 'No se pudo renombrar la billetera';
-
-  @override
-  String walletSettingsRemoveTitle(String name) {
-    return '¿Quitar $name?';
-  }
+  String get walletSettingsRemoveTitle => '¿Quitar la billetera?';
 
   @override
   String get walletSettingsRemoveBody =>
@@ -2657,7 +2651,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get overviewTotalBalance => 'Saldo total';
 
   @override
-  String get overviewWallets => 'Billetera';
+  String get overviewWalletRowTitle => 'Detalles de la billetera';
 
   @override
   String get overviewPrototypeTitle => 'Software prototipo';
@@ -3214,12 +3208,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'El PIN descifra la clave en este dispositivo. No es una copia de seguridad.';
 
   @override
-  String get createWalletNameLabel => 'Nombre de la billetera (opcional)';
-
-  @override
-  String get createWalletNameHint => 'p. ej., Ahorros, Trading';
-
-  @override
   String get createReplaceTitle => '¿Reemplazar la billetera existente?';
 
   @override
@@ -3473,12 +3461,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get dialogBiometricFailed =>
       'No se pudo activar la biometría; vuelve a intentarlo en Ajustes › Seguridad';
-
-  @override
-  String get dialogRenameTitle => 'Cambiar el nombre de la billetera';
-
-  @override
-  String get dialogRename => 'Cambiar nombre';
 
   @override
   String get entryCurrentPin => 'PIN actual';
