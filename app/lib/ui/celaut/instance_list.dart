@@ -10,6 +10,7 @@ import '../../celaut/chat_client.dart';
 import '../../celaut/conversations.dart';
 import '../../celaut/launcher.dart';
 import '../../celaut/payers.dart';
+import '../../celaut/stopped_filter.dart';
 import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
 import '../home/home_style.dart';
@@ -75,7 +76,11 @@ class InstanceList extends StatefulWidget {
     this.openTunnel,
     this.chatPage,
     this.bottomPadding = 0,
+    this.filter,
   });
+
+  /// The filter that hides the stopped instances. Tests give their own.
+  final StoppedFilter? filter;
 
   /// The instances with a chat slot, or the others.
   final bool chats;
@@ -118,17 +123,21 @@ class InstanceListState extends State<InstanceList> {
   List<InstanceListView> _instances = const [];
   final Map<String, _Check> _checks = {};
   bool _failed = false;
+  late final StoppedFilter _filter = widget.filter ?? stoppedFilter;
 
   @override
   void initState() {
     super.initState();
     _notes.addListener(_onNotes);
+    _filter.addListener(_onNotes);
+    unawaited(_filter.load());
     unawaited(refresh());
   }
 
   @override
   void dispose() {
     _notes.removeListener(_onNotes);
+    _filter.removeListener(_onNotes);
     super.dispose();
   }
 
@@ -340,10 +349,36 @@ class InstanceListState extends State<InstanceList> {
     }
   }
 
+  /// The button that shows the [hidden] stopped instances, or hides the shown ones.
+  Widget? _filterButton(int hidden, int stopped) {
+    final l = context.l10n;
+    if (hidden > 0) {
+      return TextButton.icon(
+        key: const Key('chats-show-stopped'),
+        onPressed: () => _filter.set(false),
+        icon: const Icon(Icons.visibility_outlined, size: 18),
+        label: Text(l.chatsShowStopped(hidden)),
+      );
+    }
+    if (stopped > 0) {
+      return TextButton.icon(
+        key: const Key('chats-hide-stopped'),
+        onPressed: () => _filter.set(true),
+        icon: const Icon(Icons.visibility_off_outlined, size: 18),
+        label: Text(l.chatsHideStopped),
+      );
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final hide = _filter.value;
+    final stopped = _instances.where((i) => i.stoppedAt != null).length;
+    final shown = hide ? _instances.where((i) => i.stoppedAt == null) : _instances;
+    final toggle = _filterButton(hide ? stopped : 0, hide ? 0 : stopped);
     final rows = <Widget>[
-      for (final i in _instances)
+      for (final i in shown)
         _InstanceRow(
           instance: i,
           state: _stateOf(i),
@@ -352,10 +387,11 @@ class InstanceListState extends State<InstanceList> {
           onTap: () => _tap(i, _stateOf(i)),
           onLongPress: () => _actions(i, _stateOf(i)),
         ),
+      if (toggle != null) Center(child: Padding(padding: const EdgeInsets.all(8), child: toggle)),
     ];
     return RefreshIndicator(
       onRefresh: refresh,
-      child: rows.isEmpty
+      child: shown.isEmpty
           ? LayoutBuilder(
               builder: (context, box) => SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -363,7 +399,13 @@ class InstanceListState extends State<InstanceList> {
                   constraints: BoxConstraints(minHeight: box.maxHeight),
                   child: Center(
                     key: Key(_failed ? 'chats-empty-no-db' : 'chats-empty'),
-                    child: widget.empty ?? const SizedBox.shrink(),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        widget.empty ?? const SizedBox.shrink(),
+                        if (toggle != null) ...[const SizedBox(height: 12), toggle],
+                      ],
+                    ),
                   ),
                 ),
               ),

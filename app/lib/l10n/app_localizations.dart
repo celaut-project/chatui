@@ -8609,6 +8609,18 @@ abstract class AppLocalizations {
   /// **'Only this phone sees this name. The node does not get it. Leave it empty to show \"{name}\" again.'**
   String chatsRenameNoteOriginal(String name);
 
+  /// No description provided for @chatsShowStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Show 1 stopped instance} other{Show {count} stopped instances}}'**
+  String chatsShowStopped(int count);
+
+  /// No description provided for @chatsHideStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide stopped instances'**
+  String get chatsHideStopped;
+
   /// No description provided for @chatsStopTitle.
   ///
   /// In en, this message translates to:

@@ -1468,6 +1468,8 @@
   "chatsRenameTitle": "Cambiar nombre",
   "chatsRenameNote": "Solo este teléfono ve este nombre. El nodo no lo recibe. Déjalo vacío para quitarlo.",
   "chatsRenameNoteOriginal": "Solo este teléfono ve este nombre. El nodo no lo recibe. Déjalo vacío para volver a mostrar «{name}».",
+  "chatsShowStopped": "{count, plural, =1{Mostrar 1 instancia detenida} other{Mostrar {count} instancias detenidas}}",
+  "chatsHideStopped": "Ocultar instancias detenidas",
   "chatsStopTitle": "¿Detener {name}?",
   "@chatsStopTitle": {
     "placeholders": {
