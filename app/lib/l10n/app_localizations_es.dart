@@ -5794,6 +5794,34 @@ class AppLocalizationsEs extends AppLocalizations {
       'Ningún nodo ha dado un precio todavía. Ejecutar pregunta a todos los nodos de la lista.';
 
   @override
+  String get celautRunSurvivalLabel => 'Mantenerla en marcha al menos';
+
+  @override
+  String get celautRunSurvivalHint => 'Vacío: el saldo inicial por defecto';
+
+  @override
+  String get celautRunSurvivalWrong => 'De 1 minuto a 30 días.';
+
+  @override
+  String celautRunDefaultBalance(String balance) {
+    return 'Saldo inicial de $balance (por defecto).';
+  }
+
+  @override
+  String celautRunDefaultBalanceLasts(String balance, String time) {
+    return 'Saldo inicial de $balance (por defecto): unos $time en este nodo.';
+  }
+
+  @override
+  String get celautRunSurvivalNoPrice =>
+      'Este nodo no da un precio por su tiempo. La app usa el saldo inicial por defecto.';
+
+  @override
+  String celautRunSurvivalEstimate(String cost, String balance, String time) {
+    return 'Coste de inicio de unos $cost, con un saldo de $balance para al menos $time. El nodo devuelve lo que la instancia no usa.';
+  }
+
+  @override
   String get celautErrorTransferFailed =>
       'La transferencia del servicio se detuvo (no se pudo leer el fichero, está cortado o se canceló). El nodo no guardó el servicio cortado. Inténtalo de nuevo.';
 

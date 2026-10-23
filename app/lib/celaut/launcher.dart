@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../bridge/api/celaut.dart';
 import '../bridge/api/celaut_env.dart';
 import '../bridge/api/celaut_health.dart';
@@ -136,6 +138,50 @@ List<NodeAddress> knownNodeAddresses(List<KnownNodeView> known) {
   return nodes;
 }
 
+/// The longest minimum time of a launch: 30 days.
+const maxMinSurvival = Duration(days: 30);
+
+/// The balance that keeps an instance on the node of [quote] for at least [time]
+/// (Josemi, 2026-10-23): the node charges the maintenance at the start
+/// (`init_maintenance_cost`) once each `maintenance_seconds_loop`, so the balance is the
+/// periods in [time], plus one for the period that runs at the end, each with the margin
+/// of the node for the difference of the real cost (`cost * (1 + variance)`, as nodo's
+/// `variance_cost_normalization` with k = 1), rounded up. Null if the quote gives no
+/// maintenance price.
+BigInt? survivalBalanceMu(QuoteView quote, Duration time) {
+  final period = quote.maintenanceSecondsLoop;
+  final perPeriod = BigInt.tryParse(quote.initMaintenanceMu);
+  if (period <= 0 || perPeriod == null || perPeriod <= BigInt.zero) return null;
+  final seconds = time.inSeconds < 0 ? 0 : time.inSeconds;
+  final periods = (seconds + period - 1) ~/ period + 1;
+  final margin = 1 + max(0.0, quote.variance.toDouble());
+  final withMargin = BigInt.from((perPeriod.toDouble() * margin).ceil());
+  return withMargin * BigInt.from(periods);
+}
+
+/// How long the balance [balanceMu] keeps an instance on the node of [quote], the inverse
+/// of [survivalBalanceMu]. Null if the quote gives no maintenance price.
+Duration? survivalOf(QuoteView quote, BigInt balanceMu) {
+  final period = quote.maintenanceSecondsLoop;
+  final perPeriod = BigInt.tryParse(quote.initMaintenanceMu);
+  if (period <= 0 || perPeriod == null || perPeriod <= BigInt.zero) return null;
+  final margin = 1 + max(0.0, quote.variance.toDouble());
+  final withMargin = BigInt.from((perPeriod.toDouble() * margin).ceil());
+  final periods = balanceMu ~/ withMargin - BigInt.one;
+  if (periods <= BigInt.zero) return Duration.zero;
+  return Duration(seconds: periods.toInt() * period);
+}
+
+/// The start cost of [quote] with the balance [balanceMu] instead of [quotedBalanceMu],
+/// the balance that the quote was asked with: the quote is the build plus that balance
+/// (nodo #563). Null if the quote is less than its balance (a node that does not follow
+/// #563).
+BigInt? startCostWith(QuoteView quote, BigInt quotedBalanceMu, BigInt balanceMu) {
+  final cost = BigInt.tryParse(quote.costMu);
+  if (cost == null || cost < quotedBalanceMu) return null;
+  return cost - quotedBalanceMu + balanceMu;
+}
+
 /// A node whose last checks failed this many times in a row is left out of the quotes.
 const leaveOutAfterFailures = 2;
 
@@ -189,9 +235,16 @@ String _hostPort(NodeAddress a) => '${a.host}:${a.port}';
 /// [environment] asks the user for the environment variables of the service once the
 /// quotes are in. A quote carries no variable: only a start does, so a node that only
 /// prices the service never reads them. Throws [LaunchCancelled] if the user cancels.
+///
+/// [minSurvival] is the least time that the instance must run. The first quotes give the
+/// price of the maintenance of each node; the nodes are then asked again with the balance
+/// that keeps the instance for that time on the most expensive of them
+/// ([survivalBalanceMu]), so the quote and the start balance are right on every node. A
+/// node keeps what the instance did not use and gives it back at the stop.
 Future<LaunchOutcome> launchService({
   required String serviceIdHex,
   String? initialMu,
+  Duration? minSurvival,
   List<NodeAddress>? nodes,
   EnvironmentStep? environment,
   QuoteCall quote = celautQuoteService,
@@ -203,7 +256,17 @@ Future<LaunchOutcome> launchService({
   if (all.isEmpty) throw const LaunchFailure(LaunchFailureKind.noNodes);
   final chosen = chooseNodesToAsk(all, health());
   final leftOut = chosen.leftOut;
-  final quotes = await quote(nodes: chosen.ask, serviceIdHex: serviceIdHex, initialMu: initialMu);
+  var quotes = await quote(nodes: chosen.ask, serviceIdHex: serviceIdHex, initialMu: initialMu);
+  if (minSurvival != null && quotes.quotes.isNotEmpty) {
+    BigInt? need;
+    for (final q in quotes.quotes) {
+      final b = survivalBalanceMu(q, minSurvival);
+      if (b != null && (need == null || b > need)) need = b;
+    }
+    if (need != null && need.toString() != initialMu) {
+      quotes = await quote(nodes: chosen.ask, serviceIdHex: serviceIdHex, initialMu: need.toString());
+    }
+  }
   if (quotes.quotes.isEmpty) {
     throw LaunchFailure(
       LaunchFailureKind.noQuotes,

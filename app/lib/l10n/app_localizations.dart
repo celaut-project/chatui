@@ -9023,6 +9023,48 @@ abstract class AppLocalizations {
   /// **'No node gave a price yet. Run asks every node of the list.'**
   String get celautRunConfirmNoQuote;
 
+  /// No description provided for @celautRunSurvivalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it running at least'**
+  String get celautRunSurvivalLabel;
+
+  /// No description provided for @celautRunSurvivalHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty: the default start balance'**
+  String get celautRunSurvivalHint;
+
+  /// No description provided for @celautRunSurvivalWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'From 1 minute to 30 days.'**
+  String get celautRunSurvivalWrong;
+
+  /// No description provided for @celautRunDefaultBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Start balance {balance} (the default).'**
+  String celautRunDefaultBalance(String balance);
+
+  /// No description provided for @celautRunDefaultBalanceLasts.
+  ///
+  /// In en, this message translates to:
+  /// **'Start balance {balance} (the default): about {time} on this node.'**
+  String celautRunDefaultBalanceLasts(String balance, String time);
+
+  /// No description provided for @celautRunSurvivalNoPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'This node gives no price for its time. The app uses the default start balance.'**
+  String get celautRunSurvivalNoPrice;
+
+  /// No description provided for @celautRunSurvivalEstimate.
+  ///
+  /// In en, this message translates to:
+  /// **'Start cost about {cost}, with a balance of {balance} for at least {time}. The node gives back what the instance does not use.'**
+  String celautRunSurvivalEstimate(String cost, String balance, String time);
+
   /// No description provided for @celautErrorTransferFailed.
   ///
   /// In en, this message translates to:

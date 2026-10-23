@@ -21,6 +21,7 @@ import 'package:argus_wallet/ui/celaut/run_service_section.dart';
 import 'package:argus_wallet/ui/celaut/service_info_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// What a service says about itself, with the parts that these tests use.
 ServiceInfoView _info({
@@ -195,8 +196,8 @@ void main() {
               },
               loadServices: (id) async => services ?? _ranked(),
               previewQuote: (id) async => preview,
-              launch: ({required serviceIdHex, initialMu, environment}) async {
-                launched.add('$serviceIdHex $initialMu');
+              launch: ({required serviceIdHex, initialMu, minSurvival, environment}) async {
+                launched.add('$serviceIdHex $initialMu${minSurvival == null ? '' : ' ${minSurvival.inMinutes} min'}');
                 if (launchError != null) throw launchError!;
                 if (askEnvironment) {
                   final quotes = QuotesView(quotes: [_quote()], failures: const []);
@@ -226,6 +227,8 @@ void main() {
   }
 
   setUp(() {
+    // The confirmation keeps the last least time in the preferences.
+    SharedPreferences.setMockInitialValues({});
     launched = [];
     tunnels = [];
     changed = 0;
@@ -330,6 +333,52 @@ void main() {
     await tester.tap(find.byKey(const Key('run-confirm-ok')));
     await tester.pumpAndSettle();
     expect(launched, ['$_best 1000000']);
+  });
+
+  testWidgets('the confirmation asks for the least time, and the launch uses it', (tester) async {
+    // 100 MU each 60 s on the best node, and a quote of 1,000,300 MU with the default
+    // balance of 1,000,000 MU: a build of 300 MU.
+    final best = QuoteView(
+      address: const NodeAddress(host: '127.0.0.1', port: 18460),
+      peerId: 'aa' * 32,
+      costMu: '1000300',
+      initMaintenanceMu: '100',
+      maxMaintenanceMu: '100',
+      maintenanceSecondsLoop: 60,
+      variance: 0,
+      comparedNanoErg: '1',
+      clientBalanceMu: '',
+    );
+    await open(tester, preview: best);
+    await tester.tap(find.byKey(const Key('run-skill-skill-sat')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('skill-sheet-run')));
+    await tester.pumpAndSettle();
+    // Empty: the default balance, and how long it lasts on that node.
+    expect(
+      tester.widget<Text>(find.byKey(const Key('run-confirm-survival'))).data,
+      appL10n.celautRunDefaultBalanceLasts('1,000,000 MU', '6 d 22 h'),
+    );
+    await tester.enterText(find.byKey(const Key('run-confirm-minutes')), '90');
+    await tester.pump();
+    // 90 periods and one more, of 100 MU, plus the build.
+    expect(
+      tester.widget<Text>(find.byKey(const Key('run-confirm-survival'))).data,
+      appL10n.celautRunSurvivalEstimate('9,400 MU', '9,100 MU', '1 h 30 min'),
+    );
+    // More than 30 days cannot run.
+    await tester.enterText(find.byKey(const Key('run-confirm-minutes')), '50000');
+    await tester.pump();
+    expect(find.text(appL10n.celautRunSurvivalWrong), findsOneWidget);
+    expect(tester.widget<FilledButton>(find.byKey(const Key('run-confirm-ok'))).onPressed, isNull);
+    await tester.enterText(find.byKey(const Key('run-confirm-minutes')), '90');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('run-confirm-ok')));
+    await tester.pumpAndSettle();
+    expect(launched, ['$_best 1000000 90 min']);
+    // The next confirmation starts with the same time.
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getInt('celaut_min_survival_minutes_v1'), 90);
   });
 
   testWidgets('Cancel in the confirmation starts nothing', (tester) async {

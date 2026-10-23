@@ -93,3 +93,24 @@ publisher cap 5 ERG, `W_d = 0.3`. A weight W can overcome a price ratio of e^W.
 TTL 10 s, at most 4096 entries, LRU. Key = sha256 over namespace `"peer-quote"`, the
 peer id, the configuration in the node's MU and the metadata with sorted hashes
 (each part: length as 8-byte big endian, then bytes).
+
+## The least time of a launch (2026-10-23, Josemi)
+
+The confirmation of a launch has a field: the least time that the instance must run. A
+quote is the build plus the start balance that the request asks for (nodo #563), and a node
+charges `init_maintenance_cost` once each `maintenance_seconds_loop`. So for a time `T`:
+
+- balance(q, T) = (ceil(T / loop) + 1) × ceil(init_maintenance × (1 + variance)). The extra
+  period is the one that runs at the end; `1 + variance` is nodo's
+  `variance_cost_normalization` with k = 1 (`launcher.dart`, `survivalBalanceMu`).
+- The launch asks the nodes once with the default balance (1 000 000 MU) to learn their
+  prices, then again with the largest balance(q, T) of the quotes. Each node then quotes
+  the build plus that balance, and the start pays that quote. A node gives back what the
+  instance did not use at the stop.
+- The confirmation shows the estimate for the best node before any second quote: its
+  quote less the default balance, plus balance(q, T). With no time, it shows the default
+  balance and how long that lasts on the best node.
+- A node that gives no price per period (loop 0, or no amount) gets the default balance.
+
+The app keeps the last time that the user typed (`celaut_min_survival_minutes_v1`). It must
+be from 1 minute to 30 days.

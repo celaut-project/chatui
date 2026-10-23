@@ -107,7 +107,8 @@ is not asked for.
 ## 3. Flows
 
 - **New conversation.** Pencil → "New conversation" → a skill → its services, best first →
-  Run → "Run <name>?" with the node and the start cost → the PIN or fingerprint if the wallet
+  Run → "Run <name>?" with the node, the start cost and the least time that the
+  instance must run ([balancer.md](balancer.md), "The least time of a launch") → the PIN or fingerprint if the wallet
   is locked → the launch → back to the list and into the conversation, which says that the
   service starts (`ChatClient.syncWhenStarted`). Back from the conversation is the list.
   "Services" and "Run a service" in the Compute tab end the same way, on the Chats tab. A
