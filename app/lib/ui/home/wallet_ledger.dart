@@ -30,6 +30,7 @@ class WalletLedgerActions {
     required this.openToken,
     required this.labelAddress,
     required this.lock,
+    this.openDeposit,
   });
 
   /// Pushes a named route with this wallet's arguments ('/send', '/utxos'...).
@@ -41,6 +42,9 @@ class WalletLedgerActions {
   final ValueChanged<TokenBalance> openToken;
   final ValueChanged<String> labelAddress;
   final VoidCallback lock;
+
+  /// "Deposit to a node", from the More sheet. Null: the tool does nothing.
+  final VoidCallback? openDeposit;
 }
 
 /// The unlocked seed wallet's Wallet tab: its balance, its actions, what it
@@ -119,6 +123,7 @@ class WalletLedger extends StatelessWidget {
             WalletTool.tokens => actions.go('/tokens'),
             WalletTool.utxos => actions.go('/utxos'),
             WalletTool.addresses => breakdown(all: true),
+            WalletTool.deposit => actions.openDeposit?.call(),
             WalletTool.lock => actions.lock(),
           },
           onAsset: (id) {

@@ -9,6 +9,10 @@ enum ArgusPalette { system, watchful, ledger }
 
 enum ArgusThemeMode { system, light, dark }
 
+/// True while the Ergo part of the app is open (the page of the wallet and everything
+/// that opens from it): the app then shows [ergoPalette] whatever the user chose.
+final ValueNotifier<bool> ergoThemeActive = ValueNotifier<bool>(false);
+
 class ThemeController extends ChangeNotifier {
   static const _key = 'argus_palette';
   static const _modeKey = 'argus_theme_mode';

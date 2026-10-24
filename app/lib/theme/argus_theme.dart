@@ -324,6 +324,16 @@ const frostPalette = PaletteSpec(
   accent: Color(0xFF4A6FA5), onAccent: Color(0xFFF7F9FD), accentText: Color(0xFF3C5D8C),
 );
 
+/// The Ergo part of the app (the wallet and what hangs from it): Ergo's black and orange.
+/// It is not in [allPalettes]: the user does not pick it, the app shows it whenever the
+/// wallet page is open, so the user can tell that this is Ergo and not Celaut.
+const ergoPalette = PaletteSpec(
+  id: 'ergo', name: 'Ergo', hint: 'Black, Ergo orange', brightness: Brightness.dark,
+  background: Color(0xFF0B0B0C), surface: Color(0xFF161514), surfaceHigh: Color(0xFF211E1C), ink: Color(0xFFF2EFEC), muted: Color(0xFFA7A09A),
+  outline: Color(0xFF3A302A), cardBorder: Color(0xFF2B2420), chip: Color(0xFF1B1816),
+  accent: Color(0xFFFF5E18), onAccent: Color(0xFF1A0A02), accentText: Color(0xFFFF8A55),
+);
+
 const allPalettes = [watchfulPalette, ledgerPalette, obsidianPalette, harborPalette, emberPalette, parchmentPalette, frostPalette];
 
 PaletteSpec paletteById(String? id, {required Brightness fallback}) {

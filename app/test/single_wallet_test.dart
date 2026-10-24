@@ -89,7 +89,7 @@ void main() {
       await disposeHome(tester);
     });
 
-    testWidgets('the Wallet tab is the wallet, with Deposit, and the wallet opens over the bar', (
+    testWidgets('the Wallet tab is the balance and the transactions, and the details open over the bar', (
       tester,
     ) async {
       FakeKeystore(wallets: ['w-only']).install(tester);
@@ -98,10 +98,14 @@ void main() {
       expect(find.byKey(const Key('home-tabs')), findsOneWidget);
       await tester.tap(find.byKey(const Key('tab-wallet')));
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('overview-row-seed-w-only')), findsOneWidget);
-      await tester.ensureVisible(find.byKey(const Key('place-deposit')));
-      expect(find.byKey(const Key('place-deposit')), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('overview-row-seed-w-only')));
+      expect(find.byKey(const Key('wallet-summary')), findsOneWidget);
+      expect(find.byKey(const Key('summary-balance')), findsOneWidget);
+      expect(find.byKey(const Key('wallet-summary-empty')), findsOneWidget);
+      // Nothing else is on the tab: no actions, no deposit, no list of wallets.
+      expect(find.byKey(const Key('place-deposit')), findsNothing);
+      expect(find.byKey(const Key('overview-action-send')), findsNothing);
+      expect(find.byKey(const ValueKey('overview-row-seed-w-only')), findsNothing);
+      await tester.tap(find.byKey(const Key('wallet-details')));
       await tester.pumpAndSettle();
       // The page of the wallet, behind its gate, over the bar.
       expect(find.byKey(const Key('gate-unlock')), findsOneWidget);
@@ -110,7 +114,7 @@ void main() {
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('home-tabs')), findsOneWidget);
-      expect(find.byKey(const ValueKey('overview-row-seed-w-only')), findsOneWidget);
+      expect(find.byKey(const Key('wallet-summary')), findsOneWidget);
       await disposeHome(tester);
     });
 
@@ -124,7 +128,7 @@ void main() {
       await tester.tap(find.byKey(const Key('compute-home-wallets')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('compute-home-wallets')), findsNothing);
-      expect(find.byKey(const ValueKey('overview-row-seed-w-only')), findsOneWidget);
+      expect(find.byKey(const Key('wallet-summary')), findsOneWidget);
       await disposeHome(tester);
     });
 
@@ -134,13 +138,13 @@ void main() {
       await pumpHome(tester, computeHome: true);
       await tester.tap(find.byKey(const Key('tab-wallet')));
       await tester.pumpAndSettle();
-      // One row, into the page of the wallet, with no name and no header of a list.
-      expect(find.byKey(const ValueKey('overview-row-seed-w-only')), findsOneWidget);
+      // One button, into the page of the wallet, with no name and no header of a list.
+      expect(find.byKey(const Key('wallet-details')), findsOneWidget);
       expect(find.text('Wallet details'), findsOneWidget);
       expect(find.text('Savings'), findsNothing);
       expect(find.text('WALLET'), findsNothing);
       // The page of the wallet and its gate do not name it either.
-      await tester.tap(find.byKey(const ValueKey('overview-row-seed-w-only')));
+      await tester.tap(find.byKey(const Key('wallet-details')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('gate-unlock')), findsOneWidget);
       expect(find.text('Savings'), findsNothing);

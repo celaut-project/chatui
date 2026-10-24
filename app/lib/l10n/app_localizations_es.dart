@@ -6473,4 +6473,13 @@ class AppLocalizationsEs extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get walletSummaryDetails => 'Detalles de la billetera';
+
+  @override
+  String get walletSummaryLatest => 'Últimas transacciones';
+
+  @override
+  String get walletSummaryNoTransactions => 'Aún no hay transacciones';
 }

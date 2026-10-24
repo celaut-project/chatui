@@ -23,8 +23,10 @@ import '../services/single_wallet.dart';
 import '../services/wallet_service.dart';
 import '../services/wallet_sync_controller.dart';
 import '../theme/argus_theme.dart';
+import '../theme/theme_controller.dart';
 import 'assets_screen.dart';
 import '../celaut/wallet_money.dart';
+import 'celaut/deposit_screen.dart';
 import 'celaut/home_tabs.dart';
 import 'create_wallet_screen.dart';
 import 'ergopay_screen.dart';
@@ -34,6 +36,7 @@ import 'home/home_models.dart';
 import 'home/overview_model.dart';
 import 'home/unlock_gate.dart';
 import 'home/wallet_ledger.dart';
+import 'home/wallet_summary.dart';
 import 'home/wallet_nav_bar.dart';
 import 'home/wallet_page.dart';
 import 'restore_wallet_screen.dart';
@@ -207,6 +210,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     _overview.dispose();
     _price.dispose();
     _pinCtrl.dispose();
+    WidgetsBinding.instance.addPostFrameCallback((_) => ergoThemeActive.value = false);
     super.dispose();
   }
 
@@ -881,11 +885,22 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget build(BuildContext context) {
     if (_loading) return _splash();
     final open = _open;
+    _showErgoTheme(open != null);
     if (open == null) {
       if (!(widget.computeHome ?? computeHomeFlag.value)) return _overviewScreen();
       return _home();
     }
     return _seedPage(open.id);
+  }
+
+  /// The page of the wallet, and what opens from it, is the Ergo part of the app and always
+  /// has Ergo's look (`ergoThemeActive`, applied by the app). Set after the frame: the
+  /// app rebuilds on it, and a build must not start another.
+  void _showErgoTheme(bool on) {
+    if (ergoThemeActive.value == on) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ergoThemeActive.value = _open != null;
+    });
   }
 
   /// Cold-start splash while the wallet core initialises: same branding as
@@ -932,10 +947,17 @@ class _DashboardScreenState extends State<DashboardScreen>
           money: WalletMoney.of(_overview.entries()),
           usdPerErg: tokenPricer.result.ergUsd,
           refreshPrice: () => tokenPricer.refresh(),
-          wallet: (context, deposit) => _overviewScreen(
-            extra: deposit,
-            onSettings: () => _homeKey.currentState?.select(HomeTab.settings),
-          ),
+          // The Wallet tab shows the ERG and the latest transactions and nothing else; the rest
+          // is in the details, the page of the wallet. With no wallet, the welcome.
+          wallet: (context, deposit) => _overview.wallets.isEmpty
+              ? _overviewScreen(
+                  extra: deposit,
+                  onSettings: () => _homeKey.currentState?.select(HomeTab.settings),
+                )
+              : WalletSummaryScreen(
+                  model: _overview,
+                  onDetails: () => _openWallet(WalletRef.seed(_overview.wallets.first.walletId)),
+                ),
         );
       },
     );
@@ -1088,6 +1110,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               openToken: _openToken,
               labelAddress: _labelAddress,
               lock: _lock,
+              openDeposit: () => Navigator.push(context, fadeRoute(const DepositScreen())),
             ),
           ),
           lazy(
