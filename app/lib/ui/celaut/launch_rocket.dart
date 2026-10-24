@@ -189,49 +189,9 @@ class RocketPainter extends CustomPainter {
     canvas.save();
     canvas.translate(w / 2, h * 0.42 + dy);
 
-    // The flame, under the body: longer and shorter as it flickers.
+    // The flame flickers: longer and shorter.
     final flicker = still ? 1.0 : 0.75 + 0.25 * sin(phase * 3).abs();
-    final flamePath = Path()
-      ..moveTo(-9, 30)
-      ..quadraticBezierTo(0, 30 + 34 * flicker, 9, 30)
-      ..close();
-    canvas.drawPath(flamePath, Paint()..color = flame);
-    final core = Path()
-      ..moveTo(-4, 30)
-      ..quadraticBezierTo(0, 30 + 18 * flicker, 4, 30)
-      ..close();
-    canvas.drawPath(core, Paint()..color = window);
-
-    // The fins.
-    final fin = Paint()..color = flame;
-    canvas.drawPath(
-      Path()
-        ..moveTo(-14, 10)
-        ..lineTo(-24, 32)
-        ..lineTo(-14, 28)
-        ..close(),
-      fin,
-    );
-    canvas.drawPath(
-      Path()
-        ..moveTo(14, 10)
-        ..lineTo(24, 32)
-        ..lineTo(14, 28)
-        ..close(),
-      fin,
-    );
-
-    // The body: a nose cone on a rounded hull.
-    final hull = Path()
-      ..moveTo(0, -44)
-      ..quadraticBezierTo(18, -24, 15, 10)
-      ..lineTo(13, 30)
-      ..lineTo(-13, 30)
-      ..lineTo(-15, 10)
-      ..quadraticBezierTo(-18, -24, 0, -44)
-      ..close();
-    canvas.drawPath(hull, Paint()..color = body);
-    canvas.drawCircle(const Offset(0, -8), 7, Paint()..color = window);
+    paintRocketShape(canvas, body: body, window: window, flame: flame, flicker: flicker);
     canvas.restore();
 
     // Three puffs of smoke that fall away under the rocket while it hovers.
@@ -253,4 +213,59 @@ class RocketPainter extends CustomPainter {
       old.window != window ||
       old.flame != flame ||
       old.still != still;
+}
+
+/// The rocket itself, around the origin and pointing up: the nose at -44, the tail at 30.
+/// The flame is under the tail, [flicker] long (1 is its full length); a null [flicker]
+/// draws no flame. The launch rocket and the raised rocket of an import draw the same shape.
+void paintRocketShape(
+  Canvas canvas, {
+  required Color body,
+  required Color window,
+  required Color flame,
+  double? flicker,
+}) {
+  if (flicker != null) {
+    final flamePath = Path()
+      ..moveTo(-9, 30)
+      ..quadraticBezierTo(0, 30 + 34 * flicker, 9, 30)
+      ..close();
+    canvas.drawPath(flamePath, Paint()..color = flame);
+    final core = Path()
+      ..moveTo(-4, 30)
+      ..quadraticBezierTo(0, 30 + 18 * flicker, 4, 30)
+      ..close();
+    canvas.drawPath(core, Paint()..color = window);
+  }
+
+  // The fins.
+  final fin = Paint()..color = flame;
+  canvas.drawPath(
+    Path()
+      ..moveTo(-14, 10)
+      ..lineTo(-24, 32)
+      ..lineTo(-14, 28)
+      ..close(),
+    fin,
+  );
+  canvas.drawPath(
+    Path()
+      ..moveTo(14, 10)
+      ..lineTo(24, 32)
+      ..lineTo(14, 28)
+      ..close(),
+    fin,
+  );
+
+  // The body: a nose cone on a rounded hull.
+  final hull = Path()
+    ..moveTo(0, -44)
+    ..quadraticBezierTo(18, -24, 15, 10)
+    ..lineTo(13, 30)
+    ..lineTo(-13, 30)
+    ..lineTo(-15, 10)
+    ..quadraticBezierTo(-18, -24, 0, -44)
+    ..close();
+  canvas.drawPath(hull, Paint()..color = body);
+  canvas.drawCircle(const Offset(0, -8), 7, Paint()..color = window);
 }

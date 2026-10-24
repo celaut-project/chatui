@@ -641,14 +641,16 @@ void main() {
       await tester.tap(find.byKey(const Key('pkg-import')));
       await tester.pump(const Duration(milliseconds: 50));
       expect(find.byKey(const Key('import-progress')), findsOneWidget);
-      expect(find.byKey(const Key('launch-rocket')), findsOneWidget);
+      // The rocket of an import is raised on its pad, not the one that hovers to launch.
+      expect(find.byKey(const Key('raise-rocket')), findsOneWidget);
+      expect(find.byKey(const Key('launch-rocket')), findsNothing);
       expect(find.text(appL10n.celautImportChecking), findsOneWidget);
       lib.checked = 1000;
       await tester.pump(const Duration(milliseconds: 250));
       expect(find.text(appL10n.celautSendProgress(CelautStrings.bytes(1000), CelautStrings.bytes(4000), '25')), findsOneWidget);
       final bar = tester.widget<LinearProgressIndicator>(find.byKey(const Key('import-bar')));
       expect(bar.value, 0.25);
-      // The check ends: the rocket lifts off, and the card goes.
+      // The check ends: the rocket stands upright, and the card goes.
       lib.importGate!.complete();
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('import-progress')), findsNothing);

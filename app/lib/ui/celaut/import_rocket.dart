@@ -6,7 +6,7 @@ import '../../bridge/api/celaut_package.dart';
 import '../../celaut/celaut_strings.dart';
 import '../../l10n/l10n.dart';
 import '../home/home_style.dart';
-import 'launch_rocket.dart';
+import 'raise_rocket.dart';
 
 /// The user cancelled the import while the app checked the file.
 class ImportCancelled implements Exception {
@@ -17,8 +17,9 @@ class ImportCancelled implements Exception {
 }
 
 /// Run [work] (the load of a service file) under a card with the rocket, the bytes that
-/// the app checked so far, and Cancel. When [work] ends well, the rocket lifts off before
-/// the card goes. A failure of [work] is thrown again, as [ImportCancelled] when the user
+/// the app checked so far, and Cancel. The rocket lies on its pad and the pad raises it as
+/// the bytes are checked ([RaiseStage]); when [work] ends well, it stands before the card
+/// goes. It does not take off: that is the launch's. A failure of [work] is thrown again, as [ImportCancelled] when the user
 /// pressed Cancel.
 ///
 /// [progress] and [cancel] are the calls of the Rust side (`celaut_transfer_progress`,
@@ -31,7 +32,7 @@ Future<T> runWithImportRocket<T>(
   Duration poll = const Duration(milliseconds: 200),
 }) async {
   final navigator = Navigator.of(context);
-  final stage = GlobalKey<RocketStageState>();
+  final stage = GlobalKey<RaiseStageState>();
   var cancelled = false;
   final route = RawDialogRoute<void>(
     barrierDismissible: false,
@@ -57,7 +58,7 @@ Future<T> runWithImportRocket<T>(
   unawaited(navigator.push(route));
   try {
     final result = await work();
-    await stage.currentState?.liftOff();
+    await stage.currentState?.finish();
     return result;
   } catch (_) {
     if (cancelled) throw const ImportCancelled();
@@ -75,7 +76,7 @@ class _ImportCard extends StatefulWidget {
     required this.onCancel,
   });
 
-  final GlobalKey<RocketStageState> stage;
+  final GlobalKey<RaiseStageState> stage;
   final TransferView Function() progress;
   final Duration poll;
   final VoidCallback onCancel;
@@ -93,7 +94,10 @@ class _ImportCardState extends State<_ImportCard> {
   void initState() {
     super.initState();
     _timer = Timer.periodic(widget.poll, (_) {
-      if (mounted) setState(() => _view = widget.progress());
+      if (!mounted) return;
+      final view = widget.progress();
+      setState(() => _view = view);
+      widget.stage.currentState?.setProgress(_fractionOf(view));
     });
   }
 
@@ -103,6 +107,13 @@ class _ImportCardState extends State<_ImportCard> {
     super.dispose();
   }
 
+  /// The share of the file checked, or null while the total is not known.
+  static double? _fractionOf(TransferView? view) {
+    final total = view?.total?.toInt();
+    if (view == null || total == null || total <= 0) return null;
+    return (view.bytes.toInt() / total).clamp(0.0, 1.0).toDouble();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
@@ -110,9 +121,7 @@ class _ImportCardState extends State<_ImportCard> {
     final view = _view;
     final done = view?.bytes.toInt() ?? 0;
     final total = view?.total?.toInt();
-    final fraction = total != null && total > 0
-        ? (done / total).clamp(0.0, 1.0)
-        : null;
+    final fraction = _fractionOf(view);
     final amount = fraction != null
         ? l.celautSendProgress(
             CelautStrings.bytes(done),
@@ -130,7 +139,7 @@ class _ImportCardState extends State<_ImportCard> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Center(child: RocketStage(key: widget.stage)),
+            Center(child: RaiseStage(key: widget.stage)),
             const SizedBox(height: 12),
             Text(
               l.celautImportChecking,
