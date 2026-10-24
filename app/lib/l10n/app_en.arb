@@ -4747,5 +4747,6 @@
   },
   "walletSummaryDetails": "Wallet details",
   "walletSummaryLatest": "Latest transactions",
-  "walletSummaryNoTransactions": "No transactions yet"
+  "walletSummaryNoTransactions": "No transactions yet",
+  "chatSelectText": "Select text"
 }

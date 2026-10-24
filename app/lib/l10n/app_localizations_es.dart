@@ -6482,4 +6482,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get walletSummaryNoTransactions => 'Aún no hay transacciones';
+
+  @override
+  String get chatSelectText => 'Seleccionar texto';
 }

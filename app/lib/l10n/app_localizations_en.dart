@@ -6407,4 +6407,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get walletSummaryNoTransactions => 'No transactions yet';
+
+  @override
+  String get chatSelectText => 'Select text';
 }
