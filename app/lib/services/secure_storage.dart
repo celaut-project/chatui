@@ -3,7 +3,8 @@ import 'package:uuid/uuid.dart';
 
 import '../l10n/l10n.dart';
 
-/// Platform Keystore/Keychain for the sealed seed, PIN wrap, and optional wrap key.
+/// Platform Keystore/Keychain for the sealed seed and its wrap key. The PIN wrap is only
+/// read to move a wallet made before the app dropped the PIN.
 class SecureStorageService {
   static const _channel = MethodChannel('com.argus.wallet/secure_storage');
 
@@ -42,23 +43,19 @@ class SecureStorageService {
     }
   }
 
-  static Future<void> saveWalletWithPin({
+  /// A new wallet: the sealed seed and the key that opens it. The wallet opens with the
+  /// fingerprint or the screen lock of the phone, there is no PIN of the app.
+  static Future<void> saveWallet({
     required String walletId,
     required String encryptedSeedJson,
-    required String pinWrapJson,
-    String? wrapKey,
+    required String wrapKey,
   }) async {
     await saveEncryptedSeed(encryptedSeedJson, walletId: walletId);
     try {
-      await savePinWrap(pinWrapJson, walletId: walletId);
+      await saveWrapKey(wrapKey, walletId: walletId);
     } catch (_) {
       await deleteEncryptedSeed(walletId: walletId);
       rethrow;
-    }
-    if (wrapKey != null) {
-      await saveWrapKey(wrapKey, walletId: walletId);
-    } else {
-      await deleteWrapKey(walletId: walletId);
     }
   }
 
@@ -92,6 +89,18 @@ class SecureStorageService {
       );
     } on PlatformException catch (e) {
       throw _map(e, appL10n.secureLoadFailed);
+    }
+  }
+
+  /// The wallet no longer has a PIN: drop the old wrap, which the phone's lock replaces.
+  static Future<void> deletePinWrap({String? walletId}) async {
+    try {
+      await _channel.invokeMethod(
+        'deletePinWrap',
+        walletId != null ? {'walletId': walletId} : null,
+      );
+    } on PlatformException catch (e) {
+      throw SecureStorageException(appL10n.secureDeleteWrapKeyFailed('${e.message}'));
     }
   }
 
@@ -167,7 +176,8 @@ class SecureStorageService {
     }
   }
 
-  /// Returns the wrap key after a biometric prompt, or null if the user cancelled.
+  /// Returns the wrap key after the prompt of the phone (fingerprint or screen lock), or
+  /// null if the user cancelled. A phone with neither gives the key with no prompt.
   static Future<String?> authenticateBiometric({String? walletId}) async {
     try {
       final raw = await _channel.invokeMethod(

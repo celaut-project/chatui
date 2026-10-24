@@ -8,7 +8,7 @@ import '../bridge/api/celaut_service.dart';
 
 /// A top-up that the app could not make: the credit of the app on the node of the
 /// instance is less than the amount. The app does not pay a node by itself; the user
-/// chooses to make a deposit, which has its own confirmation and PIN.
+/// chooses to make a deposit, which has its own confirmation and unlock.
 @immutable
 class TopUpNeed {
   const TopUpNeed({required this.instanceId, required this.address, required this.detail});
@@ -30,7 +30,7 @@ class TopUpNeed {
 /// (`celaut_top_up_instance`, `ModifyDeposit`). That is not a payment: nothing goes on the
 /// blockchain and nothing is signed. If the credit on the node is too low, the app does
 /// not pay: it sets [need], and the list of conversations asks the user, who can make a
-/// deposit. A deposit has its own confirmation and asks for the PIN or the fingerprint,
+/// deposit. A deposit has its own confirmation and asks for the fingerprint or the screen lock,
 /// as always. So no transaction ever happens without the user.
 ///
 /// The app checks when the list of conversations reads the instances ([observe]), and

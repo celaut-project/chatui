@@ -18,7 +18,7 @@ import '../../l10n/l10n.dart';
 /// It is the level above an open wallet, so it has no tab bar: its header
 /// carries the app's settings (there is no other way to reach them before
 /// a wallet is open, and a careful user sets their own node before the
-/// first restore). Opening a wallet is the only step that asks for a PIN
+/// first restore). Opening a wallet is the only step that asks the phone to unlock
 /// or fingerprint.
 class OverviewScreen extends StatelessWidget {
   const OverviewScreen({

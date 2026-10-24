@@ -234,7 +234,7 @@ class OtherInstancesScreen extends StatelessWidget {
 
 /// A top-up that the app could not make, for lack of credit on the node ([TopUpNeed]).
 /// The app does not pay a node by itself: Deposit opens the deposit screen, where the
-/// user chooses the amount and confirms it with the PIN or the fingerprint.
+/// user chooses the amount and confirms it with the fingerprint or the screen lock.
 class _TopUpBanner extends StatelessWidget {
   const _TopUpBanner({required this.topUp, this.openDeposit});
 

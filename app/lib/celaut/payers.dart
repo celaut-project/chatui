@@ -52,7 +52,7 @@ abstract class FullWallets {
   /// The full wallets of the app, in the order of the wallets list.
   Future<List<PayerWallet>> payers();
 
-  /// Ask for the PIN or the fingerprint of [wallet] and open it. True if it is open
+  /// Ask for the fingerprint or the screen lock for [wallet] and open it. True if it is open
   /// after that.
   Future<bool> unlock(BuildContext context, PayerWallet wallet);
 }
@@ -95,7 +95,7 @@ FullWalletGate fullWalletGate(List<PayerWallet> payers) {
   return payers.any((p) => p.open) ? FullWalletGate.open : FullWalletGate.locked;
 }
 
-/// Before a start or a stop: true if the wallet is open. If it is locked, ask for its PIN
+/// Before a start or a stop: true if the wallet is open. If it is locked, ask the phone to unlock it
 /// or its fingerprint and open it. False if the app has no wallet or the user did not
 /// open it.
 Future<bool> ensureOpenFullWallet(BuildContext context, FullWallets wallets) async {

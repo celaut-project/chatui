@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../bridge/argus_error.dart';
 import '../l10n/l10n.dart';
+import '../services/pin_migration.dart';
 import '../services/secure_storage.dart';
 import '../services/session_lock.dart';
 import '../services/wallet_service.dart';
@@ -9,14 +10,15 @@ import '../services/wallet_sync_controller.dart';
 import '../ui/widgets/entry_dialogs.dart';
 import '../ui/widgets/error_sheet.dart';
 
-/// Ask for the PIN or the fingerprint of the full wallet [walletId], as the unlock gate
-/// of the wallet does, and open that wallet (`docs/celaut/ui.md`, section 1). The app
-/// asks even if the wallet is already open: a deposit needs the consent of the user
-/// for the wallet that pays.
+/// Ask the phone (fingerprint or screen lock) to open the full wallet [walletId], as the
+/// unlock gate of the wallet does, and open that wallet (`docs/celaut/ui.md`, section 1).
+/// The app asks even if the wallet is already open: a deposit needs the consent of the
+/// user for the wallet that pays.
 ///
-/// The fingerprint comes first when it is set up for the wallet; a cancel falls back to
-/// the PIN. The PIN lockout of the app applies. A wallet that another wallet replaces
-/// as the open one is locked, as when the user switches wallets in the wallets list.
+/// A wallet made before the app dropped the PIN asks for its PIN one last time, with the
+/// PIN lockout of the app, and then opens with the lock of the phone like the others. A
+/// wallet that another wallet replaces as the open one is locked, as when the user
+/// switches wallets in the wallets list.
 ///
 /// Gives true when [walletId] is the open wallet after the check.
 Future<bool> unlockFullWallet(
@@ -32,17 +34,15 @@ Future<bool> unlockFullWallet(
 
   try {
     String? wrapKey;
-    final biometric = await SecureStorageService.hasBiometric() &&
-        await SecureStorageService.hasWrapKey(walletId: walletId);
-    if (biometric) {
+    if (await SecureStorageService.hasWrapKey(walletId: walletId)) {
       wrapKey = await sessionLock.run(
         () => SecureStorageService.authenticateBiometric(walletId: walletId),
       );
-    }
-    if (wrapKey == null) {
+      if (wrapKey == null) return false;
+      await dropPinWrap(walletId);
+    } else {
       final pinWrap = await SecureStorageService.loadPinWrap(walletId: walletId);
       if (pinWrap == null) {
-        // A wallet without a PIN gets one at its gate in the wallets list.
         say(appL10n.celautUnlockFailed);
         return false;
       }
@@ -58,7 +58,11 @@ Future<bool> unlockFullWallet(
       );
       if (entry == null || entry.pin.isEmpty) return false;
       try {
-        wrapKey = await walletService.unwrapKeyWithPin(pinWrap, entry.pin);
+        wrapKey = await movePinWalletToDeviceLock(
+          walletId: walletId,
+          pinWrapJson: pinWrap,
+          pin: entry.pin,
+        );
       } on ArgusException catch (e) {
         try {
           await SecureStorageService.recordPinFailure();
@@ -66,9 +70,6 @@ Future<bool> unlockFullWallet(
         if (context.mounted) await showErrorSheet(context, code: e.code, message: e.message);
         return false;
       }
-      try {
-        await SecureStorageService.clearPinGate();
-      } catch (_) {}
     }
 
     if (walletService.isUnlocked && walletService.activeWalletId == walletId) return true;

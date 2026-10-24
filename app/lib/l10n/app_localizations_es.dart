@@ -510,7 +510,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsSecurityWalletSubtitle =>
-      'PIN, desbloqueo biométrico, bloqueo automático';
+      'Desbloqueo del móvil, bloqueo automático';
 
   @override
   String get settingsErgoGroup => 'Ergo';
@@ -1008,11 +1008,10 @@ class AppLocalizationsEs extends AppLocalizations {
       'No se pudo leer la configuración actual.';
 
   @override
-  String get securityBiometricUnlock => 'Desbloqueo biométrico';
+  String get securityBiometricUnlock => 'Desbloqueo con el móvil';
 
   @override
-  String get securityBiometricOn =>
-      'Activado. El PIN sigue desenvolviendo la clave.';
+  String get securityBiometricOn => 'Huella o bloqueo de pantalla';
 
   @override
   String get securityOff => 'Desactivado';
@@ -1022,8 +1021,8 @@ class AppLocalizationsEs extends AppLocalizations {
       'Establece un PIN al crear o restaurar una billetera.';
 
   @override
-  String get securityPinNote =>
-      'Cinco PIN erróneos bloquean el acceso durante un tiempo. Chatui nunca guarda el PIN; solo desenvuelve la clave que descifra la frase de recuperación.';
+  String get securityDeviceLockNote =>
+      'La cartera se abre con tu huella o con el bloqueo de pantalla del móvil. La app no tiene un PIN propio.';
 
   @override
   String get securityScreen => 'Pantalla';
@@ -2350,11 +2349,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get dashboardBiometricNotSetUp =>
-      'El desbloqueo biométrico no está configurado para esta billetera. Usa su PIN.';
+      'Esta billetera no tiene su clave guardada en este dispositivo.';
 
   @override
   String get dashboardBiometricCancelled =>
-      'Desbloqueo biométrico cancelado. Toca Desbloquear para volver a intentarlo, o usa tu PIN.';
+      'Desbloqueo cancelado. Toca Desbloquear para volver a intentarlo.';
 
   @override
   String get dashboardWalletDataMissing =>
@@ -2810,7 +2809,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get homeToolLockBlurb =>
-      'Al abrirla de nuevo se pedirá tu PIN o tu huella.';
+      'Al abrirla de nuevo se pedirá tu huella o el bloqueo de pantalla.';
 
   @override
   String get homeBreakdownIntro =>
@@ -5176,11 +5175,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautDepositPayerOpen =>
-      'Esta billetera está abierta. La app pide su PIN o su huella antes del depósito.';
+      'Esta billetera está abierta. La app pide tu huella o el bloqueo de pantalla antes del depósito.';
 
   @override
   String get celautDepositPayerLocked =>
-      'Esta billetera está bloqueada. La app pide su PIN o su huella antes del depósito, y la abre.';
+      'Esta billetera está bloqueada. La app pide tu huella o el bloqueo de pantalla antes del depósito, y la abre.';
 
   @override
   String get celautDepositRowPayer => 'Pagado por';
@@ -5320,7 +5319,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautOpenFullWalletNeeded =>
-      'Iniciar y detener necesitan la billetera abierta. Primero la app pide su PIN o su huella.';
+      'Iniciar y detener necesitan la billetera abierta. Primero la app pide tu huella o el bloqueo de pantalla.';
 
   @override
   String get celautClientUnknownTitle => 'El nodo olvidó el cliente';
@@ -5382,7 +5381,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautDepositAuthNeeded =>
-      'El depósito necesita el PIN o la huella de la billetera que paga. No se envió nada.';
+      'El depósito necesita la huella o el bloqueo de pantalla de la billetera que paga. No se envió nada.';
 
   @override
   String get celautNodesRowSubtitle =>
@@ -6003,7 +6002,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautTopUpNote =>
-      'La app revisa tus instancias en marcha cuando se abre la lista de conversaciones y una vez por minuto mientras la app está abierta. Una recarga pasa crédito que ya tienes en el nodo de la instancia (ModifyDeposit): no se paga nada en la cadena de bloques y no se firma nada. Si ese crédito no basta, la app no paga: te lo pregunta, y un depósito siempre necesita tu confirmación y tu PIN o tu huella. Para activarla, abre la billetera.';
+      'La app revisa tus instancias en marcha cuando se abre la lista de conversaciones y una vez por minuto mientras la app está abierta. Una recarga pasa crédito que ya tienes en el nodo de la instancia (ModifyDeposit): no se paga nada en la cadena de bloques y no se firma nada. Si ese crédito no basta, la app no paga: te lo pregunta, y un depósito siempre necesita tu confirmación y tu huella o el bloqueo de pantalla. Para activarla, abre la billetera.';
 
   @override
   String celautTopUpNeed(String node, String amount) {

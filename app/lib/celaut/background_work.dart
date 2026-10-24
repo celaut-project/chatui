@@ -19,7 +19,7 @@ import 'conversation_keep_alive.dart';
 ///   Android puts the app in the background, and a 2-second auto-lock closed the import).
 ///   So while a work runs, the pages stay. When the last work ends, the pages over the
 ///   page of the work close, if the wallet is still locked. The page of the work shows no
-///   secret, and anything that needs the wallet asks for the PIN again.
+///   secret, and anything that needs the wallet asks the phone to unlock again.
 class BackgroundWork {
   BackgroundWork({ForegroundHolds? holds, bool Function()? walletLocked})
       : _holds = holds ?? foregroundHolds,

@@ -508,7 +508,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsSecurityWalletSubtitle =>
-      'PIN, biometric unlock, auto-lock';
+      'Phone unlock, auto-lock';
 
   @override
   String get settingsErgoGroup => 'Ergo';
@@ -996,10 +996,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get securityReadSetupFailed => 'Could not read the current setup.';
 
   @override
-  String get securityBiometricUnlock => 'Biometric unlock';
+  String get securityBiometricUnlock => 'Unlock with your phone';
 
   @override
-  String get securityBiometricOn => 'On. The PIN still unwraps the key.';
+  String get securityBiometricOn => 'Fingerprint or screen lock';
 
   @override
   String get securityOff => 'Off';
@@ -1009,8 +1009,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'Set a PIN when you create or restore a wallet.';
 
   @override
-  String get securityPinNote =>
-      'Five wrong PINs lock the gate for a while. Chatui never stores the PIN; it only unwraps the key that decrypts the seed.';
+  String get securityDeviceLockNote =>
+      'The wallet opens with your fingerprint or the screen lock of your phone. The app has no PIN of its own.';
 
   @override
   String get securityScreen => 'Screen';
@@ -2310,11 +2310,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dashboardBiometricNotSetUp =>
-      'Biometric unlock is not set up for this wallet. Use its PIN.';
+      'This wallet has no key stored on this device.';
 
   @override
   String get dashboardBiometricCancelled =>
-      'Biometric unlock cancelled. Tap Unlock to try again, or use your PIN.';
+      'Unlock cancelled. Tap Unlock to try again.';
 
   @override
   String get dashboardWalletDataMissing =>
@@ -2765,7 +2765,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homeToolLockBlurb =>
-      'Opening it again asks for your PIN or fingerprint.';
+      'Opening it again asks for your fingerprint or screen lock.';
 
   @override
   String get homeBreakdownIntro =>
@@ -5108,11 +5108,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get celautDepositPayerOpen =>
-      'This wallet is open. The app asks for its PIN or fingerprint before the deposit.';
+      'This wallet is open. The app asks for your fingerprint or screen lock before the deposit.';
 
   @override
   String get celautDepositPayerLocked =>
-      'This wallet is locked. The app asks for its PIN or fingerprint before the deposit, and opens it.';
+      'This wallet is locked. The app asks for your fingerprint or screen lock before the deposit, and opens it.';
 
   @override
   String get celautDepositRowPayer => 'Paid by';
@@ -5252,7 +5252,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get celautOpenFullWalletNeeded =>
-      'Start and stop need the wallet open. The app asks for its PIN or fingerprint first.';
+      'Start and stop need the wallet open. The app asks for your fingerprint or screen lock first.';
 
   @override
   String get celautClientUnknownTitle => 'The node forgot the client';
@@ -5314,7 +5314,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get celautDepositAuthNeeded =>
-      'The deposit needs the PIN or fingerprint of the paying wallet. Nothing was sent.';
+      'The deposit needs the fingerprint or screen lock for the paying wallet. Nothing was sent.';
 
   @override
   String get celautNodesRowSubtitle =>
@@ -5927,7 +5927,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get celautTopUpNote =>
-      'The app checks your running instances when the list of conversations opens and once a minute while the app runs. A top-up moves credit that you already have on the node of the instance (ModifyDeposit): nothing is paid on the blockchain and nothing is signed. If that credit is too low, the app does not pay: it asks you, and a deposit always needs your confirmation and your PIN or fingerprint. To turn this on, open the wallet.';
+      'The app checks your running instances when the list of conversations opens and once a minute while the app runs. A top-up moves credit that you already have on the node of the instance (ModifyDeposit): nothing is paid on the blockchain and nothing is signed. If that credit is too low, the app does not pay: it asks you, and a deposit always needs your confirmation and your fingerprint or screen lock. To turn this on, open the wallet.';
 
   @override
   String celautTopUpNeed(String node, String amount) {

@@ -80,12 +80,12 @@ void main() {
     final keystore = await launch(tester);
     await openDaily(tester);
     expect(keystore.prompts, 1);
-    // The cancel leaves the locked wallet page: an explicit Unlock and the PIN.
+    // The cancel leaves the locked wallet page with an explicit Unlock, and no PIN.
     expect(find.byType(UnlockGate), findsOneWidget);
     expect(find.byKey(const Key('gate-unlock')), findsOneWidget);
-    expect(find.byKey(const Key('gate-use-pin')), findsOneWidget);
-    expect(find.textContaining('Biometric unlock cancelled'), findsOneWidget);
-    // The biometric sheet itself took the window: closing it resumes the
+    expect(find.byKey(const Key('gate-unlock-pin')), findsNothing);
+    expect(find.textContaining('Unlock cancelled'), findsOneWidget);
+    // The sheet of the phone itself took the window: closing it resumes the
     // app. That resume, and any later one, must not ask again.
     await cycle(tester, const [
       AppLifecycleState.inactive,
@@ -119,11 +119,14 @@ void main() {
     await disposeHome(tester);
   });
 
-  testWidgets('Use PIN unlocks with the PIN instead', (tester) async {
-    final keystore = await launch(tester);
+  testWidgets('a wallet made before the PIN was dropped asks for it one last time', (
+    tester,
+  ) async {
+    final keystore = await launch(tester, biometric: false);
     await openDaily(tester);
-    await tester.tap(find.byKey(const Key('gate-use-pin')));
-    await tester.pumpAndSettle();
+    expect(keystore.prompts, 0);
+    expect(find.byKey(const Key('gate-unlock-pin')), findsOneWidget);
+    expect(find.byKey(const Key('gate-unlock')), findsNothing);
     await tester.enterText(find.byType(TextField), api.goodPin);
     await tester.tap(find.byKey(const Key('gate-unlock-pin')));
     await tester.pumpAndSettle();
@@ -131,16 +134,7 @@ void main() {
     expect(walletService.activeWalletId, 'unlock-w1');
     expect(find.byType(UnlockGate), findsNothing);
     expect(find.widgetWithText(NavigationDestination, 'Activity'), findsOneWidget);
-    expect(keystore.prompts, 1);
-    await disposeHome(tester);
-  });
-
-  testWidgets('a wallet without biometrics opens on its PIN, with no prompt', (tester) async {
-    final keystore = await launch(tester, biometric: false);
-    await openDaily(tester);
     expect(keystore.prompts, 0);
-    expect(find.byKey(const Key('gate-unlock-pin')), findsOneWidget);
-    expect(find.byKey(const Key('gate-unlock')), findsNothing);
     await disposeHome(tester);
   });
 

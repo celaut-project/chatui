@@ -7,8 +7,6 @@ import '../services/privacy_service.dart';
 import '../services/secure_storage.dart';
 import '../services/wallet_service.dart';
 import '../theme/argus_theme.dart';
-import 'pin_fields.dart';
-import 'wallet_dialogs.dart';
 
 class CreateWalletScreen extends StatefulWidget {
   const CreateWalletScreen({super.key});
@@ -20,8 +18,6 @@ class CreateWalletScreen extends StatefulWidget {
 class _CreateWalletScreenState extends State<CreateWalletScreen> {
   String? _mnemonic;
   final _confirmCtrl = TextEditingController();
-  final _pinCtrl = TextEditingController();
-  final _pinConfirmCtrl = TextEditingController();
   bool _busy = false;
   bool _revealed = false;
   int _step = 0;
@@ -36,11 +32,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
   void dispose() {
     privacyService.applyScreenshotPolicy();
     _confirmCtrl.clear();
-    _pinCtrl.clear();
-    _pinConfirmCtrl.clear();
     _confirmCtrl.dispose();
-    _pinCtrl.dispose();
-    _pinConfirmCtrl.dispose();
     super.dispose();
   }
 
@@ -65,13 +57,13 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
     setState(() => _step = 1);
   }
 
-  void _toPin() {
+  Future<void> _confirmAndFinish() async {
     final phrase = _mnemonic;
     if (phrase == null || !mnemonicWordsEqual(_confirmCtrl.text, phrase)) {
       _snack(context.l10n.createPhraseMismatch);
       return;
     }
-    setState(() => _step = 2);
+    await _finish();
   }
 
   Future<void> _skipConfirm() async {
@@ -90,28 +82,20 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
     );
     if (ok != true || !mounted) return;
     _confirmCtrl.clear();
-    setState(() => _step = 2);
+    await _finish();
   }
 
   Future<String?> _finish() async {
     final phrase = _mnemonic;
     if (phrase == null) return null;
-    final pinErr = pinError(_pinCtrl.text, _pinConfirmCtrl.text);
-    if (pinErr != null) {
-      _snack(pinErr);
-      return null;
-    }
     setState(() => _busy = true);
     try {
       final walletId = await walletService.provisionWallet(
         phrase: phrase,
         passphrase: '',
-        pin: _pinCtrl.text,
         // One wallet: the app shows no name, and the core keeps its default.
         name: '',
       );
-      if (!mounted) return null;
-      await offerBiometricUnlock(context, walletId: walletId, pin: _pinCtrl.text);
       if (!mounted) return null;
       Navigator.pop(context, walletId);
     } on ArgusException catch (e) {
@@ -156,7 +140,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
         padding: EdgeInsets.fromLTRB(
                 20, 8, 20, 32 + MediaQuery.paddingOf(context).bottom),
         children: [
-          StepDots(total: 3, index: _step),
+          StepDots(total: 2, index: _step),
           const SizedBox(height: 24),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 220),
@@ -164,7 +148,6 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
             switchOutCurve: Curves.easeIn,
             child: switch (_step) {
               1 => _confirmStep(),
-              2 => _pinStep(),
               _ => _backupStep(),
             },
           ),
@@ -254,30 +237,8 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
           enableIMEPersonalizedLearning: false,
         ),
         const SizedBox(height: 20),
-        FilledButton(onPressed: _toPin, child: Text(context.l10n.createContinue)),
-        const SizedBox(height: 8),
-        TextButton(
-          key: const Key('create-skip-confirm'),
-          onPressed: _skipConfirm,
-          child: Text(context.l10n.createSkipCheck),
-        ),
-      ],
-    );
-  }
-
-  Widget _pinStep() {
-    return Column(
-      key: const ValueKey(2),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(context.l10n.createSetPin, style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 8),
-        Text(context.l10n.createPinBody),
-        const SizedBox(height: 20),
-        PinFields(pin: _pinCtrl, confirm: _pinConfirmCtrl),
-        const SizedBox(height: 20),
         FilledButton(
-          onPressed: _busy ? null : _finish,
+          onPressed: _busy ? null : _confirmAndFinish,
           child: _busy
               ? const SizedBox(
                   width: 20,
@@ -285,6 +246,12 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : Text(context.l10n.createTitle),
+        ),
+        const SizedBox(height: 8),
+        TextButton(
+          key: const Key('create-skip-confirm'),
+          onPressed: _busy ? null : _skipConfirm,
+          child: Text(context.l10n.createSkipCheck),
         ),
       ],
     );

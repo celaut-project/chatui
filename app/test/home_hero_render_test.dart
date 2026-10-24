@@ -216,16 +216,13 @@ Widget _locked() => WalletPageScreen(
         method: UnlockMethod.biometric,
         pinController: TextEditingController(),
         busy: false,
-        usePin: false,
         onUnlock: _noop,
-        onUsePin: _noop,
         onUnlockWithPin: _noop,
-        onUnlockLegacy: _noop,
         address: _pinned,
         pinnedIndex: 275,
         lastKnownNano: _nano(203.16),
         lastKnownAge: const Duration(hours: 3),
-        status: 'Biometric unlock cancelled. Tap Unlock to try again, or use your PIN.',
+        status: 'Unlock cancelled. Tap Unlock to try again.',
       ),
     );
 

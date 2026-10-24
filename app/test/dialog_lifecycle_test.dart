@@ -50,86 +50,18 @@ void main() {
   }
 
   group('Security', () {
-    Future<void> open(WidgetTester tester) async {
+    testWidgets('says the wallet opens with the phone, and has no PIN rows', (
+      tester,
+    ) async {
+      tallView(tester);
+      await unlocked(tester);
       await tester.pumpWidget(
         const MaterialApp(home: SecuritySettingsPage(walletId: dialogWallet)),
       );
       await tester.pumpAndSettle();
-    }
-
-    Finder biometricSwitch() => find.descendant(
-      of: find.widgetWithText(SettingsRow, 'Biometric unlock'),
-      matching: find.byType(Switch),
-    );
-
-    testWidgets('Confirm PIN is as tall as its field, not the screen', (
-      tester,
-    ) async {
-      tallView(tester, size: const Size(390, 844));
-      await unlocked(tester);
-      await open(tester);
-      await tester.tap(biometricSwitch());
-      await tester.pumpAndSettle();
-
-      // The dialog's surface; the Dialog widget itself fills the screen.
-      final surface = find
-          .descendant(of: find.byType(Dialog), matching: find.byType(Material))
-          .first;
-      final height = tester.getSize(surface).height;
-      expect(
-        height,
-        lessThan(844 / 2),
-        reason: 'one PIN field and two buttons, stretched to $height',
-      );
-      await answer(tester, 'Cancel');
-    });
-
-    testWidgets('Confirm PIN (biometric unlock): Cancel, then Continue', (
-      tester,
-    ) async {
-      tallView(tester);
-      final keystore = await unlocked(tester);
-      await open(tester);
-
-      await tester.tap(biometricSwitch());
-      await tester.pumpAndSettle();
-      await tester.enterText(dialogField('PIN'), api.goodPin);
-      await answer(tester, 'Cancel');
-      expect(keystore.writes, isEmpty);
-      expect(tester.widget<Switch>(biometricSwitch()).value, isFalse);
-
-      await tester.tap(biometricSwitch());
-      await tester.pumpAndSettle();
-      await tester.enterText(dialogField('PIN'), api.goodPin);
-      await answer(tester, 'Continue');
-      expect(keystore.writes, ['saveWrapKey']);
-      expect(tester.widget<Switch>(biometricSwitch()).value, isTrue);
-      expect(find.text('Biometric unlock enabled'), findsOneWidget);
-    });
-
-    testWidgets('Change PIN: Cancel, then Change', (tester) async {
-      tallView(tester);
-      final keystore = await unlocked(tester);
-      await open(tester);
-
-      Future<void> fill() async {
-        await tester.tap(find.widgetWithText(SettingsRow, 'Change PIN'));
-        await tester.pumpAndSettle();
-        await tester.enterText(dialogField('Current PIN'), api.goodPin);
-        await tester.enterText(dialogField('New PIN'), '654321');
-        await tester.enterText(dialogField('Confirm PIN'), '654321');
-      }
-
-      await fill();
-      await answer(tester, 'Cancel');
-      expect(api.wrappedUnder, isEmpty);
-      expect(keystore.writes, isEmpty);
-
-      await fill();
-      await answer(tester, 'Change');
-      expect(api.wrappedUnder, ['654321']);
-      expect(keystore.writes, ['savePinWrap']);
-      expect(find.text('PIN changed'), findsOneWidget);
+      expect(find.text('Unlock with your phone'), findsOneWidget);
+      expect(find.textContaining('no PIN of its own'), findsOneWidget);
+      expect(find.text('Change PIN'), findsNothing);
     });
   });
 
