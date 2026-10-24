@@ -8,6 +8,7 @@ import '../../celaut/auto_top_up.dart';
 import '../../celaut/celaut_format.dart';
 import '../../celaut/celaut_strings.dart';
 import '../../celaut/chat_client.dart';
+import '../../celaut/chat_prefs.dart';
 import '../../celaut/conversations.dart';
 import '../../celaut/launcher.dart';
 import '../../celaut/payers.dart';
@@ -220,6 +221,24 @@ class InstanceListState extends State<InstanceList> {
     return e == null ? null : CelautStrings.errorText(e.kind);
   }
 
+  /// Open the conversation of the instance [instanceId], if it runs and has a chat slot.
+  /// Else nothing opens: the list stays. The list is read from the database, so the node
+  /// is not asked first.
+  Future<void> openChatOf(String instanceId) async {
+    List<InstanceListView> all;
+    try {
+      all = (widget.load ?? celautInstances)();
+    } catch (_) {
+      return;
+    }
+    for (final i in all) {
+      if (i.instanceId == instanceId && i.stoppedAt == null && i.chatSlots.isNotEmpty) {
+        if (mounted) await openChat(i);
+        return;
+      }
+    }
+  }
+
   /// Open the conversation of [instance]. [starting]: the instance has just started, and
   /// the screen waits for its service.
   ///
@@ -313,6 +332,17 @@ class InstanceListState extends State<InstanceList> {
               title: Text(l.chatsRename),
               onTap: () => Navigator.pop(context, 'rename'),
             ),
+            if (i.chatSlots.isNotEmpty)
+              ListTile(
+                key: const Key('chats-action-mute'),
+                leading: Icon(
+                  chatPrefs.isMuted(i.instanceId)
+                      ? Icons.notifications_active_outlined
+                      : Icons.notifications_off_outlined,
+                ),
+                title: Text(chatPrefs.isMuted(i.instanceId) ? l.chatUnmute : l.chatMute),
+                onTap: () => Navigator.pop(context, 'mute'),
+              ),
             if (state != InstanceState.stopped)
               ListTile(
                 key: const Key('chats-action-stop'),
@@ -338,6 +368,9 @@ class InstanceListState extends State<InstanceList> {
       case 'rename':
         final renamed = await renameInstance(context, i, rename: widget.rename);
         if (renamed != null && mounted) await refresh();
+      case 'mute':
+        await chatPrefs.setMuted(i.instanceId, !chatPrefs.isMuted(i.instanceId));
+        if (mounted) setState(() {});
       case 'stop':
         final done = await confirmAndStopInstance(
           context,
@@ -491,6 +524,15 @@ class _InstanceRow extends StatelessWidget {
                           style: t.title,
                         ),
                       ),
+                      if (instance.chatSlots.isNotEmpty && chatPrefs.isMuted(id)) ...[
+                        const SizedBox(width: 6),
+                        Icon(
+                          Icons.notifications_off_outlined,
+                          key: Key('chats-muted-$id'),
+                          size: 16,
+                          color: t.muted,
+                        ),
+                      ],
                       if (state != InstanceState.stopped && (costMu ?? '').isNotEmpty) ...[
                         const SizedBox(width: 8),
                         Text(

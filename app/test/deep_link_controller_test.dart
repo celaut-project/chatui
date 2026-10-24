@@ -27,4 +27,15 @@ void main() {
     expect(argusLinkRoute('argus://nothing'), isNull);
     expect(argusLinkRoute('ergopay://x'), isNull);
   });
+
+  test('a chat link names the instance, and no other link does', () {
+    expect(argusChatInstance('argus://chat/AbC-12_x'), 'AbC-12_x');
+    expect(argusChatInstance('  argus://chat/abc  '), 'abc');
+    expect(argusChatInstance('argus://chat/'), isNull);
+    expect(argusChatInstance('argus://chat/a/b'), isNull);
+    expect(argusChatInstance('argus://chat/a b'), isNull);
+    expect(argusChatInstance('argus://activity'), isNull);
+    expect(argusChatInstance('argus://chat/${'a' * 129}'), isNull);
+    expect(argusLinkRoute('argus://chat/abc'), isNull);
+  });
 }

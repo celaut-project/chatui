@@ -415,6 +415,82 @@ class AppLocalizationsEn extends AppLocalizations {
   String get displayTitle => 'Display';
 
   @override
+  String get chatSettingsTitle => 'Chat';
+
+  @override
+  String get chatSettingsRowSubtitle =>
+      'Text size, font, pinned messages, widgets';
+
+  @override
+  String get chatSettingsTextGroup => 'Text';
+
+  @override
+  String get chatSettingsFontSize => 'Text size';
+
+  @override
+  String get chatSettingsFontFamily => 'Font';
+
+  @override
+  String get chatSettingsPreview =>
+      'The assistant answer looks like this. Pick the size you read best.';
+
+  @override
+  String get chatFontSystem => 'System';
+
+  @override
+  String get chatFontLato => 'Lato';
+
+  @override
+  String get chatFontSerif => 'Serif';
+
+  @override
+  String get chatFontMono => 'Monospace';
+
+  @override
+  String get chatSettingsPinnedGroup => 'Pinned messages';
+
+  @override
+  String get chatSettingsPinnedMax => 'Maximum height of a pinned message';
+
+  @override
+  String get chatSettingsPinnedNote =>
+      'A pinned message stays at the top of the chat. It uses at most this part of the chat height.';
+
+  @override
+  String get chatSettingsWidgetsGroup => 'Widgets';
+
+  @override
+  String get chatSettingsHtmlWidgets => 'HTML widgets';
+
+  @override
+  String get chatSettingsHtmlWidgetsSubtitle =>
+      'Show simple HTML from the assistant as widgets. If off, it shows as code. No scripts and no network.';
+
+  @override
+  String get chatBgNone => 'None';
+
+  @override
+  String get chatBgDawn => 'Dawn';
+
+  @override
+  String get chatBgOcean => 'Ocean';
+
+  @override
+  String get chatBgForest => 'Forest';
+
+  @override
+  String get chatBgDusk => 'Dusk';
+
+  @override
+  String get chatBgDots => 'Dots';
+
+  @override
+  String get chatBgWaves => 'Waves';
+
+  @override
+  String get chatBgDiamonds => 'Diamonds';
+
+  @override
   String get addressBookTitle => 'Address book';
 
   @override
@@ -1325,6 +1401,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get notifyChannelDescription =>
       'A payment to one of your addresses was seen on the network.';
+
+  @override
+  String get notifyChatDoneChannelName => 'Finished answers';
+
+  @override
+  String get notifyChatDoneChannelDescription =>
+      'A service finished an answer while you were not looking at the chat.';
 
   @override
   String notifyIncomingBody(String amount, String wallet) {
@@ -5440,6 +5523,44 @@ class AppLocalizationsEn extends AppLocalizations {
   String chatsPreviewNamed(String kind, String name) {
     return '$kind: $name';
   }
+
+  @override
+  String get chatMute => 'Mute notifications';
+
+  @override
+  String get chatUnmute => 'Turn notifications on';
+
+  @override
+  String get chatMutedHint => 'Notifications are off for this chat';
+
+  @override
+  String get chatMic => 'Record a voice message';
+
+  @override
+  String get chatMicCancel => 'Discard the recording';
+
+  @override
+  String get chatMicDone => 'Attach the recording';
+
+  @override
+  String get chatMicDenied =>
+      'The app has no permission to use the microphone.';
+
+  @override
+  String get chatMicLimit =>
+      'The recording reached the size limit and stopped. It is attached.';
+
+  @override
+  String get chatPinnedExpand => 'Show more of the pinned message';
+
+  @override
+  String get chatPinnedCollapse => 'Show less of the pinned message';
+
+  @override
+  String get chatNotifyDoneBody => 'The answer is ready.';
+
+  @override
+  String get chatsBackground => 'Chat background';
 
   @override
   String get chatsActionInfo => 'Info';

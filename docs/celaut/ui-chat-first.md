@@ -211,3 +211,29 @@ not stop when the phone sleeps or the app goes to the background.
   the page of the work close, if the wallet is still locked. The pages of a launch and of an
   import show no secret, and a step that needs the wallet (a stop, a deposit) asks for the
   PIN or the fingerprint again.
+
+## 9. Chat screen: reading, widgets, notices and audio (2026-10-24, Josemi)
+
+These rules are for the app. The protocol is in [chat.md](chat.md), revision 5.
+
+| Part | What the user sees |
+|---|---|
+| Assistant message | It has no bubble. The text shows on the background. A user message keeps its bubble |
+| Text size and font | The user sets them in Settings. The default size is larger than before |
+| Typewriter | The text of an answer that streams appears letter by letter. The display catches up, so it is never far behind the text that arrived |
+| Haptic ticks | While an answer streams and the chat screen is shown, the phone gives small ticks (`HapticFeedback`). The app needs no new permission |
+| Pinned message | A message with `pinned` `true` stays at the top once the conversation grows. It uses at most N% of the chat area, which is the height between the header and the input (25% by default, set in Settings). A tap opens it to 60% of the chat area (`pinnedExpandedFraction` in `pinned_position.dart`). The part that does not fit scrolls inside it. The list leaves room under it, so no message is hidden |
+| Which one is pinned | A pinned message anchors only what comes after it. The app pins the last pinned message that is all above the visible part. It does not pin a message that is the last message, or whose bottom is still visible. If the user scrolls up past the place of that message, the app pins the one before it |
+| HTML widget | A block ```` ```html ```` in `text` shows as a simple widget if the switch in Settings is on (it is on by default). Otherwise it shows as code. No script, no network, no external resource. Only an allow-list of tags and styles shows |
+| Notice | When an assistant message gets `done`, the app shows a local notice. It does so only if the app is in the background (paused or hidden, not a short pause), or another screen covers the chat. The notice has the name of the chat and a generic text, never the answer. A tap on it opens that chat if the instance runs (`argus://chat/<id>`), and the list of chats if not. The user can mute each instance, in the menu of the chat and in the list of chats |
+| Background | The user picks the background of the chat of each instance, in the same way as the title. The choice stays on the phone |
+| Record button | The input has a record button. The app records with the microphone and attaches the sound as `audio/wav` (16 kHz, mono). The recording stops by itself before the limit of 4 MiB |
+| Floating bars | The header and the input float over the chat as rounded, translucent surfaces. The list scrolls behind them. Its padding keeps the first and the last message visible. The app measures the height of the header, so a large text size does not cut it |
+
+Known limits of the notices:
+
+- A notice comes only while the chat screen is open (it can be behind another screen or
+  the app can be in the background). The app has no background watcher yet. If the user
+  closes the chat screen, no notice comes until the user opens it again.
+- If many answers get done between two reads of the conversation, the user gets one
+  notice for the chat, not one for each answer.

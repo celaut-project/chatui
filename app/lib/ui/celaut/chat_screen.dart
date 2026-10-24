@@ -1,19 +1,29 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../bridge/api/celaut.dart';
 import '../../bridge/api/celaut_service.dart';
 import '../../celaut/attachment_picker.dart';
+import '../../celaut/audio_recorder.dart';
 import '../../celaut/celaut_format.dart';
 import '../../celaut/chat_client.dart';
+import '../../celaut/chat_notifier.dart';
+import '../../celaut/chat_prefs.dart';
+import '../../celaut/chat_segments.dart';
 import '../../celaut/conversation_keep_alive.dart';
 import '../../celaut/conversations.dart';
 import '../../celaut/payers.dart';
+import '../../celaut/pinned_position.dart';
 import '../../celaut/tunnel_http.dart';
+import '../../celaut/typewriter.dart';
 import '../../l10n/l10n.dart';
+import 'chat_floating.dart';
+import 'html_widget.dart';
 import 'instance_actions.dart';
 import 'instance_info_screen.dart';
 
@@ -30,6 +40,11 @@ import 'instance_info_screen.dart';
 /// The bar has the name of the service, and under it the state, the node and the cost so
 /// far. A tap on the name, or ⋮ then Info, opens the info page of the instance; ⋮ also has
 /// Stop. Back goes to the list: the instance runs on, and the list keeps it.
+///
+/// The bar and the input float over the list, as blurred and translucent surfaces; the
+/// list scrolls behind them. The messages of the service have no bubble. The text of an
+/// answer that grows shows a few characters at a time ([Typewriter]), with a small
+/// vibration, while the screen is in front.
 class ChatScreen extends StatefulWidget {
   const ChatScreen({
     super.key,
@@ -45,7 +60,27 @@ class ChatScreen extends StatefulWidget {
     this.notes,
     this.pickFiles,
     this.pollEvery,
+    this.typewriter = true,
+    this.haptic,
+    this.recorder,
+    this.notifier,
   });
+
+  /// Records the voice messages. Null: the microphone of the phone, made when the user
+  /// first taps the record button. Tests give their own.
+  final AudioRecorderService? recorder;
+
+  /// Tells the user, with a notice of the system, that an answer is done while the chat is
+  /// not in front. Null: [chatNotifier]. Tests give their own.
+  final ChatNotifier? notifier;
+
+  /// Show the text of an answer that grows a few characters at a time. False: it shows
+  /// as it arrives. Tests give false when they do not look at the effect.
+  final bool typewriter;
+
+  /// The small vibration for the new characters. Null: [HapticFeedback.selectionClick].
+  /// Tests give their own.
+  final VoidCallback? haptic;
 
   /// How often the screen reads the conversation. Null: [ChatClient.pollWaiting] while it
   /// waits for an answer, and [ChatClient.pollIdle] otherwise. Tests give their own.
@@ -95,7 +130,20 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+/// The text and the reasoning of one answer that grows, as they show.
+class _Reveal {
+  _Reveal(String text, String reasoning)
+      : text = Typewriter(initial: text),
+        reasoning = Typewriter(initial: reasoning);
+
+  final Typewriter text;
+  final Typewriter reasoning;
+
+  bool get done => text.done && reasoning.done;
+}
+
+class _ChatScreenState extends State<ChatScreen>
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   final _input = TextEditingController();
   final _scroll = ScrollController();
   late final TunnelHttp _http = widget.http ?? TunnelHttp();
@@ -125,12 +173,67 @@ class _ChatScreenState extends State<ChatScreen> {
 
   String get _id => widget.instance.instanceId;
 
+  /// The answers that grow while the screen is open, by `seq`, as they show.
+  final Map<int, _Reveal> _reveals = {};
+
+  /// The first read worked: what it had shows at once. A first read that failed does not
+  /// count, so the history that a later read brings shows at once too.
+  bool _loaded = false;
+
+  /// The `seq` of the messages that the screen has seen.
+  final Set<int> _known = {};
+  bool _foreground = true;
+  late final Ticker _revealTicker;
+  Duration _lastTick = Duration.zero;
+  HapticPacer _pacer = HapticPacer();
+
+  /// The `seq` of the message that the chat pins now, or null (`pinned_position.dart`).
+  int? _pinnedSeq;
+  bool _pinExpanded = false;
+
+  /// Keys of the pinned messages, to read where they are on the screen.
+  final Map<int, GlobalKey> _pinKeys = {};
+
+  /// The first message that the list has built.
+  int _firstBuilt = -1;
+
+  /// The status of each message at the last read, to see which answers just got done.
+  final Map<int, String> _statuses = {};
+  bool _baselined = false;
+
+  AudioRecorderService? _recorderService;
+  AudioRecorderService get _mic => _recorderService ??= widget.recorder ?? RecordAudioRecorder();
+  StreamSubscription<Duration>? _recSub;
+  bool _recording = false;
+  bool _recStarting = false;
+  Duration _recElapsed = Duration.zero;
+
+  /// The height of the input, which floats over the list, so the list leaves room.
+  double _bottomHeight = 72;
+
+  /// The least height of the bar above, which floats too (without its margin).
+  static const _headerMin = 52.0;
+
+  /// The height of the bar above with the margins and the status bar, as the screen
+  /// measures it: a large text size makes it taller. Null before the first layout.
+  double? _headerExtent;
+
+  /// Where the bar above ends.
+  double get _headerBottom => _headerExtent ?? MediaQuery.paddingOf(context).top + _headerMin + 8;
+
+  /// The height of the pinned banner while it shows, or zero. The list leaves room for it,
+  /// so no message is under it.
+  double _bannerHeight = 0;
+
   /// A message is on its way, or the service still makes an answer.
   bool get _waiting => _flying.isNotEmpty || _chat.awaitingAnswer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _revealTicker = createTicker(_onRevealTick);
+    _scroll.addListener(_updatePinned);
     unawaited(_keepAlive.start());
     _open();
   }
@@ -139,8 +242,10 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _open() async {
     // The wait for a service that just started goes on with the screen off.
     if (widget.starting) unawaited(_keepAlive.waiting(true));
+    var read = false;
     try {
       await (widget.starting ? _chat.syncWhenStarted() : _chat.sync());
+      read = true;
     } on ChatException catch (e) {
       if (mounted) setState(() => _error = e.kind);
     } finally {
@@ -149,12 +254,21 @@ class _ChatScreenState extends State<ChatScreen> {
     // Answered or not, the wait of the start is over: the list shows the check of the
     // node again.
     _notes.answered(_id);
-    _notes.saw(_id, _chat.messages);
+    _afterRead(read: read);
     if (mounted) setState(() => _waitingStart = false);
     _syncTicker();
     _schedulePoll();
     await _refreshCost();
     _scrollToEnd();
+  }
+
+  /// Use the messages that a read gave. [read] is true if the read worked: the first one
+  /// that works gives the history, which shows at once.
+  void _afterRead({required bool read}) {
+    _notes.saw(_id, _chat.messages);
+    _trackReveals();
+    _checkDone();
+    if (read) _loaded = true;
   }
 
   /// The ticker of the seconds runs only while the screen waits for an answer.
@@ -173,8 +287,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _schedulePoll() {
     _poll?.cancel();
     if (!mounted) return;
-    final every =
-        widget.pollEvery ?? (_waiting ? ChatClient.pollWaiting : ChatClient.pollIdle);
+    final every = widget.pollEvery ?? (_waiting ? ChatClient.pollWaiting : ChatClient.pollIdle);
     _poll = Timer(every, _pollOnce);
   }
 
@@ -182,16 +295,18 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _pollOnce() async {
     if (!mounted) return;
     if (!_waitingStart && !_stopping) {
-      final atEnd = !_scroll.hasClients ||
-          _scroll.position.maxScrollExtent - _scroll.position.pixels < 80;
+      final atEnd =
+          !_scroll.hasClients || _scroll.position.maxScrollExtent - _scroll.position.pixels < 80;
+      var read = false;
       try {
         await _chat.sync();
+        read = true;
         if (mounted && _error == ChatErrorKind.unreachable) setState(() => _error = null);
       } on ChatException catch (e) {
         if (mounted) setState(() => _error = e.kind);
       }
       if (!mounted) return;
-      _notes.saw(_id, _chat.messages);
+      _afterRead(read: read);
       setState(() {});
       _syncTicker();
       if (atEnd) _scrollToEnd();
@@ -214,12 +329,14 @@ class _ChatScreenState extends State<ChatScreen> {
   /// Read the history again, after a first read that failed.
   Future<void> _retry() async {
     setState(() => _error = null);
+    var read = false;
     try {
       await _chat.sync();
+      read = true;
     } on ChatException catch (e) {
       if (mounted) setState(() => _error = e.kind);
     }
-    _notes.saw(_id, _chat.messages);
+    _afterRead(read: read);
     if (mounted) setState(() {});
     _syncTicker();
     _scrollToEnd();
@@ -279,7 +396,7 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     } finally {
       _flying.remove(flying);
-      _notes.saw(_id, _chat.messages);
+      _afterRead(read: false);
       if (mounted) setState(() {});
       _syncTicker();
     }
@@ -287,6 +404,232 @@ class _ChatScreenState extends State<ChatScreen> {
     // The service has the message: read the answer soon, at the pace of a wait.
     _schedulePoll();
     _scrollToEnd();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // A short pause (a system dialog, the app switcher) is "inactive": the chat is still in
+    // front then, and gets no notice.
+    _foreground = state != AppLifecycleState.paused && state != AppLifecycleState.hidden;
+  }
+
+  /// Follow the answers that grow: each one shows its text with a [Typewriter]. What the
+  /// first read had shows at once, and so does an answer that is done and was never open
+  /// while the screen was in front.
+  void _trackReveals() {
+    final newSeqs = <int>{};
+    for (final m in _chat.messages) {
+      if (_known.add(m.seq)) newSeqs.add(m.seq);
+    }
+    if (!widget.typewriter) return;
+    for (final m in _chat.messages) {
+      if (m.fromUser) continue;
+      var r = _reveals[m.seq];
+      if (r == null) {
+        // An answer that came whole between two reads shows by typing too, if it is new.
+        final fresh = _loaded && newSeqs.contains(m.seq);
+        if (!m.isOpen && !fresh) continue;
+        r = _reveals[m.seq] = _loaded ? _Reveal('', '') : _Reveal(m.text, m.reasoning);
+      }
+      r.text.setTarget(m.text);
+      r.reasoning.setTarget(m.reasoning);
+    }
+    _reveals.removeWhere((seq, r) {
+      final open = _chat.messages.any((m) => m.seq == seq && m.isOpen);
+      return !open && r.done;
+    });
+    if (_reveals.values.any((r) => !r.done) && !_revealTicker.isActive) {
+      _lastTick = Duration.zero;
+      _pacer = HapticPacer();
+      _revealTicker.start();
+    }
+  }
+
+  void _onRevealTick(Duration elapsed) {
+    final dt = elapsed - _lastTick;
+    _lastTick = elapsed;
+    final atEnd =
+        !_scroll.hasClients || _scroll.position.maxScrollExtent - _scroll.position.pixels < 80;
+    var shown = 0;
+    for (final r in _reveals.values) {
+      shown += r.text.tick(dt) + r.reasoning.tick(dt);
+    }
+    if (shown > 0) {
+      if (_pacer.feed(shown, elapsed) &&
+          _foreground &&
+          (ModalRoute.of(context)?.isCurrent ?? true)) {
+        (widget.haptic ?? HapticFeedback.selectionClick)();
+      }
+      setState(() {});
+      if (atEnd) _scrollToEnd();
+    }
+    // Wait for the next read if all that came is shown.
+    if (_reveals.values.every((r) => r.done)) {
+      _revealTicker.stop();
+      _trackReveals();
+    }
+  }
+
+  /// Tell the user, with a notice of the system, about the answer that just got done, if
+  /// the chat is not in front: the app is in the background, or another screen covers it.
+  /// The first read only writes down the status of the history. A chat that the user
+  /// muted gets no notice ([ChatNotifier]). Only a screen that is open reads the chat, so
+  /// only an open screen can tell the user. If many answers get done between two reads,
+  /// the user gets one notice for the chat.
+  void _checkDone() {
+    // Nothing was read yet: what the next read brings is the history, not news.
+    if (_error != null && !_baselined) return;
+    final news = _baselined;
+    _baselined = true;
+    ChatMessage? done;
+    for (final m in _chat.messages) {
+      final before = _statuses[m.seq];
+      _statuses[m.seq] = m.status;
+      if (news &&
+          !m.fromUser &&
+          m.status == ChatMessage.statusDone &&
+          before != ChatMessage.statusDone) done = m;
+    }
+    if (done == null || !mounted) return;
+    final inFront = _foreground && (ModalRoute.of(context)?.isCurrent ?? true);
+    if (inFront) return;
+    // The body does not have the answer: the lock screen can show it to others.
+    unawaited(
+      (widget.notifier ?? chatNotifier).notifyDone(
+        instanceId: _id,
+        title: instanceTitle(_instance),
+        body: context.l10n.chatNotifyDoneBody,
+      ),
+    );
+  }
+
+  /// Find the pinned message that the chat anchors under the bar, from where the pinned
+  /// messages are on the screen ([pinnedIndexAbove]).
+  void _updatePinned() {
+    if (!mounted) return;
+    final messages = _chat.messages;
+    final pinned = [
+      for (var i = 0; i < messages.length; i++)
+        if (messages[i].pinned) i,
+    ];
+    int? found;
+    if (pinned.isNotEmpty && _scroll.hasClients) {
+      // The bars cover the top of the list: a message is above it when its top is. The
+      // banner, while it shows, pushes the list down by its height, so it is part of the
+      // cover and the choice does not flip when the banner shows or hides.
+      final cover = _headerBottom + _bannerHeight;
+      RenderObject? boxOf(int i) {
+        final box = _pinKeys[messages[i].seq]?.currentContext?.findRenderObject();
+        return box == null || !box.attached ? null : box;
+      }
+
+      double? topOf(int i) {
+        final box = boxOf(i);
+        if (box == null) return null;
+        final viewport = RenderAbstractViewport.maybeOf(box);
+        if (viewport == null) return null;
+        return viewport.getOffsetToReveal(box, 0).offset - _scroll.position.pixels - cover;
+      }
+
+      found = pinnedIndexAbove(
+        pinned: pinned,
+        firstBuilt: _firstBuilt,
+        count: messages.length,
+        topOf: topOf,
+        bottomOf: (i) {
+          final top = topOf(i);
+          final box = boxOf(i);
+          return top == null || box is! RenderBox ? null : top + box.size.height;
+        },
+      );
+    }
+    final seq = found == null ? null : messages[found].seq;
+    if (seq != _pinnedSeq) {
+      setState(() {
+        _pinnedSeq = seq;
+        _pinExpanded = false;
+        if (seq == null) _bannerHeight = 0;
+      });
+    }
+  }
+
+  Future<void> _startRecording() async {
+    if (_stopping || _recording || _recStarting) return;
+    _recStarting = true;
+    final bool ok;
+    try {
+      ok = await _mic.start();
+    } finally {
+      _recStarting = false;
+    }
+    if (!mounted) {
+      await _mic.cancel();
+      return;
+    }
+    if (!ok) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(context.l10n.chatMicDenied)));
+      return;
+    }
+    _recSub = _mic.elapsed.listen(
+      (d) {
+        if (mounted) setState(() => _recElapsed = d);
+      },
+      // The stream ends by itself only at the size limit: attach what the recorder has.
+      onDone: () {
+        if (mounted && _recording) unawaited(_finishRecording(limit: true));
+      },
+    );
+    setState(() {
+      _error = null;
+      _recording = true;
+      _recElapsed = Duration.zero;
+    });
+  }
+
+  /// Stop the recording and keep it as a file of the next message, as a picked file.
+  /// [limit]: the recorder stopped by itself at the size limit. The user gets a notice if
+  /// the limit stopped the recording, or if the message has no room for the file.
+  Future<void> _finishRecording({bool limit = false}) async {
+    unawaited(_recSub?.cancel());
+    _recSub = null;
+    final file = await _mic.stop();
+    if (!mounted) return;
+    final full = file != null && _pending.length >= ChatClient.maxAttachments;
+    setState(() {
+      _recording = false;
+      if (file != null && !full) _pending.add(file);
+    });
+    final l10n = context.l10n;
+    final notice = full
+        ? l10n.chatSkippedTooMany(1)
+        : limit
+            ? l10n.chatMicLimit
+            : null;
+    if (notice != null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(notice)));
+    }
+  }
+
+  Future<void> _cancelRecording() async {
+    unawaited(_recSub?.cancel());
+    _recSub = null;
+    await _mic.cancel();
+    if (mounted) setState(() => _recording = false);
+  }
+
+  static String _clock(Duration d) {
+    final m = d.inMinutes.toString().padLeft(2, '0');
+    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  Future<void> _toggleMute() async {
+    await chatPrefs.setMuted(_id, !chatPrefs.isMuted(_id));
+    if (mounted) setState(() {});
   }
 
   /// A file finished to load: keep the end in view if the list was at the end.
@@ -366,6 +709,15 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _revealTicker.dispose();
+    _scroll.removeListener(_updatePinned);
+    unawaited(_recSub?.cancel() ?? Future<void>.value());
+    final recorder = _recorderService;
+    if (recorder != null) {
+      unawaited(recorder.cancel());
+      if (recorder is RecordAudioRecorder) unawaited(recorder.dispose());
+    }
     unawaited(_keepAlive.stop());
     _ticker?.cancel();
     _poll?.cancel();
@@ -383,204 +735,414 @@ class _ChatScreenState extends State<ChatScreen> {
     // The dots show while the service has nothing to show yet for the answer.
     final typing = _waiting && !messages.any((m) => m.isOpen && _hasContent(m));
     final error = _error == null ? null : _errorText(_error!);
+    final pinned =
+        _pinnedSeq == null ? null : messages.where((m) => m.seq == _pinnedSeq).firstOrNull;
     final title = instanceTitle(_instance);
     final subtitle = [
       instanceStateText(context, _state),
       _instance.address,
       muOrUnknown(_costMu),
     ].join(' · ');
-    return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 0,
-        title: InkWell(
-          key: const Key('chat-title'),
-          onTap: _info,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
+    final headerBottom = _headerBottom;
+    final screen = MediaQuery.sizeOf(context).height;
+    // The pinned banner takes a part of the chat area, not of the screen.
+    final chatArea = chatAreaHeight(screen: screen, top: headerBottom, bottom: _bottomHeight);
+    final header = SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+        child: ConstrainedBox(
+          // A large text size makes the bar taller.
+          constraints: const BoxConstraints(minHeight: _headerMin),
+          child: FloatingSurface(
+            key: const Key('chat-header'),
+            radius: 24,
             child: Row(
               children: [
-                InstanceAvatar(instanceId: _id, size: 38),
-                const SizedBox(width: 12),
+                const BackButton(),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        title,
-                        key: const Key('chat-name'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        subtitle,
-                        key: const Key('chat-cost'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
+                  child: InkWell(
+                    key: const Key('chat-title'),
+                    onTap: _info,
+                    child: Row(
+                      children: [
+                        InstanceAvatar(instanceId: _id, size: 38),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                title,
+                                key: const Key('chat-name'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              Text(
+                                subtitle,
+                                key: const Key('chat-cost'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+                ),
+                if (chatPrefs.isMuted(_id))
+                  Tooltip(
+                    message: l10n.chatMutedHint,
+                    child: const Icon(
+                      Icons.notifications_off_outlined,
+                      key: Key('chat-muted'),
+                      size: 18,
+                    ),
+                  ),
+                PopupMenuButton<String>(
+                  key: const Key('chat-menu'),
+                  tooltip: l10n.chatsMenuMore,
+                  enabled: !_stopping,
+                  onSelected: (choice) => switch (choice) {
+                    'stop' => _stop(),
+                    'mute' => _toggleMute(),
+                    _ => _info(),
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      key: const Key('chat-menu-info'),
+                      value: 'info',
+                      child: Text(l10n.chatsActionInfo),
+                    ),
+                    PopupMenuItem(
+                      key: const Key('chat-menu-mute'),
+                      value: 'mute',
+                      child: Text(
+                        chatPrefs.isMuted(_id) ? l10n.chatUnmute : l10n.chatMute,
+                      ),
+                    ),
+                    PopupMenuItem(
+                      key: const Key('chat-menu-stop'),
+                      value: 'stop',
+                      child: Text(l10n.chatStop),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
         ),
-        actions: [
-          PopupMenuButton<String>(
-            key: const Key('chat-menu'),
-            tooltip: l10n.chatsMenuMore,
-            enabled: !_stopping,
-            onSelected: (choice) => choice == 'stop' ? _stop() : _info(),
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                key: const Key('chat-menu-info'),
-                value: 'info',
-                child: Text(l10n.chatsActionInfo),
-              ),
-              PopupMenuItem(
-                key: const Key('chat-menu-stop'),
-                value: 'stop',
-                child: Text(l10n.chatStop),
+      ),
+    );
+    final inputBar = SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+        child: FloatingSurface(
+          key: const Key('chat-input-bar'),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (error != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Semantics(
+                          liveRegion: true,
+                          child: Text(
+                            error,
+                            key: const Key('chat-error'),
+                            style: TextStyle(color: scheme.error),
+                          ),
+                        ),
+                      ),
+                      if (_error == ChatErrorKind.unreachable)
+                        TextButton(
+                          key: const Key('chat-retry'),
+                          onPressed: _retry,
+                          child: Text(l10n.commonRetry),
+                        ),
+                    ],
+                  ),
+                ),
+              if (_pending.isNotEmpty)
+                SizedBox(
+                  height: 48,
+                  child: ListView(
+                    key: const Key('chat-pending'),
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    children: [
+                      for (var i = 0; i < _pending.length; i++)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: InputChip(
+                            key: Key('chat-pending-$i'),
+                            avatar: Icon(
+                              _pending[i].kind == 'audio' ? Icons.audiotrack : Icons.image,
+                            ),
+                            label: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 180),
+                              child: Text(
+                                _pending[i].name ?? _pending[i].mime,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            deleteButtonTooltipMessage: l10n.chatAttachmentRemove,
+                            onDeleted: () => setState(() => _pending.removeAt(i)),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
+                child: _recording
+                    ? Row(
+                        children: [
+                          IconButton(
+                            key: const Key('chat-record-cancel'),
+                            tooltip: l10n.chatMicCancel,
+                            onPressed: _cancelRecording,
+                            icon: const Icon(Icons.delete_outline),
+                          ),
+                          Icon(
+                            Icons.fiber_manual_record,
+                            size: 14,
+                            color: scheme.error,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _clock(_recElapsed),
+                              key: const Key('chat-record-time'),
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ),
+                          IconButton(
+                            key: const Key('chat-record-done'),
+                            tooltip: l10n.chatMicDone,
+                            onPressed: _finishRecording,
+                            icon: const Icon(Icons.check),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          if (_chat.accepts.isNotEmpty || _error == ChatErrorKind.unreachable)
+                            IconButton(
+                              key: const Key('chat-attach'),
+                              tooltip: l10n.chatAttach,
+                              onPressed: _stopping || _pending.length >= ChatClient.maxAttachments
+                                  ? null
+                                  : _attach,
+                              icon: const Icon(Icons.attach_file),
+                            ),
+                          Expanded(
+                            child: TextField(
+                              key: const Key('chat-input'),
+                              controller: _input,
+                              minLines: 1,
+                              maxLines: 4,
+                              textInputAction: TextInputAction.newline,
+                              decoration: InputDecoration(
+                                hintText: l10n.chatInputHint,
+                                filled: false,
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                              ),
+                            ),
+                          ),
+                          // As in a messenger: the microphone takes the place of Send while
+                          // there is nothing to send, if the service takes audio.
+                          ListenableBuilder(
+                            listenable: _input,
+                            builder: (context, _) => _chat.accepts.contains('audio') &&
+                                    _input.text.trim().isEmpty &&
+                                    _pending.isEmpty
+                                ? IconButton(
+                                    key: const Key('chat-mic'),
+                                    tooltip: l10n.chatMic,
+                                    onPressed: _stopping ? null : _startRecording,
+                                    icon: const Icon(Icons.mic_none),
+                                  )
+                                : IconButton(
+                                    key: const Key('chat-send'),
+                                    tooltip: l10n.chatSend,
+                                    onPressed: _stopping ? null : _send,
+                                    icon: const Icon(Icons.send),
+                                  ),
+                          ),
+                        ],
+                      ),
               ),
             ],
           ),
-        ],
+        ),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: messages.isEmpty && _flying.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: _waitingStart
-                          ? Column(
-                              key: const Key('chat-starting'),
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const CircularProgressIndicator(),
-                                const SizedBox(height: 16),
-                                Text(l10n.chatStarting, textAlign: TextAlign.center),
-                              ],
-                            )
-                          : Text(l10n.chatEmpty, textAlign: TextAlign.center),
-                    ),
-                  )
-                : ListView.builder(
-                    key: const Key('chat-messages'),
-                    controller: _scroll,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: messages.length + _flying.length + (typing ? 1 : 0),
-                    itemBuilder: (context, i) {
-                      if (i < messages.length) {
-                        return _Bubble(
-                          message: messages[i],
-                          scheme: scheme,
-                          read: _chat.readAttachment,
-                          onLoaded: _fileLoaded,
-                        );
-                      }
-                      if (i < messages.length + _flying.length) {
-                        final flying = _flying[i - messages.length];
-                        return _FlyingBubble(
-                          text: flying.text,
-                          files: flying.files,
-                          scheme: scheme,
-                        );
-                      }
-                      return _TypingBubble(seconds: _waited, scheme: scheme);
-                    },
-                  ),
-          ),
-          if (error != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Semantics(
-                      liveRegion: true,
-                      child: Text(
-                        error,
-                        key: const Key('chat-error'),
-                        style: TextStyle(color: scheme.error),
-                      ),
-                    ),
-                  ),
-                  if (_error == ChatErrorKind.unreachable)
-                    TextButton(
-                      key: const Key('chat-retry'),
-                      onPressed: _retry,
-                      child: Text(l10n.commonRetry),
-                    ),
-                ],
-              ),
-            ),
-          if (_pending.isNotEmpty)
-            SizedBox(
-              height: 48,
-              child: ListView(
-                key: const Key('chat-pending'),
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                children: [
-                  for (var i = 0; i < _pending.length; i++)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: InputChip(
-                        key: Key('chat-pending-$i'),
-                        avatar: Icon(_pending[i].kind == 'audio' ? Icons.audiotrack : Icons.image),
-                        label: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 180),
-                          child: Text(
-                            _pending[i].name ?? _pending[i].mime,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+    );
+    return Scaffold(
+      body: ListenableBuilder(
+        listenable: chatPrefs,
+        builder: (context, _) {
+          final base = chatPrefs.textStyle;
+          return Stack(
+            children: [
+              ChatBackdrop(id: chatPrefs.background(_id)),
+              Positioned.fill(
+                child: messages.isEmpty && _flying.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            24,
+                            headerBottom + 24,
+                            24,
+                            _bottomHeight + 24,
                           ),
+                          child: _waitingStart
+                              ? Column(
+                                  key: const Key('chat-starting'),
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const CircularProgressIndicator(),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      l10n.chatStarting,
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                )
+                              : Text(
+                                  l10n.chatEmpty,
+                                  textAlign: TextAlign.center,
+                                ),
                         ),
-                        deleteButtonTooltipMessage: l10n.chatAttachmentRemove,
-                        onDeleted: () => setState(() => _pending.removeAt(i)),
+                      )
+                    : ListView.custom(
+                        key: const Key('chat-messages'),
+                        controller: _scroll,
+                        // Room for the bars that float over the list.
+                        padding: EdgeInsets.fromLTRB(
+                          16,
+                          headerBottom + _bannerHeight + 8,
+                          16,
+                          _bottomHeight + 8,
+                        ),
+                        childrenDelegate: _LayoutDelegate(
+                          childCount: messages.length + _flying.length + (typing ? 1 : 0),
+                          onLayout: (first) {
+                            _firstBuilt = first;
+                            WidgetsBinding.instance.addPostFrameCallback((_) => _updatePinned());
+                          },
+                          (context, i) {
+                            if (i < messages.length) {
+                              final m = messages[i];
+                              final reveal = _reveals[m.seq];
+                              final bubble = _Bubble(
+                                message: m,
+                                scheme: scheme,
+                                textStyle: base,
+                                shownText: reveal?.text.text ?? m.text,
+                                shownReasoning: reveal?.reasoning.text ?? m.reasoning,
+                                html: chatPrefs.htmlWidgets,
+                                read: _chat.readAttachment,
+                                onLoaded: _fileLoaded,
+                              );
+                              return m.pinned
+                                  ? KeyedSubtree(
+                                      key: _pinKeys.putIfAbsent(
+                                        m.seq,
+                                        GlobalKey.new,
+                                      ),
+                                      child: bubble,
+                                    )
+                                  : bubble;
+                            }
+                            if (i < messages.length + _flying.length) {
+                              final flying = _flying[i - messages.length];
+                              return _FlyingBubble(
+                                text: flying.text,
+                                files: flying.files,
+                                scheme: scheme,
+                                textStyle: base,
+                              );
+                            }
+                            return _TypingBubble(
+                              seconds: _waited,
+                              scheme: scheme,
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                ],
               ),
-            ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-              child: Row(
-                children: [
-                  if (_chat.accepts.isNotEmpty || _error == ChatErrorKind.unreachable)
-                    IconButton(
-                      key: const Key('chat-attach'),
-                      tooltip: l10n.chatAttach,
-                      onPressed: _stopping || _pending.length >= ChatClient.maxAttachments
-                          ? null
-                          : _attach,
-                      icon: const Icon(Icons.attach_file),
-                    ),
-                  Expanded(
-                    child: TextField(
-                      key: const Key('chat-input'),
-                      controller: _input,
-                      minLines: 1,
-                      maxLines: 4,
-                      textInputAction: TextInputAction.newline,
-                      decoration: InputDecoration(hintText: l10n.chatInputHint),
+              if (pinned != null)
+                Positioned(
+                  top: headerBottom,
+                  left: 8,
+                  right: 8,
+                  child: MeasureHeight(
+                    // The list leaves room for the banner as it is before the user taps
+                    // it. An open banner covers the list for a while.
+                    onHeight: (h) {
+                      if (_pinExpanded || h == _bannerHeight) return;
+                      final atEnd = !_scroll.hasClients ||
+                          _scroll.position.maxScrollExtent - _scroll.position.pixels < 80;
+                      setState(() => _bannerHeight = h);
+                      if (atEnd) _scrollToEnd();
+                    },
+                    child: _PinnedBanner(
+                      message: pinned,
+                      shownText: _reveals[pinned.seq]?.text.text ?? pinned.text,
+                      style: base.copyWith(color: scheme.onSurface),
+                      html: chatPrefs.htmlWidgets,
+                      expanded: _pinExpanded,
+                      maxHeight: chatArea * chatPrefs.pinnedMaxFraction,
+                      maxExpandedHeight: chatArea * pinnedExpandedFraction,
+                      onToggle: () => setState(() => _pinExpanded = !_pinExpanded),
                     ),
                   ),
-                  IconButton(
-                    key: const Key('chat-send'),
-                    tooltip: l10n.chatSend,
-                    onPressed: _stopping ? null : _send,
-                    icon: const Icon(Icons.send),
-                  ),
-                ],
+                ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: MeasureHeight(
+                  onHeight: (h) {
+                    setState(() => _headerExtent = h);
+                    WidgetsBinding.instance.addPostFrameCallback((_) => _updatePinned());
+                  },
+                  child: header,
+                ),
               ),
-            ),
-          ),
-        ],
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: MeasureHeight(
+                  onHeight: (h) {
+                    final atEnd = !_scroll.hasClients ||
+                        _scroll.position.maxScrollExtent - _scroll.position.pixels < 80;
+                    setState(() => _bottomHeight = h);
+                    if (atEnd) _scrollToEnd();
+                  },
+                  child: inputBar,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -589,11 +1151,17 @@ class _ChatScreenState extends State<ChatScreen> {
 /// The message that the client is sending: a bubble of the user, paler, with a small
 /// "Sending…" under it. It is replaced by the real message when the answer comes.
 class _FlyingBubble extends StatelessWidget {
-  const _FlyingBubble({required this.text, required this.files, required this.scheme});
+  const _FlyingBubble({
+    required this.text,
+    required this.files,
+    required this.scheme,
+    required this.textStyle,
+  });
 
   final String text;
   final List<OutgoingAttachment> files;
   final ColorScheme scheme;
+  final TextStyle textStyle;
 
   @override
   Widget build(BuildContext context) {
@@ -609,7 +1177,9 @@ class _FlyingBubble extends StatelessWidget {
             key: const Key('chat-flying'),
             margin: const EdgeInsets.symmetric(vertical: 3),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.8),
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.sizeOf(context).width * 0.8,
+            ),
             decoration: BoxDecoration(
               color: scheme.primaryContainer,
               borderRadius: const BorderRadius.only(
@@ -627,7 +1197,10 @@ class _FlyingBubble extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(file.kind == 'audio' ? Icons.audiotrack : Icons.image, color: color),
+                      Icon(
+                        file.kind == 'audio' ? Icons.audiotrack : Icons.image,
+                        color: color,
+                      ),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
@@ -638,10 +1211,12 @@ class _FlyingBubble extends StatelessWidget {
                       ),
                     ],
                   ),
-                if (text.isNotEmpty) Text(text, style: TextStyle(color: color)),
+                if (text.isNotEmpty) Text(text, style: textStyle.copyWith(color: color)),
                 Text(
                   context.l10n.chatSending,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: color),
                 ),
               ],
             ),
@@ -669,8 +1244,10 @@ class _TypingBubble extends StatefulWidget {
 }
 
 class _TypingBubbleState extends State<_TypingBubble> with SingleTickerProviderStateMixin {
-  late final AnimationController _pulse =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  )..repeat();
 
   @override
   void dispose() {
@@ -717,7 +1294,10 @@ class _TypingBubbleState extends State<_TypingBubble> with SingleTickerProviderS
                         child: Opacity(
                           // Each dot is one third of the cycle behind the one before.
                           opacity: 0.25 + 0.75 * (1 - ((_pulse.value - i / 3) % 1.0)),
-                          child: CircleAvatar(radius: 4, backgroundColor: color),
+                          child: CircleAvatar(
+                            radius: 4,
+                            backgroundColor: color,
+                          ),
                         ),
                       ),
                   ],
@@ -729,7 +1309,9 @@ class _TypingBubbleState extends State<_TypingBubble> with SingleTickerProviderS
                   child: Text(
                     key: const Key('chat-waited'),
                     l10n.chatWaitingSeconds(widget.seconds),
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelSmall?.copyWith(color: color),
                   ),
                 ),
             ],
@@ -740,18 +1322,33 @@ class _TypingBubbleState extends State<_TypingBubble> with SingleTickerProviderS
   }
 }
 
-/// A message as a bubble: the user on the right, the service on the left, with a small
-/// tail corner on the side of the sender. The files of the message come before its text.
+/// A message: the user in a bubble on the right, with a small tail corner. The service has
+/// no bubble: its text is plain, over the background, at the full width, as it is what the
+/// user reads most. The files of the message come before its text.
 class _Bubble extends StatelessWidget {
   const _Bubble({
     required this.message,
     required this.scheme,
+    required this.textStyle,
+    required this.shownText,
+    required this.shownReasoning,
+    required this.html,
     required this.read,
     required this.onLoaded,
   });
 
   final ChatMessage message;
   final ColorScheme scheme;
+
+  /// The style of the text, from the settings of the chat.
+  final TextStyle textStyle;
+
+  /// The text and the reasoning as they show now: a part of the message while they type.
+  final String shownText;
+  final String shownReasoning;
+
+  /// Show the HTML blocks of the text of the service as widgets (a setting of the chat).
+  final bool html;
 
   /// Reads the bytes of a file of the message (`ChatClient.readAttachment`).
   final Future<Uint8List> Function(int seq, int index) read;
@@ -771,18 +1368,22 @@ class _Bubble extends StatelessWidget {
       alignment: mine ? AlignmentDirectional.centerEnd : AlignmentDirectional.centerStart,
       child: Container(
         key: Key('chat-bubble-${message.seq}'),
-        margin: const EdgeInsets.symmetric(vertical: 3),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.8),
-        decoration: BoxDecoration(
-          color: mine ? scheme.primaryContainer : scheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.only(
-            topLeft: r,
-            topRight: r,
-            bottomLeft: mine ? r : tail,
-            bottomRight: mine ? tail : r,
-          ),
-        ),
+        margin: EdgeInsets.symmetric(vertical: mine ? 3 : 8),
+        padding: mine
+            ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
+            : const EdgeInsets.symmetric(horizontal: 4),
+        constraints: mine ? BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.8) : null,
+        decoration: mine
+            ? BoxDecoration(
+                color: scheme.primaryContainer,
+                borderRadius: const BorderRadius.only(
+                  topLeft: r,
+                  topRight: r,
+                  bottomLeft: r,
+                  bottomRight: tail,
+                ),
+              )
+            : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -795,29 +1396,170 @@ class _Bubble extends StatelessWidget {
                 onLoaded: onLoaded,
                 color: color,
               ),
-            if (message.reasoning.isNotEmpty)
+            if (shownReasoning.isNotEmpty)
               _Reasoning(
                 key: Key('chat-reasoning-${message.seq}'),
-                text: message.reasoning,
+                text: shownReasoning,
                 // The user sees the reasoning grow until the text starts.
                 openByDefault: message.isOpen && message.text.isEmpty,
                 color: scheme.onSurfaceVariant,
               ),
-            if (message.text.isNotEmpty)
-              SelectableText(message.text, style: TextStyle(color: color)),
+            if (shownText.isNotEmpty)
+              _MessageText(
+                text: shownText,
+                style: textStyle.copyWith(color: color),
+                // Only the text of the service has HTML blocks: the user writes plain text.
+                html: html && !mine,
+                streaming: message.isOpen,
+                selectable: true,
+              ),
             if (message.isFailed)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
                   context.l10n.chatAnswerFailed,
                   key: Key('chat-failed-${message.seq}'),
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelSmall
-                      ?.copyWith(color: scheme.error),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: scheme.error),
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The builder of the list of messages, which tells the screen the first message that the
+/// list built, after each layout ([pinnedIndexAbove] needs it).
+class _LayoutDelegate extends SliverChildBuilderDelegate {
+  _LayoutDelegate(super.builder, {super.childCount, required this.onLayout});
+
+  final void Function(int first) onLayout;
+
+  @override
+  void didFinishLayout(int firstIndex, int lastIndex) => onLayout(firstIndex);
+}
+
+/// The text of a message. With [html] on, the fenced blocks "```html" show as widgets
+/// ([ChatHtmlWidget]) and the rest as text. A block that is still open while the message
+/// grows shows as code, until its closing fence comes. With [html] off, all shows as text.
+class _MessageText extends StatelessWidget {
+  const _MessageText({
+    required this.text,
+    required this.style,
+    required this.html,
+    required this.streaming,
+    required this.selectable,
+  });
+
+  final String text;
+  final TextStyle style;
+  final bool html;
+  final bool streaming;
+
+  /// The text can be selected. The pinned banner has it off: a tap there opens it.
+  final bool selectable;
+
+  Widget _text(String t, TextStyle s) =>
+      selectable ? SelectableText(t, style: s) : Text(t, style: s);
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = html ? splitHtmlBlocks(text, streaming: streaming) : const <ChatSegment>[];
+    if (parts.every((p) => p.kind == ChatSegmentKind.text)) return _text(text, style);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final part in parts)
+          switch (part.kind) {
+            ChatSegmentKind.text => _text(part.text, style),
+            ChatSegmentKind.html => Padding(
+                key: const Key('chat-html'),
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: ChatHtmlWidget(html: part.text, style: style),
+              ),
+            ChatSegmentKind.pendingHtml => _text(
+                part.text,
+                style.copyWith(
+                  fontFamily: 'monospace',
+                  fontSize: (style.fontSize ?? 17) - 2,
+                ),
+              ),
+          },
+      ],
+    );
+  }
+}
+
+/// A pinned message, anchored under the bar while the user reads what comes after it. It
+/// takes at most [maxHeight]; what does not fit scrolls inside it, and a tap opens it to
+/// [maxExpandedHeight].
+class _PinnedBanner extends StatelessWidget {
+  const _PinnedBanner({
+    required this.message,
+    required this.shownText,
+    required this.style,
+    required this.html,
+    required this.expanded,
+    required this.maxHeight,
+    required this.maxExpandedHeight,
+    required this.onToggle,
+  });
+
+  final ChatMessage message;
+  final String shownText;
+  final TextStyle style;
+  final bool html;
+  final bool expanded;
+  final double maxHeight;
+  final double maxExpandedHeight;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    return FloatingSurface(
+      key: const Key('chat-pinned'),
+      radius: 18,
+      child: InkWell(
+        key: const Key('chat-pinned-toggle'),
+        onTap: onToggle,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: expanded ? maxExpandedHeight : maxHeight,
+          ),
+          child: ListView(
+            key: const Key('chat-pinned-scroll'),
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.push_pin_outlined, size: 16, color: muted),
+                  const Spacer(),
+                  Tooltip(
+                    message: expanded ? l10n.chatPinnedCollapse : l10n.chatPinnedExpand,
+                    child: Icon(
+                      expanded ? Icons.expand_less : Icons.expand_more,
+                      size: 20,
+                      color: muted,
+                    ),
+                  ),
+                ],
+              ),
+              _MessageText(
+                text: shownText,
+                style: style,
+                html: html,
+                streaming: message.isOpen,
+                selectable: false,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -866,7 +1608,11 @@ class _ReasoningState extends State<_Reasoning> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(open ? Icons.expand_less : Icons.expand_more, size: 18, color: widget.color),
+                Icon(
+                  open ? Icons.expand_less : Icons.expand_more,
+                  size: 18,
+                  color: widget.color,
+                ),
                 const SizedBox(width: 4),
                 Text(context.l10n.chatReasoning, style: style),
               ],
@@ -875,7 +1621,11 @@ class _ReasoningState extends State<_Reasoning> {
           if (open)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: SelectableText(widget.text, key: const Key('chat-reasoning-text'), style: style),
+              child: SelectableText(
+                widget.text,
+                key: const Key('chat-reasoning-text'),
+                style: style,
+              ),
             ),
         ],
       ),
@@ -922,9 +1672,11 @@ class _AttachmentViewState extends State<_AttachmentView> {
 
   Future<void> _share(Uint8List bytes) async {
     final a = widget.attachment;
-    await SharePlus.instance.share(ShareParams(
-      files: [XFile.fromData(bytes, mimeType: a.mime, name: a.safeName)],
-    ));
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile.fromData(bytes, mimeType: a.mime, name: a.safeName)],
+      ),
+    );
   }
 
   Widget _failed(BuildContext context) => InkWell(
@@ -932,7 +1684,10 @@ class _AttachmentViewState extends State<_AttachmentView> {
         onTap: () => setState(() {
           _bytes = _start();
         }),
-        child: Text(context.l10n.chatAttachmentFailed, style: TextStyle(color: widget.color)),
+        child: Text(
+          context.l10n.chatAttachmentFailed,
+          style: TextStyle(color: widget.color),
+        ),
       );
 
   @override
@@ -979,7 +1734,10 @@ class _AttachmentViewState extends State<_AttachmentView> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(a.isAudio ? Icons.audiotrack : Icons.image, color: widget.color),
+                    Icon(
+                      a.isAudio ? Icons.audiotrack : Icons.image,
+                      color: widget.color,
+                    ),
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(

@@ -21,6 +21,7 @@ import 'celaut/known_nodes_screen.dart';
 import 'celaut/service_screen.dart';
 import 'settings/about_page.dart';
 import 'settings/address_book_page.dart';
+import 'settings/chat_settings_page.dart';
 import 'settings/display_settings_page.dart';
 import 'settings/network_settings_page.dart';
 import 'settings/preview_settings_page.dart';
@@ -248,6 +249,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: t.displayTitle,
           subtitle: '${_appearanceName()} · ${networkController.fiatCode.toUpperCase()}',
           onTap: () => _open(const DisplaySettingsPage()),
+        ),
+        SettingsRow(
+          key: const Key('settings-chat'),
+          icon: Icons.chat_bubble_outline,
+          title: t.chatSettingsTitle,
+          subtitle: t.chatSettingsRowSubtitle,
+          onTap: () => _open(const ChatSettingsPage()),
         ),
         ValueListenableBuilder<bool>(
           valueListenable: computeHomeFlag,

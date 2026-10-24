@@ -1,17 +1,18 @@
 import 'dart:async';
 
-import 'services/preview/preview_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'celaut/auto_top_up.dart';
 import 'celaut/background_work.dart';
+import 'celaut/chat_prefs.dart';
 import 'l10n/l10n.dart';
 import 'services/address_label_service.dart';
 import 'services/contacts_service.dart';
 import 'services/deep_link_channel.dart';
 import 'services/notification_service.dart';
 import 'services/network_controller.dart';
+import 'services/preview/preview_service.dart';
 import 'services/privacy_service.dart';
 import 'services/token_pricer.dart';
 import 'services/session_lock.dart';
@@ -64,6 +65,7 @@ Future<void> main() async {
     privacyService.load().catchError((_) {}),
     spendPolicy.load().catchError((_) {}),
     previewSettings.load().catchError((_) {}),
+    chatPrefs.load().catchError((_) {}),
   ]);
   networkController.priceRefresher = tokenPricer.refresh;
   runApp(const ArgusApp());

@@ -776,6 +776,150 @@ abstract class AppLocalizations {
   /// **'Display'**
   String get displayTitle;
 
+  /// No description provided for @chatSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat'**
+  String get chatSettingsTitle;
+
+  /// No description provided for @chatSettingsRowSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Text size, font, pinned messages, widgets'**
+  String get chatSettingsRowSubtitle;
+
+  /// No description provided for @chatSettingsTextGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Text'**
+  String get chatSettingsTextGroup;
+
+  /// No description provided for @chatSettingsFontSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Text size'**
+  String get chatSettingsFontSize;
+
+  /// No description provided for @chatSettingsFontFamily.
+  ///
+  /// In en, this message translates to:
+  /// **'Font'**
+  String get chatSettingsFontFamily;
+
+  /// No description provided for @chatSettingsPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'The assistant answer looks like this. Pick the size you read best.'**
+  String get chatSettingsPreview;
+
+  /// No description provided for @chatFontSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get chatFontSystem;
+
+  /// No description provided for @chatFontLato.
+  ///
+  /// In en, this message translates to:
+  /// **'Lato'**
+  String get chatFontLato;
+
+  /// No description provided for @chatFontSerif.
+  ///
+  /// In en, this message translates to:
+  /// **'Serif'**
+  String get chatFontSerif;
+
+  /// No description provided for @chatFontMono.
+  ///
+  /// In en, this message translates to:
+  /// **'Monospace'**
+  String get chatFontMono;
+
+  /// No description provided for @chatSettingsPinnedGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned messages'**
+  String get chatSettingsPinnedGroup;
+
+  /// No description provided for @chatSettingsPinnedMax.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum height of a pinned message'**
+  String get chatSettingsPinnedMax;
+
+  /// No description provided for @chatSettingsPinnedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'A pinned message stays at the top of the chat. It uses at most this part of the chat height.'**
+  String get chatSettingsPinnedNote;
+
+  /// No description provided for @chatSettingsWidgetsGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Widgets'**
+  String get chatSettingsWidgetsGroup;
+
+  /// No description provided for @chatSettingsHtmlWidgets.
+  ///
+  /// In en, this message translates to:
+  /// **'HTML widgets'**
+  String get chatSettingsHtmlWidgets;
+
+  /// No description provided for @chatSettingsHtmlWidgetsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show simple HTML from the assistant as widgets. If off, it shows as code. No scripts and no network.'**
+  String get chatSettingsHtmlWidgetsSubtitle;
+
+  /// No description provided for @chatBgNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get chatBgNone;
+
+  /// No description provided for @chatBgDawn.
+  ///
+  /// In en, this message translates to:
+  /// **'Dawn'**
+  String get chatBgDawn;
+
+  /// No description provided for @chatBgOcean.
+  ///
+  /// In en, this message translates to:
+  /// **'Ocean'**
+  String get chatBgOcean;
+
+  /// No description provided for @chatBgForest.
+  ///
+  /// In en, this message translates to:
+  /// **'Forest'**
+  String get chatBgForest;
+
+  /// No description provided for @chatBgDusk.
+  ///
+  /// In en, this message translates to:
+  /// **'Dusk'**
+  String get chatBgDusk;
+
+  /// No description provided for @chatBgDots.
+  ///
+  /// In en, this message translates to:
+  /// **'Dots'**
+  String get chatBgDots;
+
+  /// No description provided for @chatBgWaves.
+  ///
+  /// In en, this message translates to:
+  /// **'Waves'**
+  String get chatBgWaves;
+
+  /// No description provided for @chatBgDiamonds.
+  ///
+  /// In en, this message translates to:
+  /// **'Diamonds'**
+  String get chatBgDiamonds;
+
   /// No description provided for @addressBookTitle.
   ///
   /// In en, this message translates to:
@@ -2279,6 +2423,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A payment to one of your addresses was seen on the network.'**
   String get notifyChannelDescription;
+
+  /// No description provided for @notifyChatDoneChannelName.
+  ///
+  /// In en, this message translates to:
+  /// **'Finished answers'**
+  String get notifyChatDoneChannelName;
+
+  /// No description provided for @notifyChatDoneChannelDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'A service finished an answer while you were not looking at the chat.'**
+  String get notifyChatDoneChannelDescription;
 
   /// No description provided for @notifyIncomingBody.
   ///
@@ -8584,6 +8740,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{kind}: {name}'**
   String chatsPreviewNamed(String kind, String name);
+
+  /// No description provided for @chatMute.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute notifications'**
+  String get chatMute;
+
+  /// No description provided for @chatUnmute.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn notifications on'**
+  String get chatUnmute;
+
+  /// No description provided for @chatMutedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are off for this chat'**
+  String get chatMutedHint;
+
+  /// No description provided for @chatMic.
+  ///
+  /// In en, this message translates to:
+  /// **'Record a voice message'**
+  String get chatMic;
+
+  /// No description provided for @chatMicCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard the recording'**
+  String get chatMicCancel;
+
+  /// No description provided for @chatMicDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach the recording'**
+  String get chatMicDone;
+
+  /// No description provided for @chatMicDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'The app has no permission to use the microphone.'**
+  String get chatMicDenied;
+
+  /// No description provided for @chatMicLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'The recording reached the size limit and stopped. It is attached.'**
+  String get chatMicLimit;
+
+  /// No description provided for @chatPinnedExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Show more of the pinned message'**
+  String get chatPinnedExpand;
+
+  /// No description provided for @chatPinnedCollapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Show less of the pinned message'**
+  String get chatPinnedCollapse;
+
+  /// No description provided for @chatNotifyDoneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The answer is ready.'**
+  String get chatNotifyDoneBody;
+
+  /// No description provided for @chatsBackground.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat background'**
+  String get chatsBackground;
 
   /// No description provided for @chatsActionInfo.
   ///

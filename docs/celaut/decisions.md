@@ -81,6 +81,35 @@
   while the service makes it (`status` `streaming`), with the `reasoning` of the model
   apart from the `text` (the Claude remote service). A service that sends the whole answer
   stays valid. This is revision 5 of [chat.md](chat.md).
+- **Chat reading, pinned messages and audio (2026-10-24, Josemi):** an assistant message
+  has no bubble. The size and the font of the text are set in Settings. While an answer
+  streams, the text appears slowly and the phone gives small haptic ticks. An assistant
+  message can have `pinned` `true` (an optional boolean that the service sets when it
+  makes the message, and never changes). A pinned message anchors only what comes after it: the app
+  shows the last pinned message that is all above the visible part, and not while it is the
+  last message or its bottom is still visible. The banner takes at most 25% of the chat
+  area (the part between the two bars; set in Settings), and 60% when the user taps it. A block
+  ```` ```html ```` in `text` shows as a simple widget if Settings allow it (on by default),
+  with no script and no network. A local notice shows when an assistant message gets `done`
+  and the chat is not in front (the app is in the background, or another screen covers the
+  chat), and the user can mute each instance. The notice has the name of the chat and a
+  generic text, never the answer, so the lock screen shows nothing private. A tap on the
+  notice opens that chat if the instance runs, and the list of chats if not. Known limit:
+  only an open chat screen reads the chat, so the notice does not come while the screen is
+  closed (there is no background watcher yet). If many answers get done between two reads,
+  the user gets one notice for the chat. Each instance has its own chat background. The header
+  and the input float over the chat. This is still revision 5 of [chat.md](chat.md): the
+  field `pinned` is optional.
+- **Voice messages and the microphone (2026-10-24, Josemi):** the app asks for the
+  permission `RECORD_AUDIO`. It was removed before (`tools:node="remove"`). The input of a
+  chat can record audio from the microphone and attach it as `audio/wav` (16 kHz, mono).
+  Every service that accepts `audio` must accept `audio/wav`. The app asks for the
+  permission at the first recording only, uses the microphone only while the user keeps a
+  recording open, and keeps the sound in memory until the message is sent. The recording
+  stops by itself at the size limit of an attachment, and the app attaches it and tells the
+  user. The app records nothing in the background and keeps no sound on the storage. If the
+  user denies the permission, the record button says so. The QR scanner still records no
+  sound. The privacy notes say this (`docs/security-design.md`).
 - **Specification of the chat interface (2026-10-22):** [chat.md](chat.md) is written in
   ASD-STE100, has a revision number (4 on that day, 5 since 2026-10-23), covers the protocol only, and has conformance
   tests (section 10). A service follows the interface if it passes them. The rules for the

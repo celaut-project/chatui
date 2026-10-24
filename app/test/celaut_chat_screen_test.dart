@@ -4,7 +4,11 @@ import 'dart:typed_data';
 
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
 import 'package:argus_wallet/celaut/attachment_picker.dart';
+import 'package:argus_wallet/celaut/audio_recorder.dart';
+import 'package:argus_wallet/celaut/chat_backgrounds.dart';
 import 'package:argus_wallet/celaut/chat_client.dart';
+import 'package:argus_wallet/celaut/chat_notifier.dart';
+import 'package:argus_wallet/celaut/chat_prefs.dart';
 import 'package:argus_wallet/celaut/conversation_keep_alive.dart';
 import 'package:argus_wallet/celaut/conversations.dart';
 import 'package:argus_wallet/celaut/payers.dart';
@@ -14,6 +18,7 @@ import 'package:argus_wallet/theme/argus_theme.dart';
 import 'package:argus_wallet/ui/celaut/chat_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// A chat client with no network: it echoes in memory, and it can fail.
 class _FakeChat extends ChatClient {
@@ -130,6 +135,42 @@ class _FakeChat extends ChatClient {
   }
 }
 
+/// A recorder with no microphone: it records a short, silent sound.
+class _FakeRecorder implements AudioRecorderService {
+  _FakeRecorder({this.permitted = true});
+
+  final bool permitted;
+  bool open = false;
+  int cancels = 0;
+
+  @override
+  Stream<Duration> get elapsed => _elapsed.stream;
+  final _elapsed = StreamController<Duration>.broadcast();
+
+  @override
+  Future<bool> start() async => open = permitted;
+
+  @override
+  Future<OutgoingAttachment?> stop() async {
+    if (!open) return null;
+    open = false;
+    return OutgoingAttachment(
+      mime: 'audio/wav',
+      bytes: encodeWav(Uint8List(3200)),
+      name: 'voice.wav',
+    );
+  }
+
+  @override
+  Future<void> cancel() async {
+    open = false;
+    cancels++;
+  }
+
+  /// The size limit: the stream of the length ends and the recording stays open.
+  Future<void> hitLimit() => _elapsed.close();
+}
+
 /// A keep-alive that writes down what the screen asks of it.
 class _FakeKeepAlive implements ConversationKeepAlive {
   final events = <String>[];
@@ -182,7 +223,15 @@ void main() {
   late Future<List<OutgoingAttachment>> Function(Set<String>) pick;
   Set<String>? pickedKinds;
 
-  Future<void> open(WidgetTester tester, {bool fullWallet = true, bool starting = false}) async {
+  Future<void> open(
+    WidgetTester tester, {
+    bool fullWallet = true,
+    bool starting = false,
+    bool typewriter = false,
+    VoidCallback? haptic,
+    AudioRecorderService? recorder,
+    ChatNotifier? notifier,
+  }) async {
     stops = [];
     closed = false;
     keepAlive = _FakeKeepAlive();
@@ -207,6 +256,10 @@ void main() {
                       wallets: _Wallets(full: fullWallet),
                       keepAlive: keepAlive,
                       starting: starting,
+                      typewriter: typewriter,
+                      haptic: haptic,
+                      recorder: recorder,
+                      notifier: notifier,
                       notes: notes,
                       pickFiles: (kinds, existing) async {
                         pickedKinds = kinds;
@@ -867,5 +920,447 @@ void main() {
     await open(tester, fullWallet: false);
     await stopFromMenu(tester);
     expect(keepAlive.events, ['start']);
+  });
+
+  group('floating layout and reading', () {
+    final streaming = ChatMessage(
+      seq: 1,
+      role: 'assistant',
+      text: 'Hello',
+      status: ChatMessage.statusStreaming,
+      replyTo: 0,
+    );
+
+    testWidgets('the header and the input float over the list, which leaves room for them', (
+      tester,
+    ) async {
+      chat = _FakeChat(
+        history: [
+          for (var i = 0; i < 30; i++)
+            ChatMessage(seq: i, role: i.isEven ? 'user' : 'assistant', text: 'message $i'),
+        ],
+      );
+      await open(tester);
+      final list = tester.widget<ListView>(find.byKey(const Key('chat-messages')));
+      final pad = list.padding!.resolve(TextDirection.ltr);
+      final header = tester.getRect(find.byKey(const Key('chat-header')));
+      final input = tester.getRect(find.byKey(const Key('chat-input-bar')));
+      final screen = tester.getRect(find.byType(Scaffold).first);
+      expect(find.byType(AppBar), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('chat-header')),
+          matching: find.byType(BackdropFilter),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('chat-input-bar')),
+          matching: find.byType(BackdropFilter),
+        ),
+        findsOneWidget,
+      );
+      // The list runs under both bars, and its padding clears them.
+      expect(tester.getRect(find.byKey(const Key('chat-messages'))), screen);
+      expect(pad.top, greaterThanOrEqualTo(header.bottom));
+      expect(pad.bottom, greaterThanOrEqualTo(screen.bottom - input.top));
+      // At the end of the list the last message is above the input.
+      expect(tester.getRect(find.text('message 29')).bottom, lessThanOrEqualTo(input.top));
+    });
+
+    testWidgets('a message of the service has no bubble, and one of the user has', (tester) async {
+      chat = _FakeChat(
+        history: const [
+          ChatMessage(seq: 0, role: 'user', text: 'q'),
+          ChatMessage(seq: 1, role: 'assistant', text: 'a'),
+        ],
+      );
+      await open(tester);
+      BoxDecoration? deco(int seq) =>
+          tester.widget<Container>(find.byKey(Key('chat-bubble-$seq'))).decoration
+              as BoxDecoration?;
+      expect(deco(0)?.color, isNotNull);
+      expect(deco(1), isNull);
+    });
+
+    testWidgets('the size and the font of the text follow the settings', (tester) async {
+      chat = _FakeChat(
+        history: const [ChatMessage(seq: 0, role: 'assistant', text: 'big')],
+      );
+      SharedPreferences.setMockInitialValues({});
+      final old = chatPrefs.fontSize;
+      unawaited(chatPrefs.setFontSize(22));
+      await open(tester);
+      expect(tester.widget<SelectableText>(find.byType(SelectableText)).style?.fontSize, 22);
+      unawaited(chatPrefs.setFontSize(14));
+      await tester.pump();
+      expect(tester.widget<SelectableText>(find.byType(SelectableText)).style?.fontSize, 14);
+      unawaited(chatPrefs.setFontSize(old));
+    });
+
+    testWidgets('the background of the instance is painted behind the list', (tester) async {
+      chat = _FakeChat();
+      SharedPreferences.setMockInitialValues({});
+      unawaited(chatPrefs.setBackground('i1', 'dots'));
+      await open(tester);
+      final paint = tester.widget<CustomPaint>(find.byKey(const Key('chat-background')));
+      expect((paint.painter as ChatBackgroundPainter).id, 'dots');
+      unawaited(chatPrefs.setBackground('i1', 'none'));
+    });
+
+    testWidgets('a growing answer types, with ticks, and catches up', (tester) async {
+      chat = _FakeChat(
+        history: [
+          const ChatMessage(seq: 0, role: 'user', text: 'hi'),
+          streaming,
+        ],
+      );
+      var ticks = 0;
+      await open(tester, typewriter: true, haptic: () => ticks++);
+      // What the first read had shows at once, with no tick.
+      expect(find.text('Hello'), findsOneWidget);
+      expect(ticks, 0);
+      chat.onSync = () => chat._messages[1] = ChatMessage(
+        seq: 1,
+        role: 'assistant',
+        text: 'Hello ${'world ' * 20}',
+        status: ChatMessage.statusStreaming,
+        replyTo: 0,
+      );
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 100));
+      final partial = tester.widget<SelectableText>(find.byType(SelectableText).last).data!;
+      expect(partial.length, lessThan('Hello ${'world ' * 20}'.length));
+      expect(partial.startsWith('Hello'), isTrue);
+      expect(ticks, greaterThan(0));
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pump(const Duration(seconds: 3));
+      expect(
+        tester.widget<SelectableText>(find.byType(SelectableText).last).data,
+        'Hello ${'world ' * 20}',
+      );
+    });
+
+    testWidgets('no tick while the app is in the background', (tester) async {
+      chat = _FakeChat(
+        history: [
+          const ChatMessage(seq: 0, role: 'user', text: 'hi'),
+          streaming,
+        ],
+      );
+      var ticks = 0;
+      await open(tester, typewriter: true, haptic: () => ticks++);
+      for (final st in [
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+        AppLifecycleState.paused,
+      ]) {
+        tester.binding.handleAppLifecycleStateChanged(st);
+      }
+      chat.onSync = () => chat._messages[1] = ChatMessage(
+        seq: 1,
+        role: 'assistant',
+        text: 'Hello ${'world ' * 20}',
+        status: ChatMessage.statusStreaming,
+        replyTo: 0,
+      );
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(ticks, 0);
+      for (final st in [
+        AppLifecycleState.hidden,
+        AppLifecycleState.inactive,
+        AppLifecycleState.resumed,
+      ]) {
+        tester.binding.handleAppLifecycleStateChanged(st);
+      }
+      await tester.pump(const Duration(seconds: 6));
+    });
+  });
+
+  group('voice messages', () {
+    testWidgets('the microphone takes the place of Send while there is nothing to send',
+        (tester) async {
+      chat.kinds = {'audio'};
+      await open(tester, recorder: _FakeRecorder());
+      expect(find.byKey(const Key('chat-mic')), findsOneWidget);
+      expect(find.byKey(const Key('chat-send')), findsNothing);
+      await tester.enterText(find.byKey(const Key('chat-input')), 'hi');
+      await tester.pump();
+      expect(find.byKey(const Key('chat-mic')), findsNothing);
+      expect(find.byKey(const Key('chat-send')), findsOneWidget);
+    });
+
+    testWidgets('a service that takes no audio shows Send only', (tester) async {
+      await open(tester, recorder: _FakeRecorder());
+      expect(find.byKey(const Key('chat-mic')), findsNothing);
+      expect(find.byKey(const Key('chat-send')), findsOneWidget);
+    });
+
+    testWidgets('a recording becomes a pending file, and goes with the message', (tester) async {
+      chat.kinds = {'audio'};
+      final recorder = _FakeRecorder();
+      await open(tester, recorder: recorder);
+      await tester.tap(find.byKey(const Key('chat-mic')));
+      await tester.pump();
+      expect(find.byKey(const Key('chat-record-time')), findsOneWidget);
+      expect(find.text('00:00'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('chat-record-done')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-record-time')), findsNothing);
+      expect(find.byKey(const Key('chat-pending-0')), findsOneWidget);
+      // With a file waiting, Send is back.
+      await tester.tap(find.byKey(const Key('chat-send')));
+      await tester.pumpAndSettle();
+      expect(chat.sentFiles.single.single.mime, 'audio/wav');
+    });
+
+    testWidgets('the size limit attaches the recording and says so', (tester) async {
+      chat.kinds = {'audio'};
+      final recorder = _FakeRecorder();
+      await open(tester, recorder: recorder);
+      await tester.tap(find.byKey(const Key('chat-mic')));
+      await tester.pump();
+      await recorder.hitLimit();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-record-time')), findsNothing);
+      expect(find.byKey(const Key('chat-pending-0')), findsOneWidget);
+      expect(find.text(appL10n.chatMicLimit), findsOneWidget);
+    });
+
+    testWidgets('cancel drops the recording', (tester) async {
+      chat.kinds = {'audio'};
+      final recorder = _FakeRecorder();
+      await open(tester, recorder: recorder);
+      await tester.tap(find.byKey(const Key('chat-mic')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('chat-record-cancel')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-record-time')), findsNothing);
+      expect(find.byKey(const Key('chat-pending-0')), findsNothing);
+      expect(recorder.cancels, 1);
+      expect(find.byKey(const Key('chat-mic')), findsOneWidget);
+    });
+
+    testWidgets('a refused permission says so, and records nothing', (tester) async {
+      chat.kinds = {'audio'};
+      await open(tester, recorder: _FakeRecorder(permitted: false));
+      await tester.tap(find.byKey(const Key('chat-mic')));
+      await tester.pump();
+      expect(find.text(appL10n.chatMicDenied), findsOneWidget);
+      expect(find.byKey(const Key('chat-record-time')), findsNothing);
+    });
+  });
+
+  group('HTML blocks', () {
+    const html = ChatMessage(
+      seq: 1,
+      role: 'assistant',
+      text: 'Before\n```html\n<b>bold</b>\n```\nAfter',
+    );
+
+    testWidgets('show as widgets when the setting is on', (tester) async {
+      chat = _FakeChat(history: [const ChatMessage(seq: 0, role: 'user', text: 'hi'), html]);
+      await open(tester);
+      expect(find.byKey(const Key('chat-html')), findsOneWidget);
+      expect(find.textContaining('```html'), findsNothing);
+    });
+
+    testWidgets('show as code when the setting is off', (tester) async {
+      chat = _FakeChat(history: [const ChatMessage(seq: 0, role: 'user', text: 'hi'), html]);
+      await chatPrefs.setHtmlWidgets(false);
+      addTearDown(() => chatPrefs.setHtmlWidgets(true));
+      await open(tester);
+      expect(find.byKey(const Key('chat-html')), findsNothing);
+      expect(find.textContaining('```html', findRichText: true), findsOneWidget);
+    });
+  });
+
+  group('notices of a done answer', () {
+    final shown = <String>[];
+    late ChatNotifier notifier;
+
+    ChatMessage answer(String status) => ChatMessage(
+          seq: 1,
+          role: 'assistant',
+          text: 'The answer',
+          status: status,
+          replyTo: 0,
+        );
+
+    setUp(() {
+      shown.clear();
+      notifier = ChatNotifier(show: (id, title, body, payload) async => shown.add('$payload|$body'));
+      chat = _FakeChat(history: [
+        const ChatMessage(seq: 0, role: 'user', text: 'hi'),
+        answer(ChatMessage.statusStreaming),
+      ]);
+    });
+
+    Future<void> finishAnswer(WidgetTester tester) async {
+      chat.onSync = () => chat._messages[1] = answer(ChatMessage.statusDone);
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump();
+    }
+
+    void background(WidgetTester tester) {
+      for (final st in [AppLifecycleState.inactive, AppLifecycleState.hidden, AppLifecycleState.paused]) {
+        tester.binding.handleAppLifecycleStateChanged(st);
+      }
+    }
+
+    void foreground(WidgetTester tester) {
+      for (final st in [AppLifecycleState.hidden, AppLifecycleState.inactive, AppLifecycleState.resumed]) {
+        tester.binding.handleAppLifecycleStateChanged(st);
+      }
+    }
+
+    testWidgets('are sent when the app is in the background', (tester) async {
+      await open(tester, notifier: notifier);
+      background(tester);
+      await finishAnswer(tester);
+      // The notice has no text of the answer: the lock screen can show it.
+      expect(shown, ['chat/i1|${appL10n.chatNotifyDoneBody}']);
+      foreground(tester);
+      await tester.pump(const Duration(seconds: 6));
+    });
+
+    testWidgets('are not sent for a short pause of the app (inactive)', (tester) async {
+      await open(tester, notifier: notifier);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await finishAnswer(tester);
+      expect(shown, isEmpty);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump(const Duration(seconds: 6));
+    });
+
+    testWidgets('are not sent while the chat is in front', (tester) async {
+      await open(tester, notifier: notifier);
+      await finishAnswer(tester);
+      expect(shown, isEmpty);
+    });
+
+    testWidgets('are sent when another screen covers the chat', (tester) async {
+      await open(tester, notifier: notifier);
+      await tester.tap(find.byKey(const Key('chat-title')));
+      await tester.pumpAndSettle();
+      await finishAnswer(tester);
+      expect(shown, hasLength(1));
+    });
+
+    testWidgets('are not sent for a muted chat', (tester) async {
+      await chatPrefs.setMuted('i1', true);
+      addTearDown(() => chatPrefs.setMuted('i1', false));
+      await open(tester, notifier: ChatNotifier(show: (id, title, body, payload) async => shown.add(payload)));
+      background(tester);
+      await finishAnswer(tester);
+      expect(shown, isEmpty);
+      foreground(tester);
+      await tester.pump(const Duration(seconds: 6));
+    });
+
+    testWidgets('are not sent for the history that the first read brings', (tester) async {
+      chat = _FakeChat(history: [
+        const ChatMessage(seq: 0, role: 'user', text: 'hi'),
+        answer(ChatMessage.statusDone),
+      ]);
+      await open(tester, notifier: notifier);
+      background(tester);
+      await tester.pump(const Duration(seconds: 6));
+      expect(shown, isEmpty);
+      foreground(tester);
+    });
+
+    testWidgets('the menu mutes and unmutes the chat', (tester) async {
+      addTearDown(() => chatPrefs.setMuted('i1', false));
+      await open(tester, notifier: notifier);
+      expect(find.byKey(const Key('chat-muted')), findsNothing);
+      await tester.tap(find.byKey(const Key('chat-menu')));
+      await tester.pumpAndSettle();
+      expect(find.text(appL10n.chatMute), findsOneWidget);
+      await tester.tap(find.byKey(const Key('chat-menu-mute')));
+      await tester.pumpAndSettle();
+      expect(chatPrefs.isMuted('i1'), isTrue);
+      expect(find.byKey(const Key('chat-muted')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('chat-menu')));
+      await tester.pumpAndSettle();
+      expect(find.text(appL10n.chatUnmute), findsOneWidget);
+    });
+  });
+
+  group('pinned messages', () {
+    /// A long conversation: the assistant pins the messages in [pins].
+    List<ChatMessage> talk(Set<int> pins) => [
+          for (var i = 0; i < 40; i++)
+            ChatMessage(
+              seq: i,
+              role: i.isEven ? 'user' : 'assistant',
+              text: pins.contains(i) ? 'PIN$i ${'pinned words ' * 40}' : 'line $i\n\n\nmore\n\nmore',
+              pinned: pins.contains(i),
+            ),
+        ];
+
+    ScrollController list(WidgetTester tester) =>
+        tester.widget<ListView>(find.byKey(const Key('chat-messages'))).controller!;
+
+    /// The pinned text that the banner shows, or null.
+    String? banner(WidgetTester tester) {
+      final f = find.descendant(of: find.byKey(const Key('chat-pinned')), matching: find.byType(Text));
+      if (f.evaluate().isEmpty) return null;
+      final text = tester.widget<Text>(f.first).data!;
+      return text.split(' ').first;
+    }
+
+    testWidgets('the last pinned message above the screen is pinned', (tester) async {
+      chat = _FakeChat(history: talk({3, 21}));
+      await open(tester);
+      expect(banner(tester), 'PIN21');
+    });
+
+    testWidgets('it stops when the user scrolls up past it, and the one before takes over',
+        (tester) async {
+      chat = _FakeChat(history: talk({3, 21}));
+      await open(tester);
+      final c = list(tester);
+      final seen = <String?>[];
+      for (var y = c.position.maxScrollExtent; y >= 0; y -= 40) {
+        c.jumpTo(y);
+        await tester.pump();
+        await tester.pump();
+        seen.add(banner(tester));
+      }
+      // Going up: PIN21, then PIN3, then none at the top.
+      final order = <String?>[];
+      for (final b in seen) {
+        if (order.isEmpty || order.last != b) order.add(b);
+      }
+      expect(order, ['PIN21', 'PIN3', null]);
+    });
+
+    testWidgets('nothing is pinned at the top of the chat', (tester) async {
+      chat = _FakeChat(history: talk({3}));
+      await open(tester);
+      list(tester).jumpTo(0);
+      await tester.pump();
+      await tester.pump();
+      expect(find.byKey(const Key('chat-pinned')), findsNothing);
+    });
+
+    testWidgets('it takes at most the share of the chat that the user chose, and opens on a tap',
+        (tester) async {
+      chat = _FakeChat(history: talk({3}));
+      await open(tester);
+      final height = tester.view.physicalSize.height / tester.view.devicePixelRatio;
+      final closed = tester.getSize(find.byKey(const Key('chat-pinned'))).height;
+      expect(closed, lessThanOrEqualTo(height * chatPrefs.pinnedMaxFraction + 1));
+      await tester.tap(find.byKey(const Key('chat-pinned-toggle')));
+      await tester.pump();
+      expect(tester.getSize(find.byKey(const Key('chat-pinned'))).height, greaterThan(closed));
+    });
   });
 }

@@ -149,6 +149,7 @@ in `app/pubspec.lock`.
 | Package | Version | Licence | Purpose |
 |---------|---------|---------|---------|
 | `file_picker` | 10.3.10 | MIT | Pick the image and audio files of a chat message. On Android it opens the system document picker, so the app needs no storage permission. It has no Play Services dependency |
+| `record` | 6.2.1 | BSD-3-Clause | Record the voice message of a chat from the microphone (WAV, 16 kHz, mono). It needs the `RECORD_AUDIO` permission, which the app asks for at the first recording and never before. The audio stays in memory until it is sent. It has no Play Services dependency |
 
 ## Former patch: core2
 

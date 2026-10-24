@@ -136,6 +136,7 @@ A message has these fields:
 | `reasoning` | string, optional | The reasoning of the model. Only an assistant message has it (section 5.2) |
 | `reply_to` | integer, optional | The `seq` of the user message that this assistant message answers. Only an assistant message has it |
 | `cid` | string, optional | The `cid` of the send. Only a user message has it, and only if the send had it (section 6.1) |
+| `pinned` | boolean, optional | `true` if the service asks the client to keep this message at the top of the chat (section 5.3). Only an assistant message has it. If the field is absent, the value is `false` |
 
 Rules:
 
@@ -154,6 +155,9 @@ Rules:
   each time.
 - A `seq` is a JSON integer. The service must not write it as a float (`4.0`) or a string.
 - A user message always has `status` `done`.
+- A user message must not have `pinned` equal to `true`. A service must not send `pinned` on a user message with a value that is not `false`.
+- `pinned` is a JSON boolean. The service must not write it as a number or a string.
+- The service sets `pinned` when it adds the message. It must not change `pinned` afterwards, also not while the message is open.
 
 ### 5.1 Attachments
 
@@ -213,6 +217,23 @@ must not remove the message. The conversation goes on: the user can send a new m
 The service must end each answer: the service must set `status` to `done` or `failed`. A
 user message with no assistant message after a long time is a service that does not follow
 this document.
+
+### 5.3 Client features that use the text (not normative)
+
+This section is for information. A service does not need these features, and a client can
+ignore them. The wire format does not change.
+
+- **Pinned message.** A client can keep the last pinned message that is above the visible part
+  of the conversation at the top of the chat. It limits the space of this message to a part
+  of the chat height. A pinned message anchors only the messages after it. If the user
+  scrolls up past a pinned message, the client shows the pinned message before it.
+- **HTML block.** A service can put a fenced block that starts with ```` ```html ```` in
+  `text`. A client can show the block as a simple widget. The client must not run script and
+  must not load a resource from the network. It shows only the tags and the styles of an
+  allow-list. A client that does not show widgets shows the block as code.
+- **Recorded audio.** A client can record sound with the microphone and send it as an
+  attachment of the type `audio/wav` (section 5.1). A service that has `audio` in `accepts`
+  must accept `audio/wav`.
 
 ## 6. Requests
 
@@ -564,8 +585,10 @@ accepts text only does not send it.
 | 39 | `POST` with `"mime":"IMAGE/PNG"` and a valid PNG (only if `accepts` has `image`) | 200. The attachment has `"kind":"image"` and `"mime":"image/png"` |
 | 40 | `POST` and `HEAD` for `/chat/messages/<seq>/attachments/0`, then `HEAD /chat/messages` | 405 with `Allow: GET`, 405 with `Allow: GET`, then 405 with `Allow: GET, POST` |
 | 41 | `GET /chat/messages/00<seq>/attachments/00` for the message of test 29, then `GET /chat/messages/99999999999999999999/attachments/0` | 200 with the same bytes, then 404 `not_found` |
+| 42 | Read the history after an answer of a service that pins messages (optional) | The assistant message that the service pins has `"pinned":true`. The value is a boolean. A user message has no `pinned`, or has `false` |
+| 43 | Read the same pinned message two times, also while it is open (optional) | `pinned` is the same in each read |
 
-Tests 10, 24 and 25 apply to a service that takes time to answer, streams, or gives
+Tests 42 and 43 apply to a service that pins messages. Tests 10, 24 and 25 apply to a service that takes time to answer, streams, or gives
 reasoning. A service that does not do these things can skip them. Tests 26, 27 and 28 are
 optional. A service can fail on request only if it has a way to make it fail, for example a
 test mode. A service with a large history limit does not fill the history in a test.
@@ -618,4 +641,4 @@ more than 30 seconds. The service must follow these rules:
 | 2 | 2026-10-22 | The text is a specification in ASD-STE100, with requirement words. The tests 1 to 18 are new. New rules for the service: transport (section 4), the order of the checks (section 6.1), the strict value of `from`, the status 404, 405 and 500, the limits (section 7), and the conformance tests (section 10). The service must add the two messages of a send at the same time. The rules for the app (leave the screen, stop, cost, storage) leave this document |
 | 3 | 2026-10-22 | Attachments: `attachments` in a message and in a send. `accepts` in the read of the history. The read of an attachment (section 6.4). The status 415. The limits for files. The tests 19 to 26. A service that does not know them stays valid for text only |
 | 4 | 2026-10-22 | Clarifications. The meaning of revision 3 does not change for a service that follows it, with three exceptions. First, the body limit for text only is 128 KiB (it was 32 768 bytes). Second, a send with attachments to a text-only service gets 415 only (it was 400 or 415). Third, the answer to a read of the history must be 1 MiB or less.<br>The checks of section 6.1 have the numbers 1 to 6. A body above the limit gets 400, not 413. The `Allow` header is `GET` for the paths of section 6.4. HEAD gets 405. Section 4 has rules for `Content-Length` of requests and of answers.<br>Section 5.1 defines `kind`, `mime` and `size`. Section 6.3 gives the two waits of the client: 30 seconds, and 120 seconds for a send with files. The 30 seconds of the service start at the end of the request body. Section 6.4 gives the open cases. Section 9 has new rules for the client on files, 415, 400 and the read in parts.<br>The tests 22, 24, 25 and 26 are split in numbered rows. The tests 27 to 36 are new. The tests 1, 2 and 10 accept `accepts`. Section 3 says that this document fixes no port number |
-| 5 | 2026-10-23 | The send does not wait for the answer: `POST /chat/messages` replies 200 with the user message (`message`) at once. Many sends can be in progress. The client reads the conversation with `GET /chat/messages` every few seconds. New `last` and `limit` filters (section 6.2). New message fields `status`, `reasoning`, `reply_to` and `cid` (section 5). Streaming: an answer can be an open message that grows (section 5.2). The `cid` makes a send safe to repeat (sections 6.1 and 6.3). The roles do not alternate. Removed: `expect`, the status 409 `out_of_sync`, the rule of one send at a time, the 30 seconds to make an answer. 503 `busy` now means that the queue of the service is full. The tests are new (section 10.1). The Claude remote service must stream and give `reasoning` (section 12.2) |
+| 5 | 2026-10-23 | The send does not wait for the answer: `POST /chat/messages` replies 200 with the user message (`message`) at once. Many sends can be in progress. The client reads the conversation with `GET /chat/messages` every few seconds. New `last` and `limit` filters (section 6.2). New message fields `status`, `reasoning`, `reply_to` and `cid` (section 5). Streaming: an answer can be an open message that grows (section 5.2). The `cid` makes a send safe to repeat (sections 6.1 and 6.3). The roles do not alternate. Removed: `expect`, the status 409 `out_of_sync`, the rule of one send at a time, the 30 seconds to make an answer. 503 `busy` now means that the queue of the service is full. The tests are new (section 10.1). The Claude remote service must stream and give `reasoning` (section 12.2). New optional field `pinned` for assistant messages (sections 5 and 5.3), and the tests 42 and 43. Section 5.3 describes, as information only, the pinned message, the HTML block and the recorded `audio/wav` of clients. A service that does not know `pinned` stays valid |

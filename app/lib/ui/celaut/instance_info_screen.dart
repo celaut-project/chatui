@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../bridge/api/celaut_service.dart';
 import '../../celaut/host_port.dart';
 import '../../celaut/celaut_format.dart';
+import '../../celaut/chat_backgrounds.dart';
+import '../../celaut/chat_prefs.dart';
 import '../../celaut/conversations.dart';
 import '../../celaut/payers.dart';
 import '../../format.dart';
@@ -74,6 +76,77 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
     if (renamed == null || !mounted) return;
     setState(() => _instance = renamed);
     widget.onRenamed?.call(renamed);
+  }
+
+  /// Choose the background of the chat of this instance. Only this phone keeps the choice.
+  Future<void> _background() async {
+    final l = context.l10n;
+    final id = _instance.instanceId;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            key: const Key('info-backgrounds'),
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l.chatsBackground, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 12),
+              ListenableBuilder(
+                listenable: chatPrefs,
+                builder: (context, _) => Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    for (final bg in chatBackgrounds)
+                      Semantics(
+                        button: true,
+                        selected: chatPrefs.background(id) == bg.id,
+                        label: chatBackgroundLabel(l, bg.id),
+                        excludeSemantics: true,
+                        child: InkWell(
+                          key: Key('info-background-${bg.id}'),
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => chatPrefs.setBackground(id, bg.id),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 72,
+                                height: 96,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    width: 2,
+                                    color: chatPrefs.background(id) == bg.id
+                                        ? Theme.of(context).colorScheme.primary
+                                        : Theme.of(context).colorScheme.outlineVariant,
+                                  ),
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: CustomPaint(painter: ChatBackgroundPainter(bg.id, dark)),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                chatBackgroundLabel(l, bg.id),
+                                style: Theme.of(context).textTheme.labelSmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _stop() async {
@@ -153,6 +226,13 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
             onPressed: _rename,
             icon: const Icon(Icons.edit_outlined),
           ),
+          if (_instance.chatSlots.isNotEmpty)
+            IconButton(
+              key: const Key('info-background'),
+              tooltip: l.chatsBackground,
+              onPressed: _background,
+              icon: const Icon(Icons.wallpaper_outlined),
+            ),
           IconButton(
             key: const Key('info-service-details'),
             tooltip: l.chatsInfoServiceDetails,

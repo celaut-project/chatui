@@ -39,6 +39,16 @@ captured content. The wallet locks when the app backgrounds.
 **not** use that. It derives EIP-3 children and `add_secret`s them. Sends
 verify the sender address belongs to the handle.
 
+## Permissions
+
+The app asks for the Android permission `RECORD_AUDIO` for the voice message of a chat.
+It asks at the first recording only, never at the start. The microphone is open only while
+the user keeps a recording open in the input of a chat. The sound stays in memory (it is
+not written to the storage) until the user sends the message, and the app sends it to the
+chat service of that instance only. The app records nothing in the background. The other
+permissions are the camera (QR scan), the biometric check, notifications (local, with no
+answer text on the lock screen) and the network. See `docs/dependency-list.md`.
+
 ## What this is not
 
 - Not a biometric wrap-vs-sign split. Keystore/Keychain encrypts the blob at rest.

@@ -271,7 +271,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (!_openPendingDeepLink() && mounted) {
       // Parked until a wallet unlocks; tell the user why nothing happened.
       final link = deepLinkController.pending;
-      if (!_walletUnlocked && link != null) {
+      if (!_walletUnlocked && link != null && argusChatInstance(link) == null) {
         setState(() {
           _notice = isErgoPayLink(link)
               ? context.l10n.dashboardUnlockForErgoPay
@@ -290,6 +290,17 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (!mounted || _ergoPayOpen) return false;
     final link = deepLinkController.pending;
     if (link == null) return false;
+    // A chat does not need a wallet: the notice of an answer opens it at once, when the
+    // home screen is there.
+    final chat = argusChatInstance(link);
+    if (chat != null) {
+      final home = _homeKey.currentState;
+      if (home == null) return false;
+      deepLinkController.take();
+      Navigator.of(context).popUntil((r) => r.isFirst);
+      unawaited(home.openChat(chat));
+      return true;
+    }
     final walletId = _walletId;
     if (walletId == null ||
         !_walletUnlocked ||

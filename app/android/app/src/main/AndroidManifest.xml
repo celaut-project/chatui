@@ -17,9 +17,11 @@
          to the system installer. Android still asks the user to allow it for
          the app, and nothing is installed without the installer's own prompt. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
-    <!-- The QR scanner (flutter_zxing on the camera plugin) only reads frames:
-         no video with sound, no pictures saved or picked from storage. -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>
+    <!-- The microphone is for the voice message of a chat (the record package). The app
+         asks at the first recording, and it records only while the user holds a
+         recording open. The QR scanner (flutter_zxing on the camera plugin) only reads
+         frames: no video with sound, no pictures saved or picked from storage. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove"/>
     <application

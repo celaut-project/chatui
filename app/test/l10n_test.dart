@@ -66,6 +66,7 @@ void main() {
       'separateSourceItem', 'homePartsWhere', 'homeInclPartsWhere',
       'celautHomeUsd', 'celautAgoSeconds', 'celautAgoMinutes', 'celautAgoHours',
       'celautAgoDays', 'chatsTabChats', 'chatsPreviewAudio', 'chatsPreviewNamed',
+      'chatSettingsTitle', 'chatFontLato', 'chatFontSerif', 'chatSettingsWidgetsGroup',
     };
     final copied = [
       for (final k in _messageKeys(en))

@@ -416,6 +416,82 @@ class AppLocalizationsEs extends AppLocalizations {
   String get displayTitle => 'Pantalla';
 
   @override
+  String get chatSettingsTitle => 'Chat';
+
+  @override
+  String get chatSettingsRowSubtitle =>
+      'Tamaño de letra, fuente, mensajes fijados, widgets';
+
+  @override
+  String get chatSettingsTextGroup => 'Texto';
+
+  @override
+  String get chatSettingsFontSize => 'Tamaño de letra';
+
+  @override
+  String get chatSettingsFontFamily => 'Fuente';
+
+  @override
+  String get chatSettingsPreview =>
+      'Así se ve la respuesta del asistente. Elige el tamaño con el que lees mejor.';
+
+  @override
+  String get chatFontSystem => 'Sistema';
+
+  @override
+  String get chatFontLato => 'Lato';
+
+  @override
+  String get chatFontSerif => 'Serif';
+
+  @override
+  String get chatFontMono => 'Monoespaciada';
+
+  @override
+  String get chatSettingsPinnedGroup => 'Mensajes fijados';
+
+  @override
+  String get chatSettingsPinnedMax => 'Altura máxima de un mensaje fijado';
+
+  @override
+  String get chatSettingsPinnedNote =>
+      'Un mensaje fijado se queda arriba del chat. Ocupa como máximo esta parte de la altura del chat.';
+
+  @override
+  String get chatSettingsWidgetsGroup => 'Widgets';
+
+  @override
+  String get chatSettingsHtmlWidgets => 'Widgets HTML';
+
+  @override
+  String get chatSettingsHtmlWidgetsSubtitle =>
+      'Muestra el HTML simple del asistente como widgets. Si está apagado, se ve como código. Sin scripts ni red.';
+
+  @override
+  String get chatBgNone => 'Ninguno';
+
+  @override
+  String get chatBgDawn => 'Amanecer';
+
+  @override
+  String get chatBgOcean => 'Océano';
+
+  @override
+  String get chatBgForest => 'Bosque';
+
+  @override
+  String get chatBgDusk => 'Atardecer';
+
+  @override
+  String get chatBgDots => 'Puntos';
+
+  @override
+  String get chatBgWaves => 'Ondas';
+
+  @override
+  String get chatBgDiamonds => 'Rombos';
+
+  @override
   String get addressBookTitle => 'Libreta de direcciones';
 
   @override
@@ -1349,6 +1425,13 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get notifyChannelDescription =>
       'Se vio en la red un pago a una de tus direcciones.';
+
+  @override
+  String get notifyChatDoneChannelName => 'Respuestas terminadas';
+
+  @override
+  String get notifyChatDoneChannelDescription =>
+      'Un servicio terminó una respuesta mientras no mirabas el chat.';
 
   @override
   String notifyIncomingBody(String amount, String wallet) {
@@ -5511,6 +5594,44 @@ class AppLocalizationsEs extends AppLocalizations {
   String chatsPreviewNamed(String kind, String name) {
     return '$kind: $name';
   }
+
+  @override
+  String get chatMute => 'Silenciar notificaciones';
+
+  @override
+  String get chatUnmute => 'Activar notificaciones';
+
+  @override
+  String get chatMutedHint =>
+      'Las notificaciones de este chat están desactivadas';
+
+  @override
+  String get chatMic => 'Grabar un mensaje de voz';
+
+  @override
+  String get chatMicCancel => 'Descartar la grabación';
+
+  @override
+  String get chatMicDone => 'Adjuntar la grabación';
+
+  @override
+  String get chatMicDenied => 'La app no tiene permiso para usar el micrófono.';
+
+  @override
+  String get chatMicLimit =>
+      'La grabación llegó al límite de tamaño y se detuvo. Está adjunta.';
+
+  @override
+  String get chatPinnedExpand => 'Ver más del mensaje fijado';
+
+  @override
+  String get chatPinnedCollapse => 'Ver menos del mensaje fijado';
+
+  @override
+  String get chatNotifyDoneBody => 'La respuesta está lista.';
+
+  @override
+  String get chatsBackground => 'Fondo del chat';
 
   @override
   String get chatsActionInfo => 'Información';

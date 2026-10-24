@@ -32,3 +32,9 @@ String? argusLinkRoute(String link) => switch (link.trim().toLowerCase()) {
       _ => null,
     };
 
+
+final _chatLink = RegExp(r'^argus://chat/([A-Za-z0-9_-]{1,128})$');
+
+/// The instance id of a chat link (`argus://chat/<id>`, from the tap on the notice of an
+/// answer that is done), or null for any other link. The case of the id is kept.
+String? argusChatInstance(String link) => _chatLink.firstMatch(link.trim())?.group(1);

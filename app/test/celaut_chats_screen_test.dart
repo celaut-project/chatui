@@ -7,6 +7,7 @@ import 'package:argus_wallet/bridge/api/celaut_home.dart';
 import 'package:argus_wallet/bridge/api/celaut_package.dart';
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
 import 'package:argus_wallet/celaut/chat_client.dart';
+import 'package:argus_wallet/celaut/chat_prefs.dart';
 import 'package:argus_wallet/celaut/conversations.dart';
 import 'package:argus_wallet/celaut/launcher.dart';
 import 'package:argus_wallet/celaut/package_library.dart';
@@ -664,6 +665,40 @@ void main() {
       await tester.pageBack();
       await tester.pumpAndSettle();
       expect(tester.widget<Text>(find.byKey(const Key('chats-name-i1'))).data, 'Old echo');
+    });
+
+    testWidgets('Mute silences the chat, and the row shows it', (tester) async {
+      addTearDown(() => chatPrefs.setMuted('i1', false));
+      node.db = [_instance('i1')];
+      node.answers['i1'] = _status('1');
+      await open(tester);
+      expect(find.byKey(const Key('chats-muted-i1')), findsNothing);
+      await tester.longPress(find.byKey(const Key('chats-row-i1')));
+      await tester.pumpAndSettle();
+      expect(find.text(appL10n.chatMute), findsOneWidget);
+      await tester.tap(find.byKey(const Key('chats-action-mute')));
+      await tester.pumpAndSettle();
+      expect(chatPrefs.isMuted('i1'), isTrue);
+      expect(find.byKey(const Key('chats-muted-i1')), findsOneWidget);
+      await tester.longPress(find.byKey(const Key('chats-row-i1')));
+      await tester.pumpAndSettle();
+      expect(find.text(appL10n.chatUnmute), findsOneWidget);
+    });
+
+    testWidgets('the info page chooses the background of the chat', (tester) async {
+      addTearDown(() => chatPrefs.setBackground('i1', 'none'));
+      node.db = [_instance('i1')];
+      node.answers['i1'] = _status('1');
+      await open(tester);
+      await tester.longPress(find.byKey(const Key('chats-row-i1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('chats-action-info')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('info-background')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('info-background-ocean')));
+      await tester.pumpAndSettle();
+      expect(chatPrefs.background('i1'), 'ocean');
     });
 
     testWidgets('Info opens the info page', (tester) async {

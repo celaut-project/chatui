@@ -72,6 +72,9 @@ class ChatsScreenState extends State<ChatsScreen> {
   /// Read the list again (after a change on another screen).
   Future<void> refresh() async => _list.currentState?.refresh();
 
+  /// Open the conversation of the instance [instanceId], if it runs.
+  Future<void> openChat(String instanceId) async => _list.currentState?.openChatOf(instanceId);
+
   /// The picker of services, for "New conversation", "Services" and the Run button of
   /// the Compute tab.
   Widget runPage(String title) =>

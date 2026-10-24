@@ -122,6 +122,15 @@ class HomeTabsState extends State<HomeTabs> {
     }
   }
 
+  /// Show the chat of the instance [instanceId], if it runs and has a chat slot. If not,
+  /// the list of chats stays in view.
+  Future<void> openChat(String instanceId) async {
+    select(HomeTab.chats);
+    // The page of the tab can be new: wait for its first frame.
+    await WidgetsBinding.instance.endOfFrame;
+    await _chats.currentState?.openChat(instanceId);
+  }
+
   Widget _defaultPage(HomePlace place) {
     final l = context.l10n;
     return switch (place) {
