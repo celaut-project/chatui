@@ -457,6 +457,53 @@ void main() {
     await expectLater(chat.sync(), kind(ChatErrorKind.badAnswer));
   });
 
+  group('pinned', () {
+    Future<void> read(Map<String, Object?> message) async {
+      service.nextHistoryBody = jsonEncode({
+        'count': 1,
+        'messages': [message],
+      });
+      await chat.sync();
+    }
+
+    test('pinned is false if the field is absent', () async {
+      await read({'seq': 0, 'role': 'assistant', 'text': 'x'});
+      expect(chat.messages.single.pinned, isFalse);
+    });
+
+    test('an assistant message can be pinned', () async {
+      await read({'seq': 0, 'role': 'assistant', 'text': 'x', 'pinned': true});
+      expect(chat.messages.single.pinned, isTrue);
+    });
+
+    test('a value of pinned that is not a boolean is a bad answer', () async {
+      for (final value in [1, 'true', null.toString(), []]) {
+        service.nextHistoryBody = jsonEncode({
+          'count': 1,
+          'messages': [
+            {'seq': 0, 'role': 'assistant', 'text': 'x', 'pinned': value},
+          ],
+        });
+        await expectLater(chat.sync(), kind(ChatErrorKind.badAnswer));
+      }
+    });
+
+    test('a pinned user message is a bad answer', () async {
+      service.nextHistoryBody = jsonEncode({
+        'count': 1,
+        'messages': [
+          {'seq': 0, 'role': 'user', 'text': 'x', 'pinned': true},
+        ],
+      });
+      await expectLater(chat.sync(), kind(ChatErrorKind.badAnswer));
+    });
+
+    test('pinned false on a user message is valid', () async {
+      await read({'seq': 0, 'role': 'user', 'text': 'x', 'pinned': false});
+      expect(chat.messages.single.pinned, isFalse);
+    });
+  });
+
   test('a lost reply is found in the history by its cid, and the message is not sent twice',
       () async {
     service.dropNextAnswer = true;

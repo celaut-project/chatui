@@ -87,6 +87,7 @@ class ChatMessage {
     this.reasoning = '',
     this.replyTo,
     this.cid,
+    this.pinned = false,
   });
 
   /// The values of [status] (`docs/celaut/chat.md`, section 5.2).
@@ -103,6 +104,7 @@ class ChatMessage {
     final reasoning = json['reasoning'] ?? '';
     final replyTo = json['reply_to'];
     final cid = json['cid'];
+    final pinned = json['pinned'] ?? false;
     if (seq is! int ||
         seq < 0 ||
         role is! String ||
@@ -112,7 +114,9 @@ class ChatMessage {
         !const {statusStreaming, statusDone, statusFailed}.contains(status) ||
         reasoning is! String ||
         (replyTo != null && replyTo is! int) ||
-        (cid != null && cid is! String)) {
+        (cid != null && cid is! String) ||
+        pinned is! bool ||
+        (pinned && role != 'assistant')) {
       throw const ChatException(ChatErrorKind.badAnswer);
     }
     return ChatMessage(
@@ -130,6 +134,7 @@ class ChatMessage {
       reasoning: reasoning,
       replyTo: replyTo as int?,
       cid: cid as String?,
+      pinned: pinned,
     );
   }
 
@@ -149,6 +154,10 @@ class ChatMessage {
 
   /// The `cid` of the send of a user message, if the service gives it.
   final String? cid;
+
+  /// An assistant message that the client keeps at the top of the chat once the conversation
+  /// grows past it. The service sets it when it makes the message and never changes it.
+  final bool pinned;
 
   bool get fromUser => role == 'user';
 
