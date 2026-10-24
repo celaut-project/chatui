@@ -7,6 +7,7 @@ import 'package:argus_wallet/celaut/attachment_picker.dart';
 import 'package:argus_wallet/celaut/audio_recorder.dart';
 import 'package:argus_wallet/celaut/chat_backgrounds.dart';
 import 'package:argus_wallet/celaut/chat_client.dart';
+import 'package:argus_wallet/celaut/chat_done_watcher.dart';
 import 'package:argus_wallet/celaut/chat_notifier.dart';
 import 'package:argus_wallet/celaut/chat_prefs.dart';
 import 'package:argus_wallet/celaut/conversation_keep_alive.dart';
@@ -200,6 +201,25 @@ class _Wallets implements FullWallets {
   Future<bool> unlock(BuildContext context, PayerWallet wallet) async => true;
 }
 
+/// A watcher with no network and no timers: it takes a hand-over and does nothing else.
+ChatDoneWatcher _idleWatcher() => ChatDoneWatcher(
+      holds: ForegroundHolds(isAndroid: false),
+      isMuted: (_) => false,
+      timer: (d, f) => _NoTimer(),
+      connect: (_) async => throw Exception('no tunnel in this test'),
+    );
+
+class _NoTimer implements Timer {
+  @override
+  void cancel() {}
+
+  @override
+  bool get isActive => false;
+
+  @override
+  int get tick => 0;
+}
+
 final _echo = InstanceListView(
   instanceId: 'i1',
   peerId: 'aa' * 32,
@@ -213,6 +233,37 @@ final _echo = InstanceListView(
   name: 'Echo chat',
   alias: '',
 );
+
+const _streaming = ChatMessage(
+  seq: 1,
+  role: 'assistant',
+  text: 'part',
+  status: ChatMessage.statusStreaming,
+  replyTo: 0,
+);
+
+extension on ChatMessage {
+  ChatMessage copyDone() => ChatMessage(seq: seq, role: role, text: text, replyTo: replyTo);
+}
+
+/// A watcher that writes down what the screen tells it.
+class _RecordingWatcher extends ChatDoneWatcher {
+  _RecordingWatcher(this.handed, this.statuses, this.released)
+      : super(holds: ForegroundHolds(isAndroid: false), isMuted: (_) => false);
+
+  final List<InstanceListView> handed;
+  final List<Map<int, String>> statuses;
+  final List<String> released;
+
+  @override
+  void handOver(InstanceListView instance, Map<int, String> statuses) {
+    handed.add(instance);
+    this.statuses.add(statuses);
+  }
+
+  @override
+  void release(String instanceId) => released.add(instanceId);
+}
 
 void main() {
   late _FakeChat chat;
@@ -231,6 +282,7 @@ void main() {
     VoidCallback? haptic,
     AudioRecorderService? recorder,
     ChatNotifier? notifier,
+    ChatDoneWatcher? watcher,
   }) async {
     stops = [];
     closed = false;
@@ -260,6 +312,7 @@ void main() {
                       haptic: haptic,
                       recorder: recorder,
                       notifier: notifier,
+                      watcher: watcher ?? _idleWatcher(),
                       notes: notes,
                       pickFiles: (kinds, existing) async {
                         pickedKinds = kinds;
@@ -1276,6 +1329,29 @@ void main() {
       foreground(tester);
     });
 
+    testWidgets('the screen and the watcher give one notice for a message', (tester) async {
+      final watcher = _idleWatcher();
+      await open(tester, notifier: notifier, watcher: watcher);
+      background(tester);
+      await finishAnswer(tester);
+      expect(shown, hasLength(1));
+      // The watcher has this message as claimed: it gives no second notice.
+      expect(watcher.claim('i1', 1), isFalse);
+      foreground(tester);
+      await tester.pump(const Duration(seconds: 6));
+    });
+
+    testWidgets('a message that the watcher saw gets no notice from the screen', (tester) async {
+      final watcher = _idleWatcher();
+      expect(watcher.claim('i1', 1), isTrue);
+      await open(tester, notifier: notifier, watcher: watcher);
+      background(tester);
+      await finishAnswer(tester);
+      expect(shown, isEmpty);
+      foreground(tester);
+      await tester.pump(const Duration(seconds: 6));
+    });
+
     testWidgets('the menu mutes and unmutes the chat', (tester) async {
       addTearDown(() => chatPrefs.setMuted('i1', false));
       await open(tester, notifier: notifier);
@@ -1290,6 +1366,60 @@ void main() {
       await tester.tap(find.byKey(const Key('chat-menu')));
       await tester.pumpAndSettle();
       expect(find.text(appL10n.chatUnmute), findsOneWidget);
+    });
+  });
+
+  group('hand-over to the watcher', () {
+    late List<InstanceListView> handed;
+    late List<Map<int, String>> handedStatuses;
+    late List<String> released;
+    late ChatDoneWatcher watcher;
+
+    setUp(() {
+      handed = [];
+      handedStatuses = [];
+      released = [];
+      watcher = _RecordingWatcher(handed, handedStatuses, released);
+    });
+
+    Future<void> leave(WidgetTester tester) async {
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the screen takes its instance back from the watcher when it opens', (tester) async {
+      chat = _FakeChat(history: [const ChatMessage(seq: 0, role: 'user', text: 'hi'), _streaming]);
+      await open(tester, watcher: watcher);
+      expect(released, ['i1']);
+      await leave(tester);
+    });
+
+    testWidgets('closing with an answer pending hands the chat over, with the statuses', (tester) async {
+      chat = _FakeChat(history: [const ChatMessage(seq: 0, role: 'user', text: 'hi'), _streaming]);
+      await open(tester, watcher: watcher);
+      await leave(tester);
+      expect(handed.map((i) => i.instanceId), ['i1']);
+      // The statuses are what the screen knew: the watcher skips the done ones.
+      expect(handedStatuses.single, {0: 'done', 1: 'streaming'});
+    });
+
+    testWidgets('closing with nothing pending hands nothing over', (tester) async {
+      chat = _FakeChat(history: [
+        const ChatMessage(seq: 0, role: 'user', text: 'hi'),
+        _streaming.copyDone(),
+      ]);
+      await open(tester, watcher: watcher);
+      await leave(tester);
+      expect(handed, isEmpty);
+    });
+
+    testWidgets('an instance that stops from the screen is not handed over', (tester) async {
+      chat = _FakeChat(history: [const ChatMessage(seq: 0, role: 'user', text: 'hi'), _streaming]);
+      await open(tester, watcher: watcher);
+      await stopFromMenu(tester);
+      await tester.pumpAndSettle();
+      expect(closed, isTrue);
+      expect(handed, isEmpty);
     });
   });
 

@@ -12,6 +12,7 @@ import '../../celaut/attachment_picker.dart';
 import '../../celaut/audio_recorder.dart';
 import '../../celaut/celaut_format.dart';
 import '../../celaut/chat_client.dart';
+import '../../celaut/chat_done_watcher.dart';
 import '../../celaut/chat_notifier.dart';
 import '../../celaut/chat_prefs.dart';
 import '../../celaut/chat_segments.dart';
@@ -64,6 +65,7 @@ class ChatScreen extends StatefulWidget {
     this.haptic,
     this.recorder,
     this.notifier,
+    this.watcher,
   });
 
   /// Records the voice messages. Null: the microphone of the phone, made when the user
@@ -73,6 +75,11 @@ class ChatScreen extends StatefulWidget {
   /// Tells the user, with a notice of the system, that an answer is done while the chat is
   /// not in front. Null: [chatNotifier]. Tests give their own.
   final ChatNotifier? notifier;
+
+  /// Shares with the screen the list of the answers that got a notice, and takes the chat
+  /// when the screen closes with an answer pending. Null: [chatDoneWatcher]. Tests give
+  /// their own.
+  final ChatDoneWatcher? watcher;
 
   /// Show the text of an answer that grows a few characters at a time. False: it shows
   /// as it arrives. Tests give false when they do not look at the effect.
@@ -150,6 +157,10 @@ class _ChatScreenState extends State<ChatScreen>
   late final ChatClient _chat = widget.chat ?? ChatClient(port: widget.port, http: _http);
   late final ConversationKeepAlive _keepAlive = widget.keepAlive ?? ChannelConversationKeepAlive();
   late final ConversationNotes _notes = widget.notes ?? conversationNotes;
+  late final ChatDoneWatcher _watcher = widget.watcher ?? chatDoneWatcher;
+
+  /// The instance stopped from this screen: the watcher has nothing to read.
+  bool _stoppedHere = false;
 
   /// The messages that are on their way: each shows as a bubble at once, until the
   /// service has it.
@@ -235,6 +246,8 @@ class _ChatScreenState extends State<ChatScreen>
     _revealTicker = createTicker(_onRevealTick);
     _scroll.addListener(_updatePinned);
     unawaited(_keepAlive.start());
+    // The screen reads the chat now: a watch that a former screen left stops.
+    _watcher.release(_id);
     _open();
   }
 
@@ -473,26 +486,33 @@ class _ChatScreenState extends State<ChatScreen>
   /// Tell the user, with a notice of the system, about the answer that just got done, if
   /// the chat is not in front: the app is in the background, or another screen covers it.
   /// The first read only writes down the status of the history. A chat that the user
-  /// muted gets no notice ([ChatNotifier]). Only a screen that is open reads the chat, so
-  /// only an open screen can tell the user. If many answers get done between two reads,
+  /// muted gets no notice ([ChatNotifier]). A message gets one notice only: the screen and
+  /// the watcher share the list of them ([ChatDoneWatcher.claim]). When the screen closes
+  /// with an answer pending, the watcher goes on ([ChatDoneWatcher.handOver]). If many answers get done between two reads,
   /// the user gets one notice for the chat.
   void _checkDone() {
     // Nothing was read yet: what the next read brings is the history, not news.
     if (_error != null && !_baselined) return;
     final news = _baselined;
     _baselined = true;
-    ChatMessage? done;
+    final done = <int>[];
     for (final m in _chat.messages) {
       final before = _statuses[m.seq];
       _statuses[m.seq] = m.status;
       if (news &&
           !m.fromUser &&
           m.status == ChatMessage.statusDone &&
-          before != ChatMessage.statusDone) done = m;
+          before != ChatMessage.statusDone) done.add(m.seq);
     }
-    if (done == null || !mounted) return;
+    if (done.isEmpty || !mounted) return;
     final inFront = _foreground && (ModalRoute.of(context)?.isCurrent ?? true);
     if (inFront) return;
+    // The watcher gives the notice of a message that it has seen too: one notice only.
+    var fresh = false;
+    for (final seq in done) {
+      if (_watcher.claim(_id, seq)) fresh = true;
+    }
+    if (!fresh) return;
     // The body does not have the answer: the lock screen can show it to others.
     unawaited(
       (widget.notifier ?? chatNotifier).notifyDone(
@@ -670,6 +690,7 @@ class _ChatScreenState extends State<ChatScreen>
   /// The instance stopped: the local port is closed, so drop the kept-alive connection
   /// too, and go back to the list.
   void _closeStopped() {
+    _stoppedHere = true;
     _http.close();
     unawaited(_keepAlive.stop());
     if (mounted) Navigator.of(context).pop();
@@ -719,6 +740,11 @@ class _ChatScreenState extends State<ChatScreen>
       if (recorder is RecordAudioRecorder) unawaited(recorder.dispose());
     }
     unawaited(_keepAlive.stop());
+    // An answer is pending, and the user leaves: the watcher tells the user when it is
+    // done. Without a first good read, the screen does not know the history to skip.
+    if (!_stoppedHere && _baselined && _chat.awaitingAnswer) {
+      _watcher.handOver(_instance, Map.of(_statuses));
+    }
     _ticker?.cancel();
     _poll?.cancel();
     _input.dispose();

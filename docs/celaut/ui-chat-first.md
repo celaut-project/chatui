@@ -230,10 +230,33 @@ These rules are for the app. The protocol is in [chat.md](chat.md), revision 5.
 | Record button | The input has a record button. The app records with the microphone and attaches the sound as `audio/wav` (16 kHz, mono). The recording stops by itself before the limit of 4 MiB |
 | Floating bars | The header and the input float over the chat as rounded, translucent surfaces. The list scrolls behind them. Its padding keeps the first and the last message visible. The app measures the height of the header, so a large text size does not cut it |
 
+The watcher of answers (`chat_done_watcher.dart`) gives the notice when the user left the chat
+screen:
+
+- When the chat screen closes with an answer pending (a message is open, or there are more
+  user messages than assistant messages), it hands the chat to the watcher. This includes
+  the way back to the list, another tab, and the app in the background. The screen gives
+  the statuses of the messages that it knew. The messages that are done in them are
+  history and get no notice.
+- The watcher opens a tunnel to the chat slot and reads the chat every 2 seconds
+  (`ChatClient.pollWaiting`). It reads only while an answer is pending. It gives the notice
+  when an assistant message gets `done`, with the same text as the screen
+  and the same rules (generic text, private on the lock screen, no notice for a muted instance).
+- A message gets one notice only. The screen and the watcher share the list of the messages
+  that got one. When the user opens the chat again, the watcher stops for that instance.
+- An answer with status `failed` gets no notice. The user did not get an answer, so
+  "the answer is ready" would be false. The user sees the failure when the chat opens.
+- While a watch runs, the foreground service runs with the reason `answer`: it keeps the
+  process and the CPU awake (a partial wake lock), so the reads go on with the screen off. Its
+  notification says that the app waits for an answer. When the last watch stops, the app
+  releases the service.
+- A watch stops when no answer is pending, when the instance is muted (also during the
+  watch), when the user stops the instance, when the chat screen opens again, after 5
+  minutes in which the instance cannot be read, and after 30 minutes.
+
 Known limits of the notices:
 
-- A notice comes only while the chat screen is open (it can be behind another screen or
-  the app can be in the background). The app has no background watcher yet. If the user
-  closes the chat screen, no notice comes until the user opens it again.
+- Only a chat that the user opened in this run, and left with an answer pending, is
+  watched. If the system kills the app, the watch is lost and no notice comes.
 - If many answers get done between two reads of the conversation, the user gets one
   notice for the chat, not one for each answer.

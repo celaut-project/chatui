@@ -111,6 +111,20 @@ void main() {
     });
   });
 
+  group('the hold of a pending answer', () {
+    test('starts the service with the reason answer, and the last release stops it', () async {
+      final h = holds();
+      final first = h.hold(KeepAliveReason.answer);
+      await pumpEventQueue();
+      final second = h.hold(KeepAliveReason.answer);
+      await pumpEventQueue();
+      await first();
+      expect(calls.last, 'start answer');
+      await second();
+      expect(calls.last, 'stop');
+    });
+  });
+
   group('the work of a launch, a transfer, an import', () {
     late List<String> pages;
     late bool locked;

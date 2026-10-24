@@ -94,9 +94,8 @@
   and the chat is not in front (the app is in the background, or another screen covers the
   chat), and the user can mute each instance. The notice has the name of the chat and a
   generic text, never the answer, so the lock screen shows nothing private. A tap on the
-  notice opens that chat if the instance runs, and the list of chats if not. Known limit:
-  only an open chat screen reads the chat, so the notice does not come while the screen is
-  closed (there is no background watcher yet). If many answers get done between two reads,
+  notice opens that chat if the instance runs, and the list of chats if not. The notice
+  also comes after the user left the chat screen (see the watcher of answers, below). If many answers get done between two reads,
   the user gets one notice for the chat. Each instance has its own chat background. The header
   and the input float over the chat. This is still revision 5 of [chat.md](chat.md): the
   field `pinned` is optional.
@@ -132,3 +131,19 @@
   already has on a node to a running instance under a threshold (`ModifyDeposit`). It never
   makes an on-chain deposit: with too little credit it asks the user, and a deposit keeps its
   own confirmation and PIN. See [ui.md](ui.md), section 4b.
+- **Watcher of answers (2026-10-24, Josemi):** the notice of a done answer also comes when
+  the user left the chat screen while a service still makes an answer. When the screen
+  closes with an answer pending (an open message, or more user messages than assistant
+  messages), it hands the chat to `ChatDoneWatcher`. The watcher opens its own tunnel and
+  reads the chat every 2 seconds (`ChatClient.pollWaiting`), only while an answer is pending.
+  While it runs, the foreground service holds the process and the CPU (reason `answer`).
+  The watcher and the screen share one list of the messages that got a notice, so a
+  message gets one notice only. The messages that were done when the screen closed get none.
+  The notice is the same as before: the name of the chat, a generic text, private on the
+  lock screen, no notice for a muted instance. An answer with status `failed` gets no
+  notice: the user did not get an answer, and the failure shows when the chat opens. A watch
+  stops when no answer is pending, when the instance is muted, when the chat screen opens
+  again, when the user stops the instance, after 5 minutes without a good read, and after
+  30 minutes. The watcher does not look at instances that the user never opened in this
+  run, and a watch is lost if the system kills the app. See
+  [ui-chat-first.md](ui-chat-first.md), section 9.

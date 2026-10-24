@@ -19,8 +19,10 @@ import android.os.PowerManager
 /// The launch of a service, the transfer of a service file to a node and the import of a
 /// file use it too (Josemi, 2026-10-23): Dart sends the reasons that hold it
 /// (`ForegroundHolds`), and the notification names the most urgent one. While one of
-/// those three holds it, the service keeps the CPU awake with a partial wake lock, so
-/// that the work goes on with the screen off. A conversation alone holds no wake lock.
+/// those holds it, the service keeps the CPU awake with a partial wake lock, so
+/// that the work goes on with the screen off. The watcher of answers (`ChatDoneWatcher`,
+/// reason "answer") is a fourth one: it reads a chat that the user left, until the answer is
+/// done, and then releases the service. A conversation alone holds no wake lock.
 ///
 /// The foreground service type is `specialUse`. `dataSync` is for transfers that end,
 /// and on Android 15 (targetSdk 35 and later) the system stops it after 6 hours in 24;
@@ -37,8 +39,9 @@ class ConversationService : Service() {
         private const val NOTIFICATION_ID = 7301
         private const val EXTRA_REASONS = "reasons"
 
-        /// The work that keeps the CPU awake. A conversation is not in it.
-        private val WORK = setOf("launch", "transfer", "import")
+        /// The work that keeps the CPU awake. A conversation is not in it. An answer that is
+        /// pending after the user left the chat is: the reads go on with the screen off.
+        private val WORK = setOf("launch", "transfer", "import", "answer")
 
         /// The longest a wake lock is held, in case Dart never releases it.
         private const val WAKE_LOCK_MS = 30L * 60L * 1000L
@@ -141,6 +144,7 @@ class ConversationService : Service() {
         "launch" in reasons -> R.string.launch_notification_title to R.string.launch_notification_text
         "transfer" in reasons -> R.string.transfer_notification_title to R.string.transfer_notification_text
         "import" in reasons -> R.string.import_notification_title to R.string.import_notification_text
+        "answer" in reasons -> R.string.answer_notification_title to R.string.answer_notification_text
         else -> R.string.conversation_notification_title to R.string.conversation_notification_text
     }
 

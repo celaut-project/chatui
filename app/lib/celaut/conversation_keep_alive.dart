@@ -14,6 +14,10 @@ enum KeepAliveReason {
   /// A service file goes to a node.
   transfer,
 
+  /// The user left a chat while a service still makes an answer: the app reads the chat
+  /// in the background to tell the user when it is done (`chat_done_watcher.dart`).
+  answer,
+
   /// A service file is being loaded into the app (the system file picker is open, or the
   /// file is being copied).
   import,
@@ -24,7 +28,7 @@ enum KeepAliveReason {
 /// conversation, the launch, the transfer and the import of a service share it, so that
 /// one of them never stops the service while another one needs it.
 ///
-/// While a launch, a transfer or an import holds it, the service also keeps the CPU
+/// While a launch, a transfer, an import or a pending answer holds it, the service also keeps the CPU
 /// awake (a partial wake lock), so that the work goes on with the screen off. A
 /// conversation alone does not: it waits for the user.
 ///

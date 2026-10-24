@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../bridge/api/celaut.dart';
 import '../../bridge/api/celaut_service.dart';
 import '../../celaut/celaut_format.dart';
+import '../../celaut/chat_done_watcher.dart';
 import '../../celaut/celaut_strings.dart';
 import '../../celaut/conversations.dart';
 import '../../celaut/payers.dart';
@@ -79,6 +80,7 @@ Future<StopView?> confirmAndStopInstance(
   try {
     final done = await (stop ?? (id) => celautStopService(instanceId: id))(instance.instanceId);
     (notes ?? conversationNotes).stopped(instance.instanceId);
+    chatDoneWatcher.release(instance.instanceId);
     messenger.showSnackBar(SnackBar(content: Text(l.chatStopped(muOrUnknown(done.refundMu)))));
     return done;
   } on CelautError catch (e) {
