@@ -314,6 +314,8 @@ class _ChatScreenState extends State<ChatScreen>
     final atEnd =
         !_scroll.hasClients || _scroll.position.maxScrollExtent - _scroll.position.pixels < 80;
     if (_error == ChatErrorKind.unreachable && _chat.streaming) _error = null;
+    // The stream failed 3 times at its first event and stopped (section 6.5).
+    _error ??= _chat.streamError?.kind;
     _afterRead(read: true);
     setState(() {});
     _syncTicker();
@@ -716,6 +718,7 @@ class _ChatScreenState extends State<ChatScreen>
       ChatErrorKind.unreachable => l10n.chatErrorUnreachable,
       ChatErrorKind.badAnswer => l10n.chatErrorBadAnswer,
       ChatErrorKind.historyFull => l10n.chatErrorHistoryFull,
+      ChatErrorKind.storageFull => l10n.chatErrorStorageFull,
       ChatErrorKind.busy => l10n.chatErrorBusy,
       ChatErrorKind.unsupportedMedia => l10n.chatErrorUnsupportedMedia,
       ChatErrorKind.badRequest when !pin && _pending.isNotEmpty => l10n.chatErrorFile,
@@ -1536,6 +1539,17 @@ class _Bubble extends StatelessWidget {
                   child: Text(
                     message.isFailed ? context.l10n.chatAnswerFailed : context.l10n.chatAnswerCancelled,
                     key: Key('chat-${message.isFailed ? 'failed' : 'cancelled'}-${message.seq}'),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelSmall?.copyWith(color: scheme.error),
+                  ),
+                ),
+              if (message.isFailed && message.error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: SelectableText(
+                    message.error!,
+                    key: Key('chat-error-${message.seq}'),
                     style: Theme.of(
                       context,
                     ).textTheme.labelSmall?.copyWith(color: scheme.error),

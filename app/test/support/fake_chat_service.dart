@@ -6,6 +6,7 @@ import 'package:argus_wallet/celaut/chat/gen/chat.pbgrpc.dart';
 import 'package:argus_wallet/celaut/chat_client.dart';
 import 'package:argus_wallet/celaut/sha3.dart';
 import 'package:fixnum/fixnum.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:grpc/grpc.dart';
 
 /// The `chat-reason` trailer of `docs/celaut/chat.md`, section 9.
@@ -49,6 +50,13 @@ class FakeChatService {
   /// The next `Connect` calls end with this status.
   GrpcError? connectError;
 
+  /// The next `Connect` calls end with these statuses, in order, one for each call.
+  final connectErrors = <GrpcError>[];
+
+  /// The next `Connect` streams send a `ProtocolError` with no `event_id` before the
+  /// replay, this many times.
+  int protocolErrorsBeforeReady = 0;
+
   /// Runs when a `send_message` event came over `Connect` and the message was added.
   void Function()? onStreamSend;
 
@@ -68,6 +76,10 @@ class FakeChatService {
   /// [DownloadFile] gives these bytes instead of the file.
   Uint8List? downloadOverride;
   GrpcError? uploadError;
+
+  /// The file store is full: an upload that passed the other checks ends with
+  /// `storage_full`.
+  bool storageFull = false;
 
   final _streams = <StreamController<ServerEvent>>[];
 
@@ -91,6 +103,7 @@ class FakeChatService {
     MessageStatus status = MessageStatus.MESSAGE_STATUS_COMPLETED,
     String reasoning = '',
     bool pinned = false,
+    String? error,
   }) {
     final m = Message(
       messageId: 'm${msgs.length + 1}',
@@ -103,6 +116,7 @@ class FakeChatService {
       reasoning: reasoning,
       pinned: pinned,
       replyToMessageId: replyTo,
+      error: error,
     );
     msgs.add(m);
     return m;
@@ -110,9 +124,26 @@ class FakeChatService {
 
   Message byId(String id) => msgs.firstWhere((m) => m.messageId == id);
 
+  /// The most events in the queue of a stream that the client does not read (section 6.5):
+  /// 1 000 or more. With [stallQueues] the fake counts each event of a stream as queued
+  /// (no client reads), and it ends the stream with `busy` when the count is above the limit.
+  int queueLimit = 1000;
+  bool stallQueues = false;
+  final _queued = <StreamController<ServerEvent>, int>{};
+
   void emit(ServerEvent e) {
     for (final s in List.of(_streams)) {
       s.add(e);
+      if (stallQueues) {
+        final n = (_queued[s] ?? 0) + 1;
+        _queued[s] = n;
+        if (n > queueLimit) {
+          s
+            ..addError(chatError(StatusCode.unavailable, 'busy'))
+            ..close();
+          _streams.remove(s);
+        }
+      }
     }
   }
 
@@ -133,14 +164,43 @@ class FakeChatService {
     ));
   }
 
-  void setStatus(String id, MessageStatus status) {
-    final m = byId(id)
+  /// Change the status of an open message and send `MessageStatusChanged`. A final message
+  /// does not change, and `PENDING` to `IN_PROGRESS` exists only for a message that was
+  /// `PENDING` (section 5.2). `error` is for `FAILED`, and the service sets it one time.
+  void setStatus(String id, MessageStatus status, {String? error}) {
+    final m = byId(id);
+    final open = m.status == MessageStatus.MESSAGE_STATUS_PENDING ||
+        m.status == MessageStatus.MESSAGE_STATUS_IN_PROGRESS;
+    if (!open) throw StateError('A final message does not change.');
+    if (status == MessageStatus.MESSAGE_STATUS_IN_PROGRESS &&
+        m.status != MessageStatus.MESSAGE_STATUS_PENDING) {
+      throw StateError('There is no change to IN_PROGRESS for a message that is not PENDING.');
+    }
+    if (error != null && status != MessageStatus.MESSAGE_STATUS_FAILED) {
+      throw StateError('Only a FAILED message has an error.');
+    }
+    m
       ..status = status
       ..updatedAt = Int64(_clock++);
+    if (error != null && error.isNotEmpty) m.error = error;
     emit(ServerEvent(
-      messageStatusChanged:
-          MessageStatusChanged(messageId: id, status: status, updatedAt: m.updatedAt),
+      messageStatusChanged: MessageStatusChanged(
+        messageId: id,
+        status: status,
+        updatedAt: m.updatedAt,
+        error: error != null && error.isNotEmpty ? error : null,
+      ),
     ));
+  }
+
+  /// Every open stream ends with `UNAVAILABLE`, reason `busy`: its queue was full
+  /// (section 6.5).
+  void closeStreamsBusy() {
+    for (final s in List.of(_streams)) {
+      s
+        ..addError(chatError(StatusCode.unavailable, 'busy'))
+        ..close();
+    }
   }
 
   void setPinned(String id, bool pinned) {
@@ -161,17 +221,67 @@ class FakeChatService {
   String? _text(SendMessageRequest r) =>
       r.content.where((p) => p.hasText()).map((p) => p.text.text).join();
 
-  /// The checks of section 6.1 that the fake does. The reason, or null.
+  static final _id = RegExp(r'^[A-Za-z0-9_-]{1,64}$');
+
+  /// The limit of the size of a file, with the default of section 7.
+  int get _maxFile => caps.maxFileBytes == Int64.ZERO ? 4 * 1024 * 1024 : caps.maxFileBytes.toInt();
+
+  static String _base(String mime) => mime.split(';').first.trim().toLowerCase();
+
+  static String? _class(String mime) {
+    final top = _base(mime).split('/').first;
+    return top == 'image' || top == 'audio' ? top : null;
+  }
+
+  /// The `FileReference` of a part, and the kind of the part.
+  static List<(String, FileReference)> _refs(SendMessageRequest r) => [
+        for (final p in r.content)
+          if (p.hasImage()) ('image', p.image.file) else if (p.hasAudio()) ('audio', p.audio.file),
+      ];
+
+  /// The hash of SHA3-256 of [f], as the key of the file store, or null if it has none.
+  static String? sha3Key(FileReference f) {
+    for (final h in f.hashes) {
+      if (listEquals(h.type, ChatClient.sha3Type)) return hex(h.value);
+    }
+    return null;
+  }
+
+  /// The structure of a `FileReference` (section 5.1): the reason `bad_request`, or null.
+  static bool _fileStructureBad(FileReference f) =>
+      f.mimeType.isEmpty ||
+      f.sizeBytes <= Int64.ZERO ||
+      f.hashes.isEmpty ||
+      f.hashes.any((h) => !h.hasType()) ||
+      f.hashes.any((h) => listEquals(h.type, ChatClient.sha3Type) && h.value.length != 32) ||
+      sha3Key(f) == null;
+
+  /// The checks of section 6.1 that the fake does, in the order of the table: structure,
+  /// size, type, then the others. The reason, or null.
   String? check(SendMessageRequest r) {
     final text = _text(r);
-    if (text == 'bad') return 'bad_request';
+    final refs = _refs(r);
+    // Step 1: structure.
+    if (r.content.isEmpty || text == 'bad') return 'bad_request';
+    if (r.idempotencyKey.isNotEmpty && !_id.hasMatch(r.idempotencyKey)) return 'bad_request';
+    for (final (kind, f) in refs) {
+      if (_fileStructureBad(f)) return 'bad_request';
+      final c = _class(f.mimeType);
+      if (c != null && c != kind) return 'bad_request';
+    }
+    if (refs.length > 4) return 'bad_request';
+    // Step 2: size.
+    if (refs.any((e) => e.$2.sizeBytes.toInt() > _maxFile)) return 'too_large';
+    // Step 3: type, for each kind of part.
+    final accepted = {for (final m in caps.acceptedMimeTypes) _base(m)};
+    if (refs.any((e) => !accepted.contains(_base(e.$2.mimeType)))) return 'unsupported_media';
+    if (text == 'media') return 'unsupported_media';
+    // The rest.
     if (text == 'busy') return 'busy';
     if (text == 'full') return 'history_full';
-    if (text == 'media') return 'unsupported_media';
     if (requireFiles) {
-      for (final p in r.content) {
-        final f = p.hasImage() ? p.image.file : p.hasAudio() ? p.audio.file : null;
-        if (f != null && !files.containsKey(hex(f.hashes.first.value))) return 'file_missing';
+      for (final (_, f) in refs) {
+        if (!files.containsKey(sha3Key(f))) return 'file_missing';
       }
     }
     return null;
@@ -179,19 +289,19 @@ class FakeChatService {
 
   static GrpcError errorFor(String reason) => switch (reason) {
         'busy' => chatError(StatusCode.unavailable, reason),
-        'history_full' => chatError(StatusCode.resourceExhausted, reason),
+        'history_full' || 'storage_full' => chatError(StatusCode.resourceExhausted, reason),
         'file_missing' => chatError(StatusCode.failedPrecondition, reason),
         'unsupported_media' => chatError(StatusCode.invalidArgument, reason),
         _ => chatError(StatusCode.invalidArgument, reason),
       };
 
   Message _accept(SendMessageRequest r) {
-    if (r.hasIdempotencyKey()) {
+    if (r.idempotencyKey.isNotEmpty) {
       for (final m in msgs) {
-        if (m.hasIdempotencyKey() && m.idempotencyKey == r.idempotencyKey) return m;
+        if (m.idempotencyKey == r.idempotencyKey) return m;
       }
     }
-    final m = user('', key: r.hasIdempotencyKey() ? r.idempotencyKey : null)
+    final m = user('', key: r.idempotencyKey.isNotEmpty ? r.idempotencyKey : null)
       ..content.addAll(r.content);
     emitCreated(m);
     if (autoAnswer) {
@@ -270,23 +380,52 @@ class _Chat extends ChatServiceBase {
   @override
   Stream<ServerEvent> connect(ServiceCall call, Stream<ClientEvent> request) async* {
     f.connects++;
+    if (f.connectErrors.isNotEmpty) throw f.connectErrors.removeAt(0);
     final error = f.connectError;
     if (error != null) throw error;
     final out = StreamController<ServerEvent>();
     final seen = <String>{};
     var subscribed = false;
+    var first = true;
+    void fail(GrpcError e) {
+      out
+        ..addError(e)
+        ..close();
+    }
     request.listen(
       (e) {
         f.streamEvents.add(e);
-        if (e.hasEventId() && !seen.add(e.eventId)) {
-          out.add(ServerEvent(
-            error: ProtocolError(code: 'bad_request', message: 'event_id', eventId: e.eventId),
-          ));
+        if (out.isClosed) return;
+        final badId = e.eventId.isNotEmpty && !FakeChatService._id.hasMatch(e.eventId);
+        final repeated = e.eventId.isNotEmpty && !seen.add(e.eventId);
+        if (first) {
+          // A first event that fails ends the call with a status (section 6.5).
+          first = false;
+          if (!e.hasSubscribe()) return fail(chatError(StatusCode.failedPrecondition, 'bad_state'));
+          if (badId || e.subscribe.afterSequence.toInt() > f.msgs.length) {
+            return fail(chatError(StatusCode.invalidArgument, 'bad_request'));
+          }
+          // A conversation that does not exist (no branches here, section 6.8).
+          if (e.subscribe.hasConversationId() && e.subscribe.conversationId.isNotEmpty) {
+            return fail(chatError(StatusCode.notFound, 'not_found'));
+          }
+        } else if (badId || repeated) {
+          // The service does not copy an `event_id` that is not valid or not new.
+          out.add(ServerEvent(error: ProtocolError(code: 'bad_request', message: 'event_id')));
           return;
         }
         if (e.hasSubscribe()) {
-          if (subscribed) return;
+          if (subscribed) {
+            out.add(ServerEvent(
+              error: ProtocolError(code: 'bad_state', message: 'subscribed', eventId: e.eventId),
+            ));
+            return;
+          }
           subscribed = true;
+          if (f.protocolErrorsBeforeReady > 0) {
+            f.protocolErrorsBeforeReady--;
+            out.add(ServerEvent(error: ProtocolError(code: 'bad_request', message: 'x')));
+          }
           final after = e.subscribe.afterSequence.toInt();
           f.subscribes.add(after);
           for (final m in f.msgs.skip(after)) {
@@ -350,10 +489,24 @@ class _Files extends FileServiceBase {
   @override
   Stream<QueryFilesResponse> queryFiles(ServiceCall call, Stream<QueryFilesRequest> request) async* {
     final asked = <String>[];
+    List<int>? lastType;
     await for (final r in request) {
       final h = hex(r.hash.value);
       asked.add(h);
-      yield QueryFilesResponse(hash: r.hash, available: f.files.containsKey(h));
+      // The first hash has a `type`; a hash with none uses the last explicit one.
+      if (r.hash.hasType()) {
+        lastType = r.hash.type;
+      } else if (lastType == null) {
+        throw chatError(StatusCode.invalidArgument, 'bad_request');
+      }
+      final type = r.hash.hasType() ? r.hash.type : lastType;
+      // A `type` that the service does not know (also an empty one that is set) gives
+      // `available` false (section 6.4).
+      final known = listEquals(type, ChatClient.sha3Type);
+      yield QueryFilesResponse(
+        hash: Hash(type: type, value: r.hash.value),
+        available: known && r.hash.value.length == 32 && f.files.containsKey(h),
+      );
     }
     f.queries.add(asked);
   }
@@ -363,19 +516,37 @@ class _Files extends FileServiceBase {
     final error = f.uploadError;
     if (error != null) throw error;
     FileReference? ref;
+    var structure = true;
+    var laterFile = false;
     final data = BytesBuilder();
     await for (final r in request) {
       if (r.hasFile()) {
-        ref = r.file;
+        if (ref == null) {
+          ref = r.file;
+        } else {
+          laterFile = true;
+        }
       } else {
+        if (ref == null) structure = false;
         f.chunkSizes.add(r.chunk.length);
         data.add(r.chunk);
       }
     }
-    if (ref == null) throw chatError(StatusCode.invalidArgument, 'bad_request');
+    // The order of section 6.4: structure, size, type, storage, hash.
+    if (ref == null || !structure || FakeChatService._fileStructureBad(ref)) {
+      throw chatError(StatusCode.invalidArgument, 'bad_request');
+    }
+    if (ref.sizeBytes.toInt() > f._maxFile) throw chatError(StatusCode.invalidArgument, 'too_large');
+    final accepted = {for (final m in f.caps.acceptedMimeTypes) FakeChatService._base(m)};
+    if (!accepted.contains(FakeChatService._base(ref.mimeType))) {
+      throw chatError(StatusCode.invalidArgument, 'unsupported_media');
+    }
+    if (f.storageFull) throw chatError(StatusCode.resourceExhausted, 'storage_full');
+    // A later `file` is found while the chunks are read: after the checks above.
+    if (laterFile) throw chatError(StatusCode.invalidArgument, 'bad_request');
     final bytes = data.takeBytes();
     final digest = sha3_256(bytes);
-    if (hex(digest) != hex(ref.hashes.first.value) || bytes.length != ref.sizeBytes.toInt()) {
+    if (hex(digest) != FakeChatService.sha3Key(ref) || bytes.length != ref.sizeBytes.toInt()) {
       throw chatError(StatusCode.invalidArgument, 'hash_mismatch');
     }
     f.files[hex(digest)] = bytes;
@@ -389,7 +560,9 @@ class _Files extends FileServiceBase {
     DownloadFileRequest request,
   ) async* {
     f.downloads++;
-    final bytes = f.downloadOverride ?? f.files[hex(request.hash.value)];
+    if (!request.hash.hasType()) throw chatError(StatusCode.invalidArgument, 'bad_request');
+    final known = listEquals(request.hash.type, ChatClient.sha3Type);
+    final bytes = f.downloadOverride ?? (known ? f.files[hex(request.hash.value)] : null);
     if (bytes == null) throw chatError(StatusCode.notFound, 'not_found');
     for (var i = 0; i < bytes.length; i += ChatClient.chunkBytes) {
       yield DownloadFileResponse(

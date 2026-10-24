@@ -578,6 +578,50 @@ void main() {
     expect(find.byKey(const Key('chat-typing')), findsNothing);
   });
 
+  testWidgets('a failed answer shows the error of the service, and only when there is one',
+      (tester) async {
+    chat = _FakeChat(history: [
+      const ChatMessage(seq: 0, role: 'user', text: 'why?'),
+      const ChatMessage(
+        seq: 1,
+        role: 'assistant',
+        text: 'Half',
+        status: ChatMessage.statusFailed,
+        error: 'The model ran out of credit.',
+      ),
+      const ChatMessage(seq: 2, role: 'user', text: 'again?'),
+      const ChatMessage(seq: 3, role: 'assistant', text: 'x', status: ChatMessage.statusFailed),
+      const ChatMessage(
+        seq: 4,
+        role: 'assistant',
+        text: 'y',
+        status: ChatMessage.statusDone,
+        error: 'not shown: the message is not failed',
+      ),
+    ]);
+    await open(tester);
+    expect(find.byKey(const Key('chat-failed-1')), findsOneWidget);
+    expect(find.byKey(const Key('chat-error-1')), findsOneWidget);
+    expect(find.text('The model ran out of credit.'), findsOneWidget);
+    expect(find.byKey(const Key('chat-failed-3')), findsOneWidget);
+    expect(find.byKey(const Key('chat-error-3')), findsNothing);
+    expect(find.byKey(const Key('chat-error-4')), findsNothing);
+    expect(find.textContaining('not shown'), findsNothing);
+  });
+
+  testWidgets('a send that the file store cannot take says so, and keeps the text',
+      (tester) async {
+    chat.failWith = const ChatException(ChatErrorKind.storageFull, reason: 'storage_full');
+    await open(tester);
+    await tester.enterText(find.byKey(const Key('chat-input')), 'Hello');
+    await tester.tap(find.byKey(const Key('chat-send')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('chat-error')), findsOneWidget);
+    expect(find.textContaining('no room'), findsOneWidget);
+    expect(tester.widget<TextField>(find.byKey(const Key('chat-input'))).controller!.text, 'Hello');
+    expect(chat.sent, isEmpty, reason: 'no automatic second try');
+  });
+
   testWidgets('a read that fails shows the error, and the next one that works clears it',
       (tester) async {
     await open(tester);

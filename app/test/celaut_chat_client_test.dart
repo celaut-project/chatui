@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:argus_wallet/celaut/chat/gen/chat.pbgrpc.dart' as pb;
@@ -20,6 +21,13 @@ Future<void> until(bool Function() condition, {String what = 'condition'}) async
 
 Uint8List bytes(int n, [int seed = 1]) => Uint8List.fromList([for (var i = 0; i < n; i++) (i * 31 + seed) & 255]);
 
+class GrpcChannelAndFiles {
+  GrpcChannelAndFiles(this.channel, this.files, this.chat);
+  final ClientChannel channel;
+  final pb.FileServiceClient files;
+  final pb.ChatServiceClient chat;
+}
+
 void main() {
   late FakeChatService svc;
   late TcpProxy proxy;
@@ -30,6 +38,7 @@ void main() {
     Duration ackEvery = const Duration(milliseconds: 150),
     Duration stableAfter = const Duration(seconds: 10),
     Duration callTimeout = const Duration(seconds: 5),
+    List<Duration> waits = const [Duration(milliseconds: 60)],
   }) async {
     final port = await svc.start();
     proxy = TcpProxy(port);
@@ -37,7 +46,7 @@ void main() {
     booted = true;
     chat = ChatClient(
       port: proxy.port,
-      reconnectWaits: const [Duration(milliseconds: 60)],
+      reconnectWaits: waits,
       stableAfter: stableAfter,
       ackEvery: ackEvery,
       callTimeout: callTimeout,
@@ -678,6 +687,25 @@ void main() {
         throwsA(isA<ChatException>().having((e) => e.kind, 'kind', ChatErrorKind.badRequest)),
       );
       await expectLater(chat.readAttachment(7, 0), throwsA(isA<ChatException>()));
+      // A file with no SHA3-256 hash is never asked for: no `DownloadFile`.
+      expect(svc.downloads, 1, reason: 'only message 2, which has a SHA3-256 hash');
+      // The type of SHA3-256 with a value of 31 bytes is not a SHA3-256 hash either.
+      svc.user('', extra: [
+        pb.ContentPart(
+          image: pb.ImageContent(
+            file: pb.FileReference(
+              hashes: [pb.Hash(type: ChatClient.sha3Type, value: bytes(31))],
+              mimeType: 'image/png',
+              sizeBytes: Int64(4),
+            ),
+          ),
+        ),
+      ]);
+      await chat.sync();
+      svc.emitCreated(svc.msgs.last);
+      await until(() => chat.count == 3);
+      await expectLater(chat.readAttachment(3, 0), throwsA(isA<ChatException>()));
+      expect(svc.downloads, 1);
     });
 
     test('file_missing: upload again and send again with the same key, once', () async {
@@ -725,6 +753,582 @@ void main() {
       expect(await chat.readAttachment(1, 0), bytes(4 * 1024 * 1024, 1));
       expect(svc.downloads, 1);
     }, timeout: const Timeout(Duration(seconds: 60)));
+  });
+
+  group('revision 6, round 3', () {
+    pb.FileReference ref(Uint8List data, {String mime = 'image/png', List<pb.Hash>? hashes, int? size}) =>
+        pb.FileReference(
+          hashes: hashes ?? [pb.Hash(type: ChatClient.sha3Type, value: sha3_256(data))],
+          mimeType: mime,
+          sizeBytes: Int64(size ?? data.length),
+        );
+
+    Stream<pb.UploadFileRequest> upload(pb.FileReference r, Uint8List data) async* {
+      yield pb.UploadFileRequest(file: r);
+      if (data.isNotEmpty) yield pb.UploadFileRequest(chunk: data);
+    }
+
+    Future<void> expectReason(Future<Object?> call, String reason) => expectLater(
+          call,
+          throwsA(isA<GrpcError>().having((e) => e.trailers?['chat-reason'], 'reason', reason)),
+          reason: reason,
+        );
+
+    test('the hash is raw: 32 bytes for the type and for the value', () async {
+      expect(ChatClient.sha3Type.length, 32);
+      await boot();
+      final f = OutgoingAttachment(mime: 'image/png', bytes: bytes(100));
+      await chat.send('', attachments: [f]);
+      final h = svc.unarySends.single.content.single.image.file.hashes.single;
+      expect(h.type, ChatClient.sha3Type);
+      expect(h.value.length, 32);
+      expect(svc.queries.single.single, hex(sha3_256(f.bytes)));
+    });
+
+    test('a hash of 64 ASCII characters is not SHA3-256: the file cannot be read', () async {
+      final data = bytes(500);
+      svc.files[hex(sha3_256(data))] = data;
+      final ascii = pb.Hash(type: hex(ChatClient.sha3Type).codeUnits, value: hex(sha3_256(data)).codeUnits);
+      svc.user('', extra: [pb.ContentPart(image: pb.ImageContent(file: ref(data, hashes: [ascii])))]);
+      svc.user('', extra: [
+        pb.ContentPart(
+          image: pb.ImageContent(file: ref(data, hashes: [ascii, pb.Hash(type: ChatClient.sha3Type, value: sha3_256(data))])),
+        ),
+      ]);
+      await boot();
+      await chat.sync();
+      expect(chat.messages[0].attachments.single.hash, isNull);
+      await expectLater(
+        chat.readAttachment(1, 0),
+        throwsA(isA<ChatException>().having((e) => e.kind, 'kind', ChatErrorKind.badAnswer)),
+      );
+      expect(await chat.readAttachment(2, 0), data, reason: 'the SHA3-256 hash is used');
+    });
+
+    test('error: a FAILED message of a read has it, and a MessageStatusChanged sets it once', () async {
+      final u = svc.user('q');
+      svc.assistant('Half', replyTo: u.messageId, status: pb.MessageStatus.MESSAGE_STATUS_FAILED, error: 'Read');
+      final open = svc.assistant('', replyTo: u.messageId, status: pb.MessageStatus.MESSAGE_STATUS_IN_PROGRESS);
+      svc.assistant('bad', status: pb.MessageStatus.MESSAGE_STATUS_COMPLETED);
+      await boot();
+      await chat.sync();
+      await until(() => chat.streaming);
+      expect(chat.messages[1].error, 'Read');
+      expect(chat.messages[0].error, isNull);
+      expect(chat.messages[3].error, isNull);
+      svc.setStatus(open.messageId, pb.MessageStatus.MESSAGE_STATUS_FAILED, error: 'The model is down.');
+      await until(() => chat.messages[2].isFailed);
+      expect(chat.messages[2].error, 'The model is down.');
+      // The text does not give the error, and `metadata` is not read.
+      open.metadata['error'] = 'from metadata';
+      await chat.sync();
+      expect(chat.messages[2].error, 'The model is down.');
+    });
+
+    test('error: a failure with no error text has none, and metadata is not used', () async {
+      final u = svc.user('q');
+      final a = svc.assistant('', replyTo: u.messageId, status: pb.MessageStatus.MESSAGE_STATUS_IN_PROGRESS);
+      a.metadata['error'] = 'from metadata';
+      await boot();
+      await chat.sync();
+      await until(() => chat.streaming);
+      svc.setStatus(a.messageId, pb.MessageStatus.MESSAGE_STATUS_FAILED);
+      await until(() => chat.messages[1].isFailed);
+      expect(chat.messages[1].error, isNull);
+    });
+
+    test('an empty string in an optional field is the same as absent', () async {
+      final u = svc.user('q', key: '');
+      final a = svc.assistant('a', replyTo: '');
+      a.error = '';
+      await boot();
+      await chat.sync();
+      expect(chat.messages[0].cid, isNull);
+      expect(chat.messages[1].replyTo, isNull);
+      expect(chat.messages[1].error, isNull);
+      expect(u.hasIdempotencyKey(), isTrue, reason: 'the fake sent an empty key on purpose');
+    });
+
+    test('the client sends no empty optional string and no empty name', () async {
+      await boot();
+      await chat.sync();
+      await until(() => chat.streaming);
+      final f = OutgoingAttachment(mime: 'image/png', bytes: bytes(50), name: '');
+      await chat.send('hi', attachments: [f]);
+      final sent = svc.streamEvents.firstWhere((e) => e.hasSendMessage());
+      expect(sent.sendMessage.hasConversationId(), isFalse);
+      expect(sent.sendMessage.hasReplyToMessageId(), isFalse);
+      expect(sent.sendMessage.idempotencyKey, isNotEmpty);
+      expect(sent.sendMessage.content[1].image.file.hasFilename(), isFalse);
+      expect(svc.uploads.single.hasFilename(), isFalse);
+    });
+
+    test('the client never sends an empty file', () async {
+      await boot();
+      await expectLater(
+        chat.send('', attachments: [OutgoingAttachment(mime: 'image/png', bytes: Uint8List(0))]),
+        throwsA(isA<ChatException>().having((e) => e.kind, 'kind', ChatErrorKind.badRequest)),
+      );
+      expect(svc.uploads, isEmpty);
+      expect(svc.unarySends, isEmpty);
+      expect(svc.queries, isEmpty);
+    });
+
+    test('storage_full: its own kind, and the client does not try again', () async {
+      await boot();
+      svc.storageFull = true;
+      final f = OutgoingAttachment(mime: 'image/png', bytes: bytes(80));
+      await expectLater(
+        chat.send('x', attachments: [f]),
+        throwsA(isA<ChatException>()
+            .having((e) => e.kind, 'kind', ChatErrorKind.storageFull)
+            .having((e) => e.reason, 'reason', 'storage_full')),
+      );
+      expect(svc.unarySends, isEmpty);
+      expect(chat.count, 0);
+      // A second try is the choice of the user, and it works when there is room.
+      svc.storageFull = false;
+      await chat.send('x', attachments: [f]);
+      expect(svc.uploads.length, 1);
+    });
+
+    test('RESOURCE_EXHAUSTED with no reason: too_large for a send and a file, other elsewhere', () async {
+      await boot();
+      final plain = GrpcError.resourceExhausted('Received message larger than max');
+      svc.sendErrors.add(plain);
+      await expectLater(
+        chat.send('x'),
+        throwsA(isA<ChatException>()
+            .having((e) => e.kind, 'kind', ChatErrorKind.badRequest)
+            .having((e) => e.reason, 'reason', 'too_large')),
+      );
+      svc.uploadError = plain;
+      await expectLater(
+        chat.send('', attachments: [OutgoingAttachment(mime: 'image/png', bytes: bytes(9))]),
+        throwsA(isA<ChatException>().having((e) => e.kind, 'kind', ChatErrorKind.badRequest)),
+      );
+      svc.uploadError = null;
+      // Another call: other. A reason of the service wins.
+      svc.pinErrors.add(plain);
+      await chat.send('p');
+      await expectLater(
+        chat.setPinned(chat.messages.single, true),
+        throwsA(isA<ChatException>().having((e) => e.kind, 'kind', ChatErrorKind.other)),
+      );
+      svc.sendErrors.add(chatError(StatusCode.resourceExhausted, 'history_full'));
+      await expectLater(
+        chat.send('x'),
+        throwsA(isA<ChatException>().having((e) => e.kind, 'kind', ChatErrorKind.historyFull)),
+      );
+    });
+
+    test('a Connect stream that ends with busy: no error, and the client subscribes again', () async {
+      final u = svc.user('q');
+      final a = svc.assistant('one', replyTo: u.messageId, status: pb.MessageStatus.MESSAGE_STATUS_IN_PROGRESS);
+      await boot();
+      await chat.sync();
+      await until(() => chat.streaming);
+      expect(svc.connects, 1);
+      svc.closeStreamsBusy();
+      await until(() => svc.connects == 2 && chat.streaming, what: 'new stream');
+      // The new stream replays the open message from the start of it.
+      expect(svc.subscribes, [1, 1]);
+      svc.emitDelta(a.messageId, text: '!');
+      await until(() => chat.messages.last.text == 'one!');
+      expect(chat.messages.length, 2);
+    });
+
+    test('a first event that fails: the call ends with a status and the client tries again', () async {
+      svc.user('a');
+      await boot();
+      svc.connectError = chatError(StatusCode.invalidArgument, 'bad_request');
+      await chat.sync();
+      await until(() => svc.connects >= 2, what: 'tries again');
+      expect(chat.streaming, isFalse);
+      svc.connectError = null;
+      await until(() => chat.streaming, what: 'stream');
+      expect(chat.count, 1);
+    });
+
+    test('ProtocolError with no event_id does not fail a send, and does not end the stream', () async {
+      await boot();
+      await chat.sync();
+      await until(() => chat.streaming);
+      svc.emit(pb.ServerEvent(error: pb.ProtocolError(code: 'bad_request', message: 'event_id')));
+      svc.emit(pb.ServerEvent(error: pb.ProtocolError(code: 'bad_request', message: 'x', eventId: '')));
+      await chat.send('fine');
+      expect(chat.streaming, isTrue);
+      expect(svc.connects, 1);
+      expect(chat.messages.single.text, 'fine');
+    });
+
+    test('a ProtocolError with the event_id of a send maps an unaccepted type of any kind of part', () async {
+      await boot();
+      await chat.sync();
+      await until(() => chat.streaming);
+      // Any mime type that the service does not accept, in each kind of part.
+      svc.caps.acceptedMimeTypes
+        ..clear()
+        ..add('image/png');
+      svc.sendErrors.clear();
+      await expectLater(
+        chat.send('', attachments: [OutgoingAttachment(mime: 'audio/wav', bytes: bytes(5))]),
+        throwsA(isA<ChatException>().having((e) => e.kind, 'kind', ChatErrorKind.unsupportedMedia)),
+      );
+    });
+
+    group('the fake service follows the new rules', () {
+      Future<GrpcChannelAndFiles> files() async {
+        await boot();
+        final channel = ClientChannel(
+          '127.0.0.1',
+          port: proxy.port,
+          options: const ChannelOptions(credentials: ChannelCredentials.insecure()),
+        );
+        return GrpcChannelAndFiles(channel, pb.FileServiceClient(channel), pb.ChatServiceClient(channel));
+      }
+
+      test('upload: the order of checks is structure, size, type, storage, hash', () async {
+        final c = await files();
+        addTearDown(c.channel.shutdown);
+        final data = bytes(100);
+        svc.storageFull = true;
+        // Structure: an empty file, a hash with no type, no hash.
+        await expectReason(c.files.uploadFile(upload(ref(Uint8List(0), size: 0), Uint8List(0))), 'bad_request');
+        await expectReason(
+          c.files.uploadFile(upload(ref(data, hashes: [pb.Hash(value: sha3_256(data))]), data)),
+          'bad_request',
+        );
+        await expectReason(c.files.uploadFile(upload(ref(data, hashes: []), data)), 'bad_request');
+        // Size comes before type: a file of an unknown type above the limit is too large.
+        svc.caps = pb.Capabilities(acceptedMimeTypes: ['image/png'], maxFileBytes: Int64(50));
+        await expectReason(c.files.uploadFile(upload(ref(data, mime: 'application/pdf'), data)), 'too_large');
+        svc.caps = pb.Capabilities(acceptedMimeTypes: ['image/png']);
+        // Type comes before storage.
+        await expectReason(c.files.uploadFile(upload(ref(data, mime: 'application/pdf'), data)), 'unsupported_media');
+        // Storage comes before the hash.
+        final wrong = ref(data, hashes: [pb.Hash(type: ChatClient.sha3Type, value: bytes(32))]);
+        await expectReason(c.files.uploadFile(upload(wrong, data)), 'storage_full');
+        svc.storageFull = false;
+        await expectReason(c.files.uploadFile(upload(wrong, data)), 'hash_mismatch');
+        expect(svc.files, isEmpty, reason: 'a failed upload leaves nothing');
+        await c.files.uploadFile(upload(ref(data), data));
+        expect(svc.files.length, 1);
+      });
+
+      test('a hash type of 64 ASCII characters is a type that the service does not know', () async {
+        final c = await files();
+        addTearDown(c.channel.shutdown);
+        final data = bytes(100);
+        final ascii = pb.Hash(type: hex(ChatClient.sha3Type).codeUnits, value: sha3_256(data));
+        await expectReason(c.files.uploadFile(upload(ref(data, hashes: [ascii]), data)), 'bad_request');
+        final answers = await c.files
+            .queryFiles(Stream.value(pb.QueryFilesRequest(hash: ascii)))
+            .toList();
+        expect(answers.single.available, isFalse);
+      });
+
+      test('send: an unaccepted mime type is unsupported_media in each kind of part', () async {
+        final c = await files();
+        addTearDown(c.channel.shutdown);
+        final data = bytes(10);
+        pb.SendMessageRequest send(pb.ContentPart p) => pb.SendMessageRequest(content: [p]);
+        final pdf = ref(data, mime: 'application/pdf');
+        await expectReason(c.chat.sendMessage(send(pb.ContentPart(image: pb.ImageContent(file: pdf)))), 'unsupported_media');
+        await expectReason(c.chat.sendMessage(send(pb.ContentPart(audio: pb.AudioContent(file: pdf)))), 'unsupported_media');
+        final gif = ref(data, mime: 'image/gif');
+        await expectReason(c.chat.sendMessage(send(pb.ContentPart(image: pb.ImageContent(file: gif)))), 'unsupported_media');
+        // A kind that disagrees with an image/* or audio/* type is bad_request, also when
+        // the service would not accept the type.
+        await expectReason(c.chat.sendMessage(send(pb.ContentPart(image: pb.ImageContent(file: ref(data, mime: 'audio/wav'))))), 'bad_request');
+        await expectReason(c.chat.sendMessage(send(pb.ContentPart(audio: pb.AudioContent(file: ref(data, mime: 'image/png'))))), 'bad_request');
+        await expectReason(c.chat.sendMessage(send(pb.ContentPart(audio: pb.AudioContent(file: ref(data, mime: 'image/tiff'))))), 'bad_request');
+        // Structure comes before size, and size before type.
+        svc.caps = pb.Capabilities(acceptedMimeTypes: ['image/png'], maxFileBytes: Int64(5));
+        await expectReason(c.chat.sendMessage(send(pb.ContentPart(image: pb.ImageContent(file: gif)))), 'too_large');
+        await expectReason(
+          c.chat.sendMessage(send(pb.ContentPart(image: pb.ImageContent(file: ref(data, hashes: [pb.Hash(value: [1])]))))),
+          'bad_request',
+        );
+        expect(svc.msgs, isEmpty);
+      });
+
+      test('send: an empty string is absent, and a second send with it adds a second message', () async {
+        final c = await files();
+        addTearDown(c.channel.shutdown);
+        final r = pb.SendMessageRequest(
+          content: [pb.ContentPart(text: pb.TextContent(text: 'x'))],
+          idempotencyKey: '',
+          replyToMessageId: '',
+        );
+        await c.chat.sendMessage(r);
+        await c.chat.sendMessage(r);
+        expect(svc.msgs.length, 2);
+        expect(svc.msgs.first.hasIdempotencyKey(), isFalse);
+      });
+
+      test('the status event PENDING to IN_PROGRESS exists only for a PENDING message', () async {
+        final u = svc.user('q');
+        final pending = svc.assistant('', replyTo: u.messageId, status: pb.MessageStatus.MESSAGE_STATUS_PENDING);
+        final running = svc.assistant('', replyTo: u.messageId, status: pb.MessageStatus.MESSAGE_STATUS_IN_PROGRESS);
+        svc.setStatus(pending.messageId, pb.MessageStatus.MESSAGE_STATUS_IN_PROGRESS);
+        expect(() => svc.setStatus(running.messageId, pb.MessageStatus.MESSAGE_STATUS_IN_PROGRESS), throwsStateError);
+        svc.setStatus(running.messageId, pb.MessageStatus.MESSAGE_STATUS_FAILED, error: 'no');
+        expect(() => svc.setStatus(running.messageId, pb.MessageStatus.MESSAGE_STATUS_COMPLETED), throwsStateError);
+        expect(running.error, 'no');
+        // A PENDING message goes on to the end, and the client shows it as open.
+        await boot();
+        await chat.sync();
+        expect(chat.messages[1].isOpen, isTrue);
+      });
+
+      test('Connect: a bad or repeated event_id gets a ProtocolError with no event_id', () async {
+        final c = await files();
+        addTearDown(c.channel.shutdown);
+        final out = StreamController<pb.ClientEvent>();
+        final got = <pb.ServerEvent>[];
+        final call = c.chat.connect(out.stream)..listen(got.add, onError: (_) {});
+        addTearDown(() async {
+          await out.close();
+          await call.cancel();
+        });
+        out.add(pb.ClientEvent(eventId: 'a', subscribe: pb.SubscribeRequest()));
+        await until(() => got.any((e) => e.hasSubscriptionReady()));
+        out.add(pb.ClientEvent(eventId: 'a', acknowledge: pb.AcknowledgeEvent(lastSequence: Int64(0))));
+        out.add(pb.ClientEvent(eventId: 'a b', acknowledge: pb.AcknowledgeEvent(lastSequence: Int64(0))));
+        await until(() => got.where((e) => e.hasError()).length == 2);
+        for (final e in got.where((e) => e.hasError())) {
+          expect(e.error.code, 'bad_request');
+          expect(e.error.hasEventId(), isFalse);
+        }
+      });
+
+      test('Connect: a first event that fails ends the call with a status and a reason', () async {
+        final c = await files();
+        addTearDown(c.channel.shutdown);
+        Future<void> first(pb.ClientEvent e, String reason) => expectReason(
+              c.chat.connect(Stream.value(e)).toList(),
+              reason,
+            );
+        await first(pb.ClientEvent(eventId: 'a', subscribe: pb.SubscribeRequest(afterSequence: Int64(5))), 'bad_request');
+        await first(pb.ClientEvent(eventId: 'a b', subscribe: pb.SubscribeRequest()), 'bad_request');
+        await first(pb.ClientEvent(eventId: 'a', acknowledge: pb.AcknowledgeEvent()), 'bad_state');
+      });
+    });
+  });
+
+  group('revision 6, round 4', () {
+    pb.FileReference ref(Uint8List data, {String mime = 'image/png', List<pb.Hash>? hashes, int? size}) =>
+        pb.FileReference(
+          hashes: hashes ?? [pb.Hash(type: ChatClient.sha3Type, value: sha3_256(data))],
+          mimeType: mime,
+          sizeBytes: Int64(size ?? data.length),
+        );
+
+    Future<void> expectReason(Future<Object?> call, String reason) => expectLater(
+          call,
+          throwsA(isA<GrpcError>().having((e) => e.trailers?['chat-reason'], 'reason', reason)),
+          reason: reason,
+        );
+
+    Future<GrpcChannelAndFiles> channel() async {
+      await boot();
+      final c = ClientChannel(
+        '127.0.0.1',
+        port: proxy.port,
+        options: const ChannelOptions(credentials: ChannelCredentials.insecure()),
+      );
+      addTearDown(c.shutdown);
+      return GrpcChannelAndFiles(c, pb.FileServiceClient(c), pb.ChatServiceClient(c));
+    }
+
+    GrpcError notFound() => chatError(StatusCode.notFound, 'not_found');
+
+    test('bad_request with a local copy ahead: read again from 0, then subscribe, once', () async {
+      svc.user('a');
+      svc.user('b');
+      await boot();
+      await chat.sync();
+      await until(() => chat.streaming);
+      // The instance was reset: the service has one message that the client does not know.
+      svc.msgs
+        ..clear()
+        ..add(svc.user('new'));
+      svc.msgs.removeAt(0);
+      proxy.drop();
+      await until(() => chat.streaming && chat.messages.length == 1 && chat.messages.single.text == 'new',
+          what: 'resync');
+      expect(svc.reads.where((r) => r == 0).length, 2, reason: 'one read from 0 at the start, one for the resync');
+      expect(chat.streamError, isNull);
+    });
+
+    test('bad_request again after the resync: the generic rule, 3 failures, then the error', () async {
+      svc.user('a');
+      await boot();
+      await chat.sync();
+      await until(() => chat.streaming);
+      final seen = <ChatException?>[];
+      chat.addListener(() => seen.add(chat.streamError));
+      svc.connectError = chatError(StatusCode.invalidArgument, 'bad_request');
+      proxy.drop();
+      await until(() => chat.streamError != null, what: 'error');
+      expect(chat.streamError!.kind, ChatErrorKind.badRequest);
+      // One try that resynced, then 3 failures in a row.
+      expect(svc.connects, 1 + 1 + 3);
+      expect(svc.reads.where((r) => r == 0).length, 2, reason: 'the resync is made once');
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(svc.connects, 5, reason: 'the client stopped');
+      expect(chat.streaming, isFalse);
+    });
+
+    test('another status of the first event: 3 failures stop it; SubscriptionReady resets the count', () async {
+      await boot();
+      svc.connectErrors.addAll([notFound(), notFound()]);
+      await chat.sync();
+      await until(() => chat.streaming, what: 'ready after 2 failures');
+      expect(svc.connects, 3);
+      expect(chat.streamError, isNull);
+      svc.connectErrors.addAll([notFound(), notFound(), notFound()]);
+      proxy.drop();
+      await until(() => chat.streamError != null, what: 'error');
+      expect(svc.connects, 6);
+      expect(chat.streamError!.kind, ChatErrorKind.badRequest);
+      expect(chat.streamError!.reason, 'not_found');
+    });
+
+    test('busy: wait the first wait also after a long stream, and never loop with no wait', () async {
+      await boot(waits: const [Duration(milliseconds: 300)], stableAfter: const Duration(milliseconds: 30));
+      await chat.sync();
+      await until(() => chat.streaming);
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      final t = Stopwatch()..start();
+      svc.closeStreamsBusy();
+      await until(() => svc.connects == 2 && chat.streaming, what: 'subscribe again');
+      expect(t.elapsedMilliseconds, greaterThanOrEqualTo(290));
+      // Busy at the first event too: each try waits, and none counts as a failure.
+      svc.connectErrors.addAll([
+        chatError(StatusCode.unavailable, 'busy'),
+        chatError(StatusCode.unavailable, 'busy'),
+        chatError(StatusCode.unavailable, 'busy'),
+        chatError(StatusCode.unavailable, 'busy'),
+      ]);
+      t
+        ..reset()
+        ..start();
+      proxy.drop();
+      await until(() => chat.streaming && svc.connects == 7, what: 'busy tries');
+      expect(t.elapsedMilliseconds, greaterThanOrEqualTo(1100));
+      expect(chat.streamError, isNull);
+    });
+
+    test('ProtocolError with no event_id: before SubscriptionReady reconnect; after it, ignore', () async {
+      svc.user('a');
+      svc.protocolErrorsBeforeReady = 1;
+      await boot();
+      await chat.sync();
+      await until(() => svc.connects == 2 && chat.streaming, what: 'reconnect');
+      expect(chat.streamError, isNull);
+      final reads = svc.reads.length;
+      svc.emit(pb.ServerEvent(error: pb.ProtocolError(code: 'bad_request', message: 'ack')));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      expect(svc.connects, 2);
+      expect(chat.streaming, isTrue);
+      expect(svc.reads.length, reads, reason: 'no resync');
+    });
+
+    test('a long error text is cut by UTF-8 bytes to 1 024, inside no character', () async {
+      final u = svc.user('q');
+      svc.assistant('', replyTo: u.messageId, status: pb.MessageStatus.MESSAGE_STATUS_FAILED, error: 'é' * 600);
+      svc.assistant('', replyTo: u.messageId, status: pb.MessageStatus.MESSAGE_STATUS_FAILED, error: 'a' * 1025);
+      svc.assistant('', replyTo: u.messageId, status: pb.MessageStatus.MESSAGE_STATUS_FAILED, error: '€' * 500);
+      svc.assistant('', replyTo: u.messageId, status: pb.MessageStatus.MESSAGE_STATUS_FAILED, error: 'ok');
+      await boot();
+      await chat.sync();
+      final errors = [for (final m in chat.messages.skip(1)) m.error!];
+      expect(errors[0], 'é' * 512);
+      expect(errors[1], 'a' * 1024);
+      expect(errors[2], '€' * 341);
+      expect(errors[3], 'ok');
+    });
+
+    test('the fake: a later file is found after size, type and storage (55c, 55e)', () async {
+      final c = await channel();
+      final data = bytes(100);
+      Stream<pb.UploadFileRequest> twice(pb.FileReference r) async* {
+        yield pb.UploadFileRequest(file: r);
+        yield pb.UploadFileRequest(chunk: data);
+        yield pb.UploadFileRequest(file: r);
+      }
+
+      // 55e: valid, with a second file.
+      await expectReason(c.files.uploadFile(twice(ref(data))), 'bad_request');
+      final answers = await c.files
+          .queryFiles(Stream.value(pb.QueryFilesRequest(hash: pb.Hash(type: ChatClient.sha3Type, value: sha3_256(data)))))
+          .toList();
+      expect(answers.single.available, isFalse);
+      // 55c: size, then type, then storage, each before the second file.
+      svc.caps = pb.Capabilities(acceptedMimeTypes: ['image/png'], maxFileBytes: Int64(50));
+      await expectReason(c.files.uploadFile(twice(ref(data, mime: 'application/pdf'))), 'too_large');
+      svc.caps = pb.Capabilities(acceptedMimeTypes: ['image/png']);
+      await expectReason(c.files.uploadFile(twice(ref(data, mime: 'application/pdf'))), 'unsupported_media');
+      svc.storageFull = true;
+      await expectReason(c.files.uploadFile(twice(ref(data))), 'storage_full');
+      expect(svc.files, isEmpty);
+    });
+
+    // package:protobuf reports a `type` of 0 bytes as absent (`hasType()` is false and
+    // the decoder cannot tell the two apart), so the fake cannot tell test 48b from test 49:
+    // it follows 49. A type of other bytes stands for an unknown type.
+    test('the fake: an unknown type is not an error (48b), no type is (49), 31 bytes is bad_request (55f)', () async {
+      final c = await channel();
+      final data = bytes(100);
+      final empty = pb.Hash(type: [9, 9], value: sha3_256(data));
+      final answers = await c.files.queryFiles(Stream.value(pb.QueryFilesRequest(hash: empty))).toList();
+      expect(answers.single.available, isFalse);
+      await expectReason(
+        c.files.queryFiles(Stream.value(pb.QueryFilesRequest(hash: pb.Hash(value: sha3_256(data))))).toList(),
+        'bad_request',
+      );
+      // In a FileReference an empty type is ignored, and the reference needs a known hash.
+      Stream<pb.UploadFileRequest> up(pb.FileReference r) async* {
+        yield pb.UploadFileRequest(file: r);
+        yield pb.UploadFileRequest(chunk: data);
+      }
+
+      await expectReason(c.files.uploadFile(up(ref(data, hashes: [empty]))), 'bad_request');
+      await c.files.uploadFile(up(ref(data, hashes: [empty, pb.Hash(type: ChatClient.sha3Type, value: sha3_256(data))])));
+      expect(svc.files.length, 1);
+      final short = pb.Hash(type: ChatClient.sha3Type, value: bytes(31));
+      await expectReason(c.files.uploadFile(up(ref(data, hashes: [short]))), 'bad_request');
+    });
+
+    test('the fake: the first event table, and a full queue ends the stream with busy', () async {
+      final c = await channel();
+      Future<void> first(pb.ClientEvent e, String reason) =>
+          expectReason(c.chat.connect(Stream.value(e)).toList(), reason);
+      await first(pb.ClientEvent(eventId: 'a', acknowledge: pb.AcknowledgeEvent()), 'bad_state');
+      await first(pb.ClientEvent(eventId: 'a b', subscribe: pb.SubscribeRequest()), 'bad_request');
+      await first(pb.ClientEvent(eventId: 'a', subscribe: pb.SubscribeRequest(afterSequence: Int64(1))), 'bad_request');
+      await first(pb.ClientEvent(eventId: 'a', subscribe: pb.SubscribeRequest(conversationId: 'other')), 'not_found');
+      // Queue: 1 000 events are not enough to end the stream, 1 001 are.
+      svc.stallQueues = true;
+      final out = StreamController<pb.ClientEvent>();
+      final got = <pb.ServerEvent>[];
+      Object? ended;
+      c.chat.connect(out.stream).listen(got.add, onError: (Object e) => ended = e);
+      addTearDown(out.close);
+      out.add(pb.ClientEvent(eventId: 'a', subscribe: pb.SubscribeRequest()));
+      await until(() => svc.openStreams == 1);
+      for (var i = 0; i < 1000; i++) {
+        svc.emit(pb.ServerEvent(messageProgress: pb.MessageProgress()));
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(ended, isNull);
+      svc.emit(pb.ServerEvent(messageProgress: pb.MessageProgress()));
+      await until(() => ended != null, what: 'busy');
+      expect((ended! as GrpcError).trailers?['chat-reason'], 'busy');
+      expect((ended! as GrpcError).code, StatusCode.unavailable);
+    });
   });
 
   group('close', () {

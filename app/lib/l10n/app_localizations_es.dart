@@ -5420,6 +5420,10 @@ class AppLocalizationsEs extends AppLocalizations {
       'Esta conversación está llena. Inicia una instancia nueva para una conversación nueva.';
 
   @override
+  String get chatErrorStorageFull =>
+      'El servicio no tiene espacio para guardar este archivo. El mensaje no se envió.';
+
+  @override
   String get chatErrorBusy =>
       'El servicio está demasiado ocupado para recibir este mensaje. Inténtalo de nuevo en un momento.';
 

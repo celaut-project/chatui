@@ -308,6 +308,7 @@ class Message extends $pb.GeneratedMessage {
     $core.bool? fromService,
     $core.String? reasoning,
     $core.String? idempotencyKey,
+    $core.String? error,
   }) {
     final result = Message._();
     if (messageId != null) result.messageId = messageId;
@@ -323,6 +324,7 @@ class Message extends $pb.GeneratedMessage {
     if (fromService != null) result.fromService = fromService;
     if (reasoning != null) result.reasoning = reasoning;
     if (idempotencyKey != null) result.idempotencyKey = idempotencyKey;
+    if (error != null) result.error = error;
     return result;
   }
 
@@ -358,6 +360,7 @@ class Message extends $pb.GeneratedMessage {
     ..aOB(11, _omitFieldNames ? '' : 'fromService')
     ..aOS(12, _omitFieldNames ? '' : 'reasoning')
     ..aOS(13, _omitFieldNames ? '' : 'idempotencyKey')
+    ..aOS(14, _omitFieldNames ? '' : 'error')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -509,6 +512,20 @@ class Message extends $pb.GeneratedMessage {
   $core.bool hasIdempotencyKey() => $_has(12);
   @$pb.TagNumber(13)
   void clearIdempotencyKey() => $_clearField(13);
+
+  /// Revisión 6.
+  /// Texto corto y legible del motivo de un fallo, en UTF-8, de 1 KiB
+  /// como máximo. El servicio lo fija junto con el estado FAILED y no
+  /// lo cambia después. Solo un mensaje del servicio con estado FAILED
+  /// lo tiene.
+  @$pb.TagNumber(14)
+  $core.String get error => $_getSZ(13);
+  @$pb.TagNumber(14)
+  set error($core.String value) => $_setString(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasError() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearError() => $_clearField(14);
 }
 
 class SendMessageRequest extends $pb.GeneratedMessage {
@@ -941,12 +958,14 @@ class MessageStatusChanged extends $pb.GeneratedMessage {
     $core.String? conversationId,
     MessageStatus? status,
     $fixnum.Int64? updatedAt,
+    $core.String? error,
   }) {
     final result = MessageStatusChanged._();
     if (messageId != null) result.messageId = messageId;
     if (conversationId != null) result.conversationId = conversationId;
     if (status != null) result.status = status;
     if (updatedAt != null) result.updatedAt = updatedAt;
+    if (error != null) result.error = error;
     return result;
   }
 
@@ -967,6 +986,7 @@ class MessageStatusChanged extends $pb.GeneratedMessage {
     ..aE<MessageStatus>(3, _omitFieldNames ? '' : 'status',
         enumValues: MessageStatus.values)
     ..aInt64(4, _omitFieldNames ? '' : 'updatedAt')
+    ..aOS(5, _omitFieldNames ? '' : 'error')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1029,6 +1049,18 @@ class MessageStatusChanged extends $pb.GeneratedMessage {
   $core.bool hasUpdatedAt() => $_has(3);
   @$pb.TagNumber(4)
   void clearUpdatedAt() => $_clearField(4);
+
+  /// Revisión 6.
+  /// Igual que Message.error. Solo se envía si status es FAILED, y
+  /// tiene el mismo valor que Message.error.
+  @$pb.TagNumber(5)
+  $core.String get error => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set error($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasError() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearError() => $_clearField(5);
 }
 
 /// Revisión 6.
@@ -1424,6 +1456,10 @@ class ProtocolError extends $pb.GeneratedMessage {
           ProtocolError.$_createMessage);
   static ProtocolError? _defaultInstance;
 
+  /// Motivo del error. Es uno de los nombres de chat.md, sección 9:
+  /// bad_request, unsupported_media, too_large, hash_mismatch,
+  /// not_found, file_missing, bad_state, history_full, storage_full,
+  /// busy, service_error, unimplemented.
   @$pb.TagNumber(1)
   $core.String get code => $_getSZ(0);
   @$pb.TagNumber(1)
@@ -1708,6 +1744,10 @@ class Hash extends $pb.GeneratedMessage {
   ///
   /// Se define como el digest de una entrada vacía calculado
   /// con ese algoritmo y esa longitud.
+  ///
+  /// Revisión 6: en el cable son los bytes crudos del digest (por
+  /// ejemplo, 32 bytes para SHA3-256), no su texto hexadecimal. El
+  /// hexadecimal solo es la forma en que chat.md escribe esos bytes.
   ///
   /// Puede omitirse en QueryFilesRequest para reutilizar el último
   /// type explícito del mismo stream cliente-servidor.
@@ -2627,7 +2667,8 @@ class Capabilities extends $pb.GeneratedMessage {
   @$pb.TagNumber(5)
   void clearSupportsFork() => $_clearField(5);
 
-  /// El servicio implementa CancelMessageRequest.
+  /// El servicio implementa el evento cancel_message de ClientEvent
+  /// (CancelMessageRequest).
   @$pb.TagNumber(6)
   $core.bool get supportsCancel => $_getBF(5);
   @$pb.TagNumber(6)

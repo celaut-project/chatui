@@ -8477,6 +8477,12 @@ abstract class AppLocalizations {
   /// **'This conversation is full. Start a new instance for a new conversation.'**
   String get chatErrorHistoryFull;
 
+  /// No description provided for @chatErrorStorageFull.
+  ///
+  /// In en, this message translates to:
+  /// **'The service has no room to keep this file. The message was not sent.'**
+  String get chatErrorStorageFull;
+
   /// No description provided for @chatErrorBusy.
   ///
   /// In en, this message translates to:

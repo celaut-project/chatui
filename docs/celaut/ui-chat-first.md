@@ -174,6 +174,7 @@ The screen is `ChatScreen`. The protocol is in [chat.md](chat.md). The picker is
 | Chips | A picked file shows as a chip above the field |
 | Image in a bubble | The image shows inside the bubble |
 | Audio in a bubble | The bubble shows the name of the file. A tap hands the file to the share sheet of the system. The app has no player |
+| Hash of a file | The client sends and reads `Hash.type` and `Hash.value` as raw bytes (32 bytes each for SHA3-256), and checks a download against the SHA3-256 digest. It sends no empty file, no hash without `type` and no empty string in an optional field |
 | Files in memory | The app keeps the files in memory only. It writes no file to the storage and no message to the Celaut database |
 | List of conversations | A message with only a file shows a preview, "Photo" or "Audio" |
 
@@ -295,3 +296,16 @@ Known limits of the notices:
   If a service ends the call with `UNIMPLEMENTED` anyway, `ChatClient.canPin` becomes
   `false`: the screen hides `Pin` and `Unpin`, and the client does not call the service
   again while the chat screen is open.
+- A failed answer shows the `error` text of the service, under the line that says that the
+  answer stopped, if it has one. The app does not read the failure from the text of the
+  message or from `metadata`. A `RESOURCE_EXHAUSTED` status with no reason is `too_large`
+  for a send and for a file, and `other` for another call. A full file store (`storage_full`) shows a message
+  to the user, and the app does not send the file again by itself. A `Connect` stream that
+  ends with `busy` is not shown to the user: the app waits at least 2 seconds and subscribes again.
+- If the app cannot subscribe to the chat (the first event of `Connect` fails), it tries again
+  and shows the error after 3 failures in a row. If the service has fewer messages than the
+  app (for example after a reset of the instance), the app drops its copy of the chat and
+  reads it again from the start ([chat.md](chat.md), section 6.5). A file whose reference has
+  no SHA3-256 hash shows as unreadable, and the app does not call `DownloadFile` for it. A long
+  `error` text is cut for display, by UTF-8 bytes, to 1 024 bytes. A `ProtocolError` with no
+  `event_id` after `SubscriptionReady` is ignored and written in the log.

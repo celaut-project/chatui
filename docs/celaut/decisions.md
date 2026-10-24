@@ -170,3 +170,24 @@
   `CANCELLED` is a final status shown as cancelled, with no notice and no cancel button
   for now. `acknowledge` is a hint that lets the service drop buffered events. This is revision 6 of [chat.md](chat.md); the
   services `echo-chat` and the Claude remote service must migrate (section 13 of that file).
+- **Chat interface, clarifications (2026-10-24, Josemi):** after the migration of the two
+  services, revision 6 of [chat.md](chat.md) fixes these points. `Hash.type` and `Hash.value`
+  are the raw bytes of the digest (32 bytes for SHA3-256), not hexadecimal text. A `FAILED`
+  message has `error` (a short text for the user, 1 KiB at most, set once with the status);
+  `metadata["error"]` is not used. A new reason `storage_full` is for a file store that cannot
+  take an upload, and `history_full` is only for the history. An empty file is not valid. A
+  `mime_type` that a service does not accept is `unsupported_media` for each kind of part, and
+  `bad_request` only when an `image` part has an `audio/*` type or an `audio` part has an
+  `image/*` type. The app shows the `error` of a failed answer and tells the user about a full
+  file store.
+- **Chat interface, second round of clarifications (2026-10-24, Josemi):** [chat.md](chat.md)
+  gives one rule for each point that the three implementations found. A later `file` of an
+  upload is found while the chunks are read, after the size, type and storage checks. A `type`
+  that is set and empty is an unknown type, and a SHA3-256 hash with a `value` that is not 32
+  bytes is `bad_request`. A service limits the queue of a `Connect` stream at 1 000 events or
+  more and then ends it with `UNAVAILABLE` and `busy`; the app waits at least 2 seconds and
+  subscribes again. A failing first event has a fixed status for each case. If the app is ahead
+  of the service (`bad_request` for `after_sequence`), it drops its copy and reads from 0; for
+  other statuses it retries and shows the error after 3 failures in a row. The app ignores a
+  `ProtocolError` with no `event_id` after `SubscriptionReady`. The app does not download a file
+  that has no SHA3-256 hash. `error` has at most 1 KiB, and the app can cut it for display.

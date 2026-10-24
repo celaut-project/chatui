@@ -215,6 +215,21 @@ void main() {
       expect(holds.reasons, isEmpty);
     });
 
+    test('a failed answer with an error text gives no notice either', () async {
+      final chat = _Chat([_user, _answer(1, 'streaming')])
+        ..onSync = (m) => m[1] = const ChatMessage(
+              seq: 2,
+              role: 'assistant',
+              text: 'Half',
+              status: ChatMessage.statusFailed,
+              error: 'The model is down.',
+              replyTo: 1,
+            );
+      await handOver('a', chat, statuses: {1: 'streaming'});
+      expect(shown, isEmpty);
+      expect(watcher.watching, isEmpty);
+    });
+
     test('a new hand-over for an instance replaces the old watch', () async {
       final first = _Chat([_user, _answer(1, 'streaming')]);
       await handOver('a', first, statuses: {1: 'streaming'});

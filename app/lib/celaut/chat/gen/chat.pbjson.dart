@@ -200,12 +200,14 @@ const Message$json = {
       '10': 'idempotencyKey',
       '17': true
     },
+    {'1': 'error', '3': 14, '4': 1, '5': 9, '9': 3, '10': 'error', '17': true},
   ],
   '3': [Message_MetadataEntry$json],
   '8': [
     {'1': '_conversation_id'},
     {'1': '_reply_to_message_id'},
     {'1': '_idempotency_key'},
+    {'1': '_error'},
   ],
 };
 
@@ -229,10 +231,10 @@ final $typed_data.Uint8List messageDescriptor = $convert.base64Decode(
     'lkGAggASgJSAFSEHJlcGx5VG9NZXNzYWdlSWSIAQESFgoGcGlubmVkGAkgASgIUgZwaW5uZWQS'
     'MgoIbWV0YWRhdGEYCiADKAsyFi5NZXNzYWdlLk1ldGFkYXRhRW50cnlSCG1ldGFkYXRhEiEKDG'
     'Zyb21fc2VydmljZRgLIAEoCFILZnJvbVNlcnZpY2USHAoJcmVhc29uaW5nGAwgASgJUglyZWFz'
-    'b25pbmcSLAoPaWRlbXBvdGVuY3lfa2V5GA0gASgJSAJSDmlkZW1wb3RlbmN5S2V5iAEBGjsKDU'
-    '1ldGFkYXRhRW50cnkSEAoDa2V5GAEgASgJUgNrZXkSFAoFdmFsdWUYAiABKAlSBXZhbHVlOgI4'
-    'AUISChBfY29udmVyc2F0aW9uX2lkQhYKFF9yZXBseV90b19tZXNzYWdlX2lkQhIKEF9pZGVtcG'
-    '90ZW5jeV9rZXk=');
+    'b25pbmcSLAoPaWRlbXBvdGVuY3lfa2V5GA0gASgJSAJSDmlkZW1wb3RlbmN5S2V5iAEBEhkKBW'
+    'Vycm9yGA4gASgJSANSBWVycm9yiAEBGjsKDU1ldGFkYXRhRW50cnkSEAoDa2V5GAEgASgJUgNr'
+    'ZXkSFAoFdmFsdWUYAiABKAlSBXZhbHVlOgI4AUISChBfY29udmVyc2F0aW9uX2lkQhYKFF9yZX'
+    'BseV90b19tZXNzYWdlX2lkQhIKEF9pZGVtcG90ZW5jeV9rZXlCCAoGX2Vycm9y');
 
 @$core.Deprecated('Use sendMessageRequestDescriptor instead')
 const SendMessageRequest$json = {
@@ -407,9 +409,11 @@ const MessageStatusChanged$json = {
       '10': 'status'
     },
     {'1': 'updated_at', '3': 4, '4': 1, '5': 3, '10': 'updatedAt'},
+    {'1': 'error', '3': 5, '4': 1, '5': 9, '9': 1, '10': 'error', '17': true},
   ],
   '8': [
     {'1': '_conversation_id'},
+    {'1': '_error'},
   ],
 };
 
@@ -418,7 +422,8 @@ final $typed_data.Uint8List messageStatusChangedDescriptor = $convert.base64Deco
     'ChRNZXNzYWdlU3RhdHVzQ2hhbmdlZBIdCgptZXNzYWdlX2lkGAEgASgJUgltZXNzYWdlSWQSLA'
     'oPY29udmVyc2F0aW9uX2lkGAIgASgJSABSDmNvbnZlcnNhdGlvbklkiAEBEiYKBnN0YXR1cxgD'
     'IAEoDjIOLk1lc3NhZ2VTdGF0dXNSBnN0YXR1cxIdCgp1cGRhdGVkX2F0GAQgASgDUgl1cGRhdG'
-    'VkQXRCEgoQX2NvbnZlcnNhdGlvbl9pZA==');
+    'VkQXQSGQoFZXJyb3IYBSABKAlIAVIFZXJyb3KIAQFCEgoQX2NvbnZlcnNhdGlvbl9pZEIICgZf'
+    'ZXJyb3I=');
 
 @$core.Deprecated('Use messageDeltaDescriptor instead')
 const MessageDelta$json = {

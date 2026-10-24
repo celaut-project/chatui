@@ -169,6 +169,13 @@ message Message {
   // idempotency_key de SendMessageRequest que creó este mensaje.
   // Solo lo tiene un mensaje del usuario, y solo si el envío lo tenía.
   optional string idempotency_key = 13;
+
+  // Revisión 6.
+  // Texto corto y legible del motivo de un fallo, en UTF-8, de 1 KiB
+  // como máximo. El servicio lo fija junto con el estado FAILED y no
+  // lo cambia después. Solo un mensaje del servicio con estado FAILED
+  // lo tiene.
+  optional string error = 14;
 }
 
 message SendMessageRequest {
@@ -254,6 +261,11 @@ message MessageStatusChanged {
 
   // Fecha del cambio de estado, en milisegundos Unix.
   int64 updated_at = 4;
+
+  // Revisión 6.
+  // Igual que Message.error. Solo se envía si status es FAILED, y
+  // tiene el mismo valor que Message.error.
+  optional string error = 5;
 }
 
 // Revisión 6.
@@ -307,6 +319,10 @@ message SubscriptionReady {
 }
 
 message ProtocolError {
+  // Motivo del error. Es uno de los nombres de chat.md, sección 9:
+  // bad_request, unsupported_media, too_large, hash_mismatch,
+  // not_found, file_missing, bad_state, history_full, storage_full,
+  // busy, service_error, unimplemented.
   string code = 1;
   string message = 2;
 
@@ -344,6 +360,10 @@ message Hash {
   //
   // Se define como el digest de una entrada vacía calculado
   // con ese algoritmo y esa longitud.
+  //
+  // Revisión 6: en el cable son los bytes crudos del digest (por
+  // ejemplo, 32 bytes para SHA3-256), no su texto hexadecimal. El
+  // hexadecimal solo es la forma en que chat.md escribe esos bytes.
   //
   // Puede omitirse en QueryFilesRequest para reutilizar el último
   // type explícito del mismo stream cliente-servidor.
@@ -484,7 +504,8 @@ message Capabilities {
   // distintas de la principal.
   bool supports_fork = 5;
 
-  // El servicio implementa CancelMessageRequest.
+  // El servicio implementa el evento cancel_message de ClientEvent
+  // (CancelMessageRequest).
   bool supports_cancel = 6;
 }
 

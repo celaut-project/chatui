@@ -5352,6 +5352,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'This conversation is full. Start a new instance for a new conversation.';
 
   @override
+  String get chatErrorStorageFull =>
+      'The service has no room to keep this file. The message was not sent.';
+
+  @override
   String get chatErrorBusy =>
       'The service is too busy to take this message. Try again in a moment.';
 

@@ -84,6 +84,7 @@ class ChatMessage {
     this.pinned = false,
     this.id = '',
     this.updatedAt = 0,
+    this.error,
   });
 
   /// The values of [status] (`docs/celaut/chat.md`, section 5.2). `streaming` is a message
@@ -126,6 +127,11 @@ class ChatMessage {
   /// The time of the last change of [status] or [pinned], in milliseconds since 1970.
   final int updatedAt;
 
+  /// The reason of a failure, for the user to read: the `error` of a `FAILED` message
+  /// (section 5.2). Null if the service gave none. The client does not read the failure
+  /// from [text] or from `metadata`.
+  final String? error;
+
   bool get fromUser => role == 'user';
 
   /// An answer that grows: its [text] and [reasoning] are not final yet.
@@ -139,6 +145,7 @@ class ChatMessage {
     String? reasoning,
     bool? pinned,
     int? updatedAt,
+    String? error,
   }) =>
       ChatMessage(
         seq: seq,
@@ -152,6 +159,7 @@ class ChatMessage {
         pinned: pinned ?? this.pinned,
         id: id,
         updatedAt: updatedAt ?? this.updatedAt,
+        error: error ?? this.error,
       );
 }
 
@@ -166,8 +174,13 @@ enum ChatErrorKind {
   /// `FAILED_PRECONDITION`), or the client refused to send it.
   badRequest,
 
-  /// `RESOURCE_EXHAUSTED`: the service cannot keep more messages.
+  /// `RESOURCE_EXHAUSTED` with the reason `history_full`: the service cannot keep more
+  /// messages.
   historyFull,
+
+  /// `RESOURCE_EXHAUSTED` with the reason `storage_full`: the file store of the service
+  /// cannot take the upload. The client does not send the file again by itself.
+  storageFull,
 
   /// `UNAVAILABLE` with the reason `busy`: the service cannot keep one more message that
   /// waits. Try again later.
@@ -479,12 +492,18 @@ class ChatClient extends ChangeNotifier {
   // --- Errors --------------------------------------------------------------------------
 
   /// The kind of an error of the table in section 9, from its status and its reason.
-  static ChatErrorKind _kind(int? code, String? reason) {
+  ///
+  /// [sizeLimit] is true for a send and for a file call: `RESOURCE_EXHAUSTED` with no
+  /// reason is the receive limit of the gRPC layer, and it counts as `too_large`
+  /// (`badRequest`). For another call it is `other`.
+  static ChatErrorKind _kind(int? code, String? reason, {bool sizeLimit = false}) {
     switch (reason) {
       case 'busy':
         return ChatErrorKind.busy;
       case 'history_full':
         return ChatErrorKind.historyFull;
+      case 'storage_full':
+        return ChatErrorKind.storageFull;
       case 'unsupported_media':
         return ChatErrorKind.unsupportedMedia;
       case 'bad_request' || 'too_large' || 'hash_mismatch' || 'not_found' || 'file_missing' ||
@@ -504,17 +523,22 @@ class ChatClient extends ChangeNotifier {
       StatusCode.notFound ||
       StatusCode.failedPrecondition =>
         ChatErrorKind.badRequest,
-      StatusCode.resourceExhausted => ChatErrorKind.historyFull,
+      StatusCode.resourceExhausted =>
+        sizeLimit ? ChatErrorKind.badRequest : ChatErrorKind.other,
       _ => ChatErrorKind.other,
     };
   }
 
-  static ChatException _toException(Object e) {
+  static ChatException _toException(Object e, {bool sizeLimit = false}) {
     if (e is ChatException) return e;
     if (e is GrpcError) {
-      final reason = e.trailers?['chat-reason'];
+      var reason = e.trailers?['chat-reason'];
+      if (reason != null && reason.isEmpty) reason = null;
+      if (reason == null && sizeLimit && e.code == StatusCode.resourceExhausted) {
+        reason = 'too_large';
+      }
       return ChatException(
-        _kind(e.code, reason),
+        _kind(e.code, reason, sizeLimit: sizeLimit),
         status: e.code,
         reason: reason,
         message: e.message,
@@ -523,13 +547,15 @@ class ChatClient extends ChangeNotifier {
     return const ChatException(ChatErrorKind.unreachable);
   }
 
-  Future<T> _guard<T>(Future<T> Function() call) async {
+  /// Run [call] and give its errors as [ChatException]. [sizeLimit] is true for a send and
+  /// for a file call (see [_kind]).
+  Future<T> _guard<T>(Future<T> Function() call, {bool sizeLimit = false}) async {
     try {
       return await call();
     } on ChatException {
       rethrow;
     } on Object catch (e) {
-      throw _toException(e);
+      throw _toException(e, sizeLimit: sizeLimit);
     }
   }
 
@@ -576,7 +602,7 @@ class ChatClient extends ChangeNotifier {
       var applied = false;
       for (final raw in got) {
         _checkSize(raw);
-        if (raw.hasConversationId() && raw.conversationId.isNotEmpty) continue;
+        if (raw.conversationId.isNotEmpty) continue;
         if (raw.sequence.toInt() != expected) throw const ChatException(ChatErrorKind.badAnswer);
         expected++;
         applied = true;
@@ -618,7 +644,7 @@ class ChatClient extends ChangeNotifier {
         kind: kind,
         mime: file.mimeType.split(';').first.trim().toLowerCase(),
         size: file.hasSizeBytes() ? file.sizeBytes.toInt() : 0,
-        name: file.hasFilename() ? file.filename : null,
+        name: file.filename.isNotEmpty ? file.filename : null,
         hash: _sha3Of(file),
       );
 
@@ -642,7 +668,8 @@ class ChatClient extends ChangeNotifier {
           break;
       }
     }
-    final reply = m.hasReplyToMessageId() ? _seqById[m.replyToMessageId] : null;
+    // An empty string is the same as an absent optional field (section 5).
+    final reply = m.replyToMessageId.isNotEmpty ? _seqById[m.replyToMessageId] : null;
     return ChatMessage(
       seq: m.sequence.toInt(),
       role: m.fromService ? 'assistant' : 'user',
@@ -651,11 +678,26 @@ class ChatClient extends ChangeNotifier {
       status: _statusOf(m.status),
       reasoning: m.reasoning,
       replyTo: reply,
-      cid: m.hasIdempotencyKey() && m.idempotencyKey.isNotEmpty ? m.idempotencyKey : null,
+      cid: m.idempotencyKey.isNotEmpty ? m.idempotencyKey : null,
       pinned: m.pinned,
       id: m.messageId,
       updatedAt: m.updatedAt.toInt(),
+      error: _errorOf(m.error),
     );
+  }
+
+  /// `error` of a message, or null if it is empty. At most 1 024 bytes are expected
+  /// (section 5.2); a longer text is cut so that the screen stays small.
+  static String? _errorOf(String error) {
+    if (error.isEmpty) return null;
+    final raw = utf8.encode(error);
+    if (raw.length <= 1024) return error;
+    // Cut by UTF-8 bytes, not inside a character.
+    var end = 1024;
+    while (end > 0 && (raw[end] & 0xC0) == 0x80) {
+      end--;
+    }
+    return utf8.decode(raw.sublist(0, end));
   }
 
   /// Add the message, or take the newer state of the message that the client has. The
@@ -706,9 +748,12 @@ class ChatClient extends ChangeNotifier {
   void _onStatus(pb.MessageStatusChanged s) {
     final have = _byId(s.messageId);
     if (have == null || !have.isOpen) return;
+    final status = _statusOf(s.status);
     _messages[have.seq - 1] = have.copyWith(
-      status: _statusOf(s.status),
+      status: status,
       updatedAt: s.updatedAt.toInt(),
+      // The service sets `error` one time, with the status FAILED.
+      error: status == ChatMessage.statusFailed ? _errorOf(s.error) : null,
     );
   }
 
@@ -737,7 +782,7 @@ class ChatClient extends ChangeNotifier {
   // --- The stream ----------------------------------------------------------------------
 
   void _startStream() {
-    if (_closed || _streamTask != null || _streamUnsupported) return;
+    if (_closed || _streamTask != null || _streamUnsupported || _streamStopped) return;
     _streamTask = _streamLoop().whenComplete(() {
       _streamTask = null;
     });
@@ -750,17 +795,31 @@ class ChatClient extends ChangeNotifier {
     return Future.any([timer.future, _closing.future]).whenComplete(t.cancel);
   }
 
+  /// The error that stopped the stream for good (3 failures of the first event in a row,
+  /// section 6.5), or null. The owner shows it like the error of a read. The client then
+  /// opens no more streams; the owner can read with [sync].
+  ChatException? get streamError => _streamError;
+  ChatException? _streamError;
+  bool _streamStopped = false;
+
+  /// The failures in a row of the first event, and the number of them that stop the stream.
+  static const maxFirstEventFailures = 3;
+
   /// Open the stream, and open it again after it ends (section 6.5).
   Future<void> _streamLoop() async {
     var attempt = 0;
+    var failures = 0;
+    var resynced = false;
     while (!_closed) {
       final started = DateTime.now();
+      final afterUsed = _subscribeAfter;
       Object? failure;
       try {
         await _runStream();
       } on Object catch (e) {
         failure = e;
       }
+      final ready = _readyInRun;
       _streamReady = false;
       _notify();
       if (_closed) return;
@@ -768,14 +827,63 @@ class ChatClient extends ChangeNotifier {
         _streamUnsupported = true;
         return;
       }
-      if (DateTime.now().difference(started) >= stableAfter) {
+      final error = failure == null ? null : _toException(failure);
+      // `UNAVAILABLE` with the reason `busy` (the queue of the stream was full) is not an
+      // error for the user: wait at least the first wait, also after a long stream, and
+      // subscribe again from the last message that the client has.
+      final busy = error?.kind == ChatErrorKind.busy;
+      if (ready) {
+        failures = 0;
+        resynced = false;
+      }
+      if (!ready && !busy) {
+        // The first event failed (or the stream broke before `SubscriptionReady`).
+        if (error?.reason == 'bad_request' &&
+            failure is GrpcError &&
+            afterUsed > 0 &&
+            !resynced) {
+          // The local copy can be ahead of the service: read it all again, once.
+          resynced = true;
+          _dropLocalCopy();
+          try {
+            await _catchUp();
+            continue;
+          } on Object catch (e) {
+            if (_closed) return;
+            failure = e;
+          }
+        }
+        if (++failures >= maxFirstEventFailures) {
+          _streamError = failure == null
+              ? const ChatException(ChatErrorKind.unreachable)
+              : _toException(failure);
+          _streamStopped = true;
+          _notify();
+          return;
+        }
+      }
+      final stable = DateTime.now().difference(started) >= stableAfter;
+      if (stable && !busy) {
         attempt = 0;
       } else {
+        if (stable) attempt = 0;
         await _sleep(reconnectWaits[min(attempt, reconnectWaits.length - 1)]);
         attempt++;
       }
     }
   }
+
+  /// Forget the messages that the client has, to read them again from `after_sequence` 0.
+  void _dropLocalCopy() {
+    _messages.clear();
+    _seqById.clear();
+    _files.clear();
+    _acked = 0;
+    _notify();
+  }
+
+  /// `SubscriptionReady` came in the stream that runs or ran last.
+  bool _readyInRun = false;
 
   String _nextEventId() => 'e${_eventCounter++}';
 
@@ -786,6 +894,7 @@ class ChatClient extends ChangeNotifier {
     final out = StreamController<pb.ClientEvent>();
     _out = out;
     _acked = 0;
+    _readyInRun = false;
     _lastAck = DateTime.fromMillisecondsSinceEpoch(0);
     final done = Completer<void>();
     var mine = false;
@@ -839,16 +948,16 @@ class ChatClient extends ChangeNotifier {
     }
   }
 
-  bool _foreign(String? conversationId) => conversationId != null && conversationId.isNotEmpty;
+  bool _foreign(String conversationId) => conversationId.isNotEmpty;
 
   void _onServerEvent(pb.ServerEvent e) {
     switch (e.whichEvent()) {
       case pb.ServerEvent_Event.messageCreated:
         final raw = e.messageCreated.message;
         _checkSize(raw);
-        if (_foreign(raw.hasConversationId() ? raw.conversationId : null)) return;
+        if (_foreign(raw.conversationId)) return;
         _apply(raw);
-        if (raw.hasIdempotencyKey()) {
+        if (raw.idempotencyKey.isNotEmpty) {
           final pending = _pendingSends[_pendingKeyToEvent(raw.idempotencyKey)];
           final message = _byId(raw.messageId);
           if (pending != null && message != null && !pending.done.isCompleted) {
@@ -856,27 +965,40 @@ class ChatClient extends ChangeNotifier {
           }
         }
       case pb.ServerEvent_Event.messageDelta:
-        if (_foreign(e.messageDelta.hasConversationId() ? e.messageDelta.conversationId : null)) {
+        if (_foreign(e.messageDelta.conversationId)) {
           return;
         }
         _onDelta(e.messageDelta);
       case pb.ServerEvent_Event.messageStatusChanged:
         final s = e.messageStatusChanged;
-        if (_foreign(s.hasConversationId() ? s.conversationId : null)) return;
+        if (_foreign(s.conversationId)) return;
         _onStatus(s);
       case pb.ServerEvent_Event.messagePinnedChanged:
         final p = e.messagePinnedChanged;
-        if (_foreign(p.hasConversationId() ? p.conversationId : null)) return;
+        if (_foreign(p.conversationId)) return;
         _onPinned(p.messageId, p.pinned, p.updatedAt.toInt());
       case pb.ServerEvent_Event.subscriptionReady:
         _streamReady = true;
+        _readyInRun = true;
       case pb.ServerEvent_Event.error:
         final err = e.error;
-        final pending = err.hasEventId() ? _pendingSends.remove(err.eventId) : null;
+        // An empty `event_id` is no `event_id`: the error is not for an event that the
+        // client can name (a bad or repeated id, section 6.5), so it matches no send.
+        final pending = err.eventId.isNotEmpty ? _pendingSends.remove(err.eventId) : null;
         if (pending != null && !pending.done.isCompleted) {
           pending.done.completeError(
-            ChatException(_kind(null, err.code), reason: err.code, message: err.message),
+            ChatException(
+              _kind(null, err.code, sizeLimit: true),
+              reason: err.code,
+              message: err.message,
+            ),
           );
+        } else if (!_streamReady && err.eventId.isEmpty) {
+          // A failure of the first event that comes as an event: the stream is no good.
+          throw ChatException(_kind(null, err.code), reason: err.code, message: err.message);
+        } else if (err.eventId.isEmpty) {
+          // After `SubscriptionReady`, and not the answer to a send: ignore it, no resync.
+          debugPrint('chat: ProtocolError with no event_id: ${err.code} ${err.message}');
         }
       default:
         break;
@@ -988,7 +1110,10 @@ class ChatClient extends ChangeNotifier {
         _pendingSends.remove(id);
       }
     }
-    final raw = await _guard(() => _chat.sendMessage(request, options: _unaryOptions));
+    final raw = await _guard(
+      () => _chat.sendMessage(request, options: _unaryOptions),
+      sizeLimit: true,
+    );
     _checkSize(raw);
     final index = raw.sequence.toInt() - 1;
     try {
@@ -1052,7 +1177,8 @@ class ChatClient extends ChangeNotifier {
         hashes: [pb.Hash(type: sha3Type, value: hash)],
         mimeType: file.baseMime,
         sizeBytes: Int64(file.bytes.length),
-        filename: file.name,
+        // An empty name is the same as no name: the client sends none.
+        filename: file.name == null || file.name!.isEmpty ? null : file.name,
       );
 
   pb.ContentPart _part(OutgoingAttachment file, Uint8List hash) => file.kind == 'image'
@@ -1088,6 +1214,7 @@ class ChatClient extends ChangeNotifier {
               options: _unaryOptions,
             )
             .toList(),
+        sizeLimit: true,
       );
       if (answers.length != files.length) throw const ChatException(ChatErrorKind.badAnswer);
       missing = [
@@ -1098,6 +1225,7 @@ class ChatClient extends ChangeNotifier {
     for (final i in missing) {
       await _guard(
         () => _fileService.uploadFile(_uploadStream(files[i], hashes[i]), options: _fileOptions),
+        sizeLimit: true,
       );
     }
   }
@@ -1164,7 +1292,7 @@ class ChatClient extends ChangeNotifier {
         }
       }
       return builder.takeBytes();
-    });
+    }, sizeLimit: true);
     if (bytes.length != file.size || !listEquals(sha3_256(bytes), hash)) {
       throw const ChatException(ChatErrorKind.badAnswer);
     }
