@@ -52,7 +52,8 @@
   others.
 - **Access to instances:** `ServiceTunnel` through the node.
 - **Chat:** a conversation screen with a launched service (for example an LLM) through
-  `ServiceTunnel`. It does not use the `Chat` RPC of nodo, which is for peers only.
+  `ServiceTunnel`. It does not use the `Chat` RPC of nodo, which is for peers only. The
+  protocol of the conversation is gRPC since 2026-10-24 (see the entry "Chat over gRPC").
 - **Phase 1:** trimmed wallet that builds for Android; Rust crates for the protocol and
   the balancer, with tests against a local node; a screen that launches a service by
   hash and shows the quotes.
@@ -136,6 +137,8 @@
   closes with an answer pending (an open message, or more user messages than assistant
   messages), it hands the chat to `ChatDoneWatcher`. The watcher opens its own tunnel and
   reads the chat every 2 seconds (`ChatClient.pollWaiting`), only while an answer is pending.
+  (Since the entry "Chat over gRPC" of 2026-10-24, the watcher follows the `Connect` stream
+  and not a poll; the other rules stay.)
   While it runs, the foreground service holds the process and the CPU (reason `answer`).
   The watcher and the screen share one list of the messages that got a notice, so a
   message gets one notice only. The messages that were done when the screen closed get none.
@@ -147,3 +150,23 @@
   30 minutes. The watcher does not look at instances that the user never opened in this
   run, and a watch is lost if the system kills the app. See
   [ui-chat-first.md](ui-chat-first.md), section 9.
+- **Chat over gRPC (2026-10-24, Josemi):** the chat interface is no longer HTTP/1.1 with
+  JSON. It is gRPC over HTTP/2 in clear text (h2c) through `ServiceTunnel`, defined by
+  [chat.proto](chat.proto) (`ChatService` and `FileService`, no package: paths `/ChatService/...` and `/FileService/...`). The slot
+  declares the protocol stack `http2`, `grpc`, `chat`. The app reads new messages with the
+  bidirectional stream `Connect` and does not poll; `GetMessages` with `after_sequence` gives
+  the history and the catch-up. Streaming has two new events (`MessageDelta`,
+  `MessagePinnedChanged`) and two new fields of `Message` (`reasoning`, `idempotency_key`).
+  What a service accepts is in `GetCapabilities`. Files go in `FileService`, identified by
+  SHA3-256 hash, and the app asks `QueryFiles` before it uploads. `pinned` is mutable for any
+  message (`SetMessagePinned`); the app keeps the last pinned message above the visible part
+  at the top. HTML widgets stay a fenced block in the text. Branches and other conversations
+  are optional, and the app ignores them. The app sends over `Connect` when its stream is
+  open (each event has an `event_id`, an error gives it back, and the app matches the user
+  message by `idempotency_key`), and with the unary `SendMessage` when it is not. SHA3-256 is
+  the hash that the app uses and that each service that accepts files supports; more
+  algorithms can be added later because `Hash.type` names the algorithm. The limits (1 MiB
+  message, 4 MiB file, 64 KiB chunk) are defaults that `GetCapabilities` can replace.
+  `CANCELLED` is a final status shown as cancelled, with no notice and no cancel button
+  for now. `acknowledge` is a hint that lets the service drop buffered events. This is revision 6 of [chat.md](chat.md); the
+  services `echo-chat` and the Claude remote service must migrate (section 13 of that file).

@@ -66,14 +66,14 @@ uses `get_service_raw`, which never asks to skip.
 
 | Banner | When |
 |---|---|
-| Follows the chat convention | a slot has `tcp`, then `http`, and `chat` above it |
+| Follows the chat convention | a slot has `tcp`, then `http2`, then `grpc`, and `chat` above them ([chat.md](chat.md), section 3) |
 | Chatui does not support its interface | the interface is known and no port follows the convention, or there is no interface |
 | The interface could not be read | the service was too large to read from a node, or its interface was too large to decode |
 
 Then, in cards: **About** (prose, architecture, the executable that the node starts, the
 configuration file, the size of the filesystem), **Resources** (at the start and at most: cores,
 memory, disk, the speed of one core), **Interface** (each slot, numbered, with its stack from bottom to top,
-`tcp → http → chat`, a mark on the chat slot, the prices per call), **Networks** (the domains that
+`tcp → http2 → grpc → chat`, a mark on the chat slot, the prices per call), **Networks** (the domains that
 the service declares to connect to: the names, the prose, the parameters, the protocols of the
 peers, and `*` as every address), **Environment variables**, and **Other** (the protocols that it
 expects from the node, and the instances that it can start).
@@ -97,7 +97,7 @@ too large to decode), it does not say "unsupported": it says that it cannot tell
 runs it anyway or cancels.
 
 The convention is one function for the service and for the instance: `api_chat_ports(api)` in
-`session.rs` (a slot with `tcp`, `http` and `chat` above it). `chat_slots(instance)` adds that
+`session.rs` (a slot with `tcp`, `http2`, `grpc` and `chat` above them, in this order). `chat_slots(instance)` adds that
 the instance has the port, because `ServiceTunnel` accepts only the ports of an instance.
 
 ## 5. Code

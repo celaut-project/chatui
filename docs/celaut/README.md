@@ -18,7 +18,7 @@ Sources read for these notes:
 | [catalog.md](catalog.md) | Node directory and service catalog on Ergo (reputation proofs, Skill DB) |
 | [ui.md](ui.md) | Wallets (full and read-only), one database for instances, home screen focused on compute |
 | [ui-chat-first.md](ui-chat-first.md) | Chat-first UI: the bottom bar (Chats, Wallet, Compute, Settings), the list of conversations, the conversation (messages and files) and the info page of an instance, stop and delete |
-| [chat.md](chat.md) | Chat interface (specification in ASD-STE100): HTTP with JSON, history in the service, numbered messages, image and audio attachments, conformance tests (revision 4). Each chat service must follow it |
+| [chat.md](chat.md) | Chat interface (specification in ASD-STE100, revision 6): gRPC over HTTP/2 (h2c) through the tunnel, defined by [chat.proto](chat.proto); history in the service, real time with `Connect`, streamed answers and reasoning, pinned messages, files by SHA3-256 hash in `FileService`, gRPC error mapping, conformance tests, and the migration from revision 5. Each chat service must follow it |
 | [network.md](network.md) | The network route and optional Tor (M5): direct, Arti inside the app, or a SOCKS5 proxy, and the rule that Tor on never goes direct |
 | [package.md](package.md) | Give a service to a node that does not have it: from a node that has it, or from a `.celaut.bee` file, with cancel markers so that a node never keeps half a service |
 | [env-variables.md](env-variables.md) | Environment variables: a container in the app, and one question per variable at a launch (choose, type or skip) |

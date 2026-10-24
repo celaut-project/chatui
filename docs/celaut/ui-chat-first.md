@@ -114,7 +114,7 @@ is not asked for.
   service without a chat slot starts, and a message says that it is in Compute, under
   "Other instances".
 - **Open a conversation again.** A tap on a row opens the local port of the chat slot and
-  reads the history from 0 ([chat.md](chat.md), section 6.2). This works after the lock of the
+  reads the history from `after_sequence` 0 and opens `Connect` ([chat.md](chat.md), sections 6.2 and 6.5). This works after the lock of the
   app closed the screen, and after a restart of the app. The screen shows at once, with the
   name of the instance and a spinner, while the port opens: a far node, or Tor, can take
   seconds. If the port does not open, the screen closes and the list says why.
@@ -169,7 +169,7 @@ The screen is `ChatScreen`. The protocol is in [chat.md](chat.md). The picker is
 
 | Part | What the user sees |
 |---|---|
-| Attach button | It shows only if the service announced `accepts` in the history read. Before the picker opens, the app reads the history again to check `accepts` |
+| Attach button | It shows only if `GetCapabilities` lists a media type of the kind in `accepted_mime_types` ([chat.md](chat.md), section 6.7). The app calls `GetCapabilities` when the chat opens, and the result does not change |
 | Picker | It offers only JPEG, PNG, MP3 and WAV. At most 4 files, of 4 MiB each |
 | Chips | A picked file shows as a chip above the field |
 | Image in a bubble | The image shows inside the bubble |
@@ -214,7 +214,7 @@ not stop when the phone sleeps or the app goes to the background.
 
 ## 9. Chat screen: reading, widgets, notices and audio (2026-10-24, Josemi)
 
-These rules are for the app. The protocol is in [chat.md](chat.md), revision 5.
+These rules are for the app. The protocol is in [chat.md](chat.md), revision 6 (gRPC; the rules below are for the app and are the same as before, with the changes of section 9.1).
 
 | Part | What the user sees |
 |---|---|
@@ -238,13 +238,14 @@ screen:
   the way back to the list, another tab, and the app in the background. The screen gives
   the statuses of the messages that it knew. The messages that are done in them are
   history and get no notice.
-- The watcher opens a tunnel to the chat slot and reads the chat every 2 seconds
-  (`ChatClient.pollWaiting`). It reads only while an answer is pending. It gives the notice
-  when an assistant message gets `done`, with the same text as the screen
+- The watcher opens a tunnel to the chat slot and a `Connect` stream ([chat.md](chat.md),
+  section 6.5). It does not poll: if no stream can be opened, it reads with `GetMessages` every
+  2 seconds (`ChatClient.pollWaiting`). It runs only while an answer is pending. It gives the
+  notice when an assistant message gets `COMPLETED` (`done`), with the same text as the screen
   and the same rules (generic text, private on the lock screen, no notice for a muted instance).
 - A message gets one notice only. The screen and the watcher share the list of the messages
   that got one. When the user opens the chat again, the watcher stops for that instance.
-- An answer with status `failed` gets no notice. The user did not get an answer, so
+- An answer with status `FAILED` (`failed`) or `CANCELLED` gets no notice. The chat shows a `CANCELLED` message as cancelled. There is no cancel button for now. The user did not get an answer, so
   "the answer is ready" would be false. The user sees the failure when the chat opens.
 - While a watch runs, the foreground service runs with the reason `answer`: it keeps the
   process and the CPU awake (a partial wake lock), so the reads go on with the screen off. Its
@@ -260,3 +261,14 @@ Known limits of the notices:
   watched. If the system kills the app, the watch is lost and no notice comes.
 - If many answers get done between two reads of the conversation, the user gets one
   notice for the chat, not one for each answer.
+
+### 9.1 Changes of revision 6 of the protocol (2026-10-24)
+
+- The app sends over the `Connect` stream while it is open, and with `SendMessage` while it is not (the watcher uses `SendMessage` only if it must send). It reads new messages with the stream and not with a poll. While a stream
+  is open there is no read every 2 or 10 seconds.
+- A pinned message is any message, and the user or the service can change it. The app keeps
+  the same rule for the banner: the last pinned message that is all above the visible part.
+  A pin that changes while the chat is open updates the banner at once.
+- The text and the reasoning of an answer grow with deltas. The slow text and the haptic ticks
+  follow each delta.
+- An HTML widget is still a fenced block in the text ([chat.md](chat.md), section 5.4).
