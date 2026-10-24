@@ -13,7 +13,6 @@ import 'package:argus_wallet/celaut/chat_prefs.dart';
 import 'package:argus_wallet/celaut/conversation_keep_alive.dart';
 import 'package:argus_wallet/celaut/conversations.dart';
 import 'package:argus_wallet/celaut/payers.dart';
-import 'package:argus_wallet/celaut/tunnel_http.dart';
 import 'package:argus_wallet/l10n/l10n.dart';
 import 'package:argus_wallet/theme/argus_theme.dart';
 import 'package:argus_wallet/ui/celaut/chat_screen.dart';
@@ -25,7 +24,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class _FakeChat extends ChatClient {
   _FakeChat({List<ChatMessage> history = const []})
       : _messages = [...history],
-        super(port: 0, http: TunnelHttp());
+        super(port: 0);
 
   final List<ChatMessage> _messages;
   ChatException? failWith;
@@ -36,6 +35,16 @@ class _FakeChat extends ChatClient {
 
   @override
   int get count => _messages.length;
+
+  /// The fake stream is open: the screen does not read, and the test calls [push] for the
+  /// events.
+  bool open = false;
+
+  @override
+  bool get streaming => open;
+
+  /// An event of the stream changed [messages].
+  void push() => notifyListeners();
 
   /// Holds [syncWhenStarted] until it completes.
   Completer<void>? starting;
@@ -60,7 +69,7 @@ class _FakeChat extends ChatClient {
   void _flush() {
     for (; _unanswered > 0; _unanswered--) {
       _messages.add(ChatMessage(
-        seq: _messages.length,
+        seq: _messages.length + 1,
         role: 'assistant',
         text: 'echo: ${_messages.where((m) => m.fromUser).toList()[_messages.where((m) => !m.fromUser).length].text}',
       ));
@@ -123,7 +132,7 @@ class _FakeChat extends ChatClient {
     sent.add(text);
     sentFiles.add(attachments);
     _messages.add(ChatMessage(
-      seq: _messages.length,
+      seq: _messages.length + 1,
       role: 'user',
       text: text,
       attachments: [
@@ -304,7 +313,6 @@ void main() {
                       instance: _echo,
                       port: 1,
                       chat: chat,
-                      http: TunnelHttp(),
                       wallets: _Wallets(full: fullWallet),
                       keepAlive: keepAlive,
                       starting: starting,
@@ -446,7 +454,7 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(find.byKey(const Key('chat-flying')), findsNothing);
-    expect(find.byKey(const Key('chat-bubble-0')), findsOneWidget);
+    expect(find.byKey(const Key('chat-bubble-1')), findsOneWidget);
     expect(find.byKey(const Key('chat-typing')), findsOneWidget);
     // The send is not blocked: the user can write on.
     expect(tester.widget<IconButton>(find.byKey(const Key('chat-send'))).onPressed, isNotNull);
@@ -585,7 +593,7 @@ void main() {
     expect(chat.sent, ['']);
     expect(chat.sentFiles.single.single.name, 'dot.png');
     expect(find.byKey(const Key('chat-pending')), findsNothing);
-    expect(find.byKey(const Key('chat-file-0-0')), findsOneWidget);
+    expect(find.byKey(const Key('chat-file-1-0')), findsOneWidget);
     expect(find.byType(Image), findsOneWidget);
   });
 
@@ -886,8 +894,8 @@ void main() {
     expect(chat.sent, ['Hello']);
     expect(find.text('Hello'), findsOneWidget);
     expect(find.text('echo: Hello'), findsOneWidget);
-    expect(find.byKey(const Key('chat-bubble-0')), findsOneWidget);
     expect(find.byKey(const Key('chat-bubble-1')), findsOneWidget);
+    expect(find.byKey(const Key('chat-bubble-2')), findsOneWidget);
     expect(tester.widget<TextField>(find.byKey(const Key('chat-input'))).controller!.text, '');
     expect(notes.lastMessage('i1')?.text, 'echo: Hello');
   });
@@ -1491,6 +1499,62 @@ void main() {
       await tester.tap(find.byKey(const Key('chat-pinned-toggle')));
       await tester.pump();
       expect(tester.getSize(find.byKey(const Key('chat-pinned'))).height, greaterThan(closed));
+    });
+  });
+
+  group('stream of the client', () {
+    testWidgets('the events show without a read, and the screen does not poll', (tester) async {
+      chat = _FakeChat(history: [
+        const ChatMessage(seq: 1, role: 'user', text: 'hi'),
+        const ChatMessage(seq: 2, role: 'assistant', text: 'hello', replyTo: 1),
+      ])
+        ..open = true;
+      await open(tester);
+      final syncs = chat.syncs;
+      chat._messages.add(const ChatMessage(
+        seq: 3,
+        role: 'assistant',
+        text: 'part',
+        status: ChatMessage.statusStreaming,
+        replyTo: 1,
+      ));
+      chat.push();
+      await tester.pump();
+      expect(find.text('part'), findsOneWidget);
+      chat._messages[2] = chat._messages[2].copyWith(text: 'part two', status: ChatMessage.statusDone);
+      chat.push();
+      await tester.pump();
+      expect(find.text('part two'), findsOneWidget);
+      // No timer reads while the stream is open, however long the wait.
+      await tester.pump(const Duration(seconds: 30));
+      expect(chat.syncs, syncs);
+    });
+
+    testWidgets('the screen reads again when the stream is lost', (tester) async {
+      chat = _FakeChat(history: [
+        const ChatMessage(seq: 1, role: 'user', text: 'hi'),
+        const ChatMessage(seq: 2, role: 'assistant', text: 'hello', replyTo: 1),
+      ])
+        ..open = true;
+      await open(tester);
+      final syncs = chat.syncs;
+      chat.open = false;
+      chat.push();
+      await tester.pump(ChatClient.pollIdle);
+      expect(chat.syncs, greaterThan(syncs));
+    });
+
+    testWidgets('a cancelled answer says so, and gets no notice', (tester) async {
+      chat = _FakeChat(history: [
+        const ChatMessage(seq: 1, role: 'user', text: 'hi'),
+        const ChatMessage(seq: 2, role: 'assistant', text: 'part', status: ChatMessage.statusCancelled, replyTo: 1),
+      ])
+        ..open = true;
+      await open(tester);
+      expect(find.byKey(const Key('chat-cancelled-2')), findsOneWidget);
+      expect(find.byKey(const Key('chat-failed-2')), findsNothing);
+      expect(find.text('part'), findsOneWidget);
+      expect(chat.awaitingAnswer, isFalse);
     });
   });
 }

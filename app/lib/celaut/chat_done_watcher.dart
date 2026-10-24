@@ -7,7 +7,6 @@ import 'chat_notifier.dart';
 import 'chat_prefs.dart';
 import 'conversation_keep_alive.dart';
 import 'conversations.dart';
-import 'tunnel_http.dart';
 
 /// A chat of one instance that the watcher reads: the client, and what closes its
 /// connection.
@@ -22,8 +21,9 @@ class WatchedChat {
 /// left the chat screen (`docs/celaut/ui-chat-first.md`, "Notices"). While the screen is
 /// open, the screen reads the chat and gives the notice. When the screen closes with an
 /// answer that is not done, it hands the chat to this watcher ([handOver]). The watcher
-/// opens its own tunnel and reads the chat every [ChatClient.pollWaiting] until no
-/// answer is pending. When the user opens the chat again, the watcher stops for it
+/// opens its own tunnel, with its own client and its own `Connect` stream, and checks the
+/// chat every [ChatClient.pollWaiting] until no answer is pending. The client reads with
+/// `GetMessages` only while it has no stream. When the user opens the chat again, the watcher stops for it
 /// ([release]).
 ///
 /// - A message gets one notice only: the watcher and the screen share the list of the
@@ -180,8 +180,8 @@ class ChatDoneWatcher {
 
   static Future<WatchedChat> _connectTunnel(InstanceListView instance) async {
     final port = await celautOpenTunnel(instanceId: instance.instanceId, slot: instance.chatSlots.first);
-    final http = TunnelHttp();
-    return WatchedChat(ChatClient(port: port, http: http), http.close);
+    final client = ChatClient(port: port);
+    return WatchedChat(client, () => unawaited(client.close()));
   }
 }
 

@@ -99,7 +99,7 @@ pub struct WorkloadView {
 /// Whether the interface of the service is the chat convention of the app.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChatSupportView {
-    /// A port follows the convention: `tcp`, then `http`, and `chat` above it.
+    /// A port follows the convention: `tcp`, then `http2`, `grpc` and `chat` above it.
     Supported,
     /// The interface is known and no port follows the convention.
     Unsupported,
@@ -341,7 +341,11 @@ mod tests {
         Slot {
             port,
             transport: Some(protocol(&["tcp"])),
-            protocol_stack: vec![protocol(&["http"]), protocol(&["chat"])],
+            protocol_stack: vec![
+                protocol(&["http2"]),
+                protocol(&["grpc"]),
+                protocol(&["chat"]),
+            ],
             mu_per_call: vec![AmountKeyValue {
                 key: "send".into(),
                 value: Some(Amount { n: "5".into() }),

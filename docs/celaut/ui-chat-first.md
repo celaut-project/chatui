@@ -272,3 +272,11 @@ Known limits of the notices:
 - The text and the reasoning of an answer grow with deltas. The slow text and the haptic ticks
   follow each delta.
 - An HTML widget is still a fenced block in the text ([chat.md](chat.md), section 5.4).
+- `ChatMessage.seq` is the `sequence` of the protocol, from 1. The keys of the notices, the
+  slow text and the banner use it.
+- `ChatClient` tells the screen about the events of the stream (it is a `ChangeNotifier`) and
+  says if the stream is open (`streaming`). The screen reads with `sync` only while no stream is
+  open: every 2 seconds while it waits for an answer, and every 10 seconds otherwise. The app
+  reads the whole history from `after_sequence` 0 and does not use `last` or `before_sequence`:
+  the list of messages has no gap.
+- The app has `ChatClient.setPinned` for the user, but no button for it yet.

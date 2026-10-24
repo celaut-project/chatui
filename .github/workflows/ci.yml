@@ -51,6 +51,13 @@ jobs:
           cargo install flutter_rust_bridge_codegen --version 2.13.0 --locked
           flutter_rust_bridge_codegen generate
           git diff --exit-code
+      - name: Chat proto bindings match codegen
+        working-directory: .
+        run: |
+          # ubuntu-24.04 has protoc 3.21.12, the version that scripts/gen_chat_proto.sh pins.
+          sudo apt-get install -y --no-install-recommends protobuf-compiler
+          scripts/gen_chat_proto.sh
+          git diff --exit-code
 
   android:
     runs-on: ubuntu-24.04

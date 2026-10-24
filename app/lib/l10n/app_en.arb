@@ -4101,6 +4101,7 @@
   "chatSending": "Sending…",
   "chatReasoning": "Reasoning",
   "chatAnswerFailed": "The answer stopped before the end.",
+  "chatAnswerCancelled": "The answer was cancelled.",
   "chatWaitingSeconds": "Still working… {seconds} s",
   "@chatWaitingSeconds": {
     "placeholders": {
@@ -4666,7 +4667,7 @@
   "serviceInfoReadFailed": "The service could not be read",
   "serviceInfoTruncated": "This service is too large to read from a node, so only what comes first is shown. Load its file to see everything.",
   "serviceInfoChatSupported": "It follows the chat convention of Chatui, so it opens as a conversation.",
-  "serviceInfoChatUnsupported": "Chatui does not support its interface: no port speaks the chat convention (tcp, then http, and chat above it). It can run, but Chatui cannot open a conversation with it.",
+  "serviceInfoChatUnsupported": "Chatui does not support its interface: no port speaks the chat convention (tcp, then http2, grpc and chat above it). It can run, but Chatui cannot open a conversation with it.",
   "serviceInfoChatUnknown": "The app could not read the interface of this service, so it cannot tell if it works as a conversation.",
   "serviceInfoAbout": "About",
   "serviceInfoNoProse": "The service gives no description.",

@@ -20,7 +20,6 @@ import '../../celaut/conversation_keep_alive.dart';
 import '../../celaut/conversations.dart';
 import '../../celaut/payers.dart';
 import '../../celaut/pinned_position.dart';
-import '../../celaut/tunnel_http.dart';
 import '../../celaut/typewriter.dart';
 import '../../l10n/l10n.dart';
 import 'chat_floating.dart';
@@ -35,8 +34,10 @@ import 'instance_info_screen.dart';
 /// message goes to the notes of the list of conversations, in memory.
 ///
 /// A send does not wait for the answer, so the user can send many messages one after the
-/// other. The screen reads the conversation every few seconds ([ChatClient.sync]) and shows
-/// an answer that grows, with its reasoning apart from its text, while the service makes it.
+/// other. The screen shows an answer that grows, with its reasoning apart from its text,
+/// while the service makes it. The events of the stream of the client ([ChatClient.streaming])
+/// bring the news. While no stream is open, the screen reads the conversation every few
+/// seconds ([ChatClient.sync]).
 ///
 /// The bar has the name of the service, and under it the state, the node and the cost so
 /// far. A tap on the name, or ⋮ then Info, opens the info page of the instance; ⋮ also has
@@ -51,7 +52,6 @@ class ChatScreen extends StatefulWidget {
     super.key,
     required this.instance,
     required this.port,
-    this.http,
     this.chat,
     this.wallets = const AppFullWallets(),
     this.loadStatus,
@@ -89,8 +89,9 @@ class ChatScreen extends StatefulWidget {
   /// Tests give their own.
   final VoidCallback? haptic;
 
-  /// How often the screen reads the conversation. Null: [ChatClient.pollWaiting] while it
-  /// waits for an answer, and [ChatClient.pollIdle] otherwise. Tests give their own.
+  /// How often the screen reads the conversation while the client has no stream. Null:
+  /// [ChatClient.pollWaiting] while it waits for an answer, and [ChatClient.pollIdle]
+  /// otherwise. Tests give their own.
   final Duration? pollEvery;
 
   /// The instance has just started: the screen waits until the service answers
@@ -102,9 +103,6 @@ class ChatScreen extends StatefulWidget {
 
   /// The local port of the chat slot of the instance (`celautOpenTunnel`).
   final int port;
-
-  /// The HTTP client of the local port. Tests give their own.
-  final TunnelHttp? http;
 
   /// The client of the convention. Tests give their own.
   final ChatClient? chat;
@@ -153,8 +151,7 @@ class _ChatScreenState extends State<ChatScreen>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   final _input = TextEditingController();
   final _scroll = ScrollController();
-  late final TunnelHttp _http = widget.http ?? TunnelHttp();
-  late final ChatClient _chat = widget.chat ?? ChatClient(port: widget.port, http: _http);
+  late final ChatClient _chat = widget.chat ?? ChatClient(port: widget.port);
   late final ConversationKeepAlive _keepAlive = widget.keepAlive ?? ChannelConversationKeepAlive();
   late final ConversationNotes _notes = widget.notes ?? conversationNotes;
   late final ChatDoneWatcher _watcher = widget.watcher ?? chatDoneWatcher;
@@ -190,6 +187,9 @@ class _ChatScreenState extends State<ChatScreen>
   /// The first read worked: what it had shows at once. A first read that failed does not
   /// count, so the history that a later read brings shows at once too.
   bool _loaded = false;
+
+  /// The first read is over: the changes of the client show from now on.
+  bool _opened = false;
 
   /// The `seq` of the messages that the screen has seen.
   final Set<int> _known = {};
@@ -245,6 +245,7 @@ class _ChatScreenState extends State<ChatScreen>
     WidgetsBinding.instance.addObserver(this);
     _revealTicker = createTicker(_onRevealTick);
     _scroll.addListener(_updatePinned);
+    _chat.addListener(_onChat);
     unawaited(_keepAlive.start());
     // The screen reads the chat now: a watch that a former screen left stops.
     _watcher.release(_id);
@@ -268,6 +269,7 @@ class _ChatScreenState extends State<ChatScreen>
     // node again.
     _notes.answered(_id);
     _afterRead(read: read);
+    _opened = true;
     if (mounted) setState(() => _waitingStart = false);
     _syncTicker();
     _schedulePoll();
@@ -300,14 +302,33 @@ class _ChatScreenState extends State<ChatScreen>
   void _schedulePoll() {
     _poll?.cancel();
     if (!mounted) return;
+    // The events of the open stream bring the news: no read is needed.
+    if (_chat.streaming) return;
     final every = widget.pollEvery ?? (_waiting ? ChatClient.pollWaiting : ChatClient.pollIdle);
     _poll = Timer(every, _pollOnce);
   }
 
-  /// Read the new messages and the growth of the open ones, then plan the next read.
+  /// The stream of the client changed the messages: show them.
+  void _onChat() {
+    if (!mounted || !_opened || _waitingStart) return;
+    final atEnd =
+        !_scroll.hasClients || _scroll.position.maxScrollExtent - _scroll.position.pixels < 80;
+    if (_error == ChatErrorKind.unreachable && _chat.streaming) _error = null;
+    _afterRead(read: true);
+    setState(() {});
+    _syncTicker();
+    _updatePinned();
+    if (atEnd) _scrollToEnd();
+    if (_wasWaiting && !_waiting) unawaited(_refreshCost());
+    _wasWaiting = _waiting;
+    _schedulePoll();
+  }
+
+  /// Read the new messages and the growth of the open ones, then plan the next read. While
+  /// the stream is open the events do this, and the screen does not read.
   Future<void> _pollOnce() async {
     if (!mounted) return;
-    if (!_waitingStart && !_stopping) {
+    if (!_waitingStart && !_stopping && !_chat.streaming) {
       final atEnd =
           !_scroll.hasClients || _scroll.position.maxScrollExtent - _scroll.position.pixels < 80;
       var read = false;
@@ -691,7 +712,7 @@ class _ChatScreenState extends State<ChatScreen>
   /// too, and go back to the list.
   void _closeStopped() {
     _stoppedHere = true;
-    _http.close();
+    unawaited(_chat.close());
     unawaited(_keepAlive.stop());
     if (mounted) Navigator.of(context).pop();
   }
@@ -749,7 +770,8 @@ class _ChatScreenState extends State<ChatScreen>
     _poll?.cancel();
     _input.dispose();
     _scroll.dispose();
-    if (widget.http == null) _http.close();
+    _chat.removeListener(_onChat);
+    if (widget.chat == null) unawaited(_chat.close());
     super.dispose();
   }
 
@@ -1439,12 +1461,12 @@ class _Bubble extends StatelessWidget {
                 streaming: message.isOpen,
                 selectable: true,
               ),
-            if (message.isFailed)
+            if (message.isFailed || message.isCancelled)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
-                  context.l10n.chatAnswerFailed,
-                  key: Key('chat-failed-${message.seq}'),
+                  message.isFailed ? context.l10n.chatAnswerFailed : context.l10n.chatAnswerCancelled,
+                  key: Key('chat-${message.isFailed ? 'failed' : 'cancelled'}-${message.seq}'),
                   style: Theme.of(
                     context,
                   ).textTheme.labelSmall?.copyWith(color: scheme.error),

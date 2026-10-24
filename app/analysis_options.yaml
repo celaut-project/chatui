@@ -5,6 +5,7 @@ analyzer:
     invalid_use_of_internal_member: ignore
   exclude:
     - build/**
+    - lib/celaut/chat/gen/**
     - android/**
     - ios/**
     - web/**

@@ -46,7 +46,7 @@ ServiceInfoView _full({ChatSupportView chat = ChatSupportView.supported, bool ch
     ApiSlotView(
       port: 8080,
       transport: const ['tcp'],
-      protocolStack: [_p(['http']), _p(['chat'], 'A chat service')],
+      protocolStack: [_p(['http2']), _p(['grpc']), _p(['chat'], 'A chat service')],
       muPerCall: const [NamedValueView(key: 'send', value: '5')],
       chat: chatSlot,
     ),
@@ -115,7 +115,7 @@ void main() {
     expect(find.text(l.serviceInfoSlot(1)), findsOneWidget);
     expect(find.byKey(const Key('service-info-chat-8080')), findsOneWidget);
     expect(find.byKey(const Key('service-info-chat-53')), findsNothing);
-    expect(find.text('tcp → http → chat'), findsOneWidget);
+    expect(find.text('tcp → http2 → grpc → chat'), findsOneWidget);
     expect(find.text('A chat service'), findsOneWidget);
     expect(find.text('${l.serviceInfoPricePerCall}: send = 5'), findsOneWidget);
     // The networks that the service declares.

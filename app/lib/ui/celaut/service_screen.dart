@@ -371,7 +371,6 @@ class _ServiceScreenState extends State<ServiceScreen> {
         builder: (_) => ChatScreen(
           instance: _listed(instance),
           port: port,
-          http: _http,
           wallets: widget.wallets,
         ),
       ),

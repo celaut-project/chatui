@@ -38,6 +38,11 @@ dependencies:
   url_launcher: ^6.3.1
   http: ^1.4.0
   crypto: ^3.0.7
+  # The chat speaks gRPC (docs/celaut/chat.md); lib/celaut/chat/gen is made by
+  # scripts/gen_chat_proto.sh from docs/celaut/chat.proto.
+  grpc: 5.2.0
+  protobuf: ^6.1.0
+  fixnum: ^1.1.1
   cupertino_icons: ^1.0.8
   uuid: ^4.0.0
   flutter_local_notifications: ^22.3.0

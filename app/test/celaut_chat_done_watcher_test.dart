@@ -6,7 +6,6 @@ import 'package:argus_wallet/celaut/chat_client.dart';
 import 'package:argus_wallet/celaut/chat_done_watcher.dart';
 import 'package:argus_wallet/celaut/chat_notifier.dart';
 import 'package:argus_wallet/celaut/conversation_keep_alive.dart';
-import 'package:argus_wallet/celaut/tunnel_http.dart';
 import 'package:argus_wallet/l10n/l10n.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -15,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 class _Chat extends ChatClient {
   _Chat(List<ChatMessage> history)
       : _messages = [...history],
-        super(port: 0, http: TunnelHttp());
+        super(port: 0);
 
   final List<ChatMessage> _messages;
   int syncs = 0;

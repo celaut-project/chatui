@@ -1,8 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'tunnel_http.dart';
+import 'package:fixnum/fixnum.dart';
+import 'package:flutter/foundation.dart';
+import 'package:grpc/grpc.dart';
+import 'package:protobuf/protobuf.dart' show GeneratedMessage;
+
+import 'chat/gen/chat.pbgrpc.dart' as pb;
+import 'sha3.dart';
 
 /// The description of one file of a message (`docs/celaut/chat.md`, section 5.1). The
 /// bytes are not here: [ChatClient.readAttachment] reads them.
@@ -12,28 +19,8 @@ class ChatAttachment {
     required this.mime,
     required this.size,
     this.name,
+    this.hash,
   });
-
-  factory ChatAttachment.fromJson(Map<String, dynamic> json) {
-    final kind = json['kind'];
-    final mime = json['mime'];
-    final size = json['size'];
-    final name = json['name'];
-    if (kind is! String ||
-        !attachmentKinds.contains(kind) ||
-        mime is! String ||
-        size is! int ||
-        size < 0 ||
-        (name != null && name is! String)) {
-      throw const ChatException(ChatErrorKind.badAnswer);
-    }
-    return ChatAttachment(
-      kind: kind,
-      mime: mime,
-      size: size,
-      name: name as String?,
-    );
-  }
 
   /// The kinds of attachment that the convention defines.
   static const attachmentKinds = {'image', 'audio'};
@@ -43,6 +30,10 @@ class ChatAttachment {
   final String mime;
   final int size;
   final String? name;
+
+  /// The SHA3-256 hash of the file, or null if the message gives none. Without it,
+  /// [ChatClient.readAttachment] cannot read the file.
+  final Uint8List? hash;
 
   bool get isImage => kind == 'image';
   bool get isAudio => kind == 'audio';
@@ -69,9 +60,12 @@ class OutgoingAttachment {
   final Uint8List bytes;
   final String? name;
 
+  /// [mime] in lower case and without parameters, as the convention sends it.
+  String get baseMime => mime.split(';').first.trim().toLowerCase();
+
   /// `image`, `audio`, or null for a media type that the convention does not define.
   String? get kind {
-    final top = mime.split('/').first.toLowerCase();
+    final top = baseMime.split('/').first;
     return ChatAttachment.attachmentKinds.contains(top) ? top : null;
   }
 }
@@ -88,82 +82,77 @@ class ChatMessage {
     this.replyTo,
     this.cid,
     this.pinned = false,
+    this.id = '',
+    this.updatedAt = 0,
   });
 
-  /// The values of [status] (`docs/celaut/chat.md`, section 5.2).
+  /// The values of [status] (`docs/celaut/chat.md`, section 5.2). `streaming` is a message
+  /// that is `PENDING` or `IN_PROGRESS`.
   static const statusStreaming = 'streaming';
   static const statusDone = 'done';
   static const statusFailed = 'failed';
+  static const statusCancelled = 'cancelled';
 
-  factory ChatMessage.fromJson(Map<String, dynamic> json) {
-    final seq = json['seq'];
-    final role = json['role'];
-    final text = json['text'];
-    final attachments = json['attachments'];
-    final status = json['status'] ?? statusDone;
-    final reasoning = json['reasoning'] ?? '';
-    final replyTo = json['reply_to'];
-    final cid = json['cid'];
-    final pinned = json['pinned'] ?? false;
-    if (seq is! int ||
-        seq < 0 ||
-        role is! String ||
-        text is! String ||
-        (attachments != null && attachments is! List) ||
-        status is! String ||
-        !const {statusStreaming, statusDone, statusFailed}.contains(status) ||
-        reasoning is! String ||
-        (replyTo != null && replyTo is! int) ||
-        (cid != null && cid is! String) ||
-        pinned is! bool ||
-        (pinned && role != 'assistant')) {
-      throw const ChatException(ChatErrorKind.badAnswer);
-    }
-    return ChatMessage(
-      seq: seq,
-      role: role,
-      text: text,
-      attachments: [
-        for (final item in (attachments as List?) ?? const [])
-          if (item is Map<String, dynamic>)
-            ChatAttachment.fromJson(item)
-          else
-            throw const ChatException(ChatErrorKind.badAnswer),
-      ],
-      status: status,
-      reasoning: reasoning,
-      replyTo: replyTo as int?,
-      cid: cid as String?,
-      pinned: pinned,
-    );
-  }
-
+  /// The `sequence` of the message, from 1.
   final int seq;
+
+  /// `user` or `assistant`.
   final String role;
   final String text;
   final List<ChatAttachment> attachments;
 
-  /// `streaming` while the service still makes the answer, then `done` or `failed`.
+  /// `streaming` while the service still makes the answer, then `done`, `failed` or
+  /// `cancelled`.
   final String status;
 
   /// The reasoning of the model, apart from [text]. Empty if the service gives none.
   final String reasoning;
 
-  /// The `seq` of the user message that this message answers, if the service says it.
+  /// The `seq` of the user message that this message answers, if the service says it and
+  /// the client knows that message.
   final int? replyTo;
 
-  /// The `cid` of the send of a user message, if the service gives it.
+  /// The `idempotency_key` of the send of a user message, if the service gives it.
   final String? cid;
 
-  /// An assistant message that the client keeps at the top of the chat once the conversation
-  /// grows past it. The service sets it when it makes the message and never changes it.
+  /// The message is pinned. Any message can be, and the user or the service can change it
+  /// at any time. The client keeps the last pinned message at the top of the chat once the
+  /// conversation grows past it.
   final bool pinned;
+
+  /// The `message_id`. It is empty for a message that the service did not make.
+  final String id;
+
+  /// The time of the last change of [status] or [pinned], in milliseconds since 1970.
+  final int updatedAt;
 
   bool get fromUser => role == 'user';
 
   /// An answer that grows: its [text] and [reasoning] are not final yet.
   bool get isOpen => status == statusStreaming;
   bool get isFailed => status == statusFailed;
+  bool get isCancelled => status == statusCancelled;
+
+  ChatMessage copyWith({
+    String? text,
+    String? status,
+    String? reasoning,
+    bool? pinned,
+    int? updatedAt,
+  }) =>
+      ChatMessage(
+        seq: seq,
+        role: role,
+        text: text ?? this.text,
+        attachments: attachments,
+        status: status ?? this.status,
+        reasoning: reasoning ?? this.reasoning,
+        replyTo: replyTo,
+        cid: cid,
+        pinned: pinned ?? this.pinned,
+        id: id,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
 }
 
 enum ChatErrorKind {
@@ -173,16 +162,18 @@ enum ChatErrorKind {
   /// The answer of the service does not follow the convention.
   badAnswer,
 
-  /// 400: the service refused the request.
+  /// The service refused the request (`INVALID_ARGUMENT`, `NOT_FOUND`,
+  /// `FAILED_PRECONDITION`), or the client refused to send it.
   badRequest,
 
-  /// 413: the service cannot keep more messages.
+  /// `RESOURCE_EXHAUSTED`: the service cannot keep more messages.
   historyFull,
 
-  /// 503: the service cannot keep one more message that waits. Try again later.
+  /// `UNAVAILABLE` with the reason `busy`: the service cannot keep one more message that
+  /// waits. Try again later.
   busy,
 
-  /// 415, or the service does not accept the kind of file: no attachment is sent.
+  /// The service does not accept the kind of file: no attachment is sent.
   unsupportedMedia,
 
   /// Another status that the convention does not define.
@@ -190,67 +181,126 @@ enum ChatErrorKind {
 }
 
 class ChatException implements Exception {
-  const ChatException(this.kind, {this.status, this.message});
+  const ChatException(this.kind, {this.status, this.reason, this.message});
 
   final ChatErrorKind kind;
+
+  /// The gRPC status code (`StatusCode`), if the error came from a call.
   final int? status;
+
+  /// The `chat-reason` of the service, for example `busy`.
+  final String? reason;
 
   /// The `message` of the service, for the user, if it sent one.
   final String? message;
 
   @override
-  String toString() => 'ChatException($kind, status: $status, message: $message)';
+  String toString() =>
+      'ChatException($kind, status: $status, reason: $reason, message: $message)';
 }
 
-/// The client of the chat convention for one instance (`docs/celaut/chat.md`).
+/// A gap in the numbers of the messages: the stream starts again from the last message.
+class _Gap implements Exception {
+  const _Gap();
+}
+
+/// The limits that `GetCapabilities` gives (`docs/celaut/chat.md`, section 6.7), with the
+/// defaults of section 7 for each field that is 0.
+class _Caps {
+  _Caps(pb.Capabilities c)
+      : mimeTypes = {
+          for (final m in c.acceptedMimeTypes) m.split(';').first.trim().toLowerCase(),
+        },
+        maxFileBytes = c.maxFileBytes == Int64.ZERO
+            ? ChatClient.maxAttachmentBytes
+            : min(c.maxFileBytes.toInt(), ChatClient.maxAttachmentBytes),
+        maxFiles = c.maxFilesPerMessage == 0
+            ? ChatClient.maxAttachments
+            : min(c.maxFilesPerMessage, ChatClient.maxAttachments),
+        maxTextBytes = c.maxTextBytes == 0 ? ChatClient.defaultMaxTextBytes : c.maxTextBytes;
+
+  final Set<String> mimeTypes;
+  final int maxFileBytes;
+  final int maxFiles;
+  final int maxTextBytes;
+
+  Set<String> get kinds => {
+        for (final m in mimeTypes)
+          if (ChatAttachment.attachmentKinds.contains(m.split('/').first)) m.split('/').first,
+      };
+}
+
+class _PendingSend {
+  _PendingSend(this.key) : done = Completer<ChatMessage>();
+
+  final String key;
+  final Completer<ChatMessage> done;
+}
+
+/// The client of the chat interface for one instance (`docs/celaut/chat.md`): gRPC over
+/// HTTP/2 in clear text, on the local port of the tunnel of the node.
 ///
 /// The service keeps the history. This object keeps a copy in memory only, and it
 /// writes nothing to the Celaut database. [count] is the number of messages that the
 /// client knows.
 ///
-/// A send only gives the message to the service, so the user can send many messages at
-/// once. The answers come with [sync], which the screen calls every few seconds: an
-/// answer that the service still makes is an open message ([ChatMessage.isOpen]) that
-/// grows from one read to the next.
-class ChatClient {
+/// The client has one channel, which is one TCP connection and one tunnel stream, and
+/// sends all its calls on it. [sync] reads the history, then opens the `Connect` stream.
+/// While the stream is open ([streaming]), the events change [messages] and notify the
+/// listeners: an answer that the service still makes is an open message
+/// ([ChatMessage.isOpen]) that grows. While no stream is open, the owner calls [sync] to
+/// read the history, every [pollWaiting] or [pollIdle].
+class ChatClient extends ChangeNotifier {
   ChatClient({
     required this.port,
-    required TunnelHttp http,
-    this.sendTimeout = defaultSendTimeout,
-  }) : _http = http;
+    this.reconnectWaits = startWaits,
+    this.stableAfter = const Duration(seconds: 10),
+    this.ackEvery = const Duration(seconds: 1),
+    this.callTimeout = const Duration(seconds: 30),
+    this.fileTimeout = const Duration(seconds: 120),
+    Duration Function(Duration? last)? channelBackoff,
+  }) : _backoff = channelBackoff ?? _defaultBackoff;
 
+  /// The local port of the chat slot of the instance (`celautOpenTunnel`).
   final int port;
-  final TunnelHttp _http;
 
-  /// The wait for the reply of a send. Tests make it short.
-  final Duration sendTimeout;
-  final List<ChatMessage> _messages = [];
-  final Map<(int, int), Uint8List> _files = {};
-  Set<String> _accepts = const {};
+  /// The waits before each new try to open the stream (section 6.5). Tests make them short.
+  final List<Duration> reconnectWaits;
 
-  /// Sends that are queued or running: the reads of files wait while there is one.
-  int _sends = 0;
+  /// A stream that stayed open this long is not a failure: the next try has no wait.
+  final Duration stableAfter;
 
-  /// Calls run one after the other: they share one connection.
-  Future<void> _tail = Future.value();
+  /// The least time between two `acknowledge` events.
+  final Duration ackEvery;
 
-  /// The reads of files, one after the other, before they join [_tail].
-  Future<void> _readTail = Future.value();
+  /// The deadline of a call that has no file stream, and of a call with files.
+  final Duration callTimeout;
+  final Duration fileTimeout;
 
-  static const _path = '/chat/messages';
+  final Duration Function(Duration? last) _backoff;
+
+  static Duration _defaultBackoff(Duration? last) =>
+      last == null ? const Duration(seconds: 1) : Duration(seconds: min(last.inSeconds * 2, 10));
 
   /// The most files in one send, and the most bytes in one file
   /// (`docs/celaut/chat.md`, section 7).
   static const maxAttachments = 4;
   static const maxAttachmentBytes = 4 * 1024 * 1024;
 
-  /// The wait for the reply of every send, with files or not. The service replies at once
-  /// (it does not wait for the answer), but a send with files is a large upload, so the
-  /// client waits longer than the 30 seconds of a read ([TunnelHttp.get]).
-  static const defaultSendTimeout = Duration(minutes: 2);
+  /// The most bytes of text in one message, if the service gives no other limit.
+  static const defaultMaxTextBytes = 16384;
 
-  /// How often the client reads the conversation (`docs/celaut/chat.md`, section 9): while
-  /// it waits for an answer, and otherwise.
+  /// The most bytes of a `SendMessageRequest`.
+  static const maxRequestBytes = 128 * 1024;
+
+  /// The most bytes of a message that the client accepts (section 4).
+  static const maxMessageBytes = 4 * 1024 * 1024;
+
+  /// The size of the chunks of an upload.
+  static const chunkBytes = 64 * 1024;
+
+  /// How often the client reads the conversation while it has no stream
+  /// (`docs/celaut/chat.md`, section 10): while it waits for an answer, and otherwise.
   static const pollWaiting = Duration(seconds: 2);
   static const pollIdle = Duration(seconds: 10);
 
@@ -258,18 +308,85 @@ class ChatClient {
   /// messages are dropped: the service gives them again.
   static const maxCachedBytes = 24 * 1024 * 1024;
 
-  /// The most bytes of one read of the history.
-  static const maxHistoryBytes = 1024 * 1024;
+  /// The waits between the tries to reach a service that starts, and between the tries to
+  /// open the stream: they get longer, then stay at 10 seconds.
+  static const startWaits = [
+    Duration(seconds: 2),
+    Duration(seconds: 3),
+    Duration(seconds: 5),
+    Duration(seconds: 8),
+    Duration(seconds: 10),
+  ];
+
+  /// The type of a SHA3-256 `Hash`: the digest of an empty input (section 6.4).
+  static final sha3Type = Uint8List.fromList([
+    for (var i = 0; i < 64; i += 2)
+      int.parse(
+        'a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a'.substring(i, i + 2),
+        radix: 16,
+      ),
+  ]);
+
+  ClientChannel? _channel;
+  pb.ChatServiceClient? _chatStub;
+  pb.FileServiceClient? _fileStub;
+
+  ClientChannel get _ch => _channel ??= ClientChannel(
+        '127.0.0.1',
+        port: port,
+        options: ChannelOptions(
+          credentials: const ChannelCredentials.insecure(),
+          // One connection for the whole session: each one costs a tunnel stream.
+          idleTimeout: null,
+          connectionTimeout: const Duration(days: 365),
+          keepAlive: const ClientKeepAliveOptions(
+            pingInterval: Duration(minutes: 5),
+            permitWithoutCalls: false,
+          ),
+          codecRegistry: CodecRegistry(codecs: const [IdentityCodec()]),
+          backoffStrategy: _backoff,
+        ),
+      );
+  pb.ChatServiceClient get _chat => _chatStub ??= pb.ChatServiceClient(_ch);
+  pb.FileServiceClient get _fileService => _fileStub ??= pb.FileServiceClient(_ch);
+
+  final List<ChatMessage> _messages = [];
+
+  /// The `sequence` of each `message_id` that the client has (section 5).
+  final Map<String, int> _seqById = {};
+  final Map<(int, int), Uint8List> _files = {};
+  final Map<(int, int), Future<Uint8List>> _reading = {};
+  _Caps? _caps;
+  Future<void>? _syncing;
+  bool _closed = false;
+  bool _notifyScheduled = false;
+
+  // The stream.
+  Future<void>? _streamTask;
+  bool _streamUnsupported = false;
+  bool _streamReady = false;
+  StreamController<pb.ClientEvent>? _out;
+  final Completer<void> _closing = Completer<void>();
+  final Map<String, _PendingSend> _pendingSends = {};
+  int _eventCounter = 0;
+  int _acked = 0;
+  DateTime _lastAck = DateTime.fromMillisecondsSinceEpoch(0);
+  Timer? _ackTimer;
 
   List<ChatMessage> get messages => List.unmodifiable(_messages);
 
-  /// The kinds of attachment (`image`, `audio`) that the service said it accepts, in the
-  /// last read of the history. Empty: the service accepts text only.
-  Set<String> get accepts => _accepts;
+  /// The kinds of attachment (`image`, `audio`) that the service said it accepts in
+  /// `GetCapabilities`. Empty: the service accepts text only, or the client did not read
+  /// the capabilities yet.
+  Set<String> get accepts => _caps?.kinds ?? const {};
   int get count => _messages.length;
 
+  /// The `Connect` stream is open and its replay is done: the events keep [messages] up
+  /// to date, and the owner need not read. False while no stream can be opened.
+  bool get streaming => _streamReady;
+
   /// The client waits for an answer: a message is open, or there are more user messages
-  /// than assistant messages (`docs/celaut/chat.md`, section 9).
+  /// than assistant messages (`docs/celaut/chat.md`, section 10).
   bool get awaitingAnswer {
     var users = 0;
     var replies = 0;
@@ -280,103 +397,721 @@ class ChatClient {
     return users > replies;
   }
 
-  /// Read what is new in the conversation, and the growth of the open messages, and put
-  /// it in [messages]. Use it when the screen opens a running instance, and again every
-  /// [pollWaiting] or [pollIdle].
-  Future<void> sync() => _serial(_sync);
+  /// Read the capabilities (once) and what is new in the conversation, put it in
+  /// [messages], and open the `Connect` stream if it is not open. While the stream is
+  /// open this does nothing: the events bring the news. Use it when the screen opens a
+  /// running instance, and every [pollWaiting] or [pollIdle] while [streaming] is false.
+  Future<void> sync() {
+    if (_streamReady) return Future.value();
+    return _syncing ??= _sync().whenComplete(() {
+      _syncing = null;
+    });
+  }
 
-  /// The waits between the reads of [syncWhenStarted]: they get longer, then stay at
-  /// 10 seconds.
-  static const startWaits = [
-    Duration(seconds: 2),
-    Duration(seconds: 3),
-    Duration(seconds: 5),
-    Duration(seconds: 8),
-    Duration(seconds: 10),
-  ];
+  Future<void> _sync() async {
+    await _ensureCaps();
+    await _catchUp();
+    _startStream();
+  }
 
   /// [sync] for an instance that has just started. The service starts to listen some
   /// seconds after `StartService` (the echo service of M4: 18 to 60 seconds), and until
-  /// then the node cannot connect the tunnel. So the client reads again while the
-  /// service is not reachable, with longer waits ([startWaits]), until it has waited
-  /// [limit]. Then it throws `unreachable`. Each read opens one tunnel stream, and the
-  /// node charges each one (`TUNNEL_OPEN_MU`): about 14 reads in the 2 minutes.
+  /// then the node cannot connect the tunnel. So the client calls `GetCapabilities` again
+  /// while the service is not reachable, with longer waits ([startWaits]), until it has
+  /// waited [limit]. Then it throws `unreachable`. Each try can open one tunnel stream,
+  /// and the node charges each one (`TUNNEL_OPEN_MU`).
   Future<void> syncWhenStarted({
     Duration limit = const Duration(minutes: 2),
     Future<void> Function(Duration wait)? wait,
-  }) =>
-      _serial(() async {
-        final pause = wait ?? (d) => Future<void>.delayed(d);
-        var waited = Duration.zero;
-        for (var i = 0;; i++) {
-          try {
-            await _sync();
-            return;
-          } on ChatException catch (e) {
-            if (e.kind != ChatErrorKind.unreachable || waited >= limit) rethrow;
-          }
-          final next = startWaits[i < startWaits.length ? i : startWaits.length - 1];
-          await pause(next);
-          waited += next;
+  }) async {
+    final pause = wait ?? (d) => Future<void>.delayed(d);
+    var waited = Duration.zero;
+    for (var i = 0;; i++) {
+      try {
+        await sync();
+        return;
+      } on ChatException catch (e) {
+        if (e.kind != ChatErrorKind.unreachable || waited >= limit) rethrow;
+      }
+      final next = startWaits[i < startWaits.length ? i : startWaits.length - 1];
+      await pause(next);
+      waited += next;
+    }
+  }
+
+  /// Close the stream and the connection for good: no call follows. The listeners get no
+  /// more notices.
+  Future<void> close() async {
+    if (_closed) return;
+    _closed = true;
+    if (!_closing.isCompleted) _closing.complete();
+    _ackTimer?.cancel();
+    for (final pending in _pendingSends.values) {
+      if (!pending.done.isCompleted) {
+        pending.done.completeError(const ChatException(ChatErrorKind.unreachable));
+      }
+    }
+    _pendingSends.clear();
+    await _closeSink(_out);
+    await _channel?.terminate();
+    super.dispose();
+  }
+
+  /// Close [sink], and do not wait for a listener that does not take the end.
+  Future<void> _closeSink(StreamController<pb.ClientEvent>? sink) async {
+    if (sink == null || sink.isClosed) return;
+    try {
+      await sink.close().timeout(const Duration(seconds: 1));
+    } on Object {
+      // The call is over, or does not take the end: cancel follows.
+    }
+  }
+
+  void _notify() {
+    if (_closed || _notifyScheduled) return;
+    _notifyScheduled = true;
+    scheduleMicrotask(() {
+      _notifyScheduled = false;
+      if (!_closed) notifyListeners();
+    });
+  }
+
+  // --- Errors --------------------------------------------------------------------------
+
+  /// The kind of an error of the table in section 9, from its status and its reason.
+  static ChatErrorKind _kind(int? code, String? reason) {
+    switch (reason) {
+      case 'busy':
+        return ChatErrorKind.busy;
+      case 'history_full':
+        return ChatErrorKind.historyFull;
+      case 'unsupported_media':
+        return ChatErrorKind.unsupportedMedia;
+      case 'bad_request' || 'too_large' || 'hash_mismatch' || 'not_found' || 'file_missing' ||
+            'bad_state':
+        return ChatErrorKind.badRequest;
+      case 'service_error' || 'unimplemented':
+        return ChatErrorKind.other;
+    }
+    return switch (code) {
+      StatusCode.unavailable ||
+      StatusCode.deadlineExceeded ||
+      StatusCode.cancelled ||
+      // A connection that drops ends the calls with this status in package:grpc.
+      StatusCode.unknown =>
+        ChatErrorKind.unreachable,
+      StatusCode.invalidArgument ||
+      StatusCode.notFound ||
+      StatusCode.failedPrecondition =>
+        ChatErrorKind.badRequest,
+      StatusCode.resourceExhausted => ChatErrorKind.historyFull,
+      _ => ChatErrorKind.other,
+    };
+  }
+
+  static ChatException _toException(Object e) {
+    if (e is ChatException) return e;
+    if (e is GrpcError) {
+      final reason = e.trailers?['chat-reason'];
+      return ChatException(
+        _kind(e.code, reason),
+        status: e.code,
+        reason: reason,
+        message: e.message,
+      );
+    }
+    return const ChatException(ChatErrorKind.unreachable);
+  }
+
+  Future<T> _guard<T>(Future<T> Function() call) async {
+    try {
+      return await call();
+    } on ChatException {
+      rethrow;
+    } on Object catch (e) {
+      throw _toException(e);
+    }
+  }
+
+  CallOptions get _unaryOptions => CallOptions(timeout: callTimeout);
+  CallOptions get _fileOptions => CallOptions(timeout: fileTimeout);
+
+  void _checkSize(GeneratedMessage message) {
+    if (message.writeToBuffer().length > maxMessageBytes) {
+      throw const ChatException(ChatErrorKind.badAnswer);
+    }
+  }
+
+  // --- Capabilities and history --------------------------------------------------------
+
+  Future<_Caps> _ensureCaps() async {
+    final kept = _caps;
+    if (kept != null) return kept;
+    final caps = await _guard(
+      () => _chat.getCapabilities(pb.GetCapabilitiesRequest(), options: _unaryOptions),
+    );
+    return _caps ??= _Caps(caps);
+  }
+
+  /// The `sequence` after which the next read starts: before the first open message, or
+  /// at the end.
+  int get _readFrom {
+    final open = _messages.indexWhere((m) => m.isOpen);
+    return open < 0 ? _messages.length : open;
+  }
+
+  /// Read from [_readFrom] until a read has no message (a read can be shorter than the
+  /// history: section 6.2). The client reads the whole history from `after_sequence` 0,
+  /// and not the last messages only: the list of messages has no gap.
+  Future<void> _catchUp() async {
+    var after = _readFrom;
+    while (true) {
+      final got = await _guard(
+        () => _chat
+            .getMessages(pb.GetMessagesRequest(afterSequence: Int64(after)), options: _unaryOptions)
+            .toList(),
+      );
+      if (got.isEmpty) return;
+      var expected = after + 1;
+      var applied = false;
+      for (final raw in got) {
+        _checkSize(raw);
+        if (raw.hasConversationId() && raw.conversationId.isNotEmpty) continue;
+        if (raw.sequence.toInt() != expected) throw const ChatException(ChatErrorKind.badAnswer);
+        expected++;
+        applied = true;
+        try {
+          _apply(raw);
+        } on _Gap {
+          throw const ChatException(ChatErrorKind.badAnswer);
         }
+      }
+      // A read that has only messages of other conversations ends the loop.
+      if (!applied) return;
+      after = expected - 1;
+      _notify();
+    }
+  }
+
+  // --- Messages ------------------------------------------------------------------------
+
+  static String _statusOf(pb.MessageStatus status) => switch (status) {
+        pb.MessageStatus.MESSAGE_STATUS_PENDING ||
+        pb.MessageStatus.MESSAGE_STATUS_IN_PROGRESS =>
+          ChatMessage.statusStreaming,
+        pb.MessageStatus.MESSAGE_STATUS_COMPLETED => ChatMessage.statusDone,
+        pb.MessageStatus.MESSAGE_STATUS_FAILED => ChatMessage.statusFailed,
+        pb.MessageStatus.MESSAGE_STATUS_CANCELLED => ChatMessage.statusCancelled,
+        _ => throw const ChatException(ChatErrorKind.badAnswer),
+      };
+
+  Uint8List? _sha3Of(pb.FileReference file) {
+    for (final hash in file.hashes) {
+      if (hash.hasType() && listEquals(hash.type, sha3Type) && hash.value.length == 32) {
+        return Uint8List.fromList(hash.value);
+      }
+    }
+    return null;
+  }
+
+  ChatAttachment _attachment(String kind, pb.FileReference file) => ChatAttachment(
+        kind: kind,
+        mime: file.mimeType.split(';').first.trim().toLowerCase(),
+        size: file.hasSizeBytes() ? file.sizeBytes.toInt() : 0,
+        name: file.hasFilename() ? file.filename : null,
+        hash: _sha3Of(file),
+      );
+
+  /// The message of the interface as a [ChatMessage]. A part that the client does not know
+  /// is ignored.
+  ChatMessage _convert(pb.Message m) {
+    if (m.messageId.isEmpty || m.messageId.length > 128 || m.sequence.toInt() < 1) {
+      throw const ChatException(ChatErrorKind.badAnswer);
+    }
+    final text = StringBuffer();
+    final attachments = <ChatAttachment>[];
+    for (final part in m.content) {
+      switch (part.whichKind()) {
+        case pb.ContentPart_Kind.text:
+          text.write(part.text.text);
+        case pb.ContentPart_Kind.image:
+          attachments.add(_attachment('image', part.image.file));
+        case pb.ContentPart_Kind.audio:
+          attachments.add(_attachment('audio', part.audio.file));
+        default:
+          break;
+      }
+    }
+    final reply = m.hasReplyToMessageId() ? _seqById[m.replyToMessageId] : null;
+    return ChatMessage(
+      seq: m.sequence.toInt(),
+      role: m.fromService ? 'assistant' : 'user',
+      text: text.toString(),
+      attachments: attachments,
+      status: _statusOf(m.status),
+      reasoning: m.reasoning,
+      replyTo: reply,
+      cid: m.hasIdempotencyKey() && m.idempotencyKey.isNotEmpty ? m.idempotencyKey : null,
+      pinned: m.pinned,
+      id: m.messageId,
+      updatedAt: m.updatedAt.toInt(),
+    );
+  }
+
+  /// Add the message, or take the newer state of the message that the client has. The
+  /// events and the reads can arrive in any order, so this is safe to repeat. A message
+  /// that is past the end is a [_Gap].
+  void _apply(pb.Message raw) {
+    final incoming = _convert(raw);
+    final index = incoming.seq - 1;
+    if (index > _messages.length) throw const _Gap();
+    if (index == _messages.length) {
+      _messages.add(incoming);
+      _seqById[incoming.id] = incoming.seq;
+      return;
+    }
+    final have = _messages[index];
+    if (have.id != incoming.id) throw const ChatException(ChatErrorKind.badAnswer);
+    if (have.isOpen) {
+      // A read can be older than the events that came since: keep the longer text.
+      final older = incoming.isOpen &&
+          incoming.text.length + incoming.reasoning.length < have.text.length + have.reasoning.length;
+      if (!older) _messages[index] = _withNewerPin(incoming, have);
+    } else if (!incoming.isOpen && incoming.updatedAt > have.updatedAt) {
+      // A final message does not change, except for `pinned`.
+      _messages[index] = have.copyWith(pinned: incoming.pinned, updatedAt: incoming.updatedAt);
+    }
+  }
+
+  ChatMessage _withNewerPin(ChatMessage incoming, ChatMessage have) =>
+      have.updatedAt > incoming.updatedAt
+          ? incoming.copyWith(pinned: have.pinned, updatedAt: have.updatedAt)
+          : incoming;
+
+  ChatMessage? _byId(String id) {
+    final seq = _seqById[id];
+    return seq == null ? null : _messages[seq - 1];
+  }
+
+  void _onDelta(pb.MessageDelta d) {
+    final have = _byId(d.messageId);
+    if (have == null || !have.isOpen) return;
+    if (d.textAppend.isEmpty && d.reasoningAppend.isEmpty) return;
+    _messages[have.seq - 1] = have.copyWith(
+      text: have.text + d.textAppend,
+      reasoning: have.reasoning + d.reasoningAppend,
+    );
+  }
+
+  void _onStatus(pb.MessageStatusChanged s) {
+    final have = _byId(s.messageId);
+    if (have == null || !have.isOpen) return;
+    _messages[have.seq - 1] = have.copyWith(
+      status: _statusOf(s.status),
+      updatedAt: s.updatedAt.toInt(),
+    );
+  }
+
+  void _onPinned(String id, bool pinned, int updatedAt) {
+    final have = _byId(id);
+    if (have == null || updatedAt < have.updatedAt) return;
+    _messages[have.seq - 1] = have.copyWith(pinned: pinned, updatedAt: updatedAt);
+  }
+
+  /// The highest `sequence` such that the client has all the messages up to it as final
+  /// messages.
+  int get _ackable {
+    var n = 0;
+    for (final m in _messages) {
+      if (m.isOpen) break;
+      n = m.seq;
+    }
+    return n;
+  }
+
+  // --- The stream ----------------------------------------------------------------------
+
+  void _startStream() {
+    if (_closed || _streamTask != null || _streamUnsupported) return;
+    _streamTask = _streamLoop().whenComplete(() {
+      _streamTask = null;
+    });
+  }
+
+  Future<void> _sleep(Duration wait) {
+    if (wait == Duration.zero) return Future.value();
+    final timer = Completer<void>();
+    final t = Timer(wait, timer.complete);
+    return Future.any([timer.future, _closing.future]).whenComplete(t.cancel);
+  }
+
+  /// Open the stream, and open it again after it ends (section 6.5).
+  Future<void> _streamLoop() async {
+    var attempt = 0;
+    while (!_closed) {
+      final started = DateTime.now();
+      Object? failure;
+      try {
+        await _runStream();
+      } on Object catch (e) {
+        failure = e;
+      }
+      _streamReady = false;
+      _notify();
+      if (_closed) return;
+      if (failure is GrpcError && failure.code == StatusCode.unimplemented) {
+        _streamUnsupported = true;
+        return;
+      }
+      if (DateTime.now().difference(started) >= stableAfter) {
+        attempt = 0;
+      } else {
+        await _sleep(reconnectWaits[min(attempt, reconnectWaits.length - 1)]);
+        attempt++;
+      }
+    }
+  }
+
+  String _nextEventId() => 'e${_eventCounter++}';
+
+  /// `after_sequence` of a new stream: before the first open message, or the last message.
+  int get _subscribeAfter => _readFrom;
+
+  Future<void> _runStream() async {
+    final out = StreamController<pb.ClientEvent>();
+    _out = out;
+    _acked = 0;
+    _lastAck = DateTime.fromMillisecondsSinceEpoch(0);
+    final done = Completer<void>();
+    var mine = false;
+    final call = _chat.connect(out.stream);
+    final sub = call.listen(
+      (event) {
+        try {
+          _onServerEvent(event);
+        } on Object catch (e) {
+          if (!done.isCompleted) done.completeError(e);
+        }
+      },
+      onError: (Object e) {
+        // `cancel` of the call puts CANCELLED in the stream: it is not an error here.
+        if (mine && e is GrpcError && e.code == StatusCode.cancelled) return;
+        if (!done.isCompleted) done.completeError(e);
+      },
+      onDone: () {
+        if (!done.isCompleted) done.complete();
+      },
+    );
+    out.add(
+      pb.ClientEvent(
+        eventId: _nextEventId(),
+        subscribe: pb.SubscribeRequest(afterSequence: Int64(_subscribeAfter)),
+      ),
+    );
+    unawaited(_closing.future.then((_) {
+      if (!done.isCompleted) done.complete();
+    }));
+    try {
+      await done.future;
+    } finally {
+      mine = true;
+      _streamReady = false;
+      _out = null;
+      _ackTimer?.cancel();
+      _ackTimer = null;
+      // A send over the stream that has no reply now: the client follows section 6.3.
+      for (final pending in _pendingSends.values) {
+        if (!pending.done.isCompleted) {
+          pending.done.completeError(const ChatException(ChatErrorKind.unreachable));
+        }
+      }
+      _pendingSends.clear();
+      // End our side first, then drop the call: the other order lets package:grpc add an
+      // event to a stream that it closed.
+      await _closeSink(out);
+      await sub.cancel();
+      await call.cancel().catchError((_) {});
+    }
+  }
+
+  bool _foreign(String? conversationId) => conversationId != null && conversationId.isNotEmpty;
+
+  void _onServerEvent(pb.ServerEvent e) {
+    switch (e.whichEvent()) {
+      case pb.ServerEvent_Event.messageCreated:
+        final raw = e.messageCreated.message;
+        _checkSize(raw);
+        if (_foreign(raw.hasConversationId() ? raw.conversationId : null)) return;
+        _apply(raw);
+        if (raw.hasIdempotencyKey()) {
+          final pending = _pendingSends[_pendingKeyToEvent(raw.idempotencyKey)];
+          final message = _byId(raw.messageId);
+          if (pending != null && message != null && !pending.done.isCompleted) {
+            pending.done.complete(message);
+          }
+        }
+      case pb.ServerEvent_Event.messageDelta:
+        if (_foreign(e.messageDelta.hasConversationId() ? e.messageDelta.conversationId : null)) {
+          return;
+        }
+        _onDelta(e.messageDelta);
+      case pb.ServerEvent_Event.messageStatusChanged:
+        final s = e.messageStatusChanged;
+        if (_foreign(s.hasConversationId() ? s.conversationId : null)) return;
+        _onStatus(s);
+      case pb.ServerEvent_Event.messagePinnedChanged:
+        final p = e.messagePinnedChanged;
+        if (_foreign(p.hasConversationId() ? p.conversationId : null)) return;
+        _onPinned(p.messageId, p.pinned, p.updatedAt.toInt());
+      case pb.ServerEvent_Event.subscriptionReady:
+        _streamReady = true;
+      case pb.ServerEvent_Event.error:
+        final err = e.error;
+        final pending = err.hasEventId() ? _pendingSends.remove(err.eventId) : null;
+        if (pending != null && !pending.done.isCompleted) {
+          pending.done.completeError(
+            ChatException(_kind(null, err.code), reason: err.code, message: err.message),
+          );
+        }
+      default:
+        break;
+    }
+    _notify();
+    _maybeAck();
+  }
+
+  String _pendingKeyToEvent(String key) {
+    for (final entry in _pendingSends.entries) {
+      if (entry.value.key == key) return entry.key;
+    }
+    return '';
+  }
+
+  /// Tell the service which messages are final (section 6.5): at most once each second,
+  /// and only when the value rises.
+  void _maybeAck() {
+    final out = _out;
+    if (!_streamReady || out == null) return;
+    final value = _ackable;
+    if (value <= _acked) return;
+    final wait = _lastAck.add(ackEvery).difference(DateTime.now());
+    if (wait > Duration.zero) {
+      _ackTimer ??= Timer(wait, () {
+        _ackTimer = null;
+        _maybeAck();
       });
+      return;
+    }
+    _acked = value;
+    _lastAck = DateTime.now();
+    out.add(
+      pb.ClientEvent(
+        eventId: _nextEventId(),
+        acknowledge: pb.AcknowledgeEvent(lastSequence: Int64(value)),
+      ),
+    );
+  }
+
+  // --- Send ----------------------------------------------------------------------------
 
   /// Send [text] and add the user message to [messages]. It does not wait for the answer:
-  /// the answer comes with [sync].
+  /// the answer comes with the events of the stream, or with [sync].
   ///
-  /// Each send has its own `cid`. If the connection breaks, the client reads the history
-  /// first. If the message is in it, the send worked. If not, the client sends the same
-  /// request again once, with the same `cid`, so the service cannot add it twice
-  /// (`docs/celaut/chat.md`, section 6.3).
+  /// Each send has its own `idempotency_key`. The client sends over the `Connect` stream
+  /// when it is open, and with `SendMessage` when it is not. If the connection breaks, the
+  /// client reads the history first. If the message is in it, the send worked. If not,
+  /// the client sends the same request again once, with the same key, so the service
+  /// cannot add it twice (`docs/celaut/chat.md`, section 6.3).
   ///
-  /// [attachments] are sent only if the service accepts their kinds ([accepts]). A send
-  /// with files and no text is valid.
+  /// [attachments] are sent only if the service accepts their media types ([accepts]). A
+  /// send with files and no text is valid.
   Future<void> send(
     String text, {
     List<OutgoingAttachment> attachments = const [],
-  }) {
-    _sends++;
-    return _serial(() => _send(text, attachments)).whenComplete(() => _sends--);
-  }
-
-  /// The bytes of attachment [index] of message [seq]. A file that this client sent is
-  /// already in memory; the others are read from the service
-  /// (`docs/celaut/chat.md`, section 6.4) once. They are kept in memory only.
-  ///
-  /// A send goes first: a read waits while a send is queued or running. The reads queue
-  /// among themselves, so at most one of them is ahead of a new send.
-  Future<Uint8List> readAttachment(int seq, int index) {
-    final run = _readTail.then((_) => _read(seq, index));
-    _readTail = run.then<void>((_) {}, onError: (_) {});
-    return run;
-  }
-
-  Future<Uint8List> _read(int seq, int index) async {
-    final early = _files[(seq, index)];
-    if (early != null) return early;
-    while (_sends > 0) {
-      await _tail;
+  }) async {
+    final caps = await _ensureCaps();
+    _checkSend(caps, text, attachments);
+    final key = _newCid();
+    final hashes = [for (final f in attachments) sha3_256(f.bytes)];
+    if (attachments.isNotEmpty) await _uploadMissing(attachments, hashes, onlyMissing: true);
+    final request = pb.SendMessageRequest(
+      content: [
+        if (text.isNotEmpty) pb.ContentPart(text: pb.TextContent(text: text)),
+        for (var i = 0; i < attachments.length; i++) _part(attachments[i], hashes[i]),
+      ],
+      idempotencyKey: key,
+    );
+    if (request.writeToBuffer().length > maxRequestBytes) {
+      throw const ChatException(ChatErrorKind.badRequest);
     }
-    return _serial(() async {
-      final kept = _files[(seq, index)];
-      if (kept != null) return kept;
-      final TunnelBytes answer;
+    ChatMessage sent;
+    try {
+      sent = await _sendWithRecovery(request, key);
+    } on ChatException catch (e) {
+      if (e.reason != 'file_missing') rethrow;
+      // The service lost a file: upload the files again, and send once more.
+      await _uploadMissing(attachments, hashes, onlyMissing: false);
+      sent = await _sendWithRecovery(request, key);
+    }
+    _keepFiles(sent.seq, attachments);
+  }
+
+  Future<ChatMessage> _sendWithRecovery(pb.SendMessageRequest request, String key) async {
+    try {
+      return await _sendOnce(request, key);
+    } on ChatException catch (e) {
+      if (e.kind != ChatErrorKind.unreachable) rethrow;
+    }
+    // The client does not know if the service got the message: read the history.
+    final found = await _recovered(key);
+    if (found != null) return found;
+    return _sendOnce(request, key);
+  }
+
+  Future<ChatMessage> _sendOnce(pb.SendMessageRequest request, String key) async {
+    final out = _out;
+    if (_streamReady && out != null) {
+      final id = _nextEventId();
+      final pending = _pendingSends[id] = _PendingSend(key);
+      out.add(pb.ClientEvent(eventId: id, sendMessage: request));
       try {
-        answer = await _http.getBytes(
-          port,
-          '$_path/$seq/attachments/$index',
-          maxBytes: maxAttachmentBytes,
+        return await pending.done.future.timeout(
+          callTimeout,
+          onTimeout: () => throw const ChatException(ChatErrorKind.unreachable),
         );
-      } on Exception {
-        throw const ChatException(ChatErrorKind.unreachable);
+      } finally {
+        _pendingSends.remove(id);
       }
-      if (answer.status != 200) {
-        throw ChatException(ChatErrorKind.other, status: answer.status);
+    }
+    final raw = await _guard(() => _chat.sendMessage(request, options: _unaryOptions));
+    _checkSize(raw);
+    final index = raw.sequence.toInt() - 1;
+    try {
+      _apply(raw);
+    } on _Gap {
+      // The service added answers since the last read: read the gap.
+      await _catchUp();
+    }
+    final message = index >= 0 && index < _messages.length ? _messages[index] : null;
+    if (message == null || message.id != raw.messageId) {
+      throw const ChatException(ChatErrorKind.badAnswer);
+    }
+    _notify();
+    return message;
+  }
+
+  /// Read the history, and give the user message with [key] if it is in it. A read that
+  /// fails counts as "no": the caller sends again, and that fails too if the service is
+  /// gone.
+  Future<ChatMessage?> _recovered(String key) async {
+    try {
+      await _catchUp();
+    } on Object {
+      return null;
+    }
+    for (final message in _messages) {
+      if (message.fromUser && message.cid == key) return message;
+    }
+    return null;
+  }
+
+  /// Check the limits of `docs/celaut/chat.md` (sections 6.1, 6.7 and 10) before anything
+  /// goes to the service.
+  void _checkSend(_Caps caps, String text, List<OutgoingAttachment> attachments) {
+    if (text.isEmpty && attachments.isEmpty) {
+      throw const ChatException(ChatErrorKind.badRequest);
+    }
+    if (utf8.encode(text).length > caps.maxTextBytes) {
+      throw const ChatException(ChatErrorKind.badRequest);
+    }
+    if (attachments.isEmpty) return;
+    if (attachments.length > caps.maxFiles) {
+      throw const ChatException(ChatErrorKind.badRequest);
+    }
+    for (final file in attachments) {
+      if (file.kind == null ||
+          !_sendableMimes.contains(file.baseMime) ||
+          !caps.mimeTypes.contains(file.baseMime)) {
+        throw const ChatException(ChatErrorKind.unsupportedMedia);
       }
-      if (answer.truncated) throw const ChatException(ChatErrorKind.badAnswer);
-      _remember(seq, index, answer.bytes);
-      return answer.bytes;
-    });
+      if (file.bytes.isEmpty || file.bytes.length > caps.maxFileBytes) {
+        throw const ChatException(ChatErrorKind.badRequest);
+      }
+    }
+  }
+
+  /// The media types that the client sends (section 5.1).
+  static const _sendableMimes = {'image/jpeg', 'image/png', 'audio/mpeg', 'audio/wav'};
+
+  pb.FileReference _reference(OutgoingAttachment file, Uint8List hash) => pb.FileReference(
+        hashes: [pb.Hash(type: sha3Type, value: hash)],
+        mimeType: file.baseMime,
+        sizeBytes: Int64(file.bytes.length),
+        filename: file.name,
+      );
+
+  pb.ContentPart _part(OutgoingAttachment file, Uint8List hash) => file.kind == 'image'
+      ? pb.ContentPart(image: pb.ImageContent(file: _reference(file, hash)))
+      : pb.ContentPart(audio: pb.AudioContent(file: _reference(file, hash)));
+
+  /// A name for a send: 22 characters from the set that the convention allows.
+  static String _newCid() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    final random = Random.secure();
+    return String.fromCharCodes([
+      for (var i = 0; i < 22; i++) chars.codeUnitAt(random.nextInt(chars.length)),
+    ]);
+  }
+
+  // --- Files ---------------------------------------------------------------------------
+
+  /// Ask `QueryFiles` which files the service has (one call for all the hashes), and
+  /// upload the others. With [onlyMissing] false, upload all of them.
+  Future<void> _uploadMissing(
+    List<OutgoingAttachment> files,
+    List<Uint8List> hashes, {
+    required bool onlyMissing,
+  }) async {
+    var missing = [for (var i = 0; i < files.length; i++) i];
+    if (onlyMissing) {
+      final answers = await _guard(
+        () => _fileService
+            .queryFiles(
+              Stream.fromIterable([
+                for (final h in hashes) pb.QueryFilesRequest(hash: pb.Hash(type: sha3Type, value: h)),
+              ]),
+              options: _unaryOptions,
+            )
+            .toList(),
+      );
+      if (answers.length != files.length) throw const ChatException(ChatErrorKind.badAnswer);
+      missing = [
+        for (var i = 0; i < files.length; i++)
+          if (!answers[i].available) i,
+      ];
+    }
+    for (final i in missing) {
+      await _guard(
+        () => _fileService.uploadFile(_uploadStream(files[i], hashes[i]), options: _fileOptions),
+      );
+    }
+  }
+
+  Stream<pb.UploadFileRequest> _uploadStream(OutgoingAttachment file, Uint8List hash) async* {
+    yield pb.UploadFileRequest(file: _reference(file, hash));
+    for (var i = 0; i < file.bytes.length; i += chunkBytes) {
+      yield pb.UploadFileRequest(
+        chunk: Uint8List.sublistView(file.bytes, i, min(i + chunkBytes, file.bytes.length)),
+      );
+    }
+  }
+
+  /// The user message of a send is at [seq]: keep the bytes that the client has, so that
+  /// the screen does not read them back.
+  void _keepFiles(int seq, List<OutgoingAttachment> attachments) {
+    for (var i = 0; i < attachments.length; i++) {
+      _remember(seq, i, attachments[i].bytes);
+    }
   }
 
   void _remember(int seq, int index, Uint8List bytes) {
@@ -388,224 +1123,62 @@ class ChatClient {
     if (total > maxCachedBytes) _files.removeWhere((key, _) => key.$1 != seq);
   }
 
-  Future<T> _serial<T>(Future<T> Function() action) {
-    final run = _tail.then((_) => action());
-    _tail = run.then<void>((_) {}, onError: (_) {});
-    return run;
+  /// The bytes of attachment [index] of message [seq]. A file that this client sent is
+  /// already in memory; the others are read from the service with `DownloadFile`
+  /// (`docs/celaut/chat.md`, section 6.4) once, and the client checks their hash. They are
+  /// kept in memory only.
+  Future<Uint8List> readAttachment(int seq, int index) {
+    final early = _files[(seq, index)];
+    if (early != null) return Future.value(early);
+    return _reading[(seq, index)] ??= _read(seq, index).whenComplete(() {
+      _reading.remove((seq, index));
+    });
   }
 
-  /// Check the limits of `docs/celaut/chat.md` (sections 6.1 and 7) before anything goes
-  /// to the service.
-  void _checkAttachments(String text, List<OutgoingAttachment> attachments) {
-    if (text.isEmpty && attachments.isEmpty) {
+  Future<Uint8List> _read(int seq, int index) async {
+    final message = seq >= 1 && seq <= _messages.length ? _messages[seq - 1] : null;
+    if (message == null || index < 0 || index >= message.attachments.length) {
       throw const ChatException(ChatErrorKind.badRequest);
     }
-    if (attachments.isEmpty) return;
-    if (attachments.length > maxAttachments) {
-      throw const ChatException(ChatErrorKind.badRequest);
-    }
-    for (final file in attachments) {
-      final kind = file.kind;
-      if (kind == null || !_accepts.contains(kind)) {
-        throw const ChatException(ChatErrorKind.unsupportedMedia);
-      }
-      if (file.bytes.isEmpty || file.bytes.length > maxAttachmentBytes) {
-        throw const ChatException(ChatErrorKind.badRequest);
-      }
-    }
-  }
-
-  Future<void> _send(String text, List<OutgoingAttachment> attachments) async {
-    _checkAttachments(text, attachments);
-    final cid = _newCid();
-    TunnelAnswer answer;
-    try {
-      answer = await _post(cid, text, attachments);
-    } on ChatException {
-      rethrow;
-    } on Exception {
-      // The client does not know if the service got the message: read the history.
-      if (await _recovered(cid, attachments)) return;
-      try {
-        answer = await _post(cid, text, attachments);
-      } on Exception {
-        throw const ChatException(ChatErrorKind.unreachable);
-      }
-    }
-    if (answer.status != 200) throw _error(answer);
-    final sent = _readSent(answer.body);
-    await _addSent(sent);
-    _keepFiles(sent.seq, attachments);
-  }
-
-  Future<TunnelAnswer> _post(String cid, String text, List<OutgoingAttachment> attachments) =>
-      _http.postJson(
-        port,
-        _path,
-        {
-          'cid': cid,
-          'text': text,
-          if (attachments.isNotEmpty)
-            'attachments': [
-              for (final file in attachments)
-                {
-                  'mime': file.mime,
-                  if (file.name != null) 'name': file.name,
-                  'data': base64Encode(file.bytes),
-                },
-            ],
-        },
-        timeout: sendTimeout,
-      );
-
-  /// A name for a send: 22 characters from the set that the convention allows.
-  static String _newCid() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
-    final random = Random.secure();
-    return String.fromCharCodes([
-      for (var i = 0; i < 22; i++) chars.codeUnitAt(random.nextInt(chars.length)),
-    ]);
-  }
-
-  /// The user message of a send is at [seq]: keep the bytes that the client has, so that
-  /// the screen does not read them back.
-  void _keepFiles(int seq, List<OutgoingAttachment> attachments) {
-    for (var i = 0; i < attachments.length; i++) {
-      _remember(seq, i, attachments[i].bytes);
-    }
-  }
-
-  /// Read the history, and say if it has the user message with [cid]. A read that fails
-  /// counts as "no": the caller sends again, and that fails too if the service is gone.
-  Future<bool> _recovered(String cid, List<OutgoingAttachment> attachments) async {
-    try {
-      await _sync();
-    } on Exception {
-      return false;
-    }
-    for (final message in _messages) {
-      if (message.fromUser && message.cid == cid) {
-        _keepFiles(message.seq, attachments);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /// The user message of the reply to a send (`docs/celaut/chat.md`, section 6.1).
-  ChatMessage _readSent(String body) {
-    try {
-      final json = jsonDecode(body);
-      final message = json is Map<String, dynamic> ? json['message'] : null;
-      if (message is! Map<String, dynamic>) throw const FormatException();
-      return ChatMessage.fromJson(message);
-    } on ChatException {
-      rethrow;
-    } on Object {
+    final file = message.attachments[index];
+    final hash = file.hash;
+    if (hash == null || file.size > maxCachedBytes) {
       throw const ChatException(ChatErrorKind.badAnswer);
     }
-  }
-
-  /// Add the user message of a send. The service can have added answers to earlier
-  /// messages since the last read, so the message can be past the end: read the gap.
-  Future<void> _addSent(ChatMessage message) async {
-    if (message.seq <= _messages.length) return _add([message]);
-    await _sync();
-  }
-
-  /// The `seq` from which the next read starts: the first open message, or the end.
-  int get _readFrom {
-    final open = _messages.indexWhere((m) => m.isOpen);
-    return open < 0 ? _messages.length : open;
-  }
-
-  /// Read from [_readFrom] until the client has all the messages (a read can be shorter
-  /// than the history: section 6.2).
-  Future<void> _sync() async {
-    while (true) {
-      final TunnelAnswer answer;
-      try {
-        answer = await _http.get(
-          port,
-          '$_path?from=$_readFrom',
-          maxBytes: maxHistoryBytes,
-        );
-      } on Exception {
-        throw const ChatException(ChatErrorKind.unreachable);
-      }
-      if (answer.status != 200) throw _error(answer);
-      final read = _readMessages(answer.body);
-      _accepts = read.accepts;
-      _add(read.messages);
-      if (_messages.length >= read.count) return;
-      // The service has more, but this read gave nothing new: do not loop.
-      if (read.messages.isEmpty) throw const ChatException(ChatErrorKind.badAnswer);
-    }
-  }
-
-  /// Add the messages that follow the ones that the client has. A message that the
-  /// client has as open is replaced by its new state; a final one is skipped. A gap is an
-  /// answer that does not follow the convention.
-  void _add(List<ChatMessage> incoming) {
-    for (final message in incoming) {
-      if (message.seq < _messages.length) {
-        if (_messages[message.seq].isOpen) _messages[message.seq] = message;
-        continue;
-      }
-      if (message.seq != _messages.length) {
-        throw const ChatException(ChatErrorKind.badAnswer);
-      }
-      _messages.add(message);
-    }
-  }
-
-  ({int count, Set<String> accepts, List<ChatMessage> messages}) _readMessages(
-    String body,
-  ) {
-    try {
-      final json = jsonDecode(body);
-      if (json is! Map<String, dynamic>) throw const FormatException();
-      final count = json['count'];
-      final list = json['messages'];
-      final accepts = json['accepts'];
-      if (count is! int || list is! List || (accepts != null && accepts is! List)) {
-        throw const FormatException();
-      }
-      return (
-        count: count,
-        // A kind that this client does not know is ignored.
-        accepts: {
-          for (final kind in (accepts as List?) ?? const [])
-            if (kind is String && ChatAttachment.attachmentKinds.contains(kind)) kind,
-        },
-        messages: [
-          for (final item in list) ChatMessage.fromJson(item as Map<String, dynamic>),
-        ],
+    final bytes = await _guard(() async {
+      final builder = BytesBuilder(copy: false);
+      final call = _fileService.downloadFile(
+        pb.DownloadFileRequest(hash: pb.Hash(type: sha3Type, value: hash)),
+        options: _fileOptions,
       );
-    } on ChatException {
-      rethrow;
-    } on Object {
+      await for (final part in call) {
+        builder.add(part.chunk);
+        if (builder.length > file.size) {
+          unawaited(call.cancel().catchError((_) {}));
+          throw const ChatException(ChatErrorKind.badAnswer);
+        }
+      }
+      return builder.takeBytes();
+    });
+    if (bytes.length != file.size || !listEquals(sha3_256(bytes), hash)) {
       throw const ChatException(ChatErrorKind.badAnswer);
     }
+    _remember(seq, index, bytes);
+    return bytes;
   }
 
-  ChatException _error(TunnelAnswer answer) {
-    String? message;
-    try {
-      final json = jsonDecode(answer.body);
-      if (json is Map<String, dynamic> && json['message'] is String) {
-        message = json['message'] as String;
-      }
-    } on Object {
-      // The body is not JSON: there is no message.
-    }
-    final kind = switch (answer.status) {
-      400 => ChatErrorKind.badRequest,
-      413 => ChatErrorKind.historyFull,
-      415 => ChatErrorKind.unsupportedMedia,
-      503 => ChatErrorKind.busy,
-      _ => ChatErrorKind.other,
-    };
-    return ChatException(kind, status: answer.status, message: message);
+  // --- Pinned messages -----------------------------------------------------------------
+
+  /// Pin or unpin [message] (`SetMessagePinned`, section 6.6). The user can do it for any
+  /// message. The service sends `MessagePinnedChanged` to the stream too.
+  Future<void> setPinned(ChatMessage message, bool pinned) async {
+    final raw = await _guard(
+      () => _chat.setMessagePinned(
+        pb.SetMessagePinnedRequest(messageId: message.id, pinned: pinned),
+        options: _unaryOptions,
+      ),
+    );
+    _onPinned(raw.messageId, raw.pinned, raw.updatedAt.toInt());
+    _notify();
   }
 }

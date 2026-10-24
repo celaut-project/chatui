@@ -8573,6 +8573,12 @@ abstract class AppLocalizations {
   /// **'The answer stopped before the end.'**
   String get chatAnswerFailed;
 
+  /// No description provided for @chatAnswerCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'The answer was cancelled.'**
+  String get chatAnswerCancelled;
+
   /// No description provided for @chatWaitingSeconds.
   ///
   /// In en, this message translates to:
@@ -9908,7 +9914,7 @@ abstract class AppLocalizations {
   /// No description provided for @serviceInfoChatUnsupported.
   ///
   /// In en, this message translates to:
-  /// **'Chatui does not support its interface: no port speaks the chat convention (tcp, then http, and chat above it). It can run, but Chatui cannot open a conversation with it.'**
+  /// **'Chatui does not support its interface: no port speaks the chat convention (tcp, then http2, grpc and chat above it). It can run, but Chatui cannot open a conversation with it.'**
   String get serviceInfoChatUnsupported;
 
   /// No description provided for @serviceInfoChatUnknown.

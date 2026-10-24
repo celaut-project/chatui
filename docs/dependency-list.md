@@ -150,6 +150,15 @@ in `app/pubspec.lock`.
 |---------|---------|---------|---------|
 | `file_picker` | 10.3.10 | MIT | Pick the image and audio files of a chat message. On Android it opens the system document picker, so the app needs no storage permission. It has no Play Services dependency |
 | `record` | 6.2.1 | BSD-3-Clause | Record the voice message of a chat from the microphone (WAV, 16 kHz, mono). It needs the `RECORD_AUDIO` permission, which the app asks for at the first recording and never before. The audio stays in memory until it is sent. It has no Play Services dependency |
+| `grpc` | 5.2.0 | Apache-2.0 | The gRPC client of the chat (`ChatClient`): h2c to the local port of the tunnel, one channel for all the calls. Pinned to the exact version: the settings of the channel (no idle timeout, a long connection life, the keep-alive of 5 minutes, the identity codec) follow its behavior. It has no size limit for messages, so `ChatClient` checks the sizes itself. It brings `http2`, `googleapis_auth` and `google_cloud` (not used by the chat) |
+| `protobuf` | 6.1.0 | BSD-3-Clause | The runtime of the Dart code that `scripts/gen_chat_proto.sh` makes from `docs/celaut/chat.proto` (`app/lib/celaut/chat/gen`). CI makes it again with `protoc` 3.21.12 and `protoc_plugin` 25.1.0 and fails if the files differ |
+| `fixnum` | 1.1.1 | BSD-3-Clause | `Int64`, the type of the `uint64` and `int64` fields of the generated code. It was already in the lock file, as a dependency of other packages |
+
+SHA3-256 (the hash of the files of the chat, `docs/celaut/chat.md` section 6.4) has no package.
+`app/lib/celaut/sha3.dart` is a short implementation of Keccak with the 64-bit integers of the Dart
+VM, checked against the NIST vectors and against `hashlib.sha3_256` of Python. A package
+(`pointycastle`) would add a dependency and its Register64 emulation is slower; an FRB function
+would change `rust/` and the generated bindings.
 
 ## Former patch: core2
 

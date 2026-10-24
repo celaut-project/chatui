@@ -73,7 +73,7 @@ class ApiSlotView {
 
 /// Whether the interface of the service is the chat convention of the app.
 enum ChatSupportView {
-  /// A port follows the convention: `tcp`, then `http`, and `chat` above it.
+  /// A port follows the convention: `tcp`, then `http2`, `grpc` and `chat` above it.
   supported,
 
   /// The interface is known and no port follows the convention.

@@ -5428,6 +5428,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatAnswerFailed => 'The answer stopped before the end.';
 
   @override
+  String get chatAnswerCancelled => 'The answer was cancelled.';
+
+  @override
   String chatWaitingSeconds(int seconds) {
     return 'Still working… $seconds s';
   }
@@ -6239,7 +6242,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get serviceInfoChatUnsupported =>
-      'Chatui does not support its interface: no port speaks the chat convention (tcp, then http, and chat above it). It can run, but Chatui cannot open a conversation with it.';
+      'Chatui does not support its interface: no port speaks the chat convention (tcp, then http2, grpc and chat above it). It can run, but Chatui cannot open a conversation with it.';
 
   @override
   String get serviceInfoChatUnknown =>

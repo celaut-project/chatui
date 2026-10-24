@@ -637,7 +637,7 @@ mod tests {
             }),
             api: Some(Api {
                 slot: vec![
-                    slot(3030, "tcp", &[&["http"], &["chat"]]),
+                    slot(3030, "tcp", &[&["http2"], &["grpc"], &["chat"]]),
                     slot(53, "udp", &[]),
                 ],
                 payment_contracts: Vec::new(),
@@ -784,14 +784,17 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(info.chat_ports(), vec![3030]);
-        // No interface, or one without the chat protocol above http: not supported.
+        // No interface, or one without the chat protocol above http2 and grpc: not supported.
         let none = Service::default().encode_to_vec();
         let info = read_service_info(package(&none, 64), None, None)
             .await
             .unwrap();
         assert!(info.chat_ports().is_empty());
         for stack in [
-            vec![vec!["chat"], vec!["http"]],
+            vec![vec!["chat"], vec!["grpc"], vec!["http2"]],
+            vec![vec!["http"], vec!["chat"]],
+            vec![vec!["http2"], vec!["chat"]],
+            vec![vec!["http2"], vec!["grpc"]],
             vec![vec!["http"]],
             vec![vec!["chat"]],
             vec![],
@@ -811,7 +814,7 @@ mod tests {
         }
         let udp = Service {
             api: Some(Api {
-                slot: vec![slot(80, "udp", &[&["http"], &["chat"]])],
+                slot: vec![slot(80, "udp", &[&["http2"], &["grpc"], &["chat"]])],
                 payment_contracts: Vec::new(),
             }),
             ..Default::default()
