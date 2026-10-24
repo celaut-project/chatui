@@ -55,6 +55,7 @@ jobs:
         working-directory: .
         run: |
           # ubuntu-24.04 has protoc 3.21.12, the version that scripts/gen_chat_proto.sh pins.
+          sudo apt-get update
           sudo apt-get install -y --no-install-recommends protobuf-compiler
           scripts/gen_chat_proto.sh
           git diff --exit-code
