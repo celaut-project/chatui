@@ -326,7 +326,7 @@ class ActivityRowData {
 enum WalletAction { send, receive, more }
 
 /// What the More sheet offers.
-enum WalletTool { tokens, utxos, addresses, lock }
+enum WalletTool { tokens, utxos, addresses, deposit, lock }
 
 /// A More sheet row with its live status, if any.
 class WalletToolEntry {
@@ -423,6 +423,7 @@ class WalletPageData {
         const WalletToolEntry(WalletTool.tokens),
         WalletToolEntry(WalletTool.utxos, status: fragmented ? appL10n.homeFragmented : null, warn: fragmented),
         const WalletToolEntry(WalletTool.addresses),
+        const WalletToolEntry(WalletTool.deposit),
         const WalletToolEntry(WalletTool.lock),
       ];
 }

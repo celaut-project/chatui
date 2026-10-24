@@ -48,7 +48,7 @@ of the wallet and the pages under a tab open over the bar.
 | Tab | What it holds | Code |
 |---|---|---|
 | Chats | The instances with a chat slot: the running ones, newest first, then the stopped ones (hidden by default, see below). The pencil button opens "New conversation"; only this tab has it | `ChatsScreen`, `InstanceList` (`chats_screen.dart`, `instance_list.dart`) |
-| Wallet | The overview of the wallet: balance, Send, Receive, More, the wallet row (it opens the page of the wallet), then "Deposit to a node". With no wallet: create or restore | `WalletsOverviewScreen`, `DepositScreen` |
+| Wallet | Only the ERG that the wallet holds and its latest transactions (2026-10-24, Josemi). "Wallet details" opens the page of the wallet, which has Send, Receive, the tokens, the addresses, "Deposit to a node" (under More) and the rest. A locked wallet shows its public snapshot, with the transactions of the same refresh. With no wallet: create or restore | `WalletSummaryScreen` (`home/wallet_summary.dart`), `WalletsOverviewScreen` (the welcome), `DepositScreen` |
 | Compute | The compute view of [ui.md](ui.md), section 2: the running instances with Stop, "Run a service", the card of state (nodes, credit on the nodes, ERG of the wallet). Under it: Nodes, Services, Other instances | `ComputeHomeScreen` |
 | Settings | The settings of the app in three sections (2026-10-23): Ergo (the wallet, the Ergo network, the address book, the remote previews), Compute (nodes, deposit, automatic top-up, Tor, environment variables, node check, Celaut service) and General (security, display, the switch of the home screen, About) | `SettingsScreen` |
 
@@ -57,8 +57,8 @@ of the wallet and the pages under a tab open over the bar.
 | New conversation | Chats, pencil button | The skills of the catalog (a skill opens its ranked services), the service files of the user, the import of a file | `RunServiceScreen` with the title "New conversation" |
 | Conversation | Chats, a row | Bubbles, with images and files (section 7); the bar has the name of the service and "state · node · cost so far"; ⋮ has Info and Stop | `ChatScreen` |
 | Instance info | The bar of a conversation, ⋮, a long press, a tap on a stopped row | State, node address, peer id of the node, service id, chat slot, start time, cost so far (or the refund at the stop). Stop, or Delete for a stopped instance | `InstanceInfoScreen` |
-| Page of the wallet | Wallet, the wallet row | Balance, Send, Receive, activity, the tools and the settings of the wallet | `DashboardScreen` (wallet page) |
-| Deposit to a node | Wallet | The deposit screen | `DepositScreen` |
+| Page of the wallet (the details) | Wallet, "Wallet details" | Balance, Send, Receive, activity, the tools (tokens, UTXOs, addresses, Deposit to a node, lock) and the settings of the wallet. It is the Ergo part of the app, and always has the Ergo look: black and orange (`ergoPalette`), whatever theme the user chose. The look covers the pages that open from it (`ergoThemeActive`) | `DashboardScreen` (wallet page) |
+| Deposit to a node | Wallet details, More | The deposit screen | `DepositScreen` |
 | Nodes | Compute | The node list with its availability; add a node by address or QR code ("connect to a new peer") | `KnownNodesScreen` |
 | Services | Compute | The same picker as "New conversation": the catalog, the service files and the import. The transfer of a service that a node does not have stays in the sheet of a failed launch | `RunServiceScreen` |
 | Other instances | Compute | The instances without a chat slot. A row opens the info page | `OtherInstancesScreen` |

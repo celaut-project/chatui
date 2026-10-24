@@ -4744,5 +4744,8 @@
         "type": "int"
       }
     }
-  }
+  },
+  "walletSummaryDetails": "Wallet details",
+  "walletSummaryLatest": "Latest transactions",
+  "walletSummaryNoTransactions": "No transactions yet"
 }

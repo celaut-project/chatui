@@ -117,8 +117,9 @@ class _ArgusAppState extends State<ArgusApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: themeController,
+      listenable: Listenable.merge([themeController, ergoThemeActive]),
       builder: (context, _) {
+        final ergo = ergoThemeActive.value;
         return MaterialApp(
           onGenerateTitle: (context) => context.l10n.appTitle,
           navigatorKey: navigatorKey,
@@ -131,9 +132,10 @@ class _ArgusAppState extends State<ArgusApp> with WidgetsBindingObserver {
           ],
           supportedLocales: AppLocalizations.supportedLocales,
           debugShowCheckedModeBanner: false,
-          theme: themeController.lightTheme,
-          darkTheme: themeController.darkTheme,
-          themeMode: themeController.themeMode,
+          // The Ergo part always has its own look (`ergoThemeActive`).
+          theme: ergo ? argusThemeFor(ergoPalette) : themeController.lightTheme,
+          darkTheme: ergo ? argusThemeFor(ergoPalette) : themeController.darkTheme,
+          themeMode: ergo ? ThemeMode.dark : themeController.themeMode,
           // Densities in the wallet card assume at most ~1.6x text; larger
           // system font scales would overflow fixed rows.
           // Every route sees live wallet context through WalletArgsScope, so

@@ -10202,4 +10202,22 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
     'on GitHub with a reproducible sample app and the gen-l10n configuration '
     'that was used.',
   );
+
+  /// No description provided for @walletSummaryDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Wallet details'**
+  String get walletSummaryDetails;
+
+  /// No description provided for @walletSummaryLatest.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest transactions'**
+  String get walletSummaryLatest;
+
+  /// No description provided for @walletSummaryNoTransactions.
+  ///
+  /// In en, this message translates to:
+  /// **'No transactions yet'**
+  String get walletSummaryNoTransactions;
 }
