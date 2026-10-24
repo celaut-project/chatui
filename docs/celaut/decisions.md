@@ -183,7 +183,7 @@
 - **Chat interface, second round of clarifications (2026-10-24, Josemi):** [chat.md](chat.md)
   gives one rule for each point that the three implementations found. A later `file` of an
   upload is found while the chunks are read, after the size, type and storage checks. A `type`
-  that is set and empty is an unknown type, and a SHA3-256 hash with a `value` that is not 32
+  that is set and empty is an unknown type (replaced by the entry "Hash.type is required" below), and a SHA3-256 hash with a `value` that is not 32
   bytes is `bad_request`. A service limits the queue of a `Connect` stream at 1 000 events or
   more and then ends it with `UNAVAILABLE` and `busy`; the app waits at least 2 seconds and
   subscribes again. A failing first event has a fixed status for each case. If the app is ahead
@@ -191,3 +191,14 @@
   other statuses it retries and shows the error after 3 failures in a row. The app ignores a
   `ProtocolError` with no `event_id` after `SubscriptionReady`. The app does not download a file
   that has no SHA3-256 hash. `error` has at most 1 KiB, and the app can cut it for display.
+- **Hash.type is required (2026-10-24, Josemi):** in [chat.proto](chat.proto) `Hash.type` is
+  `bytes type = 1;` and not `optional`. The field number is the same, so the wire is the same.
+  Every `Hash` of every call has an explicit `type`; the rule "reuse the last `type` of the
+  stream" in `QueryFiles` is gone. Why: proto3 gives no presence to a `bytes` field without
+  `optional`, so an empty `type` cannot be told from a missing one (the `Hash` of
+  `celaut.proto` is the same); `QueryFiles` no longer depends on the state of the stream; and
+  the cost is about 32 bytes for each query. An empty `type` is `bad_request` in each call that
+  takes a `Hash`. A `type` that is not empty and that the service does not know is an unknown
+  algorithm (`available` false, or ignored in a `FileReference`). A SHA3-256 hash whose `value`
+  is not 32 bytes is `bad_request`, `QueryFiles` too. This is round 5 of revision 6 of
+  [chat.md](chat.md).

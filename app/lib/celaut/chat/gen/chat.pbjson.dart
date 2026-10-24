@@ -637,18 +637,14 @@ final $typed_data.Uint8List textContentDescriptor =
 const Hash$json = {
   '1': 'Hash',
   '2': [
-    {'1': 'type', '3': 1, '4': 1, '5': 12, '9': 0, '10': 'type', '17': true},
+    {'1': 'type', '3': 1, '4': 1, '5': 12, '10': 'type'},
     {'1': 'value', '3': 2, '4': 1, '5': 12, '10': 'value'},
-  ],
-  '8': [
-    {'1': '_type'},
   ],
 };
 
 /// Descriptor for `Hash`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List hashDescriptor = $convert.base64Decode(
-    'CgRIYXNoEhcKBHR5cGUYASABKAxIAFIEdHlwZYgBARIUCgV2YWx1ZRgCIAEoDFIFdmFsdWVCBw'
-    'oFX3R5cGU=');
+    'CgRIYXNoEhIKBHR5cGUYASABKAxSBHR5cGUSFAoFdmFsdWUYAiABKAxSBXZhbHVl');
 
 @$core.Deprecated('Use fileReferenceDescriptor instead')
 const FileReference$json = {

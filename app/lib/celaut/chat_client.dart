@@ -633,7 +633,7 @@ class ChatClient extends ChangeNotifier {
 
   Uint8List? _sha3Of(pb.FileReference file) {
     for (final hash in file.hashes) {
-      if (hash.hasType() && listEquals(hash.type, sha3Type) && hash.value.length == 32) {
+      if (listEquals(hash.type, sha3Type) && hash.value.length == 32) {
         return Uint8List.fromList(hash.value);
       }
     }

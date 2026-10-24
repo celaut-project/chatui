@@ -1276,30 +1276,43 @@ void main() {
       expect(svc.files, isEmpty);
     });
 
-    // package:protobuf reports a `type` of 0 bytes as absent (`hasType()` is false and
-    // the decoder cannot tell the two apart), so the fake cannot tell test 48b from test 49:
-    // it follows 49. A type of other bytes stands for an unknown type.
-    test('the fake: an unknown type is not an error (48b), no type is (49), 31 bytes is bad_request (55f)', () async {
+    test('the fake: an unknown type is not an error (50), no type is (49), 31 bytes is bad_request (49a, 55f)', () async {
       final c = await channel();
       final data = bytes(100);
-      final empty = pb.Hash(type: [9, 9], value: sha3_256(data));
-      final answers = await c.files.queryFiles(Stream.value(pb.QueryFilesRequest(hash: empty))).toList();
+      final sha = pb.Hash(type: ChatClient.sha3Type, value: sha3_256(data));
+      final unknown = pb.Hash(type: [9, 9], value: sha3_256(data));
+      final answers = await c.files.queryFiles(Stream.value(pb.QueryFilesRequest(hash: unknown))).toList();
       expect(answers.single.available, isFalse);
+      // 49: an empty type is bad_request, first or later, and the type of the earlier hash is not reused.
+      final none = pb.QueryFilesRequest(hash: pb.Hash(value: sha3_256(data)));
+      await expectReason(c.files.queryFiles(Stream.value(none)).toList(), 'bad_request');
       await expectReason(
-        c.files.queryFiles(Stream.value(pb.QueryFilesRequest(hash: pb.Hash(value: sha3_256(data))))).toList(),
+        c.files.queryFiles(Stream.fromIterable([pb.QueryFilesRequest(hash: sha), none])).toList(),
         'bad_request',
       );
-      // In a FileReference an empty type is ignored, and the reference needs a known hash.
+      // 49a: a SHA3-256 value of 31 bytes, in QueryFiles and in DownloadFile.
+      final short = pb.Hash(type: ChatClient.sha3Type, value: bytes(31));
+      await expectReason(c.files.queryFiles(Stream.value(pb.QueryFilesRequest(hash: short))).toList(), 'bad_request');
+      await expectReason(c.files.downloadFile(pb.DownloadFileRequest(hash: short)).toList(), 'bad_request');
+      // 71: DownloadFile with no type.
+      await expectReason(
+        c.files.downloadFile(pb.DownloadFileRequest(hash: pb.Hash(value: sha3_256(data)))).toList(),
+        'bad_request',
+      );
+      // In a FileReference an unknown type is ignored, and the reference needs a known hash.
       Stream<pb.UploadFileRequest> up(pb.FileReference r) async* {
         yield pb.UploadFileRequest(file: r);
         yield pb.UploadFileRequest(chunk: data);
       }
 
-      await expectReason(c.files.uploadFile(up(ref(data, hashes: [empty]))), 'bad_request');
-      await c.files.uploadFile(up(ref(data, hashes: [empty, pb.Hash(type: ChatClient.sha3Type, value: sha3_256(data))])));
+      await expectReason(c.files.uploadFile(up(ref(data, hashes: [unknown]))), 'bad_request');
+      await c.files.uploadFile(up(ref(data, hashes: [unknown, pb.Hash(type: ChatClient.sha3Type, value: sha3_256(data))])));
       expect(svc.files.length, 1);
-      final short = pb.Hash(type: ChatClient.sha3Type, value: bytes(31));
       await expectReason(c.files.uploadFile(up(ref(data, hashes: [short]))), 'bad_request');
+      await expectReason(
+        c.files.uploadFile(up(ref(data, hashes: [pb.Hash(value: sha3_256(data))]))),
+        'bad_request',
+      );
     });
 
     test('the fake: the first event table, and a full queue ends the stream with busy', () async {

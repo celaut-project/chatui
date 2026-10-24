@@ -264,9 +264,7 @@ class FileServiceClient extends $grpc.Client {
   /// Se envía un hash por mensaje y se recibe una respuesta
   /// por cada consulta, en el mismo orden.
   ///
-  /// El primer hash debe incluir type.
-  /// Los siguientes pueden omitirlo para reutilizar el último
-  /// type explícito del mismo stream cliente-servidor.
+  /// Cada hash debe incluir type (ver Hash).
   $grpc.ResponseStream<$0.QueryFilesResponse> queryFiles(
     $async.Stream<$0.QueryFilesRequest> request, {
     $grpc.CallOptions? options,

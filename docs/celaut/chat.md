@@ -564,8 +564,7 @@ to `chat.proto`. A new algorithm gets its own `type`.
 
 - Every service that accepts files must support SHA3-256. A service can support other types.
 - A client of revision 6 makes and sends SHA3-256 hashes only. A later revision of the client
-  can add other algorithms. The client puts the `type` in each `Hash`, also where `chat.proto`
-  lets it omit the `type`.
+  can add other algorithms. The client puts the `type` in each `Hash`, in each call.
 - A `FileReference` that a service sends must have a SHA3-256 hash, because the client reads
   only this algorithm. It can have other hashes too. A client that gets a `FileReference`
   with no SHA3-256 hash shows the file as unreadable, and must not call `DownloadFile` for it.
@@ -575,13 +574,15 @@ to `chat.proto`. A new algorithm gets its own `type`.
 - A hash with a `type` that the service does not know is not an error in a `FileReference`.
   The service ignores it. A `FileReference` must have at least one hash that the service
   knows, or the service ends the call with `INVALID_ARGUMENT`, reason `bad_request`.
-- A `Hash` whose `type` is set but is an empty value has an unknown type. It is not an absent
-  `type`. In `QueryFiles` it gets `available` `false`, and in a `FileReference` the service
-  ignores it (it is not an error, but the `FileReference` needs one known hash).
+- `Hash.type` is required, in each `Hash` of each call: `QueryFilesRequest`,
+  `QueryFilesResponse`, `FileReference`, `DownloadFileRequest` and `UploadFile`. In proto3 a
+  `bytes` field has no presence, so an empty `type` and a missing `type` are the same case. A
+  `Hash` with an empty `type` is an error in every call that takes a `Hash`, `QueryFiles` too:
+  `INVALID_ARGUMENT`, reason `bad_request`. A `type` that is not empty and that the service
+  does not know is an unknown algorithm (see above and below), not an error.
 - A hash of the SHA3-256 type must have a `value` of 32 bytes. A `value` of another length
-  is a structure error: `INVALID_ARGUMENT`, reason `bad_request`.
-- A hash with no `type` in a `FileReference` is an error: `INVALID_ARGUMENT`, reason
-  `bad_request`. The omission of `type` is for `QueryFiles` only (see below).
+  is a structure error: `INVALID_ARGUMENT`, reason `bad_request`. This is true in
+  `QueryFiles` and in `DownloadFile` too.
 - A service that knows more than one hash of a `FileReference` must check each of them.
 - `QueryFiles` with a `type` that the service does not know gives `available` `false`. It is
   not an error.
@@ -591,9 +592,9 @@ to `chat.proto`. A new algorithm gets its own `type`.
 an explicit `type` in the response. `available` is `true` if the service has the bytes and can
 send them to this client now.
 
-- The first hash of the stream must have a `type`. A hash with no `type` uses the last
-  explicit `type` that the service received in the same stream. If the first hash has no
-  `type`, the service ends the call with `INVALID_ARGUMENT`, reason `bad_request`.
+- Each hash must have a `type`. There is no rule to reuse the `type` of an earlier hash of the
+  stream. If a hash has an empty `type`, or if a hash of the SHA3-256 type has a `value` that is
+  not 32 bytes, the service ends the call with `INVALID_ARGUMENT`, reason `bad_request`.
 - A hash with a `type` that the service does not know gets `available` `false`. It is not
   an error.
 - The client must end its side of the stream when it has no more questions. The service
@@ -943,7 +944,7 @@ The status `INVALID_ARGUMENT` with the reason `bad_request` is for one of these 
 - `after_sequence` is more than `latest`, or `last_sequence` of an `acknowledge` is more than
   `latest`.
 - An `event_id` is not valid, or it was used before in the same stream.
-- The first hash of a `QueryFiles` stream has no `type`, or the first message of an
+- A hash of a `QueryFiles`, `DownloadFile` or `UploadFile` call has no `type` (an empty `type`), or the first message of an
   `UploadFile` stream is not a `FileReference`.
 
 `ProtocolError.code` in a `Connect` stream has the same names as `chat-reason`, and
@@ -1114,10 +1115,11 @@ has it empty.
 | 45 | `cancel_message` with `event_id` `e6`, on a service that has `supports_cancel` `false` | A `ProtocolError` with the code `unimplemented` and `event_id` `e6` |
 | 46 | Five unary calls on one HTTP/2 connection, with a stream open | All get an answer on the same connection. The service does not close the connection |
 | 47 | A `Connect` stream and 7 unary calls at the same time on one connection | All 8 calls run at the same time |
-| 48 | `QueryFiles` with two hashes that are not in the service. The first has the SHA3-256 `type`, the second has no `type` | Two responses, in the same order. Each has the `type` and `available` `false` |
+| 48 | `QueryFiles` with two hashes that are not in the service. Both have the SHA3-256 `type` | Two responses, in the same order. Each has the `type` and `available` `false` |
 | 48a | `QueryFiles` with a `type` of 64 bytes (the ASCII hexadecimal text of the SHA3-256 `type`) | A response with `available` `false`. It is not an error. The same query with the 32 raw bytes of the `type` and the hash of the file of test 51 gives `available` `true` after test 51 |
-| 48b | `QueryFiles` with a `Hash` that has an empty `type` (set, with 0 bytes) as the first hash | A response with `available` `false`. It is not an error and not the case of test 49 |
-| 49 | `QueryFiles` with a first hash that has no `type` | `INVALID_ARGUMENT`, reason `bad_request` |
+| 48b | (removed in round 5: a `type` that is set and empty cannot be told from a missing `type`, so test 49 covers it. The number stays, so that the other numbers do not change) | |
+| 49 | `QueryFiles` with a hash that has no `type` (empty), as the first hash, and a second call with that hash as a later hash | `INVALID_ARGUMENT`, reason `bad_request` for each. The service does not reuse the `type` of an earlier hash |
+| 49a | `QueryFiles` with a hash of the SHA3-256 `type` and a `value` of 31 bytes | `INVALID_ARGUMENT`, reason `bad_request` |
 | 50 | `QueryFiles` with a `type` that the service does not know | A response with `available` `false`. It is not an error |
 | 51 | `UploadFile` with a valid PNG of a known hash, in chunks of 64 KiB, if `accepted_mime_types` has `image/png` | `OK`. The `FileReference` has the SHA3-256 hash with its `type`, and `size_bytes` equal to the real size |
 | 52 | `QueryFiles` for the hash of test 51 | `available` `true` |
@@ -1125,7 +1127,7 @@ has it empty.
 | 54 | `UploadFile` with a hash that is not the hash of the bytes | `INVALID_ARGUMENT`, reason `hash_mismatch`. `QueryFiles` for that hash gives `available` `false` |
 | 55 | `UploadFile` with `size_bytes` that is not the number of bytes | `INVALID_ARGUMENT`, reason `hash_mismatch` |
 | 55a | `UploadFile` with `size_bytes` 0 and no chunk | `INVALID_ARGUMENT`, reason `bad_request`. `QueryFiles` gives `available` `false` |
-| 55b | `UploadFile` with a hash that has no `type` | `INVALID_ARGUMENT`, reason `bad_request` |
+| 55b | `UploadFile` with a hash that has no `type` (empty) | `INVALID_ARGUMENT`, reason `bad_request` |
 | 55c | `UploadFile` with `mime_type` `application/pdf` and `size_bytes` above the limit; a second call with `size_bytes` above the limit and a second message that has `file` | `INVALID_ARGUMENT`, reason `too_large` for each (the size is checked before the type, and before a later `file`) |
 | 55e | `UploadFile` with a valid first message and a second message that has `file`, in the limit of size | `INVALID_ARGUMENT`, reason `bad_request`. `QueryFiles` gives `available` `false` |
 | 55f | `UploadFile` with a SHA3-256 hash whose `value` has 31 bytes | `INVALID_ARGUMENT`, reason `bad_request` |
@@ -1146,7 +1148,7 @@ has it empty.
 | 68 | `SendMessage` with `mime_type` `IMAGE/PNG` and the file of test 51 (only if `accepted_mime_types` has `image/png`) | `OK`. The part has `mime_type` `image/png` |
 | 69 | `SendMessage` with 4 attachments of 4 MiB each, uploaded before (only if the type is accepted) | `OK` |
 | 70 | `SendMessage` with a recorded `audio/wav` and `duration_ms`, uploaded before (only if `accepted_mime_types` has `audio/wav`) | `OK`. `duration_ms` is the same in the message |
-| 71 | `DownloadFile` for a hash that is not in the service, and for a hash with no `type` | `NOT_FOUND`, and `INVALID_ARGUMENT` with reason `bad_request` |
+| 71 | `DownloadFile` for a hash that is not in the service, and for a hash with no `type` (empty) | `NOT_FOUND`, and `INVALID_ARGUMENT` with reason `bad_request` |
 | 72 | `DownloadFile` for the file that an assistant message references (only for a service that sends files, or an echo service that returns the attachments) | The bytes, and the SHA3-256 of the bytes is the hash of the message. The `FileReference` of that message has a SHA3-256 hash with a `type` |
 | 73 | `FileService` on a service that accepts no attachment (only if it does not implement `FileService`) | `UNIMPLEMENTED` for each call |
 | 73a | `SendMessage` with a message that is above the receive limit of the gRPC layer, 4 MiB + 1 byte (optional) | `RESOURCE_EXHAUSTED` with no `chat-reason`. The service does not stop |
@@ -1160,7 +1162,7 @@ and it applies only to that service. Tests 29 to 32, 39, 42 to 44, 55d, 72 and 7
 optional. A service can fail on request only if it has a way to make it fail, for example
 a test mode. A service with a large history limit does not fill the history in a test. Tests
 48 to 72 (with the tests that have a letter) apply to a service that accepts attachments. A service that accepts text only runs
-tests 48, 48a, 49, 50, 57, 66, 71 and 73.
+tests 48, 48a, 49, 49a, 50, 57, 66, 71 and 73.
 
 ## 12. Changes to the interface
 
@@ -1270,8 +1272,9 @@ The service must:
 13. Close a `Connect` stream with `UNAVAILABLE`, reason `busy`, if the queue of the stream is
     above the limit of the service (optional).
 14. End an upload in the order of 6.4: a later `file` is found while the chunks are read,
-    after the checks of size, type and storage. A `type` that is set and empty is an unknown
-    type (not absent). A SHA3-256 hash with a `value` that is not 32 bytes is `bad_request`.
+    after the checks of size, type and storage. `Hash.type` is required: an empty `type` is
+    `bad_request` in each call that takes a `Hash`, `QueryFiles` too. A SHA3-256 hash with a
+    `value` that is not 32 bytes is `bad_request`, also in `QueryFiles`.
 15. If it limits the queue of a stream, use a limit of 1 000 events or more, and end the
     stream with `UNAVAILABLE`, reason `busy`. The echo service uses 20 000.
 16. End a failing first event of `Connect` with the status of the table in section 6.5, and
@@ -1381,3 +1384,4 @@ more than 30 seconds. The service must follow these rules:
 | 6 | 2026-10-24 | The interface is gRPC over HTTP/2 (h2c), defined by `chat.proto` (moved to `docs/celaut/chat.proto`). The `protocol_stack` is `http2`, `grpc`, `chat`. The client uses `Connect` for real time, and `GetMessages` for the catch-up. `chat.proto` gets `MessageDelta`, `MessagePinnedChanged`, `Message.reasoning`, `Message.idempotency_key`, `GetCapabilities`, `ClientEvent.event_id` and `ProtocolError.event_id`. `sequence` starts at 1. `pinned` is mutable, for any message, with `SetMessagePinned`. Files go in `FileService`, with SHA3-256, and `QueryFiles` first. Errors are gRPC statuses with the trailer `chat-reason`. Branches and cancel are optional. The tests are new (section 11.1). Section 13 lists the differences from revision 5 and the migration of the two services |
 | 6 (round 3) | 2026-10-24 | Clarifications of revision 6 after the migration of the two services. `Hash.type` and `Hash.value` are raw bytes. New field `error` of `Message` (14) and of `MessageStatusChanged` (5), and `metadata["error"]` is not used. New reason `storage_full`. An empty file is not valid. A `mime_type` that is not accepted is `unsupported_media` for each kind of part. The checks of `UploadFile` have one order (size before type). Every hash of a `FileReference` has a `type`. An empty optional string is the same as absent. Rules for a failing first event of `Connect`, for a bad `event_id`, for the queue of a stream, and for a message above the gRPC limit. The echo service can stream and can return attachments. New tests 13a, 27h, 27i, 48a, 55a to 55d, 64a and 73a; changes to tests 13, 20, 29, 35, 64 and 72 |
 | 6 (round 4) | 2026-10-24 | More clarifications of revision 6. A later `file` of an upload is found while the chunks are read, after the checks of size, type and storage. A `type` that is set and empty is an unknown type. A SHA3-256 hash with a `value` that is not 32 bytes is `bad_request`. The queue limit of a stream is at least 1 000 events. The cases of a failing first event of `Connect`, and the client behavior after each (also after `busy` and after a `ProtocolError` with no `event_id`). A client does not call `DownloadFile` for a `FileReference` with no SHA3-256 hash. `error` is 1 to 1 024 bytes, and a client can cut it for display. Test 29 is valid for a service that never uses `PENDING`. New tests 27j, 27k, 27l, 48b, 55e and 55f; changes to tests 29 and 55c |
+| 6 (round 5) | 2026-10-24 | `Hash.type` is required: `chat.proto` has `bytes type = 1;` (it was `optional`, and the field number is the same). The `type` is explicit in each `Hash` of each call. The rule "reuse the last `type` of the stream" is gone. An empty `type` is the same as a missing `type`: `bad_request` in each call that takes a `Hash`, `QueryFiles` too. A `type` that is not empty and not known is an unknown algorithm. A SHA3-256 hash with a `value` that is not 32 bytes is `bad_request` in `QueryFiles` too. Test 48b is removed (its number stays). Tests 48, 49, 55b and 71 are changed, and test 49a is new |

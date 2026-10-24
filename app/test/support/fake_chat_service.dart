@@ -252,7 +252,7 @@ class FakeChatService {
       f.mimeType.isEmpty ||
       f.sizeBytes <= Int64.ZERO ||
       f.hashes.isEmpty ||
-      f.hashes.any((h) => !h.hasType()) ||
+      f.hashes.any((h) => h.type.isEmpty) ||
       f.hashes.any((h) => listEquals(h.type, ChatClient.sha3Type) && h.value.length != 32) ||
       sha3Key(f) == null;
 
@@ -489,23 +489,20 @@ class _Files extends FileServiceBase {
   @override
   Stream<QueryFilesResponse> queryFiles(ServiceCall call, Stream<QueryFilesRequest> request) async* {
     final asked = <String>[];
-    List<int>? lastType;
     await for (final r in request) {
       final h = hex(r.hash.value);
       asked.add(h);
-      // The first hash has a `type`; a hash with none uses the last explicit one.
-      if (r.hash.hasType()) {
-        lastType = r.hash.type;
-      } else if (lastType == null) {
+      // `type` is required in each hash, and a SHA3-256 `value` has 32 bytes (section 6.4).
+      final type = r.hash.type;
+      final known = listEquals(type, ChatClient.sha3Type);
+      if (type.isEmpty || (known && r.hash.value.length != 32)) {
+        f.queries.add(asked);
         throw chatError(StatusCode.invalidArgument, 'bad_request');
       }
-      final type = r.hash.hasType() ? r.hash.type : lastType;
-      // A `type` that the service does not know (also an empty one that is set) gives
-      // `available` false (section 6.4).
-      final known = listEquals(type, ChatClient.sha3Type);
+      // A `type` that the service does not know gives `available` false.
       yield QueryFilesResponse(
         hash: Hash(type: type, value: r.hash.value),
-        available: known && r.hash.value.length == 32 && f.files.containsKey(h),
+        available: known && f.files.containsKey(h),
       );
     }
     f.queries.add(asked);
@@ -560,8 +557,10 @@ class _Files extends FileServiceBase {
     DownloadFileRequest request,
   ) async* {
     f.downloads++;
-    if (!request.hash.hasType()) throw chatError(StatusCode.invalidArgument, 'bad_request');
     final known = listEquals(request.hash.type, ChatClient.sha3Type);
+    if (request.hash.type.isEmpty || (known && request.hash.value.length != 32)) {
+      throw chatError(StatusCode.invalidArgument, 'bad_request');
+    }
     final bytes = f.downloadOverride ?? (known ? f.files[hex(request.hash.value)] : null);
     if (bytes == null) throw chatError(StatusCode.notFound, 'not_found');
     for (var i = 0; i < bytes.length; i += ChatClient.chunkBytes) {

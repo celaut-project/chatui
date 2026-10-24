@@ -1749,8 +1749,13 @@ class Hash extends $pb.GeneratedMessage {
   /// ejemplo, 32 bytes para SHA3-256), no su texto hexadecimal. El
   /// hexadecimal solo es la forma en que chat.md escribe esos bytes.
   ///
-  /// Puede omitirse en QueryFilesRequest para reutilizar el último
-  /// type explícito del mismo stream cliente-servidor.
+  /// Revisión 6: type es obligatorio. Se envía siempre de forma
+  /// explícita en cada Hash (QueryFilesRequest, QueryFilesResponse,
+  /// FileReference, DownloadFileRequest y UploadFile). En proto3 un
+  /// campo bytes no tiene presencia: un type vacío equivale a un type
+  /// ausente y es un error (bad_request). Un type que no está vacío y
+  /// que el servicio no conoce es un algoritmo desconocido, no un error.
+  /// El número del campo no cambia: el cable es el mismo que con optional.
   @$pb.TagNumber(1)
   $core.List<$core.int> get type => $_getN(0);
   @$pb.TagNumber(1)
@@ -2146,11 +2151,7 @@ class QueryFilesRequest extends $pb.GeneratedMessage {
   static QueryFilesRequest? _defaultInstance;
 
   /// Hash del archivo que se desea consultar.
-  ///
-  /// Si type está omitido, se utiliza el último type explícito
-  /// recibido en un Hash anterior del mismo stream.
-  ///
-  /// El primer hash del stream debe incluir type.
+  /// type debe estar presente explícitamente (ver Hash).
   @$pb.TagNumber(1)
   Hash get hash => $_getN(0);
   @$pb.TagNumber(1)

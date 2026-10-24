@@ -54,9 +54,7 @@ service FileService {
   // Se envía un hash por mensaje y se recibe una respuesta
   // por cada consulta, en el mismo orden.
   //
-  // El primer hash debe incluir type.
-  // Los siguientes pueden omitirlo para reutilizar el último
-  // type explícito del mismo stream cliente-servidor.
+  // Cada hash debe incluir type (ver Hash).
   rpc QueryFiles(stream QueryFilesRequest)
       returns (stream QueryFilesResponse);
 
@@ -365,9 +363,14 @@ message Hash {
   // ejemplo, 32 bytes para SHA3-256), no su texto hexadecimal. El
   // hexadecimal solo es la forma en que chat.md escribe esos bytes.
   //
-  // Puede omitirse en QueryFilesRequest para reutilizar el último
-  // type explícito del mismo stream cliente-servidor.
-  optional bytes type = 1;
+  // Revisión 6: type es obligatorio. Se envía siempre de forma
+  // explícita en cada Hash (QueryFilesRequest, QueryFilesResponse,
+  // FileReference, DownloadFileRequest y UploadFile). En proto3 un
+  // campo bytes no tiene presencia: un type vacío equivale a un type
+  // ausente y es un error (bad_request). Un type que no está vacío y
+  // que el servicio no conoce es un algoritmo desconocido, no un error.
+  // El número del campo no cambia: el cable es el mismo que con optional.
+  bytes type = 1;
 
   // Digest del contenido.
   bytes value = 2;
@@ -426,11 +429,7 @@ message StructuredContent {
 
 message QueryFilesRequest {
   // Hash del archivo que se desea consultar.
-  //
-  // Si type está omitido, se utiliza el último type explícito
-  // recibido en un Hash anterior del mismo stream.
-  //
-  // El primer hash del stream debe incluir type.
+  // type debe estar presente explícitamente (ver Hash).
   Hash hash = 1;
 }
 
