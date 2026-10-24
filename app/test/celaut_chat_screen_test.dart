@@ -1065,6 +1065,25 @@ void main() {
       replyTo: 0,
     );
 
+    testWidgets('entering a chat shows its end', (tester) async {
+      chat = _FakeChat(
+        history: [
+          for (var i = 0; i < 60; i++)
+            ChatMessage(
+              seq: i,
+              role: i.isEven ? 'user' : 'assistant',
+              text: 'message $i ${'words ' * (i % 7 * 12)}',
+            ),
+        ],
+      );
+      await open(tester);
+      final c = tester.widget<ListView>(find.byKey(const Key('chat-messages'))).controller!;
+      expect(c.position.maxScrollExtent, greaterThan(0));
+      expect(c.position.pixels, c.position.maxScrollExtent);
+      expect(find.textContaining('message 59'), findsOneWidget);
+      expect(find.textContaining('message 0 '), findsNothing);
+    });
+
     testWidgets('the header and the input float over the list, which leaves room for them', (
       tester,
     ) async {

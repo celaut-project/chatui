@@ -301,6 +301,9 @@ class _ChatScreenState extends State<ChatScreen>
     _afterRead(read: read);
     _opened = true;
     if (mounted) setState(() => _waitingStart = false);
+    // The history shows at its end at once, not after the read of the cost: until then the
+    // list would show its first message.
+    _scrollToEnd();
     _syncTicker();
     _schedulePoll();
     await _refreshCost();
@@ -711,9 +714,23 @@ class _ChatScreenState extends State<ChatScreen>
     if (_scroll.position.maxScrollExtent - _scroll.position.pixels < 80) _scrollToEnd();
   }
 
-  void _scrollToEnd() {
+  void _scrollToEnd() => _jumpToEnd(5);
+
+  /// Jump to the end after the frame. The rows near the end are built as the list gets
+  /// there, and the end of the list moves as they are (a message of many lines, an image),
+  /// so one jump can stop short of it: look again for up to [again] frames, until the end
+  /// stays where it was.
+  void _jumpToEnd(int again) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      if (!mounted || !_scroll.hasClients) return;
+      final end = _scroll.position.maxScrollExtent;
+      _scroll.jumpTo(end);
+      if (again > 0) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || !_scroll.hasClients) return;
+          if (_scroll.position.maxScrollExtent != end) _jumpToEnd(again - 1);
+        });
+      }
     });
   }
 
