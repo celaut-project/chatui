@@ -236,6 +236,36 @@ class _ChatScreenState extends State<ChatScreen>
   /// so no message is under it.
   double _bannerHeight = 0;
 
+  /// How far the text fades before the bar above and the bar below, in logical pixels.
+  static const _fadeExtent = 28.0;
+
+  /// The list fades out where it reaches the bars that float over it: [top] is where the
+  /// bar above (and the pinned banner) end, [bottom] the height of the input at the foot.
+  /// The text is whole beyond [_fadeExtent] from each, and gone at the bar itself.
+  Widget _fadeEdges({required double top, required double bottom, required Widget child}) {
+    return LayoutBuilder(
+      builder: (context, box) {
+        final h = box.maxHeight;
+        if (!h.isFinite || h <= 0) return child;
+        double at(double y) => (y / h).clamp(0.0, 1.0).toDouble();
+        final s0 = at(top - 4);
+        final s1 = at(top + _fadeExtent) < s0 ? s0 : at(top + _fadeExtent);
+        final s3 = at(h - bottom) < s1 ? s1 : at(h - bottom);
+        final s2 = at(h - bottom - _fadeExtent).clamp(s1, s3).toDouble();
+        return ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (rect) => LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: const [Color(0x00000000), Color(0xFF000000), Color(0xFF000000), Color(0x00000000)],
+            stops: [s0, s1, s2, s3],
+          ).createShader(rect),
+          child: child,
+        );
+      },
+    );
+  }
+
   /// A message is on its way, or the service still makes an answer.
   bool get _waiting => _flying.isNotEmpty || _chat.awaitingAnswer;
 
@@ -1102,7 +1132,10 @@ class _ChatScreenState extends State<ChatScreen>
                                 ),
                         ),
                       )
-                    : ListView.custom(
+                    : _fadeEdges(
+                        top: headerBottom + _bannerHeight,
+                        bottom: _bottomHeight,
+                        child: ListView.custom(
                         key: const Key('chat-messages'),
                         controller: _scroll,
                         // Room for the bars that float over the list.
@@ -1159,6 +1192,7 @@ class _ChatScreenState extends State<ChatScreen>
                             );
                           },
                         ),
+                      ),
                       ),
               ),
               if (pinned != null)

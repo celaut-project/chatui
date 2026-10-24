@@ -1101,6 +1101,11 @@ void main() {
       expect(pad.bottom, greaterThanOrEqualTo(screen.bottom - input.top));
       // At the end of the list the last message is above the input.
       expect(tester.getRect(find.text('message 29')).bottom, lessThanOrEqualTo(input.top));
+      // The text fades out where it reaches the bars, at both ends.
+      expect(
+        find.ancestor(of: find.byKey(const Key('chat-messages')), matching: find.byType(ShaderMask)),
+        findsOneWidget,
+      );
     });
 
     testWidgets('a message of the service has no bubble, and one of the user has', (tester) async {
