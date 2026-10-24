@@ -11,20 +11,17 @@ import '../../l10n/l10n.dart';
 
 /// How a locked seed wallet can be opened on this device.
 enum UnlockMethod {
-  /// Biometric copy of the wrap key, PIN as the alternative.
+  /// The fingerprint or the screen lock of the phone.
   biometric,
 
-  /// PIN only.
+  /// A wallet made before the app dropped the PIN: its PIN, one last time.
   pin,
-
-  /// An old wallet with a stored wrap key and no PIN yet.
-  legacy,
 
   /// No sealed seed here: nothing can unlock it.
   none,
 }
 
-/// A locked seed wallet's page. It never asks for biometrics on its own:
+/// A locked seed wallet's page. It never asks the phone for its lock on its own:
 /// opening the wallet asks once, and after a cancel only [onUnlock] does.
 ///
 /// It is the wallet's own page, locked: the same scene and medallion with
@@ -35,12 +32,8 @@ class UnlockGate extends StatelessWidget {
     required this.method,
     required this.pinController,
     required this.busy,
-    required this.usePin,
     required this.onUnlock,
-    required this.onUsePin,
     required this.onUnlockWithPin,
-    required this.onUnlockLegacy,
-    this.onUseBiometrics,
     this.address,
     this.pinnedIndex,
     this.lastKnownNano,
@@ -62,15 +55,9 @@ class UnlockGate extends StatelessWidget {
   final TextEditingController pinController;
   final bool busy;
 
-  /// The PIN field is showing although biometrics are set up.
-  final bool usePin;
-
-  /// Biometric unlock: the explicit retry after a cancel.
+  /// Unlock with the phone: the explicit retry after a cancel.
   final VoidCallback onUnlock;
-  final VoidCallback onUsePin;
-  final VoidCallback? onUseBiometrics;
   final VoidCallback onUnlockWithPin;
-  final VoidCallback onUnlockLegacy;
 
   /// Why the wallet is still locked ("Biometric cancelled…"), or an error.
   final String? status;
@@ -80,7 +67,6 @@ class UnlockGate extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = HomeText.of(context);
     final spinner = const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2));
-    final showPin = method == UnlockMethod.pin || (method == UnlockMethod.biometric && usePin);
     final age = lastKnownAge;
     const medallion = WalletPageScreen.medallionSize;
     return ListView(
@@ -138,21 +124,14 @@ class UnlockGate extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (method == UnlockMethod.biometric && !usePin) ...[
+              if (method == UnlockMethod.biometric)
                 FilledButton.icon(
                   key: const Key('gate-unlock'),
                   onPressed: busy ? null : onUnlock,
                   icon: busy ? spinner : const Icon(Icons.fingerprint),
                   label: Text(context.l10n.homeUnlock),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  key: const Key('gate-use-pin'),
-                  onPressed: busy ? null : onUsePin,
-                  style: TextButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                  child: Text(context.l10n.homeUsePin),
-                ),
-              ] else if (showPin) ...[
+                )
+              else if (method == UnlockMethod.pin) ...[
                 PinFields(
                   pin: pinController,
                   label: 'PIN',
@@ -166,19 +145,7 @@ class UnlockGate extends StatelessWidget {
                   onPressed: busy ? null : onUnlockWithPin,
                   child: busy ? spinner : Text(context.l10n.homeUnlock),
                 ),
-                if (method == UnlockMethod.biometric && onUseBiometrics != null) ...[
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: busy ? null : onUseBiometrics,
-                    style: TextButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                    child: Text(context.l10n.homeUseBiometrics),
-                  ),
-                ],
-              ] else if (method == UnlockMethod.legacy)
-                FilledButton(
-                  onPressed: busy ? null : onUnlockLegacy,
-                  child: busy ? spinner : Text(context.l10n.homeUnlockAndSetPin),
-                )
+              ]
               else
                 Text(
                   context.l10n.homeKeysNotHere,

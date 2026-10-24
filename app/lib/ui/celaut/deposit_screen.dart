@@ -30,7 +30,7 @@ const maxLimitNano = 1000000000;
 /// [AppDepositWallets]; tests give their own.
 ///
 /// The wallet of the app pays (`docs/celaut/ui.md`, section 1). Before the deposit the
-/// screen asks for the PIN or fingerprint of the wallet ([FullWallets.unlock]), also when
+/// screen asks for the fingerprint or screen lock for the wallet ([FullWallets.unlock]), also when
 /// it is already open.
 abstract class DepositWallets implements FullWallets {
   /// Prepare the deposit (`celaut_deposit_prepare`) with the addresses of [payer]. The
@@ -217,10 +217,10 @@ class _DepositScreenState extends State<DepositScreen> {
     });
     if (payer == null) return;
 
-    // Without this, the node field gets the focus back after the PIN dialog, and the
+    // Without this, the node field gets the focus back after the unlock prompt, and the
     // keyboard covers the result.
     FocusScope.of(context).unfocus();
-    // The PIN or the fingerprint of the paying wallet, also when it is open. A locked
+    // The fingerprint or screen lock for the paying wallet, also when it is open. A locked
     // wallet opens with it.
     final consent = await widget.wallets.unlock(context, payer);
     if (!mounted) return;

@@ -953,7 +953,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsSecurityWalletSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'PIN, biometric unlock, auto-lock'**
+  /// **'Phone unlock, auto-lock'**
   String get settingsSecurityWalletSubtitle;
 
   /// No description provided for @settingsErgoGroup.
@@ -1767,13 +1767,13 @@ abstract class AppLocalizations {
   /// No description provided for @securityBiometricUnlock.
   ///
   /// In en, this message translates to:
-  /// **'Biometric unlock'**
+  /// **'Unlock with your phone'**
   String get securityBiometricUnlock;
 
   /// No description provided for @securityBiometricOn.
   ///
   /// In en, this message translates to:
-  /// **'On. The PIN still unwraps the key.'**
+  /// **'Fingerprint or screen lock'**
   String get securityBiometricOn;
 
   /// No description provided for @securityOff.
@@ -1788,11 +1788,11 @@ abstract class AppLocalizations {
   /// **'Set a PIN when you create or restore a wallet.'**
   String get securitySetPinHint;
 
-  /// No description provided for @securityPinNote.
+  /// No description provided for @securityDeviceLockNote.
   ///
   /// In en, this message translates to:
-  /// **'Five wrong PINs lock the gate for a while. Chatui never stores the PIN; it only unwraps the key that decrypts the seed.'**
-  String get securityPinNote;
+  /// **'The wallet opens with your fingerprint or the screen lock of your phone. The app has no PIN of its own.'**
+  String get securityDeviceLockNote;
 
   /// No description provided for @securityScreen.
   ///
@@ -3777,13 +3777,13 @@ abstract class AppLocalizations {
   /// No description provided for @dashboardBiometricNotSetUp.
   ///
   /// In en, this message translates to:
-  /// **'Biometric unlock is not set up for this wallet. Use its PIN.'**
+  /// **'This wallet has no key stored on this device.'**
   String get dashboardBiometricNotSetUp;
 
   /// No description provided for @dashboardBiometricCancelled.
   ///
   /// In en, this message translates to:
-  /// **'Biometric unlock cancelled. Tap Unlock to try again, or use your PIN.'**
+  /// **'Unlock cancelled. Tap Unlock to try again.'**
   String get dashboardBiometricCancelled;
 
   /// No description provided for @dashboardWalletDataMissing.
@@ -4473,7 +4473,7 @@ abstract class AppLocalizations {
   /// No description provided for @homeToolLockBlurb.
   ///
   /// In en, this message translates to:
-  /// **'Opening it again asks for your PIN or fingerprint.'**
+  /// **'Opening it again asks for your fingerprint or screen lock.'**
   String get homeToolLockBlurb;
 
   /// No description provided for @homeBreakdownIntro.
@@ -8096,13 +8096,13 @@ abstract class AppLocalizations {
   /// No description provided for @celautDepositPayerOpen.
   ///
   /// In en, this message translates to:
-  /// **'This wallet is open. The app asks for its PIN or fingerprint before the deposit.'**
+  /// **'This wallet is open. The app asks for your fingerprint or screen lock before the deposit.'**
   String get celautDepositPayerOpen;
 
   /// No description provided for @celautDepositPayerLocked.
   ///
   /// In en, this message translates to:
-  /// **'This wallet is locked. The app asks for its PIN or fingerprint before the deposit, and opens it.'**
+  /// **'This wallet is locked. The app asks for your fingerprint or screen lock before the deposit, and opens it.'**
   String get celautDepositPayerLocked;
 
   /// No description provided for @celautDepositRowPayer.
@@ -8312,7 +8312,7 @@ abstract class AppLocalizations {
   /// No description provided for @celautOpenFullWalletNeeded.
   ///
   /// In en, this message translates to:
-  /// **'Start and stop need the wallet open. The app asks for its PIN or fingerprint first.'**
+  /// **'Start and stop need the wallet open. The app asks for your fingerprint or screen lock first.'**
   String get celautOpenFullWalletNeeded;
 
   /// No description provided for @celautClientUnknownTitle.
@@ -8414,7 +8414,7 @@ abstract class AppLocalizations {
   /// No description provided for @celautDepositAuthNeeded.
   ///
   /// In en, this message translates to:
-  /// **'The deposit needs the PIN or fingerprint of the paying wallet. Nothing was sent.'**
+  /// **'The deposit needs the fingerprint or screen lock for the paying wallet. Nothing was sent.'**
   String get celautDepositAuthNeeded;
 
   /// No description provided for @celautNodesRowSubtitle.
@@ -9398,7 +9398,7 @@ abstract class AppLocalizations {
   /// No description provided for @celautTopUpNote.
   ///
   /// In en, this message translates to:
-  /// **'The app checks your running instances when the list of conversations opens and once a minute while the app runs. A top-up moves credit that you already have on the node of the instance (ModifyDeposit): nothing is paid on the blockchain and nothing is signed. If that credit is too low, the app does not pay: it asks you, and a deposit always needs your confirmation and your PIN or fingerprint. To turn this on, open the wallet.'**
+  /// **'The app checks your running instances when the list of conversations opens and once a minute while the app runs. A top-up moves credit that you already have on the node of the instance (ModifyDeposit): nothing is paid on the blockchain and nothing is signed. If that credit is too low, the app does not pay: it asks you, and a deposit always needs your confirmation and your fingerprint or screen lock. To turn this on, open the wallet.'**
   String get celautTopUpNote;
 
   /// No description provided for @celautTopUpNeed.

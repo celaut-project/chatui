@@ -10,7 +10,7 @@ import '../home/home_style.dart';
 /// Settings, Compute, "Automatic top-up" (Josemi, 2026-10-23): the switch, off by
 /// default, the threshold and the amount ([AutoTopUp]).
 ///
-/// To turn it on, the user opens the wallet (PIN or fingerprint): the app then moves
+/// To turn it on, the user opens the wallet (fingerprint or screen lock): the app then moves
 /// credit of the user without asking each time. It never pays a node by itself: a top-up
 /// moves credit that the app already has on the node, and with too little credit the app
 /// asks the user, who can make a deposit with its own confirmation.

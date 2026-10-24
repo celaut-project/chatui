@@ -22,6 +22,10 @@ class SecureStorageHandler(private val context: Context) : MethodChannel.MethodC
         private const val WALLET_REGISTRY_KEY = "wallet_registry"
         // The key of the Celaut database: one for the app, not one per wallet.
         private const val CELAUT_DB_KEY = "celaut_db_key_v1"
+        // Fingerprint (or face), or the PIN, pattern or password of the phone.
+        private const val DEVICE_AUTHENTICATORS =
+            BiometricManager.Authenticators.BIOMETRIC_WEAK or
+                BiometricManager.Authenticators.DEVICE_CREDENTIAL
 
         @Volatile
         var host: FragmentActivity? = null
@@ -157,6 +161,13 @@ class SecureStorageHandler(private val context: Context) : MethodChannel.MethodC
                     result.success(true)
                 }
                 "loadPinWrap" -> result.success(getPrefs().getString(pinWrapKey(walletId), null))
+                "deletePinWrap" -> {
+                    if (!getPrefs().edit().remove(pinWrapKey(walletId)).commit()) {
+                        result.error("STORAGE_ERROR", "Failed to delete PIN wrap", null)
+                        return
+                    }
+                    result.success(null)
+                }
                 "deleteWrapKey" -> {
                     if (!getPrefs().edit().remove(wrapKey(walletId)).commit()) {
                         result.error("STORAGE_ERROR", "Failed to delete wrap key", null)
@@ -260,13 +271,7 @@ class SecureStorageHandler(private val context: Context) : MethodChannel.MethodC
                     }
                     result.success(null)
                 }
-                "hasBiometric" -> {
-                    val can = BiometricManager.from(context).canAuthenticate(
-                        BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                            BiometricManager.Authenticators.BIOMETRIC_WEAK
-                    )
-                    result.success(can == BiometricManager.BIOMETRIC_SUCCESS)
-                }
+                "hasBiometric" -> result.success(canAuthenticateDevice())
                 "authenticateBiometric" -> authenticate(result, walletId)
                 "setSecureFlag" -> {
                     val enable = call.argument<Boolean>("enable") ?: true
@@ -328,7 +333,26 @@ class SecureStorageHandler(private val context: Context) : MethodChannel.MethodC
         }
     }
 
+    /** A fingerprint or the screen lock of the phone is set up. */
+    private fun canAuthenticateDevice(): Boolean =
+        BiometricManager.from(context).canAuthenticate(DEVICE_AUTHENTICATORS) ==
+            BiometricManager.BIOMETRIC_SUCCESS
+
     private fun authenticate(result: MethodChannel.Result, walletId: String?) {
+        // A phone with no fingerprint and no screen lock has nothing to ask: the wallet opens.
+        if (!canAuthenticateDevice()) {
+            try {
+                result.success(getPrefs().getString(wrapKey(walletId), null))
+            } catch (e: Exception) {
+                if (isKeyInvalidated(e)) {
+                    resetInvalidatedStorage()
+                    result.error("KEY_INVALIDATED", e.message, null)
+                } else {
+                    result.error("STORAGE_ERROR", e.message, null)
+                }
+            }
+            return
+        }
         val activity = host
         if (activity == null) {
             result.error("NO_ACTIVITY", "Biometric requires an activity", null)
@@ -365,9 +389,10 @@ class SecureStorageHandler(private val context: Context) : MethodChannel.MethodC
                 }
             }
         )
+        // The screen lock is the alternative to the fingerprint, so there is no negative button.
         val info = BiometricPrompt.PromptInfo.Builder()
             .setTitle("Unlock Chatui")
-            .setNegativeButtonText("Use PIN")
+            .setAllowedAuthenticators(DEVICE_AUTHENTICATORS)
             .build()
         activity.runOnUiThread { prompt.authenticate(info) }
     }

@@ -13,6 +13,7 @@ import '../services/ergopay_service.dart';
 import '../services/incoming_payment_watcher.dart';
 import '../services/network_controller.dart';
 import '../services/notification_service.dart';
+import '../services/pin_migration.dart';
 import '../services/token_pricer.dart';
 import '../services/privacy_service.dart';
 import '../services/public_wallet_sync.dart';
@@ -35,7 +36,6 @@ import 'home/unlock_gate.dart';
 import 'home/wallet_ledger.dart';
 import 'home/wallet_nav_bar.dart';
 import 'home/wallet_page.dart';
-import 'pin_fields.dart';
 import 'restore_wallet_screen.dart';
 import 'scan_screen.dart';
 import 'send_screen.dart';
@@ -59,9 +59,9 @@ import 'widgets/wallet_view_boundary.dart';
 /// ([WalletsOverviewScreen]). Tapping a wallet opens its page in place, over
 /// the bar; back
 /// returns to the overview, which is how the user switches wallets. A seed
-/// wallet asks for its key once, when it is opened. A cancelled biometric
-/// prompt leaves its locked page ([UnlockGate]) with Unlock and Use PIN,
-/// and nothing asks again by itself. The app holds one wallet and no
+/// wallet asks for its key once, when it is opened. A cancelled prompt of
+/// the phone leaves its locked page ([UnlockGate]) with Unlock, and nothing asks again by
+/// itself. The app holds one wallet and no
 /// watched wallets ([enforceSingleWallet]).
 ///
 /// An unlocked seed wallet's page has four tabs: Wallet ([WalletLedger]),
@@ -118,9 +118,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   bool _hasPin = false;
   bool _canBiometric = false;
   bool _unlockBusy = false;
-
-  /// The gate shows the PIN field although biometrics are set up.
-  bool _usePin = false;
 
   /// Why the open wallet is still locked, for the gate.
   String? _gateStatus;
@@ -193,7 +190,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       setState(() {
         _walletUnlocked = false;
         _incoming.reset();
-        _usePin = false;
       });
     }
   }
@@ -437,7 +433,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       }
       _open = WalletRef.seed(walletId);
       _gateStatus = null;
-      _usePin = false;
     });
   }
 
@@ -476,12 +471,11 @@ class _DashboardScreenState extends State<DashboardScreen>
         _visitedTabs
           ..clear()
           ..add(0);
-        _usePin = false;
       });
       await _refreshUnlockMethods();
       if (!mounted || _walletId != walletId) return;
       setState(() {});
-      if (_open == WalletRef.seed(walletId) && _canBiometric && _hasPin) {
+      if (_open == WalletRef.seed(walletId) && _canBiometric) {
         await _unlockBiometric();
       }
     } on ArgusException catch (e) {
@@ -505,7 +499,6 @@ class _DashboardScreenState extends State<DashboardScreen>
         ..clear()
         ..add(0);
       _gateStatus = null;
-      _usePin = false;
     });
     _pinCtrl.clear();
     unawaited(_overview.loadWallets());
@@ -572,7 +565,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       ..clear()
       ..add(0);
     _sync.deactivate();
-    _usePin = false;
   }
 
   Future<void> _refreshUnlockMethods() async {
@@ -586,8 +578,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
     final hasSeed = await SecureStorageService.hasEncryptedSeed(walletId: id);
     final hasPin = await SecureStorageService.hasPinWrap(walletId: id);
-    final canBiometric = await SecureStorageService.hasBiometric() &&
-        await SecureStorageService.hasWrapKey(walletId: id);
+    final canBiometric = await SecureStorageService.hasWrapKey(walletId: id);
     if (_walletId != id) return;
     _hasSeed = hasSeed;
     _hasPin = hasPin;
@@ -597,8 +588,9 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   UnlockMethod get _unlockMethod {
     if (!_hasSeed) return UnlockMethod.none;
-    if (!_hasPin) return UnlockMethod.legacy;
-    return _canBiometric ? UnlockMethod.biometric : UnlockMethod.pin;
+    if (_canBiometric) return UnlockMethod.biometric;
+    // Made before the app dropped the PIN: it asks for it one last time.
+    return _hasPin ? UnlockMethod.pin : UnlockMethod.none;
   }
 
   void _setGateStatus(String? message, {bool error = false}) {
@@ -650,7 +642,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     setState(() {
       _walletUnlocked = true;
       _gateStatus = null;
-      _usePin = false;
     });
     if (!ok) {
       debugPrint('argus: address derivation failed after unlock');
@@ -697,6 +688,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
+  /// A wallet made before the app dropped the PIN: its PIN, one last time. Then it opens
+  /// with the fingerprint or the screen lock of the phone like the others.
   Future<void> _unlockWithPin() async {
     final walletId = _walletId;
     if (walletId == null) return;
@@ -714,13 +707,16 @@ class _DashboardScreenState extends State<DashboardScreen>
           _setGateStatus(context.l10n.dashboardNoPinWallet, error: true);
           return;
         }
-        final wrapKey = await walletService.unwrapKeyWithPin(pinWrap, _pinCtrl.text);
+        final wrapKey = await movePinWalletToDeviceLock(
+          walletId: walletId,
+          pinWrapJson: pinWrap,
+          pin: _pinCtrl.text,
+        );
+        _hasPin = false;
+        _canBiometric = true;
         if (_walletId != walletId) return;
         await _lockOtherWallet(walletId);
         await walletService.restoreWallet(json, wrapKey: wrapKey, walletId: walletId);
-        try {
-          await SecureStorageService.clearPinGate();
-        } catch (_) {}
         _pinCtrl.clear();
         HapticFeedback.lightImpact();
         await _afterUnlock();
@@ -735,8 +731,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     });
   }
 
-  /// One biometric prompt. Called when a wallet is opened and when the user
-  /// taps Unlock on its gate; never from a lifecycle event or a rebuild.
+  /// One prompt of the phone (fingerprint or screen lock). Called when a wallet is opened
+  /// and when the user taps Unlock on its gate; never from a lifecycle event or a rebuild.
   Future<void> _unlockBiometric() async {
     final walletId = _walletId;
     if (walletId == null) return;
@@ -762,6 +758,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         }
         await _lockOtherWallet(walletId);
         await walletService.restoreWallet(json, wrapKey: wrapKey, walletId: walletId);
+        await dropPinWrap(walletId);
+        _hasPin = false;
         HapticFeedback.lightImpact();
         await _afterUnlock();
       } on ArgusException catch (e) {
@@ -770,56 +768,6 @@ class _DashboardScreenState extends State<DashboardScreen>
         if (mounted) showErrorSheet(context, message: e.message);
       }
     });
-  }
-
-  Future<void> _unlockLegacyThenPin() async {
-    final walletId = _walletId;
-    if (walletId == null) return;
-    await _runUnlock(() async {
-      try {
-        final json = await SecureStorageService.loadEncryptedSeed(walletId: walletId);
-        final wrapKey = await SecureStorageService.loadWrapKey(walletId: walletId);
-        if (json == null || wrapKey == null) {
-          _setGateStatus(context.l10n.dashboardNoWalletFound, error: true);
-          return;
-        }
-        await _lockOtherWallet(walletId);
-        await walletService.restoreWallet(json, wrapKey: wrapKey, walletId: walletId);
-        if (!mounted) return;
-        final pin = await _askNewPin();
-        if (pin != null) {
-          final pinWrap = await walletService.wrapKeyWithPin(wrapKey, pin);
-          await SecureStorageService.savePinWrap(pinWrap, walletId: walletId);
-          await SecureStorageService.deleteWrapKey(walletId: walletId);
-          _hasPin = true;
-          _canBiometric = false;
-        }
-        await _afterUnlock();
-      } on ArgusException catch (e) {
-        if (mounted) showErrorSheet(context, code: e.code, message: e.message);
-      } on SecureStorageException catch (e) {
-        if (mounted) showErrorSheet(context, message: e.message);
-      }
-    });
-  }
-
-  Future<String?> _askNewPin() async {
-    final entry = await showDialog<PinEntry>(
-      context: context,
-      builder: (_) => PinEntryDialog(
-        title: context.l10n.dashboardSetPinTitle,
-        askConfirm: true,
-        cancelLabel: context.l10n.dashboardLater,
-        confirmLabel: context.l10n.commonSave,
-      ),
-    );
-    if (entry == null) return null;
-    final err = pinError(entry.pin, entry.confirm);
-    if (err != null) {
-      _snack(err);
-      return null;
-    }
-    return entry.pin;
   }
 
   Future<void> _lock() async {
@@ -884,7 +832,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       _visitedTabs.add(index);
     });
     if (leavingSettings) {
-      // PIN / biometric setup may have changed on the settings tab.
       _refreshUnlockMethods().then((_) {
         if (mounted) setState(() {});
       }).catchError((_) {});
@@ -1105,12 +1052,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       method: ready ? _unlockMethod : UnlockMethod.biometric,
       pinController: _pinCtrl,
       busy: _unlockBusy || !ready,
-      usePin: _usePin,
       onUnlock: _unlockBiometric,
-      onUsePin: () => setState(() => _usePin = true),
-      onUseBiometrics: () => setState(() => _usePin = false),
       onUnlockWithPin: _unlockWithPin,
-      onUnlockLegacy: _unlockLegacyThenPin,
       status: _gateStatus ?? (_noticeIsError ? null : _notice),
       statusIsError: _gateStatus != null && _gateStatusIsError,
     );

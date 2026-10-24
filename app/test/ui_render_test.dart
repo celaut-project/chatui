@@ -166,7 +166,7 @@ void main() {
       await disposeHome(tester);
     });
 
-    testWidgets('a cancelled biometric prompt leaves the gate$tag', (
+    testWidgets('a cancelled unlock prompt leaves the gate$tag', (
       tester,
     ) async {
       final keystore = FakeKeystore(wallets: ['w-evoke']);
@@ -177,9 +177,6 @@ void main() {
       expect(keystore.prompts, 1);
       expect(find.byKey(const Key('gate-unlock')), findsOneWidget);
       await renderPng(tester, 'wallet-locked$tag');
-      await tester.tap(find.byKey(const Key('gate-use-pin')));
-      await tester.pumpAndSettle();
-      await renderPng(tester, 'wallet-locked-pin$tag');
       await disposeHome(tester);
     });
 

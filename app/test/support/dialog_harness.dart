@@ -73,6 +73,10 @@ class DialogKeystore {
           writes.add(call.method);
           pin = true;
           return null;
+        case 'deletePinWrap':
+          writes.add(call.method);
+          pin = false;
+          return null;
         case 'deleteWrapKey':
           writes.add(call.method);
           wrapKey = false;

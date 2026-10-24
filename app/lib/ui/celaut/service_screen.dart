@@ -24,7 +24,7 @@ import 'skill_picker.dart';
 /// call it through a local port, and stop it, on the balance of the client of the app
 /// on that node. Start and stop need a full wallet that is open (`docs/celaut/ui.md`):
 /// without a full wallet they are off, with the same message as the deposit screen;
-/// with only locked full wallets, they first ask for the PIN or fingerprint of one.
+/// with only locked full wallets, they first ask the phone (fingerprint or screen lock) to open one.
 class ServiceScreen extends StatefulWidget {
   const ServiceScreen({
     super.key,

@@ -1163,12 +1163,11 @@ class WalletService with WidgetsBindingObserver {
   }
 
   /// Provision a new wallet end-to-end: generate a name, create the wallet,
-  /// wrap the key with a PIN, persist the sealed seed, derive the first
+  /// store the sealed seed with its key, derive the first
   /// address, and save wallet metadata. Returns the new wallet ID.
   Future<String> provisionWallet({
     required String phrase,
     required String passphrase,
-    required String pin,
     String? name,
   }) async {
     final walletId = const Uuid().v4();
@@ -1180,11 +1179,10 @@ class WalletService with WidgetsBindingObserver {
       walletId: walletId,
     );
     try {
-      final pinWrap = await wrapKeyWithPin(session.wrapKey, pin);
-      await SecureStorageService.saveWalletWithPin(
+      await SecureStorageService.saveWallet(
         walletId: walletId,
         encryptedSeedJson: session.encryptedSeedJson,
-        pinWrapJson: pinWrap,
+        wrapKey: session.wrapKey,
       );
       final address0 = await deriveAddress(0);
       await saveWalletInfo(
@@ -1225,13 +1223,7 @@ class WalletService with WidgetsBindingObserver {
     return session;
   }
 
-  Future<String> wrapKeyWithPin(String wrapKey, String pin) {
-    return RustLib.instance.api.crateApiWrapKeyWithPin(
-      wrapKeyHex: wrapKey,
-      pin: pin,
-    );
-  }
-
+  /// Only to move a wallet made before the app dropped the PIN.
   Future<String> unwrapKeyWithPin(String pinWrapJson, String pin) {
     return RustLib.instance.api.crateApiUnwrapKeyWithPin(
       pinWrapJson: pinWrapJson,

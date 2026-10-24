@@ -50,43 +50,23 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('Set a PIN (unlocking a wallet from before PINs): Later, '
-      'then Save', (tester) async {
-    final keystore = DialogKeystore(pin: false, wrapKey: true)
-      ..install(tester);
+  testWidgets('A wallet with a PIN moves to the lock of the phone on its last PIN', (
+    tester,
+  ) async {
+    final keystore = DialogKeystore()..install(tester);
     await tester.runAsync(() => saveWallet(dialogWallet, name: 'Daily'));
     await pumpHome(tester);
-
-    Future<void> unlock() async {
-      await openWallet(tester);
-      await tester.tap(find.text('Unlock and set PIN'));
-      // The gate's button spins while the dialog is up, so this pumps a
-      // while rather than to settle.
-      for (var i = 0; i < 5; i++) {
-        await tester.pump(const Duration(milliseconds: 100));
-      }
-      expect(find.text('Set a PIN'), findsOneWidget);
-      await tester.enterText(dialogField('PIN'), '246810');
-      await tester.enterText(dialogField('Confirm PIN'), '246810');
-    }
-
-    await unlock();
-    await answer(tester, 'Later');
+    await openWallet(tester);
+    expect(find.byKey(const Key('gate-unlock-pin')), findsOneWidget);
+    await tester.enterText(find.byType(TextField), api.goodPin);
+    await tester.tap(find.byKey(const Key('gate-unlock-pin')));
+    await tester.pumpAndSettle();
     expect(walletService.isUnlocked, isTrue);
     expect(find.byType(UnlockGate), findsNothing);
-    expect(api.wrappedUnder, isEmpty);
+    // The key is in the Keystore now and the PIN wrap is gone.
+    expect(keystore.writes, ['saveWrapKey', 'deletePinWrap']);
     expect(keystore.pin, isFalse);
-
-    // Locked again, the wallet asks again, and this time the PIN is set.
-    await tester.pumpWidget(const SizedBox());
-    await walletService.lock();
-    await pumpHome(tester);
-    await unlock();
-    await answer(tester, 'Save');
-    expect(walletService.isUnlocked, isTrue);
-    expect(api.wrappedUnder, ['246810']);
-    expect(keystore.writes, ['savePinWrap', 'deleteWrapKey']);
-    expect(keystore.pin, isTrue);
+    expect(keystore.wrapKey, isTrue);
     await disposeHome(tester);
   });
 
