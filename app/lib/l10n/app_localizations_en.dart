@@ -6398,4 +6398,13 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get walletSummaryDetails => 'Wallet details';
+
+  @override
+  String get walletSummaryLatest => 'Latest transactions';
+
+  @override
+  String get walletSummaryNoTransactions => 'No transactions yet';
 }

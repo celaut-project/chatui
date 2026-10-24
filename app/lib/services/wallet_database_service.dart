@@ -197,6 +197,18 @@ class WalletDatabaseService {
     );
   }
 
+  /// The last transactions of the wallet's snapshot (at most five), as the sync wrote them,
+  /// or none. A locked wallet has them too: the public refresh needs no key.
+  static Future<List<Map<String, dynamic>>> lastKnownTransactions(String walletId) async {
+    final map = await loadCachedState(expectedWalletId: walletId);
+    final rows = map?['transactions'];
+    if (rows is! List) return const [];
+    return [
+      for (final r in rows)
+        if (r is Map) r.cast<String, dynamic>(),
+    ];
+  }
+
   static Future<void> clearWallet(String walletId) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_snapshotKey(walletId));

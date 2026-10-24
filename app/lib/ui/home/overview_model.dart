@@ -283,6 +283,7 @@ class WalletsOverviewModel extends ChangeNotifier {
 
   final Map<String, LastKnownBalance> _lastKnown = {};
   final Map<String, PendingBalance> _lastPending = {};
+  final Map<String, List<Map<String, dynamic>>> _lastTxs = {};
   Future<void>? _refresh;
   int _loadGeneration = 0;
   bool _attached = false;
@@ -301,6 +302,16 @@ class WalletsOverviewModel extends ChangeNotifier {
 
   /// The pending split saved with [lastKnown]'s snapshot, if any.
   PendingBalance? lastPending(String walletId) => _lastPending[walletId];
+
+  /// The latest transactions of [walletId]: the live ones while it is the open wallet, else
+  /// the last snapshot, which a locked wallet gets from the public refresh.
+  List<Map<String, dynamic>> recentTransactions(String walletId) {
+    if (walletService.isUnlocked && walletService.activeWalletId == walletId) {
+      final live = walletSyncController.displayActivity;
+      if (live.isNotEmpty) return live;
+    }
+    return _lastTxs[walletId] ?? const [];
+  }
 
   bool get isEmpty => _wallets.isEmpty;
 
@@ -361,13 +372,15 @@ class WalletsOverviewModel extends ChangeNotifier {
   static Future<_Snapshots> _snapshots(List<WalletInfo> wallets) async {
     final known = <String, LastKnownBalance>{};
     final pending = <String, PendingBalance>{};
+    final txs = <String, List<Map<String, dynamic>>>{};
     for (final w in wallets) {
+      txs[w.walletId] = await WalletDatabaseService.lastKnownTransactions(w.walletId);
       final k = await WalletDatabaseService.lastKnownBalance(w.walletId);
       if (k != null) known[w.walletId] = k;
       final p = await lastKnownPending(w.walletId);
       if (p != null) pending[w.walletId] = p;
     }
-    return (known: known, pending: pending);
+    return (known: known, pending: pending, txs: txs);
   }
 
   void _remember(_Snapshots snapshots) {
@@ -377,6 +390,9 @@ class WalletsOverviewModel extends ChangeNotifier {
     _lastPending
       ..clear()
       ..addAll(snapshots.pending);
+    _lastTxs
+      ..clear()
+      ..addAll(snapshots.txs);
   }
 
   /// Saves the order the user dragged the seed wallets into.
@@ -451,4 +467,5 @@ class WalletsOverviewModel extends ChangeNotifier {
 typedef _Snapshots = ({
   Map<String, LastKnownBalance> known,
   Map<String, PendingBalance> pending,
+  Map<String, List<Map<String, dynamic>>> txs,
 });

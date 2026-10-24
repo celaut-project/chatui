@@ -24,6 +24,11 @@ import '../../l10n/l10n.dart';
           title: appL10n.commonAddresses,
           blurb: appL10n.homeToolAddressesBlurb,
         ),
+      WalletTool.deposit => (
+          icon: Icons.savings_outlined,
+          title: appL10n.chatsDepositRow,
+          blurb: appL10n.chatsDepositRowSubtitle,
+        ),
       WalletTool.lock => (
           icon: Icons.lock_outline,
           title: appL10n.homeToolLock,
