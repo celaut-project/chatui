@@ -10220,4 +10220,10 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   /// In en, this message translates to:
   /// **'No transactions yet'**
   String get walletSummaryNoTransactions;
+
+  /// No description provided for @chatSelectText.
+  ///
+  /// In en, this message translates to:
+  /// **'Select text'**
+  String get chatSelectText;
 }

@@ -2006,5 +2006,6 @@
   },
   "walletSummaryDetails": "Detalles de la billetera",
   "walletSummaryLatest": "Últimas transacciones",
-  "walletSummaryNoTransactions": "Aún no hay transacciones"
+  "walletSummaryNoTransactions": "Aún no hay transacciones",
+  "chatSelectText": "Seleccionar texto"
 }

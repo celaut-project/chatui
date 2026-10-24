@@ -1430,6 +1430,9 @@ class _TypingBubbleState extends State<_TypingBubble> with SingleTickerProviderS
   }
 }
 
+/// What the menu of a message does.
+enum _BubbleAction { copy, select, pin }
+
 /// A message: the user in a bubble on the right, with a small tail corner. The service has
 /// no bubble: its text is plain, over the background, at the full width, as it is what the
 /// user reads most. The files of the message come before its text.
@@ -1470,28 +1473,70 @@ class _Bubble extends StatelessWidget {
   final VoidCallback? onPin;
   final VoidCallback onCopy;
 
-  /// The menu of a long press outside the text: copy, and pin or unpin.
+  /// The menu of a long press on the message, anywhere on it: copy, select the text, and
+  /// pin or unpin. The text of a bubble is not selectable by itself, so that a long press
+  /// always opens this menu and never starts a selection; "Select text" opens the text in
+  /// a sheet where it can be selected.
   Future<void> _menu(BuildContext context, Offset at) async {
     final l10n = context.l10n;
     final box = Overlay.of(context).context.findRenderObject()! as RenderBox;
     final pin = onPin;
     final copy = message.text.isNotEmpty;
-    if (pin == null && !copy) return;
-    final chosen = await showMenu<bool>(
+    final selectable = _selectableText.isNotEmpty;
+    if (pin == null && !copy && !selectable) return;
+    final chosen = await showMenu<_BubbleAction>(
       context: context,
       position: RelativeRect.fromRect(at & const Size(1, 1), Offset.zero & box.size),
       items: [
-        if (copy) PopupMenuItem(key: const Key('chat-menu-copy'), value: false, child: Text(l10n.chatCopy)),
+        if (copy)
+          PopupMenuItem(key: const Key('chat-menu-copy'), value: _BubbleAction.copy, child: Text(l10n.chatCopy)),
+        if (selectable)
+          PopupMenuItem(
+            key: const Key('chat-menu-select'),
+            value: _BubbleAction.select,
+            child: Text(l10n.chatSelectText),
+          ),
         if (pin != null)
           PopupMenuItem(
             key: const Key('chat-menu-pin'),
-            value: true,
+            value: _BubbleAction.pin,
             child: Text(message.pinned ? l10n.chatUnpin : l10n.chatPin),
           ),
       ],
     );
-    if (chosen == null) return;
-    chosen ? pin?.call() : onCopy();
+    if (chosen == null || !context.mounted) return;
+    switch (chosen) {
+      case _BubbleAction.copy:
+        onCopy();
+      case _BubbleAction.select:
+        await _selectText(context);
+      case _BubbleAction.pin:
+        pin?.call();
+    }
+  }
+
+  /// What "Select text" offers: the text of the message, or its reasoning if it has no
+  /// text yet.
+  String get _selectableText => message.text.isNotEmpty ? message.text : message.reasoning;
+
+  /// The text of the message in a sheet, where the user can select and copy a part of it.
+  Future<void> _selectText(BuildContext context) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * 0.7),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+          child: SelectableText(
+            _selectableText,
+            key: const Key('chat-select-text'),
+            style: textStyle.copyWith(color: Theme.of(ctx).colorScheme.onSurface),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -1563,9 +1608,8 @@ class _Bubble extends StatelessWidget {
                   // Only the text of the service has HTML blocks: the user writes plain text.
                   html: html && !mine,
                   streaming: message.isOpen,
-                  selectable: true,
-                  onPin: onPin,
-                  pinLabel: message.pinned ? context.l10n.chatUnpin : context.l10n.chatPin,
+                  // Not selectable: a long press opens the menu, which can select the text.
+                  selectable: false,
                 ),
               if (message.isFailed || message.isCancelled)
                 Padding(
@@ -1581,7 +1625,7 @@ class _Bubble extends StatelessWidget {
               if (message.isFailed && message.error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
-                  child: SelectableText(
+                  child: Text(
                     message.error!,
                     key: Key('chat-error-${message.seq}'),
                     style: Theme.of(
@@ -1812,7 +1856,7 @@ class _ReasoningState extends State<_Reasoning> {
           if (open)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: SelectableText(
+              child: Text(
                 widget.text,
                 key: const Key('chat-reasoning-text'),
                 style: style,

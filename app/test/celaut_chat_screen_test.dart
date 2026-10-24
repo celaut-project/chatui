@@ -1131,10 +1131,10 @@ void main() {
       final old = chatPrefs.fontSize;
       unawaited(chatPrefs.setFontSize(22));
       await open(tester);
-      expect(tester.widget<SelectableText>(find.byType(SelectableText)).style?.fontSize, 22);
+      expect(tester.widget<Text>(find.text('big')).style?.fontSize, 22);
       unawaited(chatPrefs.setFontSize(14));
       await tester.pump();
-      expect(tester.widget<SelectableText>(find.byType(SelectableText)).style?.fontSize, 14);
+      expect(tester.widget<Text>(find.text('big')).style?.fontSize, 14);
       unawaited(chatPrefs.setFontSize(old));
     });
 
@@ -1171,14 +1171,14 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 16));
       await tester.pump(const Duration(milliseconds: 100));
-      final partial = tester.widget<SelectableText>(find.byType(SelectableText).last).data!;
+      final partial = tester.widget<Text>(find.textContaining('Hello').last).data!;
       expect(partial.length, lessThan('Hello ${'world ' * 20}'.length));
       expect(partial.startsWith('Hello'), isTrue);
       expect(ticks, greaterThan(0));
       await tester.pump(const Duration(seconds: 3));
       await tester.pump(const Duration(seconds: 3));
       expect(
-        tester.widget<SelectableText>(find.byType(SelectableText).last).data,
+        tester.widget<Text>(find.textContaining('Hello').last).data,
         'Hello ${'world ' * 20}',
       );
     });
@@ -1619,6 +1619,7 @@ void main() {
       await open(tester);
       await menu(tester, 39);
       expect(find.text('Copy'), findsOneWidget);
+      expect(find.text('Select text'), findsOneWidget);
       expect(find.text('Pin'), findsOneWidget);
       await pick(tester, 'chat-menu-pin');
       expect(chat.pinCalls, [(39, true)]);
@@ -1686,6 +1687,20 @@ void main() {
       await pick(tester, 'chat-menu-copy');
       expect(copied, startsWith('line 38'));
       expect(find.text('Message copied.'), findsOneWidget);
+    });
+
+    testWidgets('a long press on the text itself opens the menu, and Select text shows it to select', (
+      tester,
+    ) async {
+      chat = _FakeChat(history: talk({}));
+      await open(tester);
+      // On the words, not next to them: the text must not start a selection of its own.
+      await tester.longPress(find.textContaining('line 38'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-menu-copy')), findsOneWidget);
+      await pick(tester, 'chat-menu-select');
+      final shown = tester.widget<SelectableText>(find.byKey(const Key('chat-select-text')));
+      expect(shown.data, startsWith('line 38'));
     });
 
     testWidgets('the banner follows a pin and an unpin', (tester) async {
