@@ -31,6 +31,9 @@ class FakeChatService {
   int connects = 0;
   int pinCalls = 0;
 
+  /// The next calls to `SetMessagePinned` fail with these errors, in order.
+  final pinErrors = <GrpcError>[];
+
   /// Each user message gets a whole answer `echo: <text>` at once.
   bool autoAnswer = false;
 
@@ -332,6 +335,7 @@ class _Chat extends ChatServiceBase {
   @override
   Future<Message> setMessagePinned(ServiceCall call, SetMessagePinnedRequest request) async {
     f.pinCalls++;
+    if (f.pinErrors.isNotEmpty) throw f.pinErrors.removeAt(0);
     final m = f.msgs.where((m) => m.messageId == request.messageId).firstOrNull;
     if (m == null) throw chatError(StatusCode.notFound, 'not_found');
     f.setPinned(m.messageId, request.pinned);

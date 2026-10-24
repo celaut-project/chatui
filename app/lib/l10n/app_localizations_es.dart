@@ -5631,6 +5631,21 @@ class AppLocalizationsEs extends AppLocalizations {
   String get chatPinnedCollapse => 'Ver menos del mensaje fijado';
 
   @override
+  String get chatPin => 'Fijar';
+
+  @override
+  String get chatUnpin => 'Desfijar';
+
+  @override
+  String get chatCopy => 'Copiar';
+
+  @override
+  String get chatCopied => 'Mensaje copiado.';
+
+  @override
+  String get chatPinnedIcon => 'Mensaje fijado';
+
+  @override
   String get chatNotifyDoneBody => 'La respuesta está lista.';
 
   @override

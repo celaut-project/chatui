@@ -689,7 +689,28 @@ class _ChatScreenState extends State<ChatScreen>
   static bool _hasContent(ChatMessage m) =>
       m.text.isNotEmpty || m.reasoning.isNotEmpty || m.attachments.isNotEmpty;
 
-  String _errorText(ChatErrorKind kind) {
+  /// Pin or unpin [m]. The client changes the message at once and gives it back if the
+  /// call fails: the user sees the reason.
+  Future<void> _togglePin(ChatMessage m) async {
+    try {
+      await _chat.setPinned(m, !m.pinned);
+    } on ChatException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(_errorText(e.kind, pin: true))));
+    }
+  }
+
+  Future<void> _copy(ChatMessage m) async {
+    await Clipboard.setData(ClipboardData(text: m.text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(context.l10n.chatCopied)));
+  }
+
+  String _errorText(ChatErrorKind kind, {bool pin = false}) {
     final l10n = context.l10n;
     return switch (kind) {
       ChatErrorKind.unreachable => l10n.chatErrorUnreachable,
@@ -697,7 +718,7 @@ class _ChatScreenState extends State<ChatScreen>
       ChatErrorKind.historyFull => l10n.chatErrorHistoryFull,
       ChatErrorKind.busy => l10n.chatErrorBusy,
       ChatErrorKind.unsupportedMedia => l10n.chatErrorUnsupportedMedia,
-      ChatErrorKind.badRequest when _pending.isNotEmpty => l10n.chatErrorFile,
+      ChatErrorKind.badRequest when !pin && _pending.isNotEmpty => l10n.chatErrorFile,
       ChatErrorKind.badRequest || ChatErrorKind.other => l10n.chatErrorOther,
     };
   }
@@ -1107,6 +1128,8 @@ class _ChatScreenState extends State<ChatScreen>
                                 html: chatPrefs.htmlWidgets,
                                 read: _chat.readAttachment,
                                 onLoaded: _fileLoaded,
+                                onPin: _chat.canPin && m.id.isNotEmpty ? () => _togglePin(m) : null,
+                                onCopy: () => _copy(m),
                               );
                               return m.pinned
                                   ? KeyedSubtree(
@@ -1383,6 +1406,8 @@ class _Bubble extends StatelessWidget {
     required this.html,
     required this.read,
     required this.onLoaded,
+    required this.onPin,
+    required this.onCopy,
   });
 
   final ChatMessage message;
@@ -1404,6 +1429,34 @@ class _Bubble extends StatelessWidget {
   /// A file of the message finished to load.
   final VoidCallback onLoaded;
 
+  /// Pins or unpins the message. Null while the service does not take it.
+  final VoidCallback? onPin;
+  final VoidCallback onCopy;
+
+  /// The menu of a long press outside the text: copy, and pin or unpin.
+  Future<void> _menu(BuildContext context, Offset at) async {
+    final l10n = context.l10n;
+    final box = Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final pin = onPin;
+    final copy = message.text.isNotEmpty;
+    if (pin == null && !copy) return;
+    final chosen = await showMenu<bool>(
+      context: context,
+      position: RelativeRect.fromRect(at & const Size(1, 1), Offset.zero & box.size),
+      items: [
+        if (copy) PopupMenuItem(key: const Key('chat-menu-copy'), value: false, child: Text(l10n.chatCopy)),
+        if (pin != null)
+          PopupMenuItem(
+            key: const Key('chat-menu-pin'),
+            value: true,
+            child: Text(message.pinned ? l10n.chatUnpin : l10n.chatPin),
+          ),
+      ],
+    );
+    if (chosen == null) return;
+    chosen ? pin?.call() : onCopy();
+  }
+
   @override
   Widget build(BuildContext context) {
     // An answer that has started but has nothing to show: the typing bubble stands for it.
@@ -1414,65 +1467,82 @@ class _Bubble extends StatelessWidget {
     final color = mine ? scheme.onPrimaryContainer : scheme.onSurface;
     return Align(
       alignment: mine ? AlignmentDirectional.centerEnd : AlignmentDirectional.centerStart,
-      child: Container(
-        key: Key('chat-bubble-${message.seq}'),
-        margin: EdgeInsets.symmetric(vertical: mine ? 3 : 8),
-        padding: mine
-            ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
-            : const EdgeInsets.symmetric(horizontal: 4),
-        constraints: mine ? BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.8) : null,
-        decoration: mine
-            ? BoxDecoration(
-                color: scheme.primaryContainer,
-                borderRadius: const BorderRadius.only(
-                  topLeft: r,
-                  topRight: r,
-                  bottomLeft: r,
-                  bottomRight: tail,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onLongPressStart: (d) => _menu(context, d.globalPosition),
+          child: Container(
+          key: Key('chat-bubble-${message.seq}'),
+          margin: EdgeInsets.symmetric(vertical: mine ? 3 : 8),
+          padding: mine
+              ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
+              : const EdgeInsets.symmetric(horizontal: 4),
+          constraints: mine ? BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.8) : null,
+          decoration: mine
+              ? BoxDecoration(
+                  color: scheme.primaryContainer,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: r,
+                    topRight: r,
+                    bottomLeft: r,
+                    bottomRight: tail,
+                  ),
+                )
+              : null,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (message.pinned)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Icon(
+                    Icons.push_pin,
+                    key: Key('chat-pin-icon-${message.seq}'),
+                    size: 14,
+                    color: scheme.onSurfaceVariant,
+                    semanticLabel: context.l10n.chatPinnedIcon,
+                  ),
                 ),
-              )
-            : null,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (var i = 0; i < message.attachments.length; i++)
-              _AttachmentView(
-                key: Key('chat-file-${message.seq}-$i'),
-                attachment: message.attachments[i],
-                load: () => read(message.seq, i),
-                onLoaded: onLoaded,
-                color: color,
-              ),
-            if (shownReasoning.isNotEmpty)
-              _Reasoning(
-                key: Key('chat-reasoning-${message.seq}'),
-                text: shownReasoning,
-                // The user sees the reasoning grow until the text starts.
-                openByDefault: message.isOpen && message.text.isEmpty,
-                color: scheme.onSurfaceVariant,
-              ),
-            if (shownText.isNotEmpty)
-              _MessageText(
-                text: shownText,
-                style: textStyle.copyWith(color: color),
-                // Only the text of the service has HTML blocks: the user writes plain text.
-                html: html && !mine,
-                streaming: message.isOpen,
-                selectable: true,
-              ),
-            if (message.isFailed || message.isCancelled)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  message.isFailed ? context.l10n.chatAnswerFailed : context.l10n.chatAnswerCancelled,
-                  key: Key('chat-${message.isFailed ? 'failed' : 'cancelled'}-${message.seq}'),
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(color: scheme.error),
+              for (var i = 0; i < message.attachments.length; i++)
+                _AttachmentView(
+                  key: Key('chat-file-${message.seq}-$i'),
+                  attachment: message.attachments[i],
+                  load: () => read(message.seq, i),
+                  onLoaded: onLoaded,
+                  color: color,
                 ),
-              ),
-          ],
+              if (shownReasoning.isNotEmpty)
+                _Reasoning(
+                  key: Key('chat-reasoning-${message.seq}'),
+                  text: shownReasoning,
+                  // The user sees the reasoning grow until the text starts.
+                  openByDefault: message.isOpen && message.text.isEmpty,
+                  color: scheme.onSurfaceVariant,
+                ),
+              if (shownText.isNotEmpty)
+                _MessageText(
+                  text: shownText,
+                  style: textStyle.copyWith(color: color),
+                  // Only the text of the service has HTML blocks: the user writes plain text.
+                  html: html && !mine,
+                  streaming: message.isOpen,
+                  selectable: true,
+                  onPin: onPin,
+                  pinLabel: message.pinned ? context.l10n.chatUnpin : context.l10n.chatPin,
+                ),
+              if (message.isFailed || message.isCancelled)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    message.isFailed ? context.l10n.chatAnswerFailed : context.l10n.chatAnswerCancelled,
+                    key: Key('chat-${message.isFailed ? 'failed' : 'cancelled'}-${message.seq}'),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelSmall?.copyWith(color: scheme.error),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -1500,6 +1570,8 @@ class _MessageText extends StatelessWidget {
     required this.html,
     required this.streaming,
     required this.selectable,
+    this.onPin,
+    this.pinLabel = '',
   });
 
   final String text;
@@ -1510,8 +1582,31 @@ class _MessageText extends StatelessWidget {
   /// The text can be selected. The pinned banner has it off: a tap there opens it.
   final bool selectable;
 
-  Widget _text(String t, TextStyle s) =>
-      selectable ? SelectableText(t, style: s) : Text(t, style: s);
+  /// Pins or unpins the message: it adds an item to the menu of the selected text. Null
+  /// adds nothing.
+  final VoidCallback? onPin;
+  final String pinLabel;
+
+  Widget _text(String t, TextStyle s) => selectable
+      ? SelectableText(
+          t,
+          style: s,
+          contextMenuBuilder: (context, state) => AdaptiveTextSelectionToolbar.buttonItems(
+            anchors: state.contextMenuAnchors,
+            buttonItems: [
+              ...state.contextMenuButtonItems,
+              if (onPin != null)
+                ContextMenuButtonItem(
+                  label: pinLabel,
+                  onPressed: () {
+                    state.hideToolbar();
+                    onPin!();
+                  },
+                ),
+            ],
+          ),
+        )
+      : Text(t, style: s);
 
   @override
   Widget build(BuildContext context) {

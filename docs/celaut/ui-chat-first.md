@@ -279,4 +279,19 @@ Known limits of the notices:
   open: every 2 seconds while it waits for an answer, and every 10 seconds otherwise. The app
   reads the whole history from `after_sequence` 0 and does not use `last` or `before_sequence`:
   the list of messages has no gap.
-- The app has `ChatClient.setPinned` for the user, but no button for it yet.
+- The user pins and unpins a message with a long press on it (an answer or a bubble of the
+  user). On the text, the long press selects it, and the menu of the selection has the item
+  `Pin` or `Unpin`. Outside the text (the padding, a file), the long press opens a menu with
+  `Copy` (if the message has text) and `Pin` or `Unpin`. A pinned message has a small pin
+  icon.
+- `ChatClient.setPinned` changes the message at once. If `SetMessagePinned` fails, the
+  message gets its old value back (unless the stream has set the same value as the user
+  meanwhile), and the screen shows the error in a snack bar, with the text of the error kind
+  (section 9 of [chat.md](chat.md)). The banner reads the messages after each change, so it
+  follows a pin or an unpin of the user, and a `MessagePinnedChanged` of the stream. If the
+  user unpins the message that the banner shows, the banner shows the pinned message before
+  it, or none.
+- Section 6.6 of [chat.md](chat.md) says that a service must implement `SetMessagePinned`.
+  If a service ends the call with `UNIMPLEMENTED` anyway, `ChatClient.canPin` becomes
+  `false`: the screen hides `Pin` and `Unpin`, and the client does not call the service
+  again while the chat screen is open.

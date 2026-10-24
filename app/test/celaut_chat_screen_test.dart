@@ -17,6 +17,7 @@ import 'package:argus_wallet/l10n/l10n.dart';
 import 'package:argus_wallet/theme/argus_theme.dart';
 import 'package:argus_wallet/ui/celaut/chat_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -92,6 +93,33 @@ class _FakeChat extends ChatClient {
   Future<void> syncWhenStarted(
           {Duration limit = const Duration(minutes: 2), Future<void> Function(Duration)? wait}) =>
       starting?.future ?? Future.value();
+
+  /// The service takes `SetMessagePinned`. Holds [setPinned] on [pinGate]. Fails with
+  /// [pinFailWith], as the client does: the message gets its old value back.
+  bool pinSupported = true;
+  Completer<void>? pinGate;
+  ChatException? pinFailWith;
+  final pinCalls = <(int, bool)>[];
+
+  @override
+  bool get canPin => pinSupported;
+
+  @override
+  Future<void> setPinned(ChatMessage message, bool pinned) async {
+    pinCalls.add((message.seq, pinned));
+    final i = _messages.indexWhere((m) => m.seq == message.seq);
+    final before = _messages[i].pinned;
+    _messages[i] = _messages[i].copyWith(pinned: pinned);
+    notifyListeners();
+    await pinGate?.future;
+    final failure = pinFailWith;
+    if (failure != null) {
+      _messages[i] = _messages[i].copyWith(pinned: before);
+      if (failure.status == 12) pinSupported = false;
+      notifyListeners();
+      throw failure;
+    }
+  }
 
   /// Holds [send] until it completes: a slow service.
   Completer<void>? gate;
@@ -757,6 +785,7 @@ void main() {
       tester.getSemantics(find.bySemanticsLabel('song.mp3. ${appL10n.chatAttachmentShare}')),
       matchesSemantics(
         isButton: true,
+        hasLongPressAction: true,
         hasTapAction: true,
         label: 'song.mp3. ${appL10n.chatAttachmentShare}',
       ),
@@ -1437,6 +1466,7 @@ void main() {
           for (var i = 0; i < 40; i++)
             ChatMessage(
               seq: i,
+              id: 'm$i',
               role: i.isEven ? 'user' : 'assistant',
               text: pins.contains(i) ? 'PIN$i ${'pinned words ' * 40}' : 'line $i\n\n\nmore\n\nmore',
               pinned: pins.contains(i),
@@ -1499,6 +1529,188 @@ void main() {
       await tester.tap(find.byKey(const Key('chat-pinned-toggle')));
       await tester.pump();
       expect(tester.getSize(find.byKey(const Key('chat-pinned'))).height, greaterThan(closed));
+    });
+  });
+
+  group('pin and unpin by the user', () {
+    Future<void> unpinOf(_FakeChat c, int seq) =>
+        c.setPinned(c.messages.firstWhere((m) => m.seq == seq), false);
+
+    List<ChatMessage> talk(Set<int> pins) => [
+          for (var i = 0; i < 40; i++)
+            ChatMessage(
+              seq: i,
+              id: 'm$i',
+              role: i.isEven ? 'user' : 'assistant',
+              text: pins.contains(i) ? 'PIN$i ${'pinned words ' * 40}' : 'line $i\n\n\nmore\n\nmore',
+              pinned: pins.contains(i),
+            ),
+        ];
+
+    String? banner(WidgetTester tester) {
+      final f = find.descendant(of: find.byKey(const Key('chat-pinned')), matching: find.byType(Text));
+      if (f.evaluate().isEmpty) return null;
+      return tester.widget<Text>(f.first).data!.split(' ').first;
+    }
+
+    /// A long press on the bubble, next to its text, opens the menu of the message.
+    Future<void> menu(WidgetTester tester, int seq) async {
+      final at = tester.getTopLeft(find.byKey(Key('chat-bubble-$seq'))) + const Offset(1, 1);
+      await tester.longPressAt(at);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> pick(WidgetTester tester, String key) async {
+      await tester.tap(find.byKey(Key(key)));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a long press pins an assistant message, and an icon shows', (tester) async {
+      chat = _FakeChat(history: talk({}));
+      await open(tester);
+      await menu(tester, 39);
+      expect(find.text('Copy'), findsOneWidget);
+      expect(find.text('Pin'), findsOneWidget);
+      await pick(tester, 'chat-menu-pin');
+      expect(chat.pinCalls, [(39, true)]);
+      expect(find.byKey(const Key('chat-pin-icon-39')), findsOneWidget);
+      expect(find.byKey(const Key('chat-pin-icon-38')), findsNothing);
+    });
+
+    testWidgets('the menu of a pinned message unpins it', (tester) async {
+      chat = _FakeChat(history: talk({39}));
+      await open(tester);
+      expect(find.byKey(const Key('chat-pin-icon-39')), findsOneWidget);
+      await menu(tester, 39);
+      expect(find.text('Unpin'), findsOneWidget);
+      await pick(tester, 'chat-menu-pin');
+      expect(chat.pinCalls, [(39, false)]);
+      expect(find.byKey(const Key('chat-pin-icon-39')), findsNothing);
+    });
+
+    testWidgets('the user can pin a bubble of the user', (tester) async {
+      chat = _FakeChat(history: talk({}));
+      await open(tester);
+      await menu(tester, 38);
+      await pick(tester, 'chat-menu-pin');
+      expect(chat.pinCalls, [(38, true)]);
+      expect(find.byKey(const Key('chat-pin-icon-38')), findsOneWidget);
+    });
+
+    testWidgets('the pin shows before the service answers', (tester) async {
+      chat = _FakeChat(history: talk({}))..pinGate = Completer<void>();
+      await open(tester);
+      await menu(tester, 39);
+      await tester.tap(find.byKey(const Key('chat-menu-pin')));
+      await tester.pump();
+      await tester.pump();
+      expect(find.byKey(const Key('chat-pin-icon-39')), findsOneWidget);
+      chat.pinGate!.complete();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-pin-icon-39')), findsOneWidget);
+    });
+
+    testWidgets('a failure gives the message back and tells why', (tester) async {
+      chat = _FakeChat(history: talk({}))
+        ..pinFailWith = const ChatException(ChatErrorKind.unreachable);
+      await open(tester);
+      await menu(tester, 39);
+      await pick(tester, 'chat-menu-pin');
+      expect(find.byKey(const Key('chat-pin-icon-39')), findsNothing);
+      expect(find.textContaining('did not answer'), findsOneWidget);
+    });
+
+    testWidgets('Copy puts the text on the clipboard', (tester) async {
+      String? copied;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform,
+          (call) async {
+        if (call.method == 'Clipboard.setData') copied = (call.arguments as Map)['text'] as String;
+        return null;
+      });
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+      chat = _FakeChat(history: talk({}));
+      await open(tester);
+      await menu(tester, 38);
+      await pick(tester, 'chat-menu-copy');
+      expect(copied, startsWith('line 38'));
+      expect(find.text('Message copied.'), findsOneWidget);
+    });
+
+    testWidgets('the banner follows a pin and an unpin', (tester) async {
+      chat = _FakeChat(history: talk({}));
+      await open(tester);
+      expect(banner(tester), isNull);
+      await menu(tester, 39);
+      await pick(tester, 'chat-menu-pin');
+      // The last message anchors nothing.
+      expect(banner(tester), isNull);
+      chat.open = true;
+      // The service pins an older message through the stream.
+      final c = tester.widget<ListView>(find.byKey(const Key('chat-messages'))).controller!;
+      c.jumpTo(c.position.maxScrollExtent);
+      chat._messages[20] = chat._messages[20].copyWith(pinned: true);
+      chat.push();
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+      expect(banner(tester), startsWith('line'));
+      expect(find.byKey(const Key('chat-pinned')), findsOneWidget);
+    });
+
+    testWidgets('a pin from the stream shows, and its unpin drops the banner', (tester) async {
+      chat = _FakeChat(history: talk({}))..open = true;
+      await open(tester);
+      chat._messages[3] = chat._messages[3].copyWith(pinned: true, text: 'PIN3 ${'words ' * 40}');
+      chat.push();
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+      expect(banner(tester), 'PIN3');
+      chat._messages[3] = chat._messages[3].copyWith(pinned: false);
+      chat.push();
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+      expect(banner(tester), isNull);
+    });
+
+    testWidgets('unpin of the anchored message gives the banner to the one before',
+        (tester) async {
+      chat = _FakeChat(history: talk({3, 21}));
+      await open(tester);
+      expect(banner(tester), 'PIN21');
+      final c = tester.widget<ListView>(find.byKey(const Key('chat-messages'))).controller!;
+      // The user unpins it, as the menu does.
+      await unpinOf(chat, 21);
+      await tester.pump();
+      c.jumpTo(c.position.maxScrollExtent);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+      expect(banner(tester), 'PIN3');
+    });
+
+    testWidgets('a service that does not take it gets no action, and none after UNIMPLEMENTED',
+        (tester) async {
+      chat = _FakeChat(history: talk({}))
+        ..pinFailWith = const ChatException(ChatErrorKind.other, status: 12);
+      await open(tester);
+      await menu(tester, 39);
+      await pick(tester, 'chat-menu-pin');
+      expect(find.byKey(const Key('chat-pin-icon-39')), findsNothing);
+      await menu(tester, 39);
+      expect(find.text('Copy'), findsOneWidget);
+      expect(find.byKey(const Key('chat-menu-pin')), findsNothing);
+    });
+
+    testWidgets('no action while the client says the service does not take it', (tester) async {
+      chat = _FakeChat(history: talk({}))..pinSupported = false;
+      await open(tester);
+      await menu(tester, 39);
+      expect(find.byKey(const Key('chat-menu-pin')), findsNothing);
     });
   });
 

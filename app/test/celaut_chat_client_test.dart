@@ -250,6 +250,49 @@ void main() {
       );
     });
 
+    test('a pin shows at once, and a failed call gives the old value back', () async {
+      final u = svc.user('q');
+      svc.assistant('a', replyTo: u.messageId);
+      await boot();
+      await chat.sync();
+      await until(() => chat.streaming);
+      final seen = <bool>[];
+      chat.addListener(() => seen.add(chat.messages[1].pinned));
+
+      svc.pinErrors.add(chatError(StatusCode.unavailable, 'busy'));
+      await expectLater(
+        chat.setPinned(chat.messages[1], true),
+        throwsA(isA<ChatException>().having((e) => e.kind, 'kind', ChatErrorKind.busy)),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(seen, [true, false]);
+      expect(chat.messages[1].pinned, isFalse);
+      expect(chat.canPin, isTrue);
+
+      await chat.setPinned(chat.messages[1], true);
+      expect(chat.messages[1].pinned, isTrue);
+      svc.pinErrors.add(chatError(StatusCode.notFound, 'not_found'));
+      await expectLater(chat.setPinned(chat.messages[1], false), throwsA(isA<ChatException>()));
+      expect(chat.messages[1].pinned, isTrue);
+    });
+
+    test('UNIMPLEMENTED hides the action and the client does not call again', () async {
+      final u = svc.user('q');
+      svc.assistant('a', replyTo: u.messageId);
+      await boot();
+      await chat.sync();
+      svc.pinErrors.add(chatError(StatusCode.unimplemented, 'unimplemented'));
+      await expectLater(
+        chat.setPinned(chat.messages[1], true),
+        throwsA(isA<ChatException>().having((e) => e.status, 'status', StatusCode.unimplemented)),
+      );
+      expect(chat.canPin, isFalse);
+      expect(chat.messages[1].pinned, isFalse);
+      final calls = svc.pinCalls;
+      await expectLater(chat.setPinned(chat.messages[1], true), throwsA(isA<ChatException>()));
+      expect(svc.pinCalls, calls);
+    });
+
     test('a message that is cancelled is final', () async {
       final u = svc.user('q');
       final a = svc.assistant('part', replyTo: u.messageId, status: pb.MessageStatus.MESSAGE_STATUS_IN_PROGRESS);

@@ -8807,6 +8807,36 @@ abstract class AppLocalizations {
   /// **'Show less of the pinned message'**
   String get chatPinnedCollapse;
 
+  /// No description provided for @chatPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin'**
+  String get chatPin;
+
+  /// No description provided for @chatUnpin.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin'**
+  String get chatUnpin;
+
+  /// No description provided for @chatCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get chatCopy;
+
+  /// No description provided for @chatCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Message copied.'**
+  String get chatCopied;
+
+  /// No description provided for @chatPinnedIcon.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned message'**
+  String get chatPinnedIcon;
+
   /// No description provided for @chatNotifyDoneBody.
   ///
   /// In en, this message translates to:

@@ -5560,6 +5560,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatPinnedCollapse => 'Show less of the pinned message';
 
   @override
+  String get chatPin => 'Pin';
+
+  @override
+  String get chatUnpin => 'Unpin';
+
+  @override
+  String get chatCopy => 'Copy';
+
+  @override
+  String get chatCopied => 'Message copied.';
+
+  @override
+  String get chatPinnedIcon => 'Pinned message';
+
+  @override
   String get chatNotifyDoneBody => 'The answer is ready.';
 
   @override

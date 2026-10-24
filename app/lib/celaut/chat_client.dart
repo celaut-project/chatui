@@ -712,6 +712,11 @@ class ChatClient extends ChangeNotifier {
     );
   }
 
+  void _setLocalPinned(String id, bool pinned) {
+    final have = _byId(id);
+    if (have != null) _messages[have.seq - 1] = have.copyWith(pinned: pinned);
+  }
+
   void _onPinned(String id, bool pinned, int updatedAt) {
     final have = _byId(id);
     if (have == null || updatedAt < have.updatedAt) return;
@@ -1169,15 +1174,38 @@ class ChatClient extends ChangeNotifier {
 
   // --- Pinned messages -----------------------------------------------------------------
 
+  bool _pinSupported = true;
+
+  /// The service takes `SetMessagePinned`. Section 6.6 says that a service must, but one
+  /// that ends the call with `UNIMPLEMENTED` is not asked again while this client lives.
+  bool get canPin => _pinSupported;
+
   /// Pin or unpin [message] (`SetMessagePinned`, section 6.6). The user can do it for any
-  /// message. The service sends `MessagePinnedChanged` to the stream too.
+  /// message. The message changes at once. If the call fails, the message gets its old
+  /// value back, and the error goes to the caller. The service sends `MessagePinnedChanged`
+  /// to the stream too.
   Future<void> setPinned(ChatMessage message, bool pinned) async {
-    final raw = await _guard(
-      () => _chat.setMessagePinned(
-        pb.SetMessagePinnedRequest(messageId: message.id, pinned: pinned),
-        options: _unaryOptions,
-      ),
-    );
+    if (!_pinSupported) throw const ChatException(ChatErrorKind.other, status: StatusCode.unimplemented);
+    final before = _byId(message.id)?.pinned;
+    if (before != null && before != pinned) {
+      _setLocalPinned(message.id, pinned);
+      _notify();
+    }
+    final pb.Message raw;
+    try {
+      raw = await _guard(
+        () => _chat.setMessagePinned(
+          pb.SetMessagePinnedRequest(messageId: message.id, pinned: pinned),
+          options: _unaryOptions,
+        ),
+      );
+    } on ChatException catch (e) {
+      if (e.status == StatusCode.unimplemented) _pinSupported = false;
+      // A change that the stream brought meanwhile stays.
+      if (before != null && _byId(message.id)?.pinned == pinned) _setLocalPinned(message.id, before);
+      _notify();
+      rethrow;
+    }
     _onPinned(raw.messageId, raw.pinned, raw.updatedAt.toInt());
     _notify();
   }
