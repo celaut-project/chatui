@@ -18,7 +18,8 @@ type, because the file has no MIME type of its own). The app then:
    block (SHA3-256, with the blocks inside it) and refuses a file with a block that does
    not hash to its id, or that is cut inside a block: a node refuses that block, but only
    after the whole file was sent to it. While it checks, a card with the rocket (the one of
-   a launch) shows the bytes read of the size of the file, and Cancel stops the check and
+   a launch, lying on its pad) shows the bytes read of the size of the file, and the pad
+   raises the rocket from horizontal to vertical as they grow (`RaiseStage`); and Cancel stops the check and
    leaves the file where it was. The count is `celaut_transfer_progress` (stage `checking`);
 2. **moves** it (the picker's copy is in the cache of the app) to
    `<private dir>/packages/library/<service id>.bee`, through a partial file that is
