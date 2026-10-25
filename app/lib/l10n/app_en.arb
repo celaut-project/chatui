@@ -4759,5 +4759,16 @@
   },
   "celautRunFewerOptions": "Show fewer options",
   "celautRunModeSkills": "Skills",
-  "celautRunModeFiles": "On this phone"
+  "celautRunModeFiles": "On this phone",
+  "celautEnvEgressOpen": "This service can connect to any address. What you give it can leave the node and be sent anywhere.",
+  "celautEnvEgressNamed": "This service can connect to {hosts}. What you give it could be sent there.",
+  "@celautEnvEgressNamed": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "celautEnvEgressSteers": "This variable sets where the service connects.",
+  "celautEnvEgressAck": "I understand that the service can send these values out"
 }

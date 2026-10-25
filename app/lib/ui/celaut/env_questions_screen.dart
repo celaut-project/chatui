@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../bridge/api/celaut_env.dart';
+import '../../bridge/api/celaut_service_info.dart' show NetworkView;
+import '../../celaut/egress.dart';
 import '../../celaut/env_store.dart';
 import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
@@ -50,9 +52,18 @@ List<EnvChoice> envChoices(List<DeclaredVariableView> declared, List<EnvAnswer?>
 /// chooses one of the container, types a value, or skips it. Closing the screen cancels
 /// the launch: it gives null. Run on the review gives the choices.
 class EnvQuestionsScreen extends StatefulWidget {
-  const EnvQuestionsScreen({super.key, required this.declared, EnvStore? store}) : _store = store;
+  const EnvQuestionsScreen({
+    super.key,
+    required this.declared,
+    this.networks = const [],
+    EnvStore? store,
+  }) : _store = store;
 
   final List<DeclaredVariableView> declared;
+
+  /// The networks that the service declares. Where it can connect decides what the screen
+  /// tells the user about the values (`docs/celaut/env-variables.md`, section 3.1).
+  final List<NetworkView> networks;
   final EnvStore? _store;
 
   @override
@@ -62,6 +73,10 @@ class EnvQuestionsScreen extends StatefulWidget {
 class _EnvQuestionsScreenState extends State<EnvQuestionsScreen> {
   late final EnvStore _store = widget._store ?? EnvStore();
   late final List<EnvAnswer?> _answers = List.filled(widget.declared.length, null);
+  late final EgressReport _egress = egressOf(widget.networks);
+
+  /// The user accepted, on the review, that the service can send the values out.
+  bool _ack = false;
   int _index = 0;
   bool _typing = false;
   bool _hidden = true;
@@ -83,7 +98,45 @@ class _EnvQuestionsScreenState extends State<EnvQuestionsScreen> {
       _hidden = true;
       _typedError = null;
       _typedCtrl.clear();
+      // The answers can change from here: the acceptance is of the answers as they are.
+      _ack = false;
     });
+  }
+
+  /// The review asks for an acceptance when what the user gives can leave the node: any
+  /// value, if the service can connect to every address; a value of the container (the
+  /// secrets that the user keeps) if it declares hosts.
+  bool get _needsAck {
+    if (!_egress.leaves) return false;
+    final fromContainer = _answers.any((a) => a is EnvFromContainer);
+    final given = fromContainer || _answers.any((a) => a is EnvTyped);
+    return _egress.level == EgressLevel.open ? given : fromContainer;
+  }
+
+  /// Where the service can send what it is given, or null if it has no exit.
+  Widget? _egressNotice(AppLocalizations l) {
+    if (!_egress.leaves) return null;
+    final open = _egress.level == EgressLevel.open;
+    final color = open ? rustFor(context) : ArgusColors.of(context).accentText;
+    final shown = _egress.hosts.take(4).join(', ');
+    final hosts = _egress.hosts.length > 4 ? '$shown…' : shown;
+    return Container(
+      key: const Key('env-egress-notice'),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: color),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(open ? Icons.public : Icons.north_east, size: 20, color: color),
+          const SizedBox(width: 10),
+          Expanded(child: Text(open ? l.celautEnvEgressOpen : l.celautEnvEgressNamed(hosts))),
+        ],
+      ),
+    );
   }
 
   void _answer(EnvAnswer answer) {
@@ -201,6 +254,13 @@ class _EnvQuestionsScreenState extends State<EnvQuestionsScreen> {
       Text(v.name, key: const Key('env-var-name'), style: const TextStyle(fontFamily: 'IBMPlexMono', fontSize: 20)),
       const SizedBox(height: 8),
       Text(text, key: const Key('env-var-text')),
+      if (_egress.steered.containsKey(v.name))
+        Padding(
+          key: const Key('env-egress-steers'),
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(l.celautEnvEgressSteers, style: TextStyle(fontSize: 12.5, color: rustFor(context))),
+        ),
+      if (_egress.leaves) ...[const SizedBox(height: 12), ?_egressNotice(l)],
       if (chosen != null) ...[
         const SizedBox(height: 8),
         Text(l.celautEnvAskChosen(_describe(l, chosen)), style: TextStyle(fontSize: 12.5, color: colors.muted)),
@@ -279,6 +339,7 @@ class _EnvQuestionsScreenState extends State<EnvQuestionsScreen> {
     return [
       Text(l.celautEnvReviewTitle, style: Theme.of(context).textTheme.titleLarge),
       const SizedBox(height: 12),
+      ?_egressNotice(l),
       for (var i = 0; i < widget.declared.length; i++)
         ListTile(
           key: Key('env-review-${widget.declared[i].name}'),
@@ -289,9 +350,20 @@ class _EnvQuestionsScreenState extends State<EnvQuestionsScreen> {
       const SizedBox(height: 8),
       Text(l.celautEnvReviewNote, key: const Key('env-review-note'), style: TextStyle(fontSize: 12.5, color: colors.muted)),
       const SizedBox(height: 16),
+      if (_needsAck)
+        CheckboxListTile(
+          key: const Key('env-egress-ack'),
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          value: _ack,
+          onChanged: (v) => setState(() => _ack = v ?? false),
+          title: Text(l.celautEnvEgressAck),
+        ),
       FilledButton(
         key: const Key('env-run'),
-        onPressed: () => Navigator.pop(context, envChoices(widget.declared, _answers)),
+        onPressed: _needsAck && !_ack
+            ? null
+            : () => Navigator.pop(context, envChoices(widget.declared, _answers)),
         child: Text(l.celautEnvRun),
       ),
       TextButton(

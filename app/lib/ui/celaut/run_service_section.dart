@@ -371,7 +371,11 @@ class _RunServiceSectionState extends State<RunServiceSection> {
     if (!mounted) return null;
     return Navigator.of(context).push<List<EnvChoice>>(
       MaterialPageRoute(
-        builder: (_) => EnvQuestionsScreen(declared: info.environment, store: widget.envStore),
+        builder: (_) => EnvQuestionsScreen(
+          declared: info.environment,
+          networks: info.networks,
+          store: widget.envStore,
+        ),
       ),
     );
   }

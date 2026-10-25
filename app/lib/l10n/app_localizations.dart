@@ -10250,4 +10250,28 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   /// In en, this message translates to:
   /// **'On this phone'**
   String get celautRunModeFiles;
+
+  /// No description provided for @celautEnvEgressOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'This service can connect to any address. What you give it can leave the node and be sent anywhere.'**
+  String get celautEnvEgressOpen;
+
+  /// No description provided for @celautEnvEgressNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'This service can connect to {hosts}. What you give it could be sent there.'**
+  String celautEnvEgressNamed(String hosts);
+
+  /// No description provided for @celautEnvEgressSteers.
+  ///
+  /// In en, this message translates to:
+  /// **'This variable sets where the service connects.'**
+  String get celautEnvEgressSteers;
+
+  /// No description provided for @celautEnvEgressAck.
+  ///
+  /// In en, this message translates to:
+  /// **'I understand that the service can send these values out'**
+  String get celautEnvEgressAck;
 }

@@ -76,6 +76,39 @@ data cannot be filled. The user can skip it.
 Typed values are not saved. A switch "Save in my variables" with a name is a second step
 and not part of this design.
 
+### 3.1 A service that can send out what it is given (2026-10-25)
+
+A value that the user gives is read by the node, and by the service. If the service declares
+networks that leave the node, it can send the value there. The app cannot see what a service
+does with a value, but it knows where the service may connect, from `Service.network`
+(`app/lib/celaut/egress.dart`, `egressOf`):
+
+| Level | When | What the user sees |
+|---|---|---|
+| none | No network, or only groups of peers of the service (a tag with no dot and no `pow:`) | As before |
+| named | A tag that is a host name (`api.example.com`) or a chain (`pow:ergo`) | A notice on each question and on the review, with the hosts (at most four) |
+| open | A domain with the tag `*`: every address | The same notice, in the colour of an alert, saying that the value can be sent anywhere |
+
+The review asks for an acceptance (a box that Run waits for, "I understand that the service can
+send these values out") when:
+
+- the level is **open** and the user gives any value, typed or from the container; or
+- the level is **named** and a value comes from the container, because those are the secrets
+  that the user keeps in the app. A value that the user types for this service has the notice
+  and nothing more.
+
+If every variable is skipped there is nothing to accept. Going back and changing an answer
+clears the acceptance.
+
+A variable that a network parameter takes by `${NAME}` (section 1) has one more line: "This
+variable sets where the service connects", because its value chooses the destination. This
+applies to any level.
+
+What this does not do: it does not stop the user, it does not read the declaration of a
+service that does not declare its networks, and it does not know what a host does with a value.
+A service may also send a value to a node that it starts as a workload. The notice is a place to
+stop and think, not a guarantee.
+
 ## 4. Order in the launch, and who sees the values
 
 A quote asks every node. A value must not go to nodes that only price the service. So:
@@ -125,6 +158,7 @@ The node holds them in the file `/__config__` of the instance (`ConfigurationFil
 | The question between quote and start (`EnvironmentStep`, `LaunchCancelled`) | `app/lib/celaut/launcher.dart`, `app/lib/ui/celaut/run_service_section.dart` |
 | The container (`EnvStore`, the rules of a name and a value) | `app/lib/celaut/env_store.dart` |
 | `EnvVariablesScreen`, `EnvQuestionsScreen` | `app/lib/ui/celaut/env_variables_screen.dart`, `env_questions_screen.dart` |
+| The exits of a service (`egressOf`) and the notice | `app/lib/celaut/egress.dart`, `env_questions_screen.dart` |
 | Strings in English and Spanish | `app/lib/l10n/app_en.arb`, `app_es.arb` (`celautEnv*`) |
 
 A launch from the screen "Celaut service" of the Compute section has no question: it starts

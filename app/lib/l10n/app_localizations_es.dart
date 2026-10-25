@@ -6499,4 +6499,18 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautRunModeFiles => 'En el móvil';
+
+  @override
+  String get celautEnvEgressOpen => 'Este servicio puede conectarse a cualquier dirección. Lo que le des puede salir del nodo y enviarse a cualquier parte.';
+
+  @override
+  String celautEnvEgressNamed(String hosts) {
+    return 'Este servicio puede conectarse a $hosts. Lo que le des podría enviarse allí.';
+  }
+
+  @override
+  String get celautEnvEgressSteers => 'Esta variable decide a dónde se conecta el servicio.';
+
+  @override
+  String get celautEnvEgressAck => 'Entiendo que el servicio puede enviar estos valores fuera';
 }

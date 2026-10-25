@@ -2018,5 +2018,16 @@
   },
   "celautRunFewerOptions": "Mostrar menos opciones",
   "celautRunModeSkills": "Habilidades",
-  "celautRunModeFiles": "En el móvil"
+  "celautRunModeFiles": "En el móvil",
+  "celautEnvEgressOpen": "Este servicio puede conectarse a cualquier dirección. Lo que le des puede salir del nodo y enviarse a cualquier parte.",
+  "celautEnvEgressNamed": "Este servicio puede conectarse a {hosts}. Lo que le des podría enviarse allí.",
+  "@celautEnvEgressNamed": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "celautEnvEgressSteers": "Esta variable decide a dónde se conecta el servicio.",
+  "celautEnvEgressAck": "Entiendo que el servicio puede enviar estos valores fuera"
 }

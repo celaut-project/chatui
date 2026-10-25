@@ -1,5 +1,7 @@
 import 'package:argus_wallet/bridge/api/celaut.dart';
 import 'package:argus_wallet/bridge/api/celaut_env.dart';
+import 'package:argus_wallet/bridge/api/celaut_service_info.dart';
+import 'package:argus_wallet/celaut/egress.dart';
 import 'package:argus_wallet/celaut/env_store.dart';
 import 'package:argus_wallet/l10n/l10n.dart';
 import 'package:argus_wallet/ui/celaut/env_questions_screen.dart';
@@ -161,6 +163,7 @@ void main() {
       Future<void> Function() answers, {
       _Container? c,
       List<DeclaredVariableView> variables = declared,
+      List<NetworkView> networks = const [],
     }) async {
       List<EnvChoice>? result = const [EnvChoice(name: 'not-set')];
       var done = false;
@@ -172,7 +175,11 @@ void main() {
               onPressed: () async {
                 result = await Navigator.of(context).push<List<EnvChoice>>(
                   MaterialPageRoute(
-                    builder: (_) => EnvQuestionsScreen(declared: variables, store: (c ?? _Container()).store),
+                    builder: (_) => EnvQuestionsScreen(
+                      declared: variables,
+                      networks: networks,
+                      store: (c ?? _Container()).store,
+                    ),
                   ),
                 );
                 done = true;
@@ -232,6 +239,153 @@ void main() {
       ]);
       // Reading the values is the job of Rust: the screen never asked for one.
       expect(c.calls, isEmpty);
+    });
+
+    NetworkView net(List<String> tags, {String formal = ''}) =>
+        NetworkView(tags: tags, prose: '', formal: formal, protocolStack: const []);
+
+    group('a service that can send out what it is given', () {
+      test('its exits are read from its networks', () {
+        expect(egressOf(const []).level, EgressLevel.none);
+        // A group of peers of the service is not an exit.
+        expect(egressOf([net(['workers'])]).level, EgressLevel.none);
+        final named = egressOf([net(['api.example.com']), net(['pow:ergo']), net(['api.example.com'])]);
+        expect(named.level, EgressLevel.named);
+        expect(named.hosts, ['api.example.com', 'pow:ergo']);
+        // One domain with every address is the worst, wherever it is.
+        expect(egressOf([net(['api.example.com']), net(['*'])]).level, EgressLevel.open);
+        expect(egressOf([net(['*']), net(['api.example.com'])]).level, EgressLevel.open);
+      });
+
+      test('a variable that a parameter of a network takes is known', () {
+        final r = egressOf([
+          net(['pow:ergo'], formal: 'pow.chain=ergo\npow.block_id=\${BLOCK}'),
+        ]);
+        expect(r.steered.keys, ['BLOCK']);
+        expect(r.steered['BLOCK'], ['pow:ergo']);
+        expect(egressOf([net(['workers'])]).steered, isEmpty);
+      });
+
+      testWidgets('a service with no exit shows no notice and asks for no acceptance', (tester) async {
+        final result = await ask(tester, () async {
+          await tester.tap(find.byKey(const Key('env-ask-type')));
+          await tester.pump();
+          await tester.enterText(find.byKey(const Key('env-typed')), 'v');
+          await tester.tap(find.byKey(const Key('env-typed-use')));
+          await tester.pumpAndSettle();
+          expect(find.byKey(const Key('env-egress-notice')), findsNothing);
+          await tester.tap(find.byKey(const Key('env-ask-skip')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const Key('env-ask-skip')));
+          await tester.pumpAndSettle();
+          expect(find.byKey(const Key('env-egress-ack')), findsNothing);
+          await tester.tap(find.byKey(const Key('env-run')));
+          await tester.pumpAndSettle();
+        }, networks: [net(['workers'])]);
+        expect(result, hasLength(1));
+      });
+
+      testWidgets('every address: the notice shows on each question, and a value needs the acceptance', (
+        tester,
+      ) async {
+        final result = await ask(tester, () async {
+          expect(find.byKey(const Key('env-egress-notice')), findsOneWidget);
+          expect(find.textContaining('any address'), findsOneWidget);
+          await tester.tap(find.byKey(const Key('env-ask-type')));
+          await tester.pump();
+          await tester.enterText(find.byKey(const Key('env-typed')), 'secret');
+          await tester.tap(find.byKey(const Key('env-typed-use')));
+          await tester.pumpAndSettle();
+          expect(find.byKey(const Key('env-egress-notice')), findsOneWidget);
+          await tester.tap(find.byKey(const Key('env-ask-skip')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const Key('env-ask-skip')));
+          await tester.pumpAndSettle();
+          // The review: Run waits for the acceptance.
+          expect(find.byKey(const Key('env-egress-notice')), findsOneWidget);
+          expect(tester.widget<FilledButton>(find.byKey(const Key('env-run'))).onPressed, isNull);
+          await tester.tap(find.byKey(const Key('env-egress-ack')));
+          await tester.pump();
+          expect(tester.widget<FilledButton>(find.byKey(const Key('env-run'))).onPressed, isNotNull);
+          await tester.tap(find.byKey(const Key('env-run')));
+          await tester.pumpAndSettle();
+        }, networks: [net(['*'])]);
+        expect(result!.map((e) => e.name), ['API_KEY']);
+      });
+
+      testWidgets('every address, nothing given: there is nothing to accept', (tester) async {
+        final result = await ask(tester, () async {
+          for (var i = 0; i < 3; i++) {
+            await tester.tap(find.byKey(const Key('env-ask-skip')));
+            await tester.pumpAndSettle();
+          }
+          expect(find.byKey(const Key('env-egress-ack')), findsNothing);
+          await tester.tap(find.byKey(const Key('env-run')));
+          await tester.pumpAndSettle();
+        }, networks: [net(['*'])]);
+        expect(result, isEmpty);
+      });
+
+      testWidgets('named hosts: the hosts are shown, and only a saved variable needs the acceptance', (
+        tester,
+      ) async {
+        final c = _Container()..values['OPENAI_KEY'] = 'sk-secret';
+        final result = await ask(tester, () async {
+          expect(find.textContaining('api.example.com'), findsOneWidget);
+          // A typed value goes with the notice and nothing more.
+          await tester.tap(find.byKey(const Key('env-ask-type')));
+          await tester.pump();
+          await tester.enterText(find.byKey(const Key('env-typed')), 'typed');
+          await tester.tap(find.byKey(const Key('env-typed-use')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const Key('env-ask-skip')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const Key('env-ask-skip')));
+          await tester.pumpAndSettle();
+          expect(find.byKey(const Key('env-egress-ack')), findsNothing);
+          expect(tester.widget<FilledButton>(find.byKey(const Key('env-run'))).onPressed, isNotNull);
+          // Back, and give a saved variable instead: now it asks.
+          await tester.tap(find.byKey(const Key('env-back')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const Key('env-back')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const Key('env-back')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const Key('env-ask-pick')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const Key('env-pick-OPENAI_KEY')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const Key('env-ask-skip')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const Key('env-ask-skip')));
+          await tester.pumpAndSettle();
+          expect(find.byKey(const Key('env-egress-ack')), findsOneWidget);
+          expect(tester.widget<FilledButton>(find.byKey(const Key('env-run'))).onPressed, isNull);
+          await tester.tap(find.byKey(const Key('env-egress-ack')));
+          await tester.pump();
+          await tester.tap(find.byKey(const Key('env-run')));
+          await tester.pumpAndSettle();
+        }, c: c, networks: [net(['api.example.com'])]);
+        expect(result!.single.container, 'OPENAI_KEY');
+      });
+
+      testWidgets('a variable that a network takes says that it sets where the service connects', (
+        tester,
+      ) async {
+        await ask(tester, () async {
+          // The first variable is not steered, the second one is.
+          expect(find.byKey(const Key('env-egress-steers')), findsNothing);
+          await tester.tap(find.byKey(const Key('env-ask-skip')));
+          await tester.pumpAndSettle();
+          expect(find.byKey(const Key('env-egress-steers')), findsOneWidget);
+          await tester.tap(find.byKey(const Key('env-ask-skip')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const Key('env-ask-skip')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const Key('env-run')));
+          await tester.pumpAndSettle();
+        }, networks: [net(['pow:ergo'], formal: 'pow.block_id=\${MODE}')]);
+      });
     });
 
     testWidgets('skipping every variable runs with none', (tester) async {
