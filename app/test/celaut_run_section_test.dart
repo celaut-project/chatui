@@ -267,6 +267,11 @@ void main() {
     await tester.tap(find.byKey(const Key('run-skill-skill-sat')));
     await tester.pumpAndSettle();
     if (serviceId != null) {
+      // The services beyond the best are folded until the user asks for them.
+      if (find.byKey(Key('skill-service-$serviceId')).evaluate().isEmpty) {
+        await tester.tap(find.byKey(const Key('skill-sheet-more')));
+        await tester.pumpAndSettle();
+      }
       await tester.tap(find.byKey(Key('skill-service-$serviceId')));
       await tester.pump();
     }
@@ -317,6 +322,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('skill-sheet')), findsOneWidget);
     expect(find.byKey(const Key('skill-service-best')), findsOneWidget);
+    // Only the best shows at first; the others are one tap away.
+    expect(find.byKey(Key('skill-service-$_best')), findsOneWidget);
+    expect(find.byKey(Key('skill-service-$_other')), findsNothing);
+    expect(find.text('${_best.substring(0, 8)}…'), findsOneWidget);
+    expect(find.text(_best), findsNothing);
+    await tester.tap(find.byKey(const Key('skill-sheet-more')));
+    await tester.pumpAndSettle();
     final best = tester.getTopLeft(find.byKey(Key('skill-service-$_best')));
     final other = tester.getTopLeft(find.byKey(Key('skill-service-$_other')));
     expect(best.dy, lessThan(other.dy));

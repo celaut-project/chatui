@@ -1650,12 +1650,38 @@ class _Bubble extends StatelessWidget {
                     ).textTheme.labelSmall?.copyWith(color: scheme.error),
                   ),
                 ),
+              if (message.createdAt > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: Text(
+                    _messageTime(context, message.createdAt),
+                    key: Key('chat-time-${message.seq}'),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 11,
+                        ),
+                  ),
+                ),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+/// The time of a message: the hour for today, the date and the hour for another day, in the
+/// way of the device (12 or 24 hours) and of the language of the app.
+String _messageTime(BuildContext context, int millis) {
+  final at = DateTime.fromMillisecondsSinceEpoch(millis);
+  final now = DateTime.now();
+  final l = MaterialLocalizations.of(context);
+  final time = l.formatTimeOfDay(
+    TimeOfDay.fromDateTime(at),
+    alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
+  );
+  final today = at.year == now.year && at.month == now.month && at.day == now.day;
+  return today ? time : '${l.formatShortDate(at)}, $time';
 }
 
 /// The builder of the list of messages, which tells the screen the first message that the
