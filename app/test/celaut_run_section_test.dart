@@ -12,6 +12,7 @@ import 'package:argus_wallet/celaut/env_store.dart';
 import 'package:argus_wallet/celaut/launcher.dart';
 import 'package:argus_wallet/celaut/package_channel.dart';
 import 'package:argus_wallet/celaut/package_library.dart';
+import 'package:argus_wallet/celaut/run_mode.dart';
 import 'package:argus_wallet/celaut/payers.dart';
 import 'package:argus_wallet/celaut/service_strings.dart';
 import 'package:argus_wallet/celaut/service_transfer.dart';
@@ -249,6 +250,7 @@ void main() {
   }
 
   setUp(() {
+    runMode.value = RunMode.skills;
     // The confirmation keeps the last least time in the preferences.
     SharedPreferences.setMockInitialValues({});
     launched = [];
@@ -262,6 +264,12 @@ void main() {
     skills = [_sat, _summary];
     outcome = () => LaunchOutcome(quote: _quote(), instance: _instance(), skipped: const []);
   });
+
+  /// The mode of the files: the section shows the catalog or the files, one at a time.
+  Future<void> showFiles(WidgetTester tester) async {
+    await tester.tap(find.descendant(of: find.byKey(const Key('run-mode')), matching: find.text('From a file')));
+    await tester.pumpAndSettle();
+  }
 
   Future<void> run(WidgetTester tester, {String? serviceId}) async {
     await tester.tap(find.byKey(const Key('run-skill-skill-sat')));
@@ -280,6 +288,26 @@ void main() {
     await tester.tap(find.byKey(const Key('run-confirm-ok')));
     await tester.pumpAndSettle();
   }
+
+  testWidgets('the section shows the skills or the files, one at a time, and keeps the choice', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await open(tester);
+    expect(find.byKey(const Key('run-skill-skill-sat')), findsOneWidget);
+    expect(find.byKey(const Key('pkg-import')), findsNothing);
+    await showFiles(tester);
+    expect(find.byKey(const Key('run-skill-skill-sat')), findsNothing);
+    expect(find.byKey(const Key('run-search')), findsNothing);
+    expect(find.byKey(const Key('pkg-import')), findsOneWidget);
+    expect(runMode.value, RunMode.files);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString(RunModeChoice.key), 'files');
+    await tester.tap(find.descendant(of: find.byKey(const Key('run-mode')), matching: find.text('Skills')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('run-skill-skill-sat')), findsOneWidget);
+    expect(find.byKey(const Key('pkg-import')), findsNothing);
+  });
 
   testWidgets('it lists the skills and the search narrows them', (tester) async {
     await open(tester);
@@ -627,6 +655,7 @@ void main() {
 
     testWidgets('with none loaded, the section says how to load one', (tester) async {
       await open(tester, packages: packages, lib: lib);
+    await showFiles(tester);
       expect(find.byKey(const Key('pkg-empty')), findsOneWidget);
       expect(find.text(appL10n.celautPkgEmpty), findsOneWidget);
       expect(find.byKey(const Key('pkg-import')), findsOneWidget);
@@ -635,6 +664,7 @@ void main() {
     testWidgets('a file is picked, loaded into the app and listed', (tester) async {
       packages.picked = const PickedPackage(path: '/cache/picked.bee', bytes: 10, name: 'echo.celaut.bee');
       await open(tester, packages: packages, lib: lib);
+    await showFiles(tester);
       await tester.tap(find.byKey(const Key('pkg-import')));
       await tester.pumpAndSettle();
       expect(lib.calls, ['import /cache/picked.bee echo.celaut.bee']);
@@ -650,6 +680,7 @@ void main() {
       packages.picked = const PickedPackage(path: '/cache/picked.bee', bytes: 10, name: 'echo.celaut.bee');
       lib.importGate = Completer<void>();
       await open(tester, packages: packages, lib: lib);
+    await showFiles(tester);
       await tester.tap(find.byKey(const Key('pkg-import')));
       await tester.pump(const Duration(milliseconds: 50));
       expect(find.byKey(const Key('import-progress')), findsOneWidget);
@@ -673,6 +704,7 @@ void main() {
       packages.picked = const PickedPackage(path: '/cache/picked.bee', bytes: 10, name: 'echo.celaut.bee');
       lib.importGate = Completer<void>();
       await open(tester, packages: packages, lib: lib);
+    await showFiles(tester);
       await tester.tap(find.byKey(const Key('pkg-import')));
       await tester.pump(const Duration(milliseconds: 50));
       await tester.tap(find.byKey(const Key('import-cancel')));
@@ -685,6 +717,7 @@ void main() {
 
     testWidgets('closing the picker loads nothing', (tester) async {
       await open(tester, packages: packages, lib: lib);
+    await showFiles(tester);
       await tester.tap(find.byKey(const Key('pkg-import')));
       await tester.pumpAndSettle();
       expect(packages.picks, 1);
@@ -699,6 +732,7 @@ void main() {
         message: 'the file does not say which service it is',
       );
       await open(tester, packages: packages, lib: lib);
+    await showFiles(tester);
       await tester.tap(find.byKey(const Key('pkg-import')));
       await tester.pumpAndSettle();
       expect(
@@ -711,6 +745,7 @@ void main() {
     testWidgets('Run launches the loaded service by its id', (tester) async {
       lib.stored = [lib.view()];
       await open(tester, packages: packages, lib: lib);
+    await showFiles(tester);
       await tester.tap(find.byKey(Key('pkg-run-$_best')));
       await tester.pumpAndSettle();
       expect(find.text(appL10n.celautRunConfirmTitle('echo')), findsOneWidget);
@@ -723,6 +758,7 @@ void main() {
     testWidgets('with the theme of the app, a loaded service and the confirmation lay out', (tester) async {
       lib.stored = [lib.view(name: 'echo')];
       await open(tester, packages: packages, lib: lib, theme: argusTheme(watchful: false), preview: _quote());
+    await showFiles(tester);
       expect(tester.takeException(), isNull);
       expect(tester.getSize(find.byKey(Key('pkg-run-$_best'))).width, lessThan(300));
       await tester.tap(find.byKey(Key('pkg-run-$_best')));
@@ -737,6 +773,7 @@ void main() {
     testWidgets('a service whose file is gone cannot run and says so', (tester) async {
       lib.stored = [lib.view(present: false)];
       await open(tester, packages: packages, lib: lib);
+    await showFiles(tester);
       expect(find.text(appL10n.celautPkgMissing), findsOneWidget);
       expect(tester.widget<OutlinedButton>(find.byKey(Key('pkg-run-$_best'))).onPressed, isNull);
       expect(launched, isEmpty);
@@ -745,6 +782,7 @@ void main() {
     testWidgets('Remove asks first, then deletes it; Cancel keeps it', (tester) async {
       lib.stored = [lib.view(name: 'echo')];
       await open(tester, packages: packages, lib: lib);
+    await showFiles(tester);
       await tester.tap(find.byKey(Key('pkg-remove-$_best')));
       await tester.pumpAndSettle();
       expect(find.text(appL10n.celautPkgRemoveBody('echo')), findsOneWidget);
@@ -852,6 +890,7 @@ void main() {
       packages.picked = const PickedPackage(path: '/cache/picked.bee', bytes: 10, name: 'echo.celaut.bee');
       final lib = _Lib();
       await open(tester, transfer: transfer(), packages: packages, lib: lib);
+    await showFiles(tester);
       await run(tester);
       expect(find.text(appL10n.celautSendNoHolder), findsOneWidget);
       expect(find.text(appL10n.celautSendFromFile('q.example:9')), findsOneWidget);
@@ -922,6 +961,7 @@ void main() {
       packages.picked = const PickedPackage(path: '/cache/other.bee', bytes: 10, name: 'other');
       final lib = _Lib()..imports = _other;
       await open(tester, transfer: transfer(), packages: packages, lib: lib);
+    await showFiles(tester);
       await run(tester);
       await tester.tap(find.byKey(const Key('launch-send-service')));
       await tester.pumpAndSettle();

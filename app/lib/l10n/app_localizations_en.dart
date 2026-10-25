@@ -6418,4 +6418,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get celautRunFewerOptions => 'Show fewer options';
+
+  @override
+  String get celautRunModeSkills => 'Skills';
+
+  @override
+  String get celautRunModeFiles => 'From a file';
 }

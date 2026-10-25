@@ -10238,4 +10238,16 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   /// In en, this message translates to:
   /// **'Show fewer options'**
   String get celautRunFewerOptions;
+
+  /// No description provided for @celautRunModeSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Skills'**
+  String get celautRunModeSkills;
+
+  /// No description provided for @celautRunModeFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'From a file'**
+  String get celautRunModeFiles;
 }
