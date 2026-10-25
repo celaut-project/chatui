@@ -6410,4 +6410,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatSelectText => 'Select text';
+
+  @override
+  String celautRunMoreOptions(String count) {
+    return 'Show $count more options';
+  }
+
+  @override
+  String get celautRunFewerOptions => 'Show fewer options';
 }

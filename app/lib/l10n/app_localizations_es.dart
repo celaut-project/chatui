@@ -6485,4 +6485,12 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get chatSelectText => 'Seleccionar texto';
+
+  @override
+  String celautRunMoreOptions(String count) {
+    return 'Mostrar $count opciones más';
+  }
+
+  @override
+  String get celautRunFewerOptions => 'Mostrar menos opciones';
 }

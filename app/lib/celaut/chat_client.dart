@@ -84,6 +84,7 @@ class ChatMessage {
     this.pinned = false,
     this.id = '',
     this.updatedAt = 0,
+    this.createdAt = 0,
     this.error,
   });
 
@@ -127,6 +128,10 @@ class ChatMessage {
   /// The time of the last change of [status] or [pinned], in milliseconds since 1970.
   final int updatedAt;
 
+  /// The time when the service made the message (`created_at`), in milliseconds since 1970.
+  /// Zero if the message has none, as a message that is still on its way.
+  final int createdAt;
+
   /// The reason of a failure, for the user to read: the `error` of a `FAILED` message
   /// (section 5.2). Null if the service gave none. The client does not read the failure
   /// from [text] or from `metadata`.
@@ -159,6 +164,7 @@ class ChatMessage {
         pinned: pinned ?? this.pinned,
         id: id,
         updatedAt: updatedAt ?? this.updatedAt,
+        createdAt: createdAt,
         error: error ?? this.error,
       );
 }
@@ -682,6 +688,7 @@ class ChatClient extends ChangeNotifier {
       pinned: m.pinned,
       id: m.messageId,
       updatedAt: m.updatedAt.toInt(),
+      createdAt: m.createdAt.toInt(),
       error: _errorOf(m.error),
     );
   }

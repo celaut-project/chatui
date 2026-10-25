@@ -1065,6 +1065,31 @@ void main() {
       replyTo: 0,
     );
 
+    testWidgets('each message shows its time, with the date when it is not from today', (
+      tester,
+    ) async {
+      final now = DateTime.now();
+      chat = _FakeChat(
+        history: [
+          ChatMessage(
+            seq: 0,
+            role: 'user',
+            text: 'old',
+            createdAt: now.subtract(const Duration(days: 3)).millisecondsSinceEpoch,
+          ),
+          ChatMessage(seq: 1, role: 'assistant', text: 'new', createdAt: now.millisecondsSinceEpoch),
+          const ChatMessage(seq: 2, role: 'assistant', text: 'no time'),
+        ],
+      );
+      await open(tester);
+      final today = tester.widget<Text>(find.byKey(const Key('chat-time-1'))).data!;
+      final before = tester.widget<Text>(find.byKey(const Key('chat-time-0'))).data!;
+      expect(today, isNot(contains(',')));
+      expect(before, contains(','));
+      // A message with no time shows none.
+      expect(find.byKey(const Key('chat-time-2')), findsNothing);
+    });
+
     testWidgets('entering a chat shows its end', (tester) async {
       chat = _FakeChat(
         history: [

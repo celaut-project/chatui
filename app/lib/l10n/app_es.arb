@@ -2007,5 +2007,14 @@
   "walletSummaryDetails": "Detalles de la billetera",
   "walletSummaryLatest": "Últimas transacciones",
   "walletSummaryNoTransactions": "Aún no hay transacciones",
-  "chatSelectText": "Seleccionar texto"
+  "chatSelectText": "Seleccionar texto",
+  "celautRunMoreOptions": "Mostrar {count} opciones más",
+  "@celautRunMoreOptions": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "celautRunFewerOptions": "Mostrar menos opciones"
 }

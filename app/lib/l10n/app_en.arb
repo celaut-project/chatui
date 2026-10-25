@@ -4748,5 +4748,14 @@
   "walletSummaryDetails": "Wallet details",
   "walletSummaryLatest": "Latest transactions",
   "walletSummaryNoTransactions": "No transactions yet",
-  "chatSelectText": "Select text"
+  "chatSelectText": "Select text",
+  "celautRunMoreOptions": "Show {count} more options",
+  "@celautRunMoreOptions": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "celautRunFewerOptions": "Show fewer options"
 }

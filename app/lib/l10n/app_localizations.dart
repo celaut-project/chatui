@@ -10226,4 +10226,16 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   /// In en, this message translates to:
   /// **'Select text'**
   String get chatSelectText;
+
+  /// No description provided for @celautRunMoreOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Show {count} more options'**
+  String celautRunMoreOptions(String count);
+
+  /// No description provided for @celautRunFewerOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Show fewer options'**
+  String get celautRunFewerOptions;
 }

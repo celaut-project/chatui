@@ -42,6 +42,9 @@ class _SkillServicesSheetState extends State<SkillServicesSheet> {
   bool _loading = true;
   CelautError? _error;
   String? _chosen;
+
+  /// The other services, beyond the best, are folded until the user asks for them.
+  bool _showAll = false;
   FullWalletGate _gate = FullWalletGate.open;
   final _previews = <String, Future<QuoteView?>>{};
 
@@ -117,10 +120,26 @@ class _SkillServicesSheetState extends State<SkillServicesSheet> {
               ),
             ] else if (services != null && services.isEmpty)
               Text(l.celautRunNoServices, key: const Key('skill-sheet-empty'), style: t.secondary),
-            for (var i = 0; i < (services?.length ?? 0); i++) ...[
-              _serviceRow(context, services![i], best: i == 0),
-              const SizedBox(height: 8),
-            ],
+            // The best service, chosen already, is what most users take: the others are one
+            // tap away, and stay in view if the user chose one of them.
+            for (var i = 0; i < (services?.length ?? 0); i++)
+              if (i == 0 || _showAll || services![i].serviceId == _chosen) ...[
+                _serviceRow(context, services![i], best: i == 0),
+                const SizedBox(height: 4),
+              ],
+            if (services != null && services.length > 1)
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TextButton(
+                  key: const Key('skill-sheet-more'),
+                  onPressed: () => setState(() => _showAll = !_showAll),
+                  child: Text(
+                    _showAll
+                        ? l.celautRunFewerOptions
+                        : l.celautRunMoreOptions('${services.length - 1}'),
+                  ),
+                ),
+              ),
             if (_chosen != null) ...[
               const SizedBox(height: 4),
               _preview(context, _chosen!),
@@ -172,16 +191,21 @@ class _SkillServicesSheetState extends State<SkillServicesSheet> {
                 children: [
                   Row(
                     children: [
-                      Text(l.celautRunScore(service.score.toStringAsFixed(2)), style: t.primary),
+                      Text(
+                        l.celautRunScore('${(service.score * 100).round()}%'),
+                        style: t.primary,
+                      ),
                       if (best) ...[
                         const SizedBox(width: 8),
                         Text(l.celautRunBest, key: const Key('skill-service-best'), style: t.label),
                       ],
                     ],
                   ),
-                  // Not selectable: a selectable text takes the tap that chooses the row.
+                  // The start of the id is enough to tell two services apart; the whole id is in
+                  // the info of the service. Not selectable: a selectable text takes the tap
+                  // that chooses the row.
                   Text(
-                    service.serviceId,
+                    '${service.serviceId.substring(0, 8)}…',
                     style: t.secondary.copyWith(fontFamily: 'monospace', fontSize: 11.5),
                   ),
                 ],
