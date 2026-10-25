@@ -6498,5 +6498,5 @@ class AppLocalizationsEs extends AppLocalizations {
   String get celautRunModeSkills => 'Habilidades';
 
   @override
-  String get celautRunModeFiles => 'Desde un archivo';
+  String get celautRunModeFiles => 'En el móvil';
 }

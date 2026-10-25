@@ -267,7 +267,7 @@ void main() {
 
   /// The mode of the files: the section shows the catalog or the files, one at a time.
   Future<void> showFiles(WidgetTester tester) async {
-    await tester.tap(find.descendant(of: find.byKey(const Key('run-mode')), matching: find.text('From a file')));
+    await tester.tap(find.descendant(of: find.byKey(const Key('run-mode')), matching: find.text('On this phone')));
     await tester.pumpAndSettle();
   }
 
@@ -307,6 +307,21 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('run-skill-skill-sat')), findsOneWidget);
     expect(find.byKey(const Key('pkg-import')), findsNothing);
+  });
+
+  testWidgets('On this phone: the saved services run from there, and import is a small action', (
+    tester,
+  ) async {
+    final lib = _Lib();
+    lib.stored = [lib.view(), lib.view(id: _other, name: 'summary')];
+    await open(tester, lib: lib);
+    await showFiles(tester);
+    // Saved services are listed, each with its Run, and the import is one small button.
+    expect(find.byKey(Key('pkg-run-$_best')), findsOneWidget);
+    expect(find.byKey(Key('pkg-run-$_other')), findsOneWidget);
+    expect(find.byKey(const Key('pkg-import')), findsOneWidget);
+    expect(find.byType(FilledButton), findsNothing);
+    expect(find.byKey(const Key('pkg-empty')), findsNothing);
   });
 
   testWidgets('it lists the skills and the search narrows them', (tester) async {
