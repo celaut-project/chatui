@@ -10248,6 +10248,6 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   /// No description provided for @celautRunModeFiles.
   ///
   /// In en, this message translates to:
-  /// **'From a file'**
+  /// **'On this phone'**
   String get celautRunModeFiles;
 }

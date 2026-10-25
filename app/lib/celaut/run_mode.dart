@@ -1,8 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// What the screen "New conversation" shows: the skills of the catalog, or the service
-/// files of the user. One at a time, so that neither pushes the other off the screen.
+/// What the screen "New conversation" shows: the skills of the catalog, or the services
+/// already saved in the app (they run with no new import). One at a time, so that neither
+/// pushes the other off the screen.
 enum RunMode { skills, files }
 
 /// The mode that the user chose last, kept: who runs from files opens on them next time.

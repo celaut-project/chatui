@@ -725,7 +725,7 @@ class _RunServiceSectionState extends State<RunServiceSection> {
               ),
               ButtonSegment(
                 value: RunMode.files,
-                icon: const Icon(Icons.insert_drive_file_outlined, size: 18),
+                icon: const Icon(Icons.smartphone_outlined, size: 18),
                 label: Text(l.celautRunModeFiles),
               ),
             ],
@@ -789,20 +789,28 @@ class _RunServiceSectionState extends State<RunServiceSection> {
                   ),
                 ),
               ),
-          ] else ...[
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
+          ] else if (_packages.isEmpty) ...[
+            // Nothing saved yet: the way to save a service is the one thing to do here.
+            Text(l.celautPkgEmpty, key: const Key('pkg-empty'), style: t.secondary),
+            const SizedBox(height: 12),
+            FilledButton.tonalIcon(
               key: const Key('pkg-import'),
               onPressed: _running ? null : _import,
               icon: const Icon(Icons.upload_file_outlined, size: 18),
               label: Text(l.celautPkgImport),
             ),
-          ),
-          const SizedBox(height: 8),
-          if (_packages.isEmpty)
-            Text(l.celautPkgEmpty, key: const Key('pkg-empty'), style: t.secondary)
-          else
+          ] else ...[
+            // The services saved in the app run from here, with no new import. Importing
+            // another is the rare action: a small button over the list.
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: TextButton.icon(
+                key: const Key('pkg-import'),
+                onPressed: _running ? null : _import,
+                icon: const Icon(Icons.upload_file_outlined, size: 18),
+                label: Text(l.celautPkgImport),
+              ),
+            ),
             for (final package in _packages)
               Padding(
                 key: Key('pkg-${package.serviceId}'),
