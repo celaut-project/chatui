@@ -4757,5 +4757,7 @@
       }
     }
   },
-  "celautRunFewerOptions": "Show fewer options"
+  "celautRunFewerOptions": "Show fewer options",
+  "celautRunModeSkills": "Skills",
+  "celautRunModeFiles": "From a file"
 }

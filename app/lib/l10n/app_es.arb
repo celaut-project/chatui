@@ -2016,5 +2016,7 @@
       }
     }
   },
-  "celautRunFewerOptions": "Mostrar menos opciones"
+  "celautRunFewerOptions": "Mostrar menos opciones",
+  "celautRunModeSkills": "Habilidades",
+  "celautRunModeFiles": "Desde un archivo"
 }

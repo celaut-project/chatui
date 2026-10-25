@@ -15,6 +15,7 @@ import '../../celaut/launcher.dart';
 import '../../bridge/api/celaut_package.dart';
 import '../../celaut/package_channel.dart';
 import '../../celaut/package_library.dart';
+import '../../celaut/run_mode.dart';
 import '../../celaut/payers.dart';
 import '../../celaut/service_strings.dart';
 import '../../celaut/service_transfer.dart';
@@ -167,6 +168,13 @@ class _RunServiceSectionState extends State<RunServiceSection> {
     super.initState();
     _readPackages();
     _read();
+    // Open on the mode that the user used last.
+    runMode.addListener(_onMode);
+    runMode.load();
+  }
+
+  void _onMode() {
+    if (mounted) setState(() {});
   }
 
   void _readPackages() {
@@ -180,6 +188,7 @@ class _RunServiceSectionState extends State<RunServiceSection> {
 
   @override
   void dispose() {
+    runMode.removeListener(_onMode);
     _search.dispose();
     super.dispose();
   }
@@ -703,6 +712,28 @@ class _RunServiceSectionState extends State<RunServiceSection> {
             Text(l.celautRunTitle.toUpperCase(), style: t.label),
             const SizedBox(height: 10),
           ],
+          // One mode at a time: the catalog is long and would push the files off the
+          // screen. The mode that the user used last is the one that opens.
+          SegmentedButton<RunMode>(
+            key: const Key('run-mode'),
+            showSelectedIcon: false,
+            segments: [
+              ButtonSegment(
+                value: RunMode.skills,
+                icon: const Icon(Icons.auto_awesome_outlined, size: 18),
+                label: Text(l.celautRunModeSkills),
+              ),
+              ButtonSegment(
+                value: RunMode.files,
+                icon: const Icon(Icons.insert_drive_file_outlined, size: 18),
+                label: Text(l.celautRunModeFiles),
+              ),
+            ],
+            selected: {runMode.value},
+            onSelectionChanged: (chosen) => runMode.set(chosen.first),
+          ),
+          const SizedBox(height: 12),
+          if (runMode.value == RunMode.skills) ...[
           TextField(
             key: const Key('run-search'),
             controller: _search,
@@ -758,9 +789,17 @@ class _RunServiceSectionState extends State<RunServiceSection> {
                   ),
                 ),
               ),
-          const SizedBox(height: 16),
-          Text(l.celautPkgTitle.toUpperCase(), style: t.label),
-          const SizedBox(height: 6),
+          ] else ...[
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              key: const Key('pkg-import'),
+              onPressed: _running ? null : _import,
+              icon: const Icon(Icons.upload_file_outlined, size: 18),
+              label: Text(l.celautPkgImport),
+            ),
+          ),
+          const SizedBox(height: 8),
           if (_packages.isEmpty)
             Text(l.celautPkgEmpty, key: const Key('pkg-empty'), style: t.secondary)
           else
@@ -801,16 +840,7 @@ class _RunServiceSectionState extends State<RunServiceSection> {
                   ],
                 ),
               ),
-          const SizedBox(height: 6),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              key: const Key('pkg-import'),
-              onPressed: _running ? null : _import,
-              icon: const Icon(Icons.upload_file_outlined, size: 18),
-              label: Text(l.celautPkgImport),
-            ),
-          ),
+          ],
           // While a launch runs, its rocket is over the screen ([LaunchRocket]).
         ],
       ),
