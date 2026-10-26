@@ -359,8 +359,10 @@ class _EnvQuestionsScreenState extends State<EnvQuestionsScreen> {
   /// Where the sensitive values can go, in one card: red if they can leave the node.
   Widget _warningCard(AppLocalizations l, EnvWarnings w) {
     final red = rustFor(context);
-    final normal = accentTextOf(context);
-    final border = w.egress ? rust : ArgusColors.of(context).accent;
+    // Only egress is red (the notes of Josemi): the other parts are in the colour of the text,
+    // so that red keeps its meaning. The accent of the Celaut palettes is close to red.
+    final normal = Theme.of(context).colorScheme.onSurface;
+    final border = w.egress ? rust : Theme.of(context).colorScheme.outline;
     final exits = [if (w.anyAddress) l.celautEnvEgressAnyAddress, ...w.hosts].join(', ');
     return Container(
       key: Key(w.egress ? 'env-warning-egress' : 'env-warning'),
