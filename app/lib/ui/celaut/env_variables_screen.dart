@@ -19,7 +19,8 @@ String envProblemText(AppLocalizations l, EnvProblem problem) => switch (problem
 
 /// The container of environment variables (`docs/celaut/env-variables.md`, section 2):
 /// the names, with the value hidden. Add, edit and delete. A value is shown only in the
-/// edit form, with the eye.
+/// edit form, with the eye. Each variable is sensitive or not (section 3.2): the lock of
+/// the row and the switch of the form change it.
 class EnvVariablesScreen extends StatefulWidget {
   const EnvVariablesScreen({super.key, EnvStore? store}) : _store = store;
 
@@ -44,10 +45,24 @@ class _EnvVariablesScreenState extends State<EnvVariablesScreen> {
 
   void _reload() => setState(() => _names = _read());
 
+  void _toggleSensitive(EnvNameView n) {
+    try {
+      _store.setSensitive(n.name, !n.sensitive);
+    } on CelautError catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(CelautStrings.errorText(e.kind))));
+    }
+    _reload();
+  }
+
   Future<void> _edit(String? name) async {
     final saved = await showDialog<bool>(
       context: context,
-      builder: (_) => _EnvEditDialog(store: _store, name: name, existing: {for (final n in _names) n.name}),
+      builder: (_) => _EnvEditDialog(
+        store: _store,
+        name: name,
+        existing: {for (final n in _names) n.name},
+        sensitive: name == null ? true : _names.firstWhere((n) => n.name == name).sensitive,
+      ),
     );
     if (saved == true && mounted) _reload();
   }
@@ -108,8 +123,14 @@ class _EnvVariablesScreenState extends State<EnvVariablesScreen> {
             ListTile(
               key: Key('env-row-${n.name}'),
               contentPadding: EdgeInsets.zero,
+              leading: IconButton(
+                key: Key('env-sensitive-${n.name}'),
+                tooltip: n.sensitive ? l.celautEnvMarkNotSensitive : l.celautEnvMarkSensitive,
+                icon: Icon(n.sensitive ? Icons.lock_outline : Icons.lock_open_outlined),
+                onPressed: () => _toggleSensitive(n),
+              ),
               title: Text(n.name, style: const TextStyle(fontFamily: 'IBMPlexMono', fontSize: 14)),
-              subtitle: const Text('••••••••'),
+              subtitle: Text('••••••••  ·  ${n.sensitive ? l.celautEnvSensitive : l.celautEnvNotSensitive}'),
               onTap: () => _edit(n.name),
               trailing: IconButton(
                 key: Key('env-delete-${n.name}'),
@@ -124,13 +145,16 @@ class _EnvVariablesScreenState extends State<EnvVariablesScreen> {
   }
 }
 
-/// Add a variable (no [name]) or edit one. The value is hidden until the eye is tapped.
+/// Add a variable (no [name]) or edit one. The value is hidden until the eye is tapped. A
+/// new variable is sensitive unless the user turns the switch off: the container is the
+/// place for the secrets that the user keeps.
 class _EnvEditDialog extends StatefulWidget {
-  const _EnvEditDialog({required this.store, required this.name, required this.existing});
+  const _EnvEditDialog({required this.store, required this.name, required this.existing, required this.sensitive});
 
   final EnvStore store;
   final String? name;
   final Set<String> existing;
+  final bool sensitive;
 
   @override
   State<_EnvEditDialog> createState() => _EnvEditDialogState();
@@ -140,6 +164,7 @@ class _EnvEditDialogState extends State<_EnvEditDialog> {
   late final _nameCtrl = TextEditingController(text: widget.name ?? '');
   late final _valueCtrl = TextEditingController(text: widget.name == null ? '' : widget.store.value(widget.name!) ?? '');
   bool _hidden = true;
+  late bool _sensitive = widget.sensitive;
   String? _nameError;
   String? _valueError;
 
@@ -170,7 +195,7 @@ class _EnvEditDialogState extends State<_EnvEditDialog> {
     });
     if (nameError != null || valueProblem != null) return;
     try {
-      widget.store.set(widget.name ?? name, value);
+      widget.store.set(widget.name ?? name, value, sensitive: _sensitive);
       Navigator.pop(context, true);
     } on CelautError catch (e) {
       setState(() => _valueError = e.message);
@@ -217,6 +242,14 @@ class _EnvEditDialogState extends State<_EnvEditDialog> {
                   onPressed: () => setState(() => _hidden = !_hidden),
                 ),
               ),
+            ),
+            SwitchListTile(
+              key: const Key('env-edit-sensitive'),
+              contentPadding: EdgeInsets.zero,
+              value: _sensitive,
+              onChanged: (v) => setState(() => _sensitive = v),
+              title: Text(l.celautEnvSensitive),
+              subtitle: Text(l.celautEnvSensitiveHint, style: const TextStyle(fontSize: 12.5)),
             ),
           ],
         ),

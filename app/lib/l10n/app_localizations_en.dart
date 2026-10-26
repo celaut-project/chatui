@@ -6423,4 +6423,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get celautRunModeFiles => 'On this phone';
+
+  @override
+  String get celautEnvSensitive => 'Sensitive';
+
+  @override
+  String get celautEnvNotSensitive => 'Not sensitive';
+
+  @override
+  String get celautEnvSensitiveHint =>
+      'A password, a key or a token. Before a sensitive value goes where others can read it, the app warns you.';
+
+  @override
+  String get celautEnvMarkSensitive => 'Mark as sensitive';
+
+  @override
+  String get celautEnvMarkNotSensitive => 'Mark as not sensitive';
+
+  @override
+  String get celautNodesTrusted => 'Fully trusted';
+
+  @override
+  String get celautNodesTrustedHint =>
+      'Your node, or a node of family, friends or your company. The app does not warn before it gives this node your sensitive values.';
 }

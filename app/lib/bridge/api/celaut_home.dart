@@ -35,6 +35,15 @@ Future<KnownNodeView> celautAddNode({required NodeAddress node}) =>
 void celautRemoveNode({required String peerId}) =>
     RustLib.instance.api.crateApiCelautHomeCelautRemoveNode(peerId: peerId);
 
+/// Mark the node `peer_id` as fully trusted (a node of the user, or of family, friends or
+/// the company), or not. Before a sensitive environment variable goes to a node that is not
+/// trusted, the app warns (`docs/celaut/env-variables.md`, section 3.2).
+void celautSetNodeTrusted({required String peerId, required bool trusted}) =>
+    RustLib.instance.api.crateApiCelautHomeCelautSetNodeTrusted(
+      peerId: peerId,
+      trusted: trusted,
+    );
+
 /// [`CoresTotalView`] for a number of bytes.
 class BytesTotalView {
   final PlatformInt64? total;
@@ -178,15 +187,23 @@ class KnownNodeView {
   /// The deposits of the app to this node, from every wallet, in nanoERG.
   final BigInt depositedNanoErg;
 
+  /// True if the user marked the node as fully trusted (`docs/celaut/env-variables.md`,
+  /// section 3.2).
+  final bool trusted;
+
   const KnownNodeView({
     required this.peerId,
     required this.addresses,
     required this.depositedNanoErg,
+    required this.trusted,
   });
 
   @override
   int get hashCode =>
-      peerId.hashCode ^ addresses.hashCode ^ depositedNanoErg.hashCode;
+      peerId.hashCode ^
+      addresses.hashCode ^
+      depositedNanoErg.hashCode ^
+      trusted.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -195,7 +212,8 @@ class KnownNodeView {
           runtimeType == other.runtimeType &&
           peerId == other.peerId &&
           addresses == other.addresses &&
-          depositedNanoErg == other.depositedNanoErg;
+          depositedNanoErg == other.depositedNanoErg &&
+          trusted == other.trusted;
 }
 
 /// [`CoresTotalView`] for nanoERG, as text.

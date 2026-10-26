@@ -4759,5 +4759,12 @@
   },
   "celautRunFewerOptions": "Show fewer options",
   "celautRunModeSkills": "Skills",
-  "celautRunModeFiles": "On this phone"
+  "celautRunModeFiles": "On this phone",
+  "celautEnvSensitive": "Sensitive",
+  "celautEnvNotSensitive": "Not sensitive",
+  "celautEnvSensitiveHint": "A password, a key or a token. Before a sensitive value goes where others can read it, the app warns you.",
+  "celautEnvMarkSensitive": "Mark as sensitive",
+  "celautEnvMarkNotSensitive": "Mark as not sensitive",
+  "celautNodesTrusted": "Fully trusted",
+  "celautNodesTrustedHint": "Your node, or a node of family, friends or your company. The app does not warn before it gives this node your sensitive values."
 }

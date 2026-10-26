@@ -22,6 +22,9 @@ pub struct EnvNameView {
     pub name: String,
     /// The time of the last change, in Unix seconds.
     pub changed_at: i64,
+    /// True if the value is a credential: only a sensitive value makes the app warn
+    /// before a launch (`docs/celaut/env-variables.md`, section 3.2).
+    pub sensitive: bool,
 }
 
 /// The variables of the container, by name.
@@ -33,6 +36,7 @@ pub fn celaut_env_names() -> Vec<EnvNameView> {
             .map(|(name, r)| EnvNameView {
                 name: name.clone(),
                 changed_at: r.changed_at,
+                sensitive: r.sensitive,
             })
             .collect()
     })
@@ -44,14 +48,30 @@ pub fn celaut_env_get(name: String) -> Option<String> {
     db().read(|d| d.env_variables.get(&name).map(|r| r.value.clone()))
 }
 
-/// Add a variable, or replace the value of the one with this name. A name is a C
-/// identifier that is not `__nodo_instance_name`; a value is text of 1 to 8192 bytes
-/// with no NUL character; the container holds 256 variables.
+/// Add a variable, or replace the value of the one with this name, with its mark
+/// `sensitive`. A name is a C identifier that is not `__nodo_instance_name`; a value is
+/// text of 1 to 8192 bytes with no NUL character; the container holds 256 variables.
 #[flutter_rust_bridge::frb(sync)]
-pub fn celaut_env_set(name: String, value: String) -> Result<(), CelautError> {
-    db().update(|d| d.set_env(&name, &value, now_seconds()))
+pub fn celaut_env_set(name: String, value: String, sensitive: bool) -> Result<(), CelautError> {
+    db().update(|d| d.set_env(&name, &value, sensitive, now_seconds()))
         .map_err(storage_error)?
         .map_err(refused)
+}
+
+/// Mark a variable of the container as sensitive (a credential) or not. The value does not
+/// change.
+#[flutter_rust_bridge::frb(sync)]
+pub fn celaut_env_set_sensitive(name: String, sensitive: bool) -> Result<(), CelautError> {
+    db().update(|d| match d.env_variables.get_mut(&name) {
+        Some(r) => {
+            r.sensitive = sensitive;
+            Ok(())
+        }
+        None => Err(invalid(&format!(
+            "The variable {name} of the container does not exist. It was deleted."
+        ))),
+    })
+    .map_err(storage_error)?
 }
 
 /// Remove a variable. A name that is not there is not an error.
@@ -130,11 +150,15 @@ mod tests {
     #[test]
     fn the_container_adds_replaces_and_removes() {
         celaut_env_delete("T_ONE".into()).unwrap();
-        celaut_env_set("T_ONE".into(), "a".into()).unwrap();
-        celaut_env_set("T_ONE".into(), "b".into()).unwrap();
+        celaut_env_set("T_ONE".into(), "a".into(), true).unwrap();
+        celaut_env_set("T_ONE".into(), "b".into(), true).unwrap();
         assert_eq!(celaut_env_get("T_ONE".into()).as_deref(), Some("b"));
         let names = celaut_env_names();
         assert_eq!(names.iter().filter(|n| n.name == "T_ONE").count(), 1);
+        assert!(names.iter().any(|n| n.name == "T_ONE" && n.sensitive));
+        celaut_env_set_sensitive("T_ONE".into(), false).unwrap();
+        assert!(celaut_env_names().iter().any(|n| n.name == "T_ONE" && !n.sensitive));
+        assert_eq!(celaut_env_get("T_ONE".into()).as_deref(), Some("b"));
         celaut_env_delete("T_ONE".into()).unwrap();
         assert_eq!(celaut_env_get("T_ONE".into()), None);
         celaut_env_delete("T_ONE".into()).unwrap();
@@ -142,17 +166,17 @@ mod tests {
 
     #[test]
     fn a_bad_name_or_value_is_refused_with_its_reason() {
-        let e = celaut_env_set("1X".into(), "a".into()).unwrap_err();
+        let e = celaut_env_set("1X".into(), "a".into(), true).unwrap_err();
         assert!(e.message.contains("start with a letter"), "{}", e.message);
-        let e = celaut_env_set("T_X".into(), "".into()).unwrap_err();
+        let e = celaut_env_set("T_X".into(), "".into(), true).unwrap_err();
         assert!(e.message.contains("empty"), "{}", e.message);
         assert_eq!(celaut_env_get("T_X".into()), None);
-        assert!(celaut_env_set("__nodo_instance_name".into(), "a".into()).is_err());
+        assert!(celaut_env_set("__nodo_instance_name".into(), "a".into(), true).is_err());
     }
 
     #[test]
     fn a_choice_of_the_container_gets_its_value_and_a_typed_one_its_text() {
-        celaut_env_set("T_SECRET".into(), "s3cr€t".into()).unwrap();
+        celaut_env_set("T_SECRET".into(), "s3cr€t".into(), true).unwrap();
         let got = resolve(&[
             choice("API_KEY", Some("T_SECRET"), None),
             choice("MODE", None, Some("fast")),
@@ -168,7 +192,7 @@ mod tests {
 
     #[test]
     fn a_wrong_choice_is_refused_and_its_error_has_no_value() {
-        celaut_env_set("T_GONE".into(), "hunter2".into()).unwrap();
+        celaut_env_set("T_GONE".into(), "hunter2".into(), true).unwrap();
         celaut_env_delete("T_GONE".into()).unwrap();
         let e = resolve(&[choice("A", Some("T_GONE"), None)]).unwrap_err();
         assert!(e.message.contains("T_GONE"));

@@ -1054,9 +1054,9 @@ void main() {
 
   group('environment variables', () {
     final store = EnvStore(
-      names: () => [EnvNameView(name: 'OPENAI_KEY', changedAt: 1)],
+      names: () => [EnvNameView(name: 'OPENAI_KEY', changedAt: 1, sensitive: true)],
       get: (n) => 'secret',
-      set: (n, v) {},
+      set: (n, v, s) {},
       delete: (n) {},
     );
     const declared = [

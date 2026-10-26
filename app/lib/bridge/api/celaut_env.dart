@@ -18,13 +18,26 @@ List<EnvNameView> celautEnvNames() =>
 String? celautEnvGet({required String name}) =>
     RustLib.instance.api.crateApiCelautEnvCelautEnvGet(name: name);
 
-/// Add a variable, or replace the value of the one with this name. A name is a C
-/// identifier that is not `__nodo_instance_name`; a value is text of 1 to 8192 bytes
-/// with no NUL character; the container holds 256 variables.
-void celautEnvSet({required String name, required String value}) => RustLib
-    .instance
-    .api
-    .crateApiCelautEnvCelautEnvSet(name: name, value: value);
+/// Add a variable, or replace the value of the one with this name, with its mark
+/// `sensitive`. A name is a C identifier that is not `__nodo_instance_name`; a value is
+/// text of 1 to 8192 bytes with no NUL character; the container holds 256 variables.
+void celautEnvSet({
+  required String name,
+  required String value,
+  required bool sensitive,
+}) => RustLib.instance.api.crateApiCelautEnvCelautEnvSet(
+  name: name,
+  value: value,
+  sensitive: sensitive,
+);
+
+/// Mark a variable of the container as sensitive (a credential) or not. The value does not
+/// change.
+void celautEnvSetSensitive({required String name, required bool sensitive}) =>
+    RustLib.instance.api.crateApiCelautEnvCelautEnvSetSensitive(
+      name: name,
+      sensitive: sensitive,
+    );
 
 /// Remove a variable. A name that is not there is not an error.
 void celautEnvDelete({required String name}) =>
@@ -93,10 +106,18 @@ class EnvNameView {
   /// The time of the last change, in Unix seconds.
   final PlatformInt64 changedAt;
 
-  const EnvNameView({required this.name, required this.changedAt});
+  /// True if the value is a credential: only a sensitive value makes the app warn
+  /// before a launch (`docs/celaut/env-variables.md`, section 3.2).
+  final bool sensitive;
+
+  const EnvNameView({
+    required this.name,
+    required this.changedAt,
+    required this.sensitive,
+  });
 
   @override
-  int get hashCode => name.hashCode ^ changedAt.hashCode;
+  int get hashCode => name.hashCode ^ changedAt.hashCode ^ sensitive.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -104,5 +125,6 @@ class EnvNameView {
       other is EnvNameView &&
           runtimeType == other.runtimeType &&
           name == other.name &&
-          changedAt == other.changedAt;
+          changedAt == other.changedAt &&
+          sensitive == other.sensitive;
 }

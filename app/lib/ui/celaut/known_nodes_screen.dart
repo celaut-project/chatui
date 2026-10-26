@@ -27,6 +27,9 @@ abstract class KnownNodes {
   Future<KnownNodeView> add(NodeAddress node);
   void remove(String peerId);
 
+  /// Mark a node as fully trusted, or not (`docs/celaut/env-variables.md`, section 3.2).
+  void setTrusted(String peerId, bool trusted);
+
   /// Connect from the bytes of a peer invitation (`docs/celaut/invite.md`).
   Future<InviteConnectView> connectInvite(Uint8List invite);
 }
@@ -44,6 +47,9 @@ class AppKnownNodes implements KnownNodes {
   void remove(String peerId) => celautRemoveNode(peerId: peerId);
 
   @override
+  void setTrusted(String peerId, bool trusted) => celautSetNodeTrusted(peerId: peerId, trusted: trusted);
+
+  @override
   Future<InviteConnectView> connectInvite(Uint8List invite) => celautConnectInvite(invite: invite);
 }
 
@@ -51,6 +57,10 @@ class AppKnownNodes implements KnownNodes {
 /// or by a QR code (`docs/celaut/wire.md`, section 6), remove a node. Only these nodes are in the sums of the home screen. A removed node
 /// keeps its client id and its deposits in the database, so adding it again restores
 /// them.
+///
+/// The switch "Fully trusted" of a card marks a node of the user, or of family, friends or
+/// the company: a launch with sensitive environment variables warns of the other nodes
+/// (`docs/celaut/env-variables.md`, section 3.2).
 class KnownNodesScreen extends StatefulWidget {
   const KnownNodesScreen({
     super.key,
@@ -292,6 +302,18 @@ class _KnownNodesScreenState extends State<KnownNodesScreen> {
     );
   }
 
+  void _setTrusted(KnownNodeView n, bool trusted) {
+    try {
+      widget.nodes.setTrusted(n.peerId, trusted);
+      setState(() {
+        _list = widget.nodes.list();
+        _error = null;
+      });
+    } on CelautError catch (e) {
+      setState(() => _error = e);
+    }
+  }
+
   void _remove(KnownNodeView n) {
     try {
       widget.nodes.remove(n.peerId);
@@ -397,6 +419,15 @@ class _KnownNodesScreenState extends State<KnownNodesScreen> {
                         peerId: n.peerId,
                         health: _health.of(n.peerId),
                         checking: _health.checking,
+                      ),
+                      SwitchListTile(
+                        key: Key('nodes-trusted-${n.peerId}'),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        value: n.trusted,
+                        onChanged: (v) => _setTrusted(n, v),
+                        title: Text(l.celautNodesTrusted),
+                        subtitle: Text(l.celautNodesTrustedHint, style: TextStyle(fontSize: 12, color: muted)),
                       ),
                       if (_computed(n.peerId)?.clientUnknown ?? false) ...[
                         Text(

@@ -373,6 +373,9 @@ pub struct KnownNodeView {
     pub addresses: Vec<String>,
     /// The deposits of the app to this node, from every wallet, in nanoERG.
     pub deposited_nano_erg: u64,
+    /// True if the user marked the node as fully trusted (`docs/celaut/env-variables.md`,
+    /// section 3.2).
+    pub trusted: bool,
 }
 
 fn known_node(data: &celaut_client::CelautData, peer_id: &str) -> Option<KnownNodeView> {
@@ -381,6 +384,7 @@ fn known_node(data: &celaut_client::CelautData, peer_id: &str) -> Option<KnownNo
         peer_id: peer_id.to_string(),
         addresses: node.addresses.clone(),
         deposited_nano_erg: data.deposited_nano_erg(peer_id),
+        trusted: node.trusted,
     })
 }
 
@@ -427,6 +431,22 @@ pub fn celaut_remove_node(peer_id: String) -> Result<(), CelautError> {
     db().update(|d| match d.nodes.get_mut(&peer_id) {
         Some(node) => {
             node.listed = false;
+            Ok(())
+        }
+        None => Err(invalid("This node is not in the node list.")),
+    })
+    .map_err(storage_error)?
+}
+
+/// Mark the node `peer_id` as fully trusted (a node of the user, or of family, friends or
+/// the company), or not. Before a sensitive environment variable goes to a node that is not
+/// trusted, the app warns (`docs/celaut/env-variables.md`, section 3.2).
+#[flutter_rust_bridge::frb(sync)]
+pub fn celaut_set_node_trusted(peer_id: String, trusted: bool) -> Result<(), CelautError> {
+    let peer_id = peer_id.trim().to_ascii_lowercase();
+    db().update(|d| match d.nodes.get_mut(&peer_id) {
+        Some(node) => {
+            node.trusted = trusted;
             Ok(())
         }
         None => Err(invalid("This node is not in the node list.")),
@@ -485,6 +505,39 @@ mod tests {
         let back = celaut_known_nodes();
         let back = back.iter().find(|n| n.peer_id == peer).unwrap();
         assert_eq!(back.deposited_nano_erg, 7);
+    }
+
+    #[test]
+    fn a_node_is_trusted_only_when_the_user_marks_it() {
+        let peer = "cd34".repeat(16);
+        db().update(|d| {
+            d.nodes.insert(
+                peer.clone(),
+                NodeRecord {
+                    client_id: "c-trust".into(),
+                    addresses: vec!["trust.example:1".into()],
+                    ..Default::default()
+                },
+            );
+        })
+        .unwrap();
+        let find = || {
+            celaut_known_nodes()
+                .into_iter()
+                .find(|n| n.peer_id == peer)
+                .unwrap()
+        };
+        assert!(!find().trusted);
+        celaut_set_node_trusted(peer.to_uppercase(), true).unwrap();
+        assert!(find().trusted);
+        // Remove and add again: the mark stays with the record.
+        celaut_remove_node(peer.clone()).unwrap();
+        db().update(|d| d.nodes.get_mut(&peer).unwrap().listed = true)
+            .unwrap();
+        assert!(find().trusted);
+        celaut_set_node_trusted(peer.clone(), false).unwrap();
+        assert!(!find().trusted);
+        assert!(celaut_set_node_trusted("00".repeat(32), true).is_err());
     }
 
     #[tokio::test]

@@ -28,6 +28,12 @@ class _Db implements KnownNodes {
   final errors = <CelautError>[];
   final adds = <String>[];
 
+  /// The nodes that the user marked as fully trusted.
+  final trusted = <String>{};
+
+  @override
+  void setTrusted(String peerId, bool value) => value ? trusted.add(peerId) : trusted.remove(peerId);
+
   /// The answers of `connectInvite`, in order, and the bytes that it was given.
   final invites = <InviteConnectView>[];
   final invited = <Uint8List>[];
@@ -52,6 +58,7 @@ class _Db implements KnownNodes {
     peerId: peer,
     addresses: records[peer]!.addresses,
     depositedNanoErg: BigInt.from(records[peer]!.deposited),
+    trusted: trusted.contains(peer),
   );
 
   @override
@@ -162,6 +169,21 @@ void main() {
     await tester.tap(find.byKey(const Key('nodes-add')));
     await tester.pumpAndSettle();
     expect(db.adds, isEmpty);
+  });
+
+  testWidgets('a node is not trusted until the user marks it, and the mark can be taken back', (tester) async {
+    final db = await pump(tester);
+    final mark = find.byKey(Key('nodes-trusted-$_a'));
+    expect(tester.widget<SwitchListTile>(mark).value, isFalse);
+    expect(find.text(appL10n.celautNodesTrusted), findsOneWidget);
+    await tester.tap(mark);
+    await tester.pumpAndSettle();
+    expect(db.trusted, {_a});
+    expect(tester.widget<SwitchListTile>(mark).value, isTrue);
+    await tester.tap(mark);
+    await tester.pumpAndSettle();
+    expect(db.trusted, isEmpty);
+    expect(tester.widget<SwitchListTile>(mark).value, isFalse);
   });
 
   testWidgets('add a node by a QR code: the same check as a typed address', (tester) async {
@@ -325,7 +347,7 @@ void main() {
     Uint8List invite([int fill = 0xbb]) => Uint8List.fromList([0x0a, 0x20, ...List.filled(32, fill), 0x12, 0x00]);
 
     KnownNodeView nodeB(String address) =>
-        KnownNodeView(peerId: _b, addresses: [address], depositedNanoErg: BigInt.zero);
+        KnownNodeView(peerId: _b, addresses: [address], depositedNanoErg: BigInt.zero, trusted: false);
 
     InviteAttemptView attempt(
       String address,
