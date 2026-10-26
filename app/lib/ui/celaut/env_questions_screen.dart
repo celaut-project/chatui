@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../bridge/api/celaut_env.dart';
+import '../../bridge/api/celaut_service_info.dart' show NetworkView;
+import '../../celaut/egress.dart';
 import '../../celaut/env_store.dart';
 import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
@@ -17,10 +19,13 @@ class EnvFromContainer extends EnvAnswer {
   final String name;
 }
 
-/// A value that the user typed.
+/// A value that the user typed. [sensitive] is the mark that the user gave it: a typed
+/// value is not sensitive unless the user says so (`docs/celaut/env-variables.md`, section
+/// 3.2).
 class EnvTyped extends EnvAnswer {
-  const EnvTyped(this.text);
+  const EnvTyped(this.text, {this.sensitive = false});
   final String text;
+  final bool sensitive;
 }
 
 /// The variable is not given: it is not in the configuration.
@@ -49,10 +54,27 @@ List<EnvChoice> envChoices(List<DeclaredVariableView> declared, List<EnvAnswer?>
 /// then a review (`docs/celaut/env-variables.md`, section 3). For each variable the user
 /// chooses one of the container, types a value, or skips it. Closing the screen cancels
 /// the launch: it gives null. Run on the review gives the choices.
+///
+/// If a sensitive value is given, the review also says where it can go (section 3.2): out
+/// of the node by the networks of the service (red, and Deny is the default), to the other
+/// services of the node, and to nodes that the user did not mark as trusted. All of it is
+/// on the one review page.
 class EnvQuestionsScreen extends StatefulWidget {
-  const EnvQuestionsScreen({super.key, required this.declared, EnvStore? store}) : _store = store;
+  const EnvQuestionsScreen({
+    super.key,
+    required this.declared,
+    this.networks = const [],
+    this.nodes = const [],
+    EnvStore? store,
+  }) : _store = store;
 
   final List<DeclaredVariableView> declared;
+
+  /// The networks that the service declares.
+  final List<NetworkView> networks;
+
+  /// The nodes that can get the start request, best first ([envTargetNodes]).
+  final List<EnvTargetNode> nodes;
   final EnvStore? _store;
 
   @override
@@ -62,9 +84,11 @@ class EnvQuestionsScreen extends StatefulWidget {
 class _EnvQuestionsScreenState extends State<EnvQuestionsScreen> {
   late final EnvStore _store = widget._store ?? EnvStore();
   late final List<EnvAnswer?> _answers = List.filled(widget.declared.length, null);
+  late final EgressReport _egress = egressOf(widget.networks);
   int _index = 0;
   bool _typing = false;
   bool _hidden = true;
+  bool _typedSensitive = false;
   String? _typedError;
   final _typedCtrl = TextEditingController();
 
@@ -81,25 +105,44 @@ class _EnvQuestionsScreenState extends State<EnvQuestionsScreen> {
       _index = index;
       _typing = false;
       _hidden = true;
+      _typedSensitive = false;
       _typedError = null;
       _typedCtrl.clear();
     });
   }
+
+  /// The variables of the container, or none if the database cannot be read.
+  List<EnvNameView> _containerViews() {
+    try {
+      return _store.names();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// True if [answer] gives a sensitive value. A variable of the container that is not
+  /// there any more counts as sensitive: the start refuses it anyway.
+  bool _isSensitive(EnvAnswer? answer, Map<String, bool> marks) => switch (answer) {
+        EnvFromContainer(:final name) => marks[name] ?? true,
+        EnvTyped(:final sensitive) => sensitive,
+        EnvSkipped() || null => false,
+      };
+
+  EnvWarnings _warnings(Map<String, bool> marks) => EnvWarnings.of(
+        sensitive: _answers.any((a) => _isSensitive(a, marks)),
+        report: _egress,
+        nodes: widget.nodes,
+      );
 
   void _answer(EnvAnswer answer) {
     _answers[_index] = answer;
     _go(_index + 1);
   }
 
-  List<String> _containerNames(String declared) {
-    List<String> names;
-    try {
-      names = [for (final n in _store.names()) n.name];
-    } catch (_) {
-      names = const [];
-    }
+  List<EnvNameView> _containerNames(String declared) {
+    final names = _containerViews();
     // The variables with the same name as the declared one come first.
-    return [...names.where((n) => n == declared), ...names.where((n) => n != declared)];
+    return [...names.where((n) => n.name == declared), ...names.where((n) => n.name != declared)];
   }
 
   Future<void> _pick() async {
@@ -125,10 +168,10 @@ class _EnvQuestionsScreenState extends State<EnvQuestionsScreen> {
               ),
             for (final n in names)
               ListTile(
-                key: Key('env-pick-$n'),
-                title: Text(n, style: const TextStyle(fontFamily: 'IBMPlexMono', fontSize: 14)),
-                subtitle: const Text('••••••••'),
-                onTap: () => Navigator.pop(context, n),
+                key: Key('env-pick-${n.name}'),
+                title: Text(n.name, style: const TextStyle(fontFamily: 'IBMPlexMono', fontSize: 14)),
+                subtitle: Text('••••••••  ·  ${n.sensitive ? l.celautEnvSensitive : l.celautEnvNotSensitive}'),
+                onTap: () => Navigator.pop(context, n.name),
               ),
           ],
         ),
@@ -143,7 +186,7 @@ class _EnvQuestionsScreenState extends State<EnvQuestionsScreen> {
       setState(() => _typedError = envProblemText(context.l10n, problem));
       return;
     }
-    _answer(EnvTyped(_typedCtrl.text));
+    _answer(EnvTyped(_typedCtrl.text, sensitive: _typedSensitive));
   }
 
   String _describe(AppLocalizations l, EnvAnswer? a) => switch (a) {
@@ -201,6 +244,12 @@ class _EnvQuestionsScreenState extends State<EnvQuestionsScreen> {
       Text(v.name, key: const Key('env-var-name'), style: const TextStyle(fontFamily: 'IBMPlexMono', fontSize: 20)),
       const SizedBox(height: 8),
       Text(text, key: const Key('env-var-text')),
+      if (_egress.steered.containsKey(v.name))
+        Padding(
+          key: const Key('env-egress-steers'),
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(l.celautEnvEgressSteers, style: TextStyle(fontSize: 12.5, color: colors.muted)),
+        ),
       if (chosen != null) ...[
         const SizedBox(height: 8),
         Text(l.celautEnvAskChosen(_describe(l, chosen)), style: TextStyle(fontSize: 12.5, color: colors.muted)),
@@ -247,6 +296,14 @@ class _EnvQuestionsScreenState extends State<EnvQuestionsScreen> {
               ),
             ),
           ),
+          SwitchListTile(
+            key: const Key('env-typed-sensitive'),
+            contentPadding: EdgeInsets.zero,
+            value: _typedSensitive,
+            onChanged: (v) => setState(() => _typedSensitive = v),
+            title: Text(l.celautEnvSensitive),
+            subtitle: Text(l.celautEnvSensitiveHint, style: TextStyle(fontSize: 12.5, color: colors.muted)),
+          ),
           const SizedBox(height: 8),
           FilledButton(key: const Key('env-typed-use'), onPressed: _useTyped, child: Text(l.celautEnvAskUse)),
         ],
@@ -274,26 +331,121 @@ class _EnvQuestionsScreenState extends State<EnvQuestionsScreen> {
     ];
   }
 
+  /// One block of the review warning: an icon, a title and a text.
+  Widget _warningBlock({required Key key, required IconData icon, required Color color, required String title, required String body}) {
+    return Padding(
+      key: key,
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: TextStyle(fontWeight: FontWeight.w600, color: color)),
+                const SizedBox(height: 2),
+                Text(body),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Where the sensitive values can go, in one card: red if they can leave the node.
+  Widget _warningCard(AppLocalizations l, EnvWarnings w) {
+    final red = rustFor(context);
+    final normal = accentTextOf(context);
+    final border = w.egress ? rust : ArgusColors.of(context).accent;
+    final exits = [if (w.anyAddress) l.celautEnvEgressAnyAddress, ...w.hosts].join(', ');
+    return Container(
+      key: Key(w.egress ? 'env-warning-egress' : 'env-warning'),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 2),
+      decoration: BoxDecoration(
+        color: w.egress ? rust.withValues(alpha: 0.10) : null,
+        border: Border.all(color: border, width: w.egress ? 2 : 1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (w.egress)
+            _warningBlock(
+              key: const Key('env-warn-egress'),
+              icon: Icons.report_outlined,
+              color: red,
+              title: l.celautEnvEgressTitle,
+              body: l.celautEnvEgressBody(exits),
+            ),
+          if (w.local.isNotEmpty)
+            _warningBlock(
+              key: const Key('env-warn-networks'),
+              icon: Icons.hub_outlined,
+              color: w.egress ? red : normal,
+              title: l.celautEnvNetworksTitle,
+              body: l.celautEnvNetworksBody(w.local.join(', ')),
+            ),
+          if (w.untrusted.isNotEmpty)
+            _warningBlock(
+              key: const Key('env-warn-nodes'),
+              icon: Icons.dns_outlined,
+              color: w.egress ? red : normal,
+              title: l.celautEnvNodesTitle,
+              body: l.celautEnvNodesBody(w.untrusted.map((n) => n.address).join(', ')),
+            ),
+        ],
+      ),
+    );
+  }
+
   List<Widget> _reviewPage(AppLocalizations l) {
     final colors = ArgusColors.of(context);
+    final marks = {for (final n in _containerViews()) n.name: n.sensitive};
+    final warnings = _warnings(marks);
+    final choices = envChoices(widget.declared, _answers);
     return [
       Text(l.celautEnvReviewTitle, style: Theme.of(context).textTheme.titleLarge),
       const SizedBox(height: 12),
+      if (warnings.any) _warningCard(l, warnings),
       for (var i = 0; i < widget.declared.length; i++)
         ListTile(
           key: Key('env-review-${widget.declared[i].name}'),
           contentPadding: EdgeInsets.zero,
           title: Text(widget.declared[i].name, style: const TextStyle(fontFamily: 'IBMPlexMono', fontSize: 14)),
-          subtitle: Text(_describe(l, _answers[i])),
+          subtitle: Text(
+            _isSensitive(_answers[i], marks)
+                ? '${_describe(l, _answers[i])} · ${l.celautEnvSensitive}'
+                : _describe(l, _answers[i]),
+          ),
         ),
       const SizedBox(height: 8),
       Text(l.celautEnvReviewNote, key: const Key('env-review-note'), style: TextStyle(fontSize: 12.5, color: colors.muted)),
       const SizedBox(height: 16),
-      FilledButton(
-        key: const Key('env-run'),
-        onPressed: () => Navigator.pop(context, envChoices(widget.declared, _answers)),
-        child: Text(l.celautEnvRun),
-      ),
+      if (warnings.egress) ...[
+        // The values can leave the node: Deny is the default, and it sends nothing.
+        FilledButton(
+          key: const Key('env-deny'),
+          autofocus: true,
+          onPressed: () => Navigator.pop(context),
+          child: Text(l.celautEnvDeny),
+        ),
+        TextButton(
+          key: const Key('env-run'),
+          style: TextButton.styleFrom(foregroundColor: rustFor(context)),
+          onPressed: () => Navigator.pop(context, choices),
+          child: Text(l.celautEnvRunAnyway),
+        ),
+      ] else
+        FilledButton(
+          key: const Key('env-run'),
+          onPressed: () => Navigator.pop(context, choices),
+          child: Text(l.celautEnvRun),
+        ),
       TextButton(
         key: const Key('env-back'),
         onPressed: () => _go(widget.declared.length - 1),

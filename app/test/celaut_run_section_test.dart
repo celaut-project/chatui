@@ -28,6 +28,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// What a service says about itself, with the parts that these tests use.
 ServiceInfoView _info({
   List<DeclaredVariableView> env = const [],
+  List<NetworkView> networks = const [],
   ChatSupportView chat = ChatSupportView.supported,
   bool truncated = false,
 }) => ServiceInfoView(
@@ -39,7 +40,7 @@ ServiceInfoView _info({
   nodeProtocols: const [],
   environment: env,
   slots: const [],
-  networks: const [],
+  networks: networks,
   workloads: const [],
   workloadsSkipped: 0,
   partsSkipped: 0,
@@ -198,6 +199,7 @@ void main() {
     bool askEnvironment = false,
     ServiceInfoLoader? inspect,
     EnvStore? envStore,
+    Set<String> Function()? trustedNodes,
   }) async {
     tester.view.physicalSize = const Size(390, 2400);
     tester.view.devicePixelRatio = 1;
@@ -232,6 +234,7 @@ void main() {
               },
               inspect: inspect,
               envStore: envStore,
+              trustedNodes: trustedNodes ?? () => const {},
               openTunnel: (id, slot) async {
                 tunnels.add((id, slot));
                 return 4321;
@@ -1098,6 +1101,59 @@ void main() {
       await tester.pumpAndSettle();
       expect(envChosen!.map((c) => (c.name, c.container, c.text)), [('API_KEY', 'OPENAI_KEY', null)]);
       expect(find.byKey(const Key('env-step')), findsNothing);
+    });
+
+    const egress = [
+      NetworkView(tags: ['api.example.com'], prose: '', formal: '', protocolStack: []),
+    ];
+
+    testWidgets('a sensitive value for a service with egress: red review, Deny cancels the launch', (tester) async {
+      await open(
+        tester,
+        askEnvironment: true,
+        inspect: (id, node) async => _info(env: declared, networks: egress),
+        envStore: store,
+      );
+      await run(tester);
+      await tester.tap(find.byKey(const Key('env-ask-pick')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('env-pick-OPENAI_KEY')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('env-ask-skip')));
+      await tester.pumpAndSettle();
+      // One review: the exit and the node of the quote, which is not trusted.
+      expect(find.byKey(const Key('env-warning-egress')), findsOneWidget);
+      expect(find.textContaining('api.example.com'), findsOneWidget);
+      expect(find.textContaining('127.0.0.1:18460'), findsOneWidget);
+      expect(tester.widget<FilledButton>(find.byKey(const Key('env-deny'))).autofocus, isTrue);
+      await tester.tap(find.byKey(const Key('env-deny')));
+      await tester.pumpAndSettle();
+      expect(envChosen, isNull, reason: 'nothing goes to a node');
+      expect(find.byType(BottomSheet), findsNothing);
+    });
+
+    testWidgets('a value that is not sensitive on a trusted node starts with no warning', (tester) async {
+      await open(
+        tester,
+        askEnvironment: true,
+        inspect: (id, node) async => _info(env: declared, networks: egress),
+        envStore: store,
+        trustedNodes: () => {_best},
+      );
+      await run(tester);
+      await tester.tap(find.byKey(const Key('env-ask-type')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('env-typed')), 'fast');
+      await tester.tap(find.byKey(const Key('env-typed-use')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('env-ask-skip')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('env-warning-egress')), findsNothing);
+      expect(find.byKey(const Key('env-warning')), findsNothing);
+      expect(find.byKey(const Key('env-deny')), findsNothing);
+      await tester.tap(find.byKey(const Key('env-run')));
+      await tester.pumpAndSettle();
+      expect(envChosen!.map((c) => (c.name, c.text)), [('API_KEY', 'fast')]);
     });
 
     testWidgets('cancelling the question cancels the launch without a failure sheet', (tester) async {
