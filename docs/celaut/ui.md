@@ -146,6 +146,10 @@ balancer would use with its start cost. Run needs the wallet open.
   address or QR code, or comes from the on-chain directory (decisions.md).
 - Removing a node takes it out of the sums of the home screen. Its deposits and client
   id are kept, so adding it back restores them.
+- The user can mark a node as **fully trusted** (a node of the user, or of family, friends
+  or the company), with the switch on its card. Before a sensitive environment variable goes
+  to a node that is not trusted, the launch warns ([env-variables.md](env-variables.md),
+  section 3.2). A new node is not trusted.
 - The Ergo explorer is fixed to the nodo default. A node does not advertise an
   explorer, and the app does not poll one from the node.
 
