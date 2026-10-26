@@ -377,6 +377,29 @@ void main() {
       expect(find.byKey(Key('nodes-client-unknown-$_a')), findsNothing);
     });
 
+    testWidgets('the credit line shows unknown at first and the overview then fills it', (tester) async {
+      overviewCache.value = null;
+      await pump(tester, const []);
+      expect(
+        tester.widget<Text>(find.byKey(Key('nodes-credit-$_a'))).data,
+        appL10n.celautNodeCredit(appL10n.celautUnknown),
+      );
+      overviewCache.value = ComputeOverviewView(
+        nodesCounted: 1,
+        nodesUnreachable: 0,
+        cpuCores: const CoresTotalView(total: 1, known: 1, unknownNodes: 0, atLeast: false),
+        memBytes: const BytesTotalView(total: 1, known: 1, unknownNodes: 0, atLeast: false),
+        diskBytes: const BytesTotalView(total: 1, known: 1, unknownNodes: 0, atLeast: false),
+        creditNanoErg: const NanoErgTotalView(total: '1', known: '1', unknownNodes: 0, atLeast: false),
+        paidNanoErg: const NanoErgTotalView(total: '1', known: '1', unknownNodes: 0, atLeast: false),
+        freeNanoErg: const NanoErgTotalView(total: '0', known: '0', unknownNodes: 0, atLeast: false),
+        nodes: [NodeComputeView(peerId: _a, address: '$_a.example:1', reachable: true, creditMu: '7', clientUnknown: false)],
+        instances: const [],
+      );
+      await tester.pump();
+      expect(tester.widget<Text>(find.byKey(Key('nodes-credit-$_a'))).data, appL10n.celautNodeCredit('7 MU'));
+    });
+
     testWidgets('closing the screen stops the monitor that a test gave', (tester) async {
       final timers = _Timers();
       final monitor = await pump(tester, const [], timers: timers);

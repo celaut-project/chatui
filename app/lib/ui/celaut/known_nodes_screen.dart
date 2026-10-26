@@ -96,6 +96,7 @@ class _KnownNodesScreenState extends State<KnownNodesScreen> {
   void initState() {
     super.initState();
     _health.addListener(_onHealth);
+    overviewCache.addListener(_onHealth);
     _health.start();
   }
 
@@ -104,7 +105,7 @@ class _KnownNodesScreenState extends State<KnownNodesScreen> {
   }
 
   /// What the last overview of the home screen says of a node: its credit, and whether it
-  /// forgot the client of the app.
+  /// forgot the client of the app. `null` if the overview has no data of the node yet.
   NodeComputeView? _computed(String peerId) {
     for (final n in overviewCache.value?.nodes ?? const <NodeComputeView>[]) {
       if (n.peerId == peerId) return n;
@@ -131,6 +132,7 @@ class _KnownNodesScreenState extends State<KnownNodesScreen> {
   @override
   void dispose() {
     _health.removeListener(_onHealth);
+    overviewCache.removeListener(_onHealth);
     if (widget.healthMonitor == null) {
       _health.dispose();
     } else {
@@ -408,12 +410,11 @@ class _KnownNodesScreenState extends State<KnownNodesScreen> {
                         l.celautNodesDeposited(formatErg(n.depositedNanoErg.toInt())),
                         style: TextStyle(fontSize: 12.5, color: muted),
                       ),
-                      if (_computed(n.peerId) case final c?)
-                        Text(
-                          l.celautNodeCredit(muOrUnknown(c.creditMu)),
-                          key: Key('nodes-credit-${n.peerId}'),
-                          style: TextStyle(fontSize: 12.5, color: muted),
-                        ),
+                      Text(
+                        l.celautNodeCredit(muOrUnknown(_computed(n.peerId)?.creditMu)),
+                        key: Key('nodes-credit-${n.peerId}'),
+                        style: TextStyle(fontSize: 12.5, color: muted),
+                      ),
                       ...nodeStatusLines(
                         context,
                         peerId: n.peerId,
