@@ -10,6 +10,7 @@ import '../../celaut/celaut_format.dart';
 import '../../celaut/background_work.dart';
 import '../../celaut/celaut_strings.dart';
 import '../../celaut/conversation_keep_alive.dart';
+import '../../celaut/egress.dart';
 import '../../celaut/env_store.dart';
 import '../../celaut/launcher.dart';
 import '../../bridge/api/celaut_package.dart';
@@ -78,6 +79,7 @@ class RunServiceSection extends StatefulWidget {
     this.nameInstance,
     this.inspect,
     this.envStore,
+    this.trustedNodes,
     this.work,
   });
 
@@ -91,6 +93,10 @@ class RunServiceSection extends StatefulWidget {
 
   /// The container of environment variables. Tests give their own.
   final EnvStore? envStore;
+
+  /// The peer ids (lower case) of the nodes that the user marked as fully trusted. The
+  /// questions about the variables warn of the others. Tests give their own.
+  final Set<String> Function()? trustedNodes;
 
   /// What to do after a start. The list of conversations gives it: it goes back to the
   /// list and opens the conversation (`docs/celaut/ui-chat-first.md`). Without it the
@@ -371,9 +377,23 @@ class _RunServiceSectionState extends State<RunServiceSection> {
     if (!mounted) return null;
     return Navigator.of(context).push<List<EnvChoice>>(
       MaterialPageRoute(
-        builder: (_) => EnvQuestionsScreen(declared: info.environment, store: widget.envStore),
+        builder: (_) => EnvQuestionsScreen(
+          declared: info.environment,
+          networks: info.networks,
+          nodes: envTargetNodes(quotes.quotes, (widget.trustedNodes ?? _trustedNodes)()),
+          store: widget.envStore,
+        ),
       ),
     );
+  }
+
+  static Set<String> _trustedNodes() {
+    try {
+      return {for (final n in celautKnownNodes()) if (n.trusted) n.peerId.toLowerCase()};
+    } catch (_) {
+      // No database: no node is trusted, so the questions warn of every node.
+      return const {};
+    }
   }
 
   void _details(String serviceId, {ServiceInfoView? info, NodeAddress? node, String? name}) {

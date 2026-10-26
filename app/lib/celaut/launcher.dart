@@ -182,6 +182,14 @@ BigInt? startCostWith(QuoteView quote, BigInt quotedBalanceMu, BigInt balanceMu)
   return cost - quotedBalanceMu + balanceMu;
 }
 
+/// False if the credit of the client on the node of [q] is less than the price: then
+/// [launchService] does not ask the node to start, and the node never reads the values.
+bool wouldAskToStart(QuoteView q) {
+  final credit = BigInt.tryParse(q.clientBalanceMu);
+  final cost = BigInt.tryParse(q.costMu);
+  return !(credit != null && cost != null && credit < cost);
+}
+
 /// A node whose last checks failed this many times in a row is left out of the quotes.
 const leaveOutAfterFailures = 2;
 
@@ -278,15 +286,13 @@ Future<LaunchOutcome> launchService({
   if (values == null) throw const LaunchCancelled();
   final skipped = <LaunchSkip>[];
   for (final candidate in quotes.quotes) {
-    final credit = BigInt.tryParse(candidate.clientBalanceMu);
-    final cost = BigInt.tryParse(candidate.costMu);
-    if (credit != null && cost != null && credit < cost) {
+    if (!wouldAskToStart(candidate)) {
       skipped.add(
         LaunchSkip(
           candidate,
           CelautError(
             kind: CelautErrorKind.insufficientCredit,
-            message: 'credit $credit MU, price $cost MU',
+            message: 'credit ${candidate.clientBalanceMu} MU, price ${candidate.costMu} MU',
           ),
         ),
       );

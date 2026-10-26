@@ -10247,6 +10247,66 @@ abstract class AppLocalizations {
   /// **'Mark as not sensitive'**
   String get celautEnvMarkNotSensitive;
 
+  /// No description provided for @celautEnvEgressSteers.
+  ///
+  /// In en, this message translates to:
+  /// **'This variable sets where the service connects.'**
+  String get celautEnvEgressSteers;
+
+  /// No description provided for @celautEnvEgressTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your sensitive values can leave the node'**
+  String get celautEnvEgressTitle;
+
+  /// No description provided for @celautEnvEgressBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This service can connect outside the node, to: {exits}. It can send your sensitive values there.'**
+  String celautEnvEgressBody(String exits);
+
+  /// No description provided for @celautEnvEgressAnyAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'any address'**
+  String get celautEnvEgressAnyAddress;
+
+  /// No description provided for @celautEnvNetworksTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The service shares networks on the node'**
+  String get celautEnvNetworksTitle;
+
+  /// No description provided for @celautEnvNetworksBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This service can connect to other services on the node, in the networks: {networks}. It can give them your sensitive values.'**
+  String celautEnvNetworksBody(String networks);
+
+  /// No description provided for @celautEnvNodesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Nodes that you do not fully trust'**
+  String get celautEnvNodesTitle;
+
+  /// No description provided for @celautEnvNodesBody.
+  ///
+  /// In en, this message translates to:
+  /// **'These nodes can start the service, and you did not mark them as fully trusted: {nodes}. The node that gets the start reads your sensitive values. To mark a node, go to Compute, Nodes.'**
+  String celautEnvNodesBody(String nodes);
+
+  /// No description provided for @celautEnvDeny.
+  ///
+  /// In en, this message translates to:
+  /// **'Deny'**
+  String get celautEnvDeny;
+
+  /// No description provided for @celautEnvRunAnyway.
+  ///
+  /// In en, this message translates to:
+  /// **'Send the values and run'**
+  String get celautEnvRunAnyway;
+
   /// No description provided for @celautNodesTrusted.
   ///
   /// In en, this message translates to:

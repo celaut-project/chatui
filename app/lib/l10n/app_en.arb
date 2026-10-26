@@ -4765,6 +4765,37 @@
   "celautEnvSensitiveHint": "A password, a key or a token. Before a sensitive value goes where others can read it, the app warns you.",
   "celautEnvMarkSensitive": "Mark as sensitive",
   "celautEnvMarkNotSensitive": "Mark as not sensitive",
+  "celautEnvEgressSteers": "This variable sets where the service connects.",
+  "celautEnvEgressTitle": "Your sensitive values can leave the node",
+  "celautEnvEgressBody": "This service can connect outside the node, to: {exits}. It can send your sensitive values there.",
+  "@celautEnvEgressBody": {
+    "placeholders": {
+      "exits": {
+        "type": "String"
+      }
+    }
+  },
+  "celautEnvEgressAnyAddress": "any address",
+  "celautEnvNetworksTitle": "The service shares networks on the node",
+  "celautEnvNetworksBody": "This service can connect to other services on the node, in the networks: {networks}. It can give them your sensitive values.",
+  "@celautEnvNetworksBody": {
+    "placeholders": {
+      "networks": {
+        "type": "String"
+      }
+    }
+  },
+  "celautEnvNodesTitle": "Nodes that you do not fully trust",
+  "celautEnvNodesBody": "These nodes can start the service, and you did not mark them as fully trusted: {nodes}. The node that gets the start reads your sensitive values. To mark a node, go to Compute, Nodes.",
+  "@celautEnvNodesBody": {
+    "placeholders": {
+      "nodes": {
+        "type": "String"
+      }
+    }
+  },
+  "celautEnvDeny": "Deny",
+  "celautEnvRunAnyway": "Send the values and run",
   "celautNodesTrusted": "Fully trusted",
   "celautNodesTrustedHint": "Your node, or a node of family, friends or your company. The app does not warn before it gives this node your sensitive values."
 }

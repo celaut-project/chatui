@@ -1,7 +1,10 @@
 import 'package:argus_wallet/bridge/api/celaut.dart';
 import 'package:argus_wallet/bridge/api/celaut_env.dart';
+import 'package:argus_wallet/bridge/api/celaut_service_info.dart';
+import 'package:argus_wallet/celaut/egress.dart';
 import 'package:argus_wallet/celaut/env_store.dart';
 import 'package:argus_wallet/l10n/l10n.dart';
+import 'package:argus_wallet/theme/argus_theme.dart' show rust;
 import 'package:argus_wallet/ui/celaut/env_questions_screen.dart';
 import 'package:argus_wallet/ui/celaut/env_variables_screen.dart';
 import 'package:flutter/material.dart';
@@ -47,6 +50,53 @@ Widget _app(Widget home) => MaterialApp(
   supportedLocales: AppLocalizations.supportedLocales,
   home: home,
 );
+
+const _declared = [
+  DeclaredVariableView(name: 'API_KEY', tags: ['text'], prose: 'The key of the API'),
+  DeclaredVariableView(name: 'MODE', tags: ['text'], prose: ''),
+  DeclaredVariableView(name: 'TOKEN', tags: [], prose: ''),
+];
+
+/// Open the questions for [variables], give the [answers], and return what the screen gave.
+Future<List<EnvChoice>?> ask(
+  WidgetTester tester,
+  Future<void> Function() answers, {
+  _Container? c,
+  List<DeclaredVariableView> variables = _declared,
+  List<NetworkView> networks = const [],
+  List<EnvTargetNode> nodes = const [],
+}) async {
+  List<EnvChoice>? result = const [EnvChoice(name: 'not-set')];
+  var done = false;
+  await tester.pumpWidget(
+    _app(
+      Builder(
+        builder: (context) => TextButton(
+          key: const Key('open'),
+          onPressed: () async {
+            result = await Navigator.of(context).push<List<EnvChoice>>(
+              MaterialPageRoute(
+                builder: (_) => EnvQuestionsScreen(
+                  declared: variables,
+                  networks: networks,
+                  nodes: nodes,
+                  store: (c ?? _Container()).store,
+                ),
+              ),
+            );
+            done = true;
+          },
+          child: const Text('open'),
+        ),
+      ),
+    ),
+  );
+  await tester.tap(find.byKey(const Key('open')));
+  await tester.pumpAndSettle();
+  await answers();
+  expect(done, isTrue, reason: 'the screen closed');
+  return result;
+}
 
 void main() {
   group('the rules of a name and a value', () {
@@ -167,39 +217,6 @@ void main() {
       DeclaredVariableView(name: 'TOKEN', tags: [], prose: ''),
     ];
 
-    Future<List<EnvChoice>?> ask(
-      WidgetTester tester,
-      Future<void> Function() answers, {
-      _Container? c,
-      List<DeclaredVariableView> variables = declared,
-    }) async {
-      List<EnvChoice>? result = const [EnvChoice(name: 'not-set')];
-      var done = false;
-      await tester.pumpWidget(
-        _app(
-          Builder(
-            builder: (context) => TextButton(
-              key: const Key('open'),
-              onPressed: () async {
-                result = await Navigator.of(context).push<List<EnvChoice>>(
-                  MaterialPageRoute(
-                    builder: (_) => EnvQuestionsScreen(declared: variables, store: (c ?? _Container()).store),
-                  ),
-                );
-                done = true;
-              },
-              child: const Text('open'),
-            ),
-          ),
-        ),
-      );
-      await tester.tap(find.byKey(const Key('open')));
-      await tester.pumpAndSettle();
-      await answers();
-      expect(done, isTrue, reason: 'the screen closed');
-      return result;
-    }
-
     testWidgets('one variable at a time, each a container variable, a typed value or a skip', (tester) async {
       final c = _Container()..values['OPENAI_KEY'] = 'sk-secret';
       final result = await ask(tester, () async {
@@ -228,7 +245,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // The review shows where each value comes from, and no value.
-        expect(find.text('My variable OPENAI_KEY'), findsOneWidget);
+        expect(find.text('My variable OPENAI_KEY · Sensitive'), findsOneWidget);
         expect(find.text('Typed value'), findsOneWidget);
         expect(find.text('Skipped'), findsOneWidget);
         expect(find.text('fast ñ'), findsNothing);
@@ -410,6 +427,165 @@ void main() {
       await tester.pumpAndSettle();
       expect(c.calls.last, 'set API_KEY plain');
       expect(c.values, {'API_KEY': 'sk-1'});
+    });
+  });
+
+  group('the warnings of a launch', () {
+    const declared = [
+      DeclaredVariableView(name: 'API_KEY', tags: ['text'], prose: 'The key of the API'),
+    ];
+    const egress = [
+      NetworkView(tags: ['*'], prose: '', formal: '', protocolStack: []),
+      NetworkView(tags: ['api.example.com'], prose: '', formal: 'port=443', protocolStack: []),
+    ];
+    const local = [NetworkView(tags: ['postgres'], prose: '', formal: '', protocolStack: [])];
+    const untrusted = [EnvTargetNode(peerId: 'aa', address: 'other.example:1', trusted: false)];
+    const trusted = [EnvTargetNode(peerId: 'bb', address: 'mine.example:1', trusted: true)];
+
+    /// Answer the one variable from the container, and stop on the review.
+    Future<void> pickContainer(WidgetTester tester) async {
+      await tester.tap(find.byKey(const Key('env-ask-pick')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('env-pick-OPENAI_KEY')));
+      await tester.pumpAndSettle();
+    }
+
+    /// Answer the one variable with a typed value, sensitive or not.
+    Future<void> type(WidgetTester tester, {required bool sensitive}) async {
+      await tester.tap(find.byKey(const Key('env-ask-type')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('env-typed')), 'x');
+      if (sensitive) {
+        await tester.tap(find.byKey(const Key('env-typed-sensitive')));
+        await tester.pump();
+      }
+      await tester.tap(find.byKey(const Key('env-typed-use')));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> run(WidgetTester tester) async {
+      await tester.tap(find.byKey(const Key('env-run')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a value that is not sensitive warns of nothing, with egress and an untrusted node', (tester) async {
+      final c = _Container()
+        ..values['OPENAI_KEY'] = 'sk'
+        ..notSensitive.add('OPENAI_KEY');
+      final result = await ask(tester, () async {
+        await pickContainer(tester);
+        expect(find.byKey(const Key('env-warning-egress')), findsNothing);
+        expect(find.byKey(const Key('env-warning')), findsNothing);
+        expect(find.byKey(const Key('env-deny')), findsNothing);
+        await run(tester);
+      }, c: c, variables: declared, networks: egress, nodes: untrusted);
+      expect(result!.single.container, 'OPENAI_KEY');
+    });
+
+    testWidgets('a typed value is not sensitive unless the user says so', (tester) async {
+      final result = await ask(tester, () async {
+        await tester.tap(find.byKey(const Key('env-ask-type')));
+        await tester.pumpAndSettle();
+        expect(tester.widget<SwitchListTile>(find.byKey(const Key('env-typed-sensitive'))).value, isFalse);
+        await tester.enterText(find.byKey(const Key('env-typed')), 'x');
+        await tester.tap(find.byKey(const Key('env-typed-use')));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('env-warning-egress')), findsNothing);
+        expect(find.byKey(const Key('env-warning')), findsNothing);
+        await run(tester);
+      }, variables: declared, networks: egress, nodes: untrusted);
+      expect(result!.single.text, 'x');
+    });
+
+    testWidgets('egress: the review is red, lists where the values can go, and Deny is the default', (tester) async {
+      final c = _Container()..values['OPENAI_KEY'] = 'sk';
+      final result = await ask(tester, () async {
+        await pickContainer(tester);
+        final card = find.byKey(const Key('env-warning-egress'));
+        expect(card, findsOneWidget);
+        final box = tester.widget<Container>(card).decoration! as BoxDecoration;
+        expect((box.border! as Border).top.color, rust);
+        expect(find.text('This service can connect outside the node, to: any address, api.example.com. It can send your sensitive values there.'), findsOneWidget);
+        // Deny is the filled, focused button; running is the second, red choice.
+        final deny = tester.widget<FilledButton>(find.byKey(const Key('env-deny')));
+        expect(deny.autofocus, isTrue);
+        expect(find.byKey(const Key('env-run')), findsOneWidget);
+        expect(tester.widget(find.byKey(const Key('env-run'))), isA<TextButton>());
+        expect(Focus.of(tester.element(find.text('Deny'))).hasFocus, isTrue);
+        await tester.tap(find.byKey(const Key('env-deny')));
+        await tester.pumpAndSettle();
+      }, c: c, variables: declared, networks: egress, nodes: trusted);
+      expect(result, isNull, reason: 'Deny cancels the launch: nothing is sent');
+    });
+
+    testWidgets('egress: the user can still send the values', (tester) async {
+      final result = await ask(tester, () async {
+        await type(tester, sensitive: true);
+        expect(find.byKey(const Key('env-warning-egress')), findsOneWidget);
+        expect(find.text('API_KEY'), findsOneWidget);
+        expect(find.text('Typed value · Sensitive'), findsOneWidget);
+        await run(tester);
+      }, variables: declared, networks: egress, nodes: trusted);
+      expect(result!.single.text, 'x');
+    });
+
+    testWidgets('networks on the node only: a normal warning that names them, and Run as usual', (tester) async {
+      final c = _Container()..values['OPENAI_KEY'] = 'sk';
+      await ask(tester, () async {
+        await pickContainer(tester);
+        expect(find.byKey(const Key('env-warning-egress')), findsNothing);
+        expect(find.byKey(const Key('env-warning')), findsOneWidget);
+        expect(find.byKey(const Key('env-warn-networks')), findsOneWidget);
+        expect(find.textContaining('in the networks: postgres.'), findsOneWidget);
+        expect(find.byKey(const Key('env-warn-nodes')), findsNothing, reason: 'the node is trusted');
+        expect(find.byKey(const Key('env-deny')), findsNothing);
+        expect(tester.widget(find.byKey(const Key('env-run'))), isA<FilledButton>());
+        await run(tester);
+      }, c: c, variables: declared, networks: local, nodes: trusted);
+    });
+
+    testWidgets('an untrusted node: a warning that names it; a trusted node gets none', (tester) async {
+      final c = _Container()..values['OPENAI_KEY'] = 'sk';
+      await ask(tester, () async {
+        await pickContainer(tester);
+        expect(find.byKey(const Key('env-warn-nodes')), findsOneWidget);
+        expect(find.textContaining('other.example:1'), findsOneWidget);
+        expect(find.textContaining('mine.example:1'), findsNothing);
+        expect(find.byKey(const Key('env-deny')), findsNothing);
+        await run(tester);
+      }, c: c, variables: declared, nodes: [...trusted, ...untrusted]);
+      await ask(tester, () async {
+        await pickContainer(tester);
+        expect(find.byKey(const Key('env-warning')), findsNothing);
+        expect(find.byKey(const Key('env-warn-nodes')), findsNothing);
+        await run(tester);
+      }, c: c, variables: declared, nodes: trusted);
+    });
+
+    testWidgets('every condition at once is one review, not a chain of dialogs', (tester) async {
+      final c = _Container()..values['OPENAI_KEY'] = 'sk';
+      await ask(tester, () async {
+        await pickContainer(tester);
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(find.byKey(const Key('env-warn-egress')), findsOneWidget);
+        expect(find.byKey(const Key('env-warn-networks')), findsOneWidget);
+        expect(find.byKey(const Key('env-warn-nodes')), findsOneWidget);
+        await tester.tap(find.byKey(const Key('env-deny')));
+        await tester.pumpAndSettle();
+      }, c: c, variables: declared, networks: [...egress, ...local], nodes: untrusted);
+    });
+
+    testWidgets('a variable that a network takes by name says that it sets where the service connects', (tester) async {
+      await ask(tester, () async {
+        expect(find.byKey(const Key('env-egress-steers')), findsOneWidget);
+        await tester.tap(find.byKey(const Key('env-ask-skip')));
+        await tester.pumpAndSettle();
+        // Skipped: nothing is given, so nothing warns.
+        expect(find.byKey(const Key('env-warning-egress')), findsNothing);
+        await run(tester);
+      }, variables: declared, networks: const [
+        NetworkView(tags: ['api.example.com'], prose: '', formal: 'host=\${API_KEY}', protocolStack: []),
+      ]);
     });
   });
 }

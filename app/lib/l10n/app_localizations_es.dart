@@ -6517,6 +6517,44 @@ class AppLocalizationsEs extends AppLocalizations {
   String get celautEnvMarkNotSensitive => 'Marcar como no sensible';
 
   @override
+  String get celautEnvEgressSteers =>
+      'Esta variable decide a dónde se conecta el servicio.';
+
+  @override
+  String get celautEnvEgressTitle =>
+      'Tus valores sensibles pueden salir del nodo';
+
+  @override
+  String celautEnvEgressBody(String exits) {
+    return 'Este servicio puede conectarse fuera del nodo, a: $exits. Puede enviar allí tus valores sensibles.';
+  }
+
+  @override
+  String get celautEnvEgressAnyAddress => 'cualquier dirección';
+
+  @override
+  String get celautEnvNetworksTitle => 'El servicio comparte redes en el nodo';
+
+  @override
+  String celautEnvNetworksBody(String networks) {
+    return 'Este servicio puede conectarse a otros servicios del nodo, en las redes: $networks. Puede darles tus valores sensibles.';
+  }
+
+  @override
+  String get celautEnvNodesTitle => 'Nodos que no son de tu plena confianza';
+
+  @override
+  String celautEnvNodesBody(String nodes) {
+    return 'Estos nodos pueden arrancar el servicio y no los marcaste como de plena confianza: $nodes. El nodo que recibe el arranque lee tus valores sensibles. Para marcar un nodo, ve a Cómputo, Nodos.';
+  }
+
+  @override
+  String get celautEnvDeny => 'Denegar';
+
+  @override
+  String get celautEnvRunAnyway => 'Enviar los valores y ejecutar';
+
+  @override
   String get celautNodesTrusted => 'De plena confianza';
 
   @override

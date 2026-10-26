@@ -2024,6 +2024,37 @@
   "celautEnvSensitiveHint": "Una contraseña, una clave o un token. Antes de que un valor sensible vaya a donde otros puedan leerlo, la app te avisa.",
   "celautEnvMarkSensitive": "Marcar como sensible",
   "celautEnvMarkNotSensitive": "Marcar como no sensible",
+  "celautEnvEgressSteers": "Esta variable decide a dónde se conecta el servicio.",
+  "celautEnvEgressTitle": "Tus valores sensibles pueden salir del nodo",
+  "celautEnvEgressBody": "Este servicio puede conectarse fuera del nodo, a: {exits}. Puede enviar allí tus valores sensibles.",
+  "@celautEnvEgressBody": {
+    "placeholders": {
+      "exits": {
+        "type": "String"
+      }
+    }
+  },
+  "celautEnvEgressAnyAddress": "cualquier dirección",
+  "celautEnvNetworksTitle": "El servicio comparte redes en el nodo",
+  "celautEnvNetworksBody": "Este servicio puede conectarse a otros servicios del nodo, en las redes: {networks}. Puede darles tus valores sensibles.",
+  "@celautEnvNetworksBody": {
+    "placeholders": {
+      "networks": {
+        "type": "String"
+      }
+    }
+  },
+  "celautEnvNodesTitle": "Nodos que no son de tu plena confianza",
+  "celautEnvNodesBody": "Estos nodos pueden arrancar el servicio y no los marcaste como de plena confianza: {nodes}. El nodo que recibe el arranque lee tus valores sensibles. Para marcar un nodo, ve a Cómputo, Nodos.",
+  "@celautEnvNodesBody": {
+    "placeholders": {
+      "nodes": {
+        "type": "String"
+      }
+    }
+  },
+  "celautEnvDeny": "Denegar",
+  "celautEnvRunAnyway": "Enviar los valores y ejecutar",
   "celautNodesTrusted": "De plena confianza",
   "celautNodesTrustedHint": "Tu nodo, o un nodo de tu familia, tus amigos o tu empresa. La app no avisa antes de dar a este nodo tus valores sensibles."
 }
