@@ -27,15 +27,18 @@ void main() {
     expect(find.text('Confirm the phrase'), findsOneWidget);
   }
 
-  testWidgets('skipping the check after the warning goes to the PIN step', (tester) async {
+  testWidgets('skipping the check after the warning creates the wallet', (tester) async {
     await toConfirmStep(tester);
     await tester.tap(find.byKey(const Key('create-skip-confirm')));
     await tester.pumpAndSettle();
     expect(find.text('Skip the check?'), findsOneWidget);
 
+    // There is no PIN step any more: the wallet is made at once (the phone unlock guards it).
     await tester.tap(find.widgetWithText(FilledButton, 'Skip'));
-    await tester.pumpAndSettle();
-    expect(find.text('Set a PIN'), findsOneWidget);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Skip the check?'), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 
   testWidgets('cancelling the warning stays on the check', (tester) async {
@@ -46,6 +49,6 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
     await tester.pumpAndSettle();
     expect(find.text('Confirm the phrase'), findsOneWidget);
-    expect(find.text('Set a PIN'), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 }

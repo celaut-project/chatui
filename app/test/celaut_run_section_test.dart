@@ -818,6 +818,7 @@ void main() {
     testWidgets('the loaded services are shown by name with their size and a short id', (tester) async {
       lib.stored = [lib.view(name: 'echo'), lib.view(id: _other, name: 'translate')];
       await open(tester, packages: packages, lib: lib);
+      await showFiles(tester);
       expect(find.text('echo'), findsOneWidget);
       expect(find.text('translate'), findsOneWidget);
       expect(find.textContaining('4.0 KiB · ${_best.substring(0, 8)}'), findsOneWidget);
@@ -905,7 +906,6 @@ void main() {
       packages.picked = const PickedPackage(path: '/cache/picked.bee', bytes: 10, name: 'echo.celaut.bee');
       final lib = _Lib();
       await open(tester, transfer: transfer(), packages: packages, lib: lib);
-    await showFiles(tester);
       await run(tester);
       expect(find.text(appL10n.celautSendNoHolder), findsOneWidget);
       expect(find.text(appL10n.celautSendFromFile('q.example:9')), findsOneWidget);
@@ -921,6 +921,7 @@ void main() {
       expect(transfers, ['send q.example /data/packages/library/$_best.bee']);
       expect(launched, hasLength(2));
       // And it stays in the app, listed with the services of the user.
+      await showFiles(tester);
       expect(find.byKey(Key('pkg-$_best')), findsOneWidget);
     });
 
@@ -976,7 +977,6 @@ void main() {
       packages.picked = const PickedPackage(path: '/cache/other.bee', bytes: 10, name: 'other');
       final lib = _Lib()..imports = _other;
       await open(tester, transfer: transfer(), packages: packages, lib: lib);
-    await showFiles(tester);
       await run(tester);
       await tester.tap(find.byKey(const Key('launch-send-service')));
       await tester.pumpAndSettle();
@@ -984,7 +984,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text(appL10n.celautSendOtherService), findsOneWidget);
       expect(transfers, isEmpty);
-      expect(find.byKey(Key('pkg-$_other')), findsOneWidget, reason: 'it stays in the library');
+      // The dialog with the reason is open: the library itself says that the file stays.
+      expect(lib.stored.map((p) => p.serviceId), [_other], reason: 'it stays in the library');
     });
 
     testWidgets('a service that the user loaded is sent from the library, with no file to pick', (tester) async {
