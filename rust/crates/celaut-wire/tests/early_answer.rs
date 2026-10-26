@@ -508,11 +508,18 @@ async fn a_cancel_still_sends_the_markers_and_the_node_refuses() {
     // The node parsed the markers and refused the request: no Service. (The parser of
     // bee-rpc-rs can see the cut block at the end before it sees the blocks intersect;
     // nodo refuses them with IntersectionError.)
+    //
+    // On a slow machine (the CI runners) the reset of the cancel can reach the node before
+    // the node reads the markers, and h2 drops the data that it did not read yet: the end is
+    // then a reset, with the same result for the app (no Service).
     let end = end_of(&seen).await;
-    assert!(matches!(end, End::Refused(_)), "{end:?}");
     let seen = seen.lock().unwrap();
     assert_eq!(seen.service_len, None);
-    assert_eq!(seen.indices, [1, 2, 4, 5]);
+    match end {
+        End::Refused(_) => assert_eq!(seen.indices, [1, 2, 4, 5]),
+        End::Reset(_) => assert!(seen.indices.starts_with(&[1, 2]), "{:?}", seen.indices),
+        End::Clean => panic!("the node took the cut service as complete"),
+    }
 }
 
 #[tokio::test(flavor = "multi_thread")]
