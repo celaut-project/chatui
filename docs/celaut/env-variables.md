@@ -76,6 +76,80 @@ data cannot be filled. The user can skip it.
 Typed values are not saved. A switch "Save in my variables" with a name is a second step
 and not part of this design.
 
+### 3.1 Where a service can send what it is given (2026-10-26)
+
+A value that the user gives is read by the node, and by the service. If the service declares
+networks, it can send the value to the peers of those networks. The app cannot see what a
+service does with a value, but it knows where the service may connect, from `Service.network`
+(`app/lib/celaut/egress.dart`, `egressOf`; the first version is from PR #50). The rule of a tag
+is the rule of the node (nodo `network_policy.direct_egress_reason`):
+
+| Tag | Where the traffic goes | Kind |
+|---|---|---|
+| `*` | Every address | Egress |
+| `pow:` and a chain (`pow:ergo`) | The peers of that chain | Egress |
+| Lower case, with a dot (`api.example.com`) | That host | Egress |
+| Any other tag (`postgres`) | The instances on the same node that answer it | On the node |
+
+The tags of one network are names of one domain: a network with one tag of egress is egress.
+A node operator can also give a tag addresses of its own (seeds); the app cannot see that, so
+such a tag shows as "on the node".
+
+A variable that a network parameter takes by `${NAME}` (section 1) shows one more line on its
+question: "This variable sets where the service connects", because its value chooses the
+destination.
+
+### 3.2 Sensitive values, trusted nodes and the review (2026-10-26)
+
+Josemi asked for three things (his notes "advertencias sobre variables de entorno"):
+
+1. Warn before environment variables (possible credentials) go to a service that exposes them
+   to networks, and name the networks. For egress the warning is larger and red, and **Deny**
+   is the default.
+2. Warn when the variables go to a node that is not fully trusted. The user marks the nodes
+   that are fully trusted (own, family, friends, company).
+3. The user marks which variables are sensitive. A variable that is not sensitive is not a
+   credential, and **none** of these warnings applies to it.
+
+**Sensitive.** Each variable of the container has a mark (`EnvRecord.sensitive`):
+
+- A new variable of the container is sensitive. The form (Settings, Compute, Environment
+  variables) has a switch, and the lock of each row changes the mark. A variable of an earlier
+  version is sensitive: the user saved it to keep it.
+- A typed value is not sensitive. Its question has a switch "Sensitive", off.
+- Choice to review: the container is the place for the secrets that the user keeps, so a
+  value from it is sensitive unless the user says no. A typed value is often a mode or a name
+  (`MODE=fast`), so it warns only if the user says yes. The opposite default for typed values
+  is one line in `_EnvQuestionsScreenState`.
+
+**Trusted.** Each node has a mark (`NodeRecord.trusted`, `celaut_set_node_trusted`), off for a
+new node and for a node of an earlier version. The switch "Fully trusted" is on the card of
+the node, in Compute, Nodes. A removed node keeps its mark.
+
+**Which nodes read the values.** The values go only with a start request (section 4), but
+every node that gets one reads them, also if it refuses the start. So the nodes are all the
+nodes of the quotes that `launchService` can ask to start, best first: not the ones where the
+credit is less than the price (`envTargetNodes`, `wouldAskToStart`).
+
+**The review.** If at least one given value is sensitive, the review page (section 3) shows
+one card, with one part for each condition that applies:
+
+| Condition | Part | Colour | Buttons |
+|---|---|---|---|
+| A network of egress | "Your sensitive values can leave the node", with the exits (`any address` for `*`) | Red card | **Deny** (filled, focused) cancels the launch; "Send the values and run" (red text) |
+| A network on the node | "The service shares networks on the node", with the networks | Accent | Run |
+| A node that can start the service and is not trusted | "Nodes that you do not fully trust", with their addresses | Accent | Run |
+
+The parts are on one page: there is no chain of dialogs. With egress, the other parts are red
+too, and the buttons are the ones of egress. Deny sends nothing: the launch ends as Cancel
+does. With no sensitive value, the review is as before, with no card. Each row of the review
+says "Sensitive" after the source of a sensitive value.
+
+What this does not do: it does not stop the user, it does not know what a host or a node does
+with a value, and it does not read the networks of a service that does not declare them. A
+service may also give a value to a workload that it starts. The warning is a place to stop and
+think, not a guarantee.
+
 ## 4. Order in the launch, and who sees the values
 
 A quote asks every node. A value must not go to nodes that only price the service. So:
@@ -125,6 +199,10 @@ The node holds them in the file `/__config__` of the instance (`ConfigurationFil
 | The question between quote and start (`EnvironmentStep`, `LaunchCancelled`) | `app/lib/celaut/launcher.dart`, `app/lib/ui/celaut/run_service_section.dart` |
 | The container (`EnvStore`, the rules of a name and a value) | `app/lib/celaut/env_store.dart` |
 | `EnvVariablesScreen`, `EnvQuestionsScreen` | `app/lib/ui/celaut/env_variables_screen.dart`, `env_questions_screen.dart` |
+| The exits of a service (`egressOf`), the nodes that read the values (`envTargetNodes`), the warnings (`EnvWarnings`) | `app/lib/celaut/egress.dart` |
+| `EnvRecord.sensitive`, `NodeRecord.trusted` | `rust/crates/celaut-client/src/db.rs` |
+| `celaut_env_set(name, value, sensitive)`, `celaut_env_set_sensitive` | `rust/crates/wallet-ffi/src/api/celaut_env.rs` |
+| `KnownNodeView.trusted`, `celaut_set_node_trusted`; the switch on the node card | `rust/crates/wallet-ffi/src/api/celaut_home.rs`, `app/lib/ui/celaut/known_nodes_screen.dart` |
 | Strings in English and Spanish | `app/lib/l10n/app_en.arb`, `app_es.arb` (`celautEnv*`) |
 
 A launch from the screen "Celaut service" of the Compute section has no question: it starts
@@ -144,6 +222,12 @@ The checks are in `celaut-client` (`env.rs`, `db.rs`, `service_info.rs`), `walle
   the order of the declaration; a skipped variable is absent, not empty.
 - A quote request never has `environment_variables`; only a start request has them.
 - Cancel on a question sends no request. The values are not in an error message or a log.
+- Section 3.2: an old variable is sensitive and an old node is not trusted; a value that is not
+  sensitive gives no warning, also with egress and an untrusted node; egress is a red card and
+  Deny is the filled, focused button and gives null; a network on the node is a normal
+  warning that names it; a trusted node gets no node warning; all the conditions are one page
+  (`celaut_egress_test.dart`, `celaut_env_test.dart`, `celaut_known_nodes_test.dart`,
+  `celaut_run_section_test.dart`).
 - The declaration is read after a filesystem of 300 000 bytes, with chunks of 1 byte to 1 MiB
   and a block marker in the middle; a cut service, a false length and a group wire type are
   errors, not panics. `CELAUT_TEST_BEE=<file> cargo test -p celaut-client --lib real_package --
@@ -159,5 +243,9 @@ The checks are in `celaut-client` (`env.rs`, `db.rs`, `service_info.rs`), `walle
 - Do the eye and the edit of a value need the unlock of the wallet (`wallet_unlock.dart`)?
   The code says no, as the database is encrypted already.
 - Save a typed value into the container from the question (section 3). Not built.
+- Section 3.2, for Josemi: the defaults (container sensitive, typed not); Deny ends the launch
+  (an alternative: Deny goes back to the questions, so the user can skip the value); a tag with
+  operator seeds shows as "on the node"; "Run only on trusted nodes" for a launch with
+  sensitive values is not built.
 - A service of more than 128 MiB that is on a node that does not skip blocks, and not in the library, cannot be read for
   its declaration. The user can load the file, or run with no variables.
