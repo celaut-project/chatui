@@ -140,7 +140,13 @@ void main() {
       [WalletAction.send, WalletAction.receive, WalletAction.more],
     );
     final tools = const WalletPageData(wallet: seed, currency: _aud, fragmented: true).tools;
-    expect(tools.map((t) => t.tool), [WalletTool.tokens, WalletTool.utxos, WalletTool.addresses, WalletTool.lock]);
+    expect(tools.map((t) => t.tool), [
+      WalletTool.tokens,
+      WalletTool.utxos,
+      WalletTool.addresses,
+      WalletTool.deposit,
+      WalletTool.lock,
+    ]);
     expect(tools[1].status, 'Fragmented');
     expect(tools[1].warn, isTrue);
   });

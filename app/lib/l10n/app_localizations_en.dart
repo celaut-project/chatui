@@ -507,8 +507,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Primary address, change policy, remove';
 
   @override
-  String get settingsSecurityWalletSubtitle =>
-      'Phone unlock, auto-lock';
+  String get settingsSecurityWalletSubtitle => 'Phone unlock, auto-lock';
 
   @override
   String get settingsErgoGroup => 'Ergo';

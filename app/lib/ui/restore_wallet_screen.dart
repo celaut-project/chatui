@@ -6,7 +6,6 @@ import '../l10n/l10n.dart';
 import '../services/privacy_service.dart';
 import '../services/secure_storage.dart';
 import '../services/wallet_service.dart';
-import '../theme/argus_theme.dart';
 import 'create_wallet_screen.dart';
 
 class RestoreWalletScreen extends StatefulWidget {

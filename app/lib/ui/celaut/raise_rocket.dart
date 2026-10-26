@@ -4,7 +4,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../../theme/argus_theme.dart';
-import '../home/home_style.dart';
 import 'launch_rocket.dart';
 
 /// The rocket of an import: the same rocket as the launch, lying on its pad, which the pad

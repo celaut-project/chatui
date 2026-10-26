@@ -1705,8 +1705,6 @@ class _MessageText extends StatelessWidget {
     required this.html,
     required this.streaming,
     required this.selectable,
-    this.onPin,
-    this.pinLabel = '',
   });
 
   final String text;
@@ -1715,32 +1713,11 @@ class _MessageText extends StatelessWidget {
   final bool streaming;
 
   /// The text can be selected. The pinned banner has it off: a tap there opens it.
+  /// Pin and unpin are in the menu of the bubble (a long press).
   final bool selectable;
 
-  /// Pins or unpins the message: it adds an item to the menu of the selected text. Null
-  /// adds nothing.
-  final VoidCallback? onPin;
-  final String pinLabel;
-
   Widget _text(String t, TextStyle s) => selectable
-      ? SelectableText(
-          t,
-          style: s,
-          contextMenuBuilder: (context, state) => AdaptiveTextSelectionToolbar.buttonItems(
-            anchors: state.contextMenuAnchors,
-            buttonItems: [
-              ...state.contextMenuButtonItems,
-              if (onPin != null)
-                ContextMenuButtonItem(
-                  label: pinLabel,
-                  onPressed: () {
-                    state.hideToolbar();
-                    onPin!();
-                  },
-                ),
-            ],
-          ),
-        )
+      ? SelectableText(t, style: s)
       : Text(t, style: s);
 
   @override
