@@ -535,6 +535,8 @@ void main() {
         await pickContainer(tester);
         expect(find.byKey(const Key('env-warning-egress')), findsNothing);
         expect(find.byKey(const Key('env-warning')), findsOneWidget);
+        final box = tester.widget<Container>(find.byKey(const Key('env-warning'))).decoration! as BoxDecoration;
+        expect((box.border! as Border).top.color, isNot(rust), reason: 'only egress is red');
         expect(find.byKey(const Key('env-warn-networks')), findsOneWidget);
         expect(find.textContaining('in the networks: postgres.'), findsOneWidget);
         expect(find.byKey(const Key('env-warn-nodes')), findsNothing, reason: 'the node is trusted');

@@ -137,10 +137,10 @@ one card, with one part for each condition that applies:
 | Condition | Part | Colour | Buttons |
 |---|---|---|---|
 | A network of egress | "Your sensitive values can leave the node", with the exits (`any address` for `*`) | Red card | **Deny** (filled, focused) cancels the launch; "Send the values and run" (red text) |
-| A network on the node | "The service shares networks on the node", with the networks | Accent | Run |
-| A node that can start the service and is not trusted | "Nodes that you do not fully trust", with their addresses | Accent | Run |
+| A network on the node | "The service shares networks on the node", with the networks | Text colour, grey border | Run |
+| A node that can start the service and is not trusted | "Nodes that you do not fully trust", with their addresses | Text colour, grey border | Run |
 
-The parts are on one page: there is no chain of dialogs. With egress, the other parts are red
+Only egress is red: the accent of the Celaut palettes is close to red, so the other parts use the colour of the text. The parts are on one page: there is no chain of dialogs. With egress, the other parts are red
 too, and the buttons are the ones of egress. Deny sends nothing: the launch ends as Cancel
 does. With no sensitive value, the review is as before, with no card. Each row of the review
 says "Sensitive" after the source of a sensitive value.
