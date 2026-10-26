@@ -148,10 +148,11 @@ void main() {
           peerId: 'a',
           addresses: ['one.example:10', 'old.example:11'],
           depositedNanoErg: BigInt.zero,
+        trusted: false,
         ),
-        KnownNodeView(peerId: 'b', addresses: const [], depositedNanoErg: BigInt.zero),
-        KnownNodeView(peerId: 'c', addresses: ['not an address'], depositedNanoErg: BigInt.zero),
-        KnownNodeView(peerId: 'd', addresses: ['[::1]:12'], depositedNanoErg: BigInt.zero),
+        KnownNodeView(peerId: 'b', addresses: const [], depositedNanoErg: BigInt.zero, trusted: false),
+        KnownNodeView(peerId: 'c', addresses: ['not an address'], depositedNanoErg: BigInt.zero, trusted: false),
+        KnownNodeView(peerId: 'd', addresses: ['[::1]:12'], depositedNanoErg: BigInt.zero, trusted: false),
       ],
     );
     expect(asked.single.map((n) => '${n.host}:${n.port}'), ['one.example:10', '::1:12']);

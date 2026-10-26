@@ -37,16 +37,19 @@ class EnvStore {
   EnvStore({
     List<EnvNameView> Function()? names,
     String? Function(String name)? get,
-    void Function(String name, String value)? set,
+    void Function(String name, String value, bool sensitive)? set,
+    void Function(String name, bool sensitive)? setSensitive,
     void Function(String name)? delete,
   })  : _names = names ?? celautEnvNames,
         _get = get ?? ((name) => celautEnvGet(name: name)),
-        _set = set ?? ((name, value) => celautEnvSet(name: name, value: value)),
+        _set = set ?? ((name, value, sensitive) => celautEnvSet(name: name, value: value, sensitive: sensitive)),
+        _setSensitive = setSensitive ?? ((name, sensitive) => celautEnvSetSensitive(name: name, sensitive: sensitive)),
         _delete = delete ?? ((name) => celautEnvDelete(name: name));
 
   final List<EnvNameView> Function() _names;
   final String? Function(String) _get;
-  final void Function(String, String) _set;
+  final void Function(String, String, bool) _set;
+  final void Function(String, bool) _setSensitive;
   final void Function(String) _delete;
 
   /// The variables, by name. The values are not read.
@@ -55,8 +58,12 @@ class EnvStore {
   /// The value of a variable, or null if it does not exist. For the eye and the edit.
   String? value(String name) => _get(name);
 
-  /// Add a variable or replace its value. Throws [CelautError] if Rust refuses it.
-  void set(String name, String value) => _set(name, value);
+  /// Add a variable or replace its value, with its mark: [sensitive] is a credential
+  /// (`docs/celaut/env-variables.md`, section 3.2). Throws [CelautError] if Rust refuses it.
+  void set(String name, String value, {required bool sensitive}) => _set(name, value, sensitive);
+
+  /// Mark a variable as sensitive or not. The value does not change.
+  void setSensitive(String name, bool sensitive) => _setSensitive(name, sensitive);
 
   void delete(String name) => _delete(name);
 }

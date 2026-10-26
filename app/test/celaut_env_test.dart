@@ -11,18 +11,29 @@ import 'package:flutter_test/flutter_test.dart';
 class _Container {
   final values = <String, String>{};
   final calls = <String>[];
+
+  /// The variables that are not sensitive. The others are.
+  final notSensitive = <String>{};
   Object? setError;
 
   EnvStore get store => EnvStore(
-    names: () => [for (final n in values.keys.toList()..sort()) EnvNameView(name: n, changedAt: 1)],
+    names: () => [
+      for (final n in values.keys.toList()..sort())
+        EnvNameView(name: n, changedAt: 1, sensitive: !notSensitive.contains(n)),
+    ],
     get: (n) {
       calls.add('get $n');
       return values[n];
     },
-    set: (n, v) {
+    set: (n, v, sensitive) {
       if (setError != null) throw setError!;
-      calls.add('set $n');
+      calls.add('set $n ${sensitive ? 'sensitive' : 'plain'}');
       values[n] = v;
+      sensitive ? notSensitive.remove(n) : notSensitive.add(n);
+    },
+    setSensitive: (n, sensitive) {
+      calls.add('mark $n ${sensitive ? 'sensitive' : 'plain'}');
+      sensitive ? notSensitive.remove(n) : notSensitive.add(n);
     },
     delete: (n) {
       calls.add('delete $n');
@@ -357,6 +368,48 @@ void main() {
       final out = envChoices(declared, [const EnvTyped('x'), const EnvSkipped(), const EnvFromContainer('K')]);
       expect(out.map((e) => (e.name, e.container, e.text)), [('API_KEY', null, 'x'), ('TOKEN', 'K', null)]);
       expect(envChoices(declared, [null, null, null]), isEmpty);
+    });
+  });
+
+  group('sensitive variables in the container', () {
+    testWidgets('a new variable is sensitive unless the switch is off', (tester) async {
+      final c = _Container();
+      await tester.pumpWidget(_app(EnvVariablesScreen(store: c.store)));
+      await tester.tap(find.byKey(const Key('env-add')));
+      await tester.pumpAndSettle();
+      expect(tester.widget<SwitchListTile>(find.byKey(const Key('env-edit-sensitive'))).value, isTrue);
+      await tester.enterText(find.byKey(const Key('env-name')), 'API_KEY');
+      await tester.enterText(find.byKey(const Key('env-value')), 'sk-1');
+      await tester.tap(find.byKey(const Key('env-save')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('env-add')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('env-name')), 'MODE');
+      await tester.enterText(find.byKey(const Key('env-value')), 'fast');
+      await tester.tap(find.byKey(const Key('env-edit-sensitive')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('env-save')));
+      await tester.pumpAndSettle();
+      expect(c.calls, ['set API_KEY sensitive', 'set MODE plain']);
+      expect(find.text('••••••••  ·  Sensitive'), findsOneWidget);
+      expect(find.text('••••••••  ·  Not sensitive'), findsOneWidget);
+    });
+
+    testWidgets('the lock of a row changes the mark and keeps the value', (tester) async {
+      final c = _Container()..values['API_KEY'] = 'sk-1';
+      await tester.pumpWidget(_app(EnvVariablesScreen(store: c.store)));
+      await tester.tap(find.byKey(const Key('env-sensitive-API_KEY')));
+      await tester.pump();
+      expect(c.notSensitive, {'API_KEY'});
+      expect(find.text('••••••••  ·  Not sensitive'), findsOneWidget);
+      // The edit form opens with the mark of the variable and keeps it.
+      await tester.tap(find.byKey(const Key('env-row-API_KEY')));
+      await tester.pumpAndSettle();
+      expect(tester.widget<SwitchListTile>(find.byKey(const Key('env-edit-sensitive'))).value, isFalse);
+      await tester.tap(find.byKey(const Key('env-save')));
+      await tester.pumpAndSettle();
+      expect(c.calls.last, 'set API_KEY plain');
+      expect(c.values, {'API_KEY': 'sk-1'});
     });
   });
 }

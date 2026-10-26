@@ -10216,6 +10216,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'On this phone'**
   String get celautRunModeFiles;
+
+  /// No description provided for @celautEnvSensitive.
+  ///
+  /// In en, this message translates to:
+  /// **'Sensitive'**
+  String get celautEnvSensitive;
+
+  /// No description provided for @celautEnvNotSensitive.
+  ///
+  /// In en, this message translates to:
+  /// **'Not sensitive'**
+  String get celautEnvNotSensitive;
+
+  /// No description provided for @celautEnvSensitiveHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A password, a key or a token. Before a sensitive value goes where others can read it, the app warns you.'**
+  String get celautEnvSensitiveHint;
+
+  /// No description provided for @celautEnvMarkSensitive.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark as sensitive'**
+  String get celautEnvMarkSensitive;
+
+  /// No description provided for @celautEnvMarkNotSensitive.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark as not sensitive'**
+  String get celautEnvMarkNotSensitive;
+
+  /// No description provided for @celautNodesTrusted.
+  ///
+  /// In en, this message translates to:
+  /// **'Fully trusted'**
+  String get celautNodesTrusted;
+
+  /// No description provided for @celautNodesTrustedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your node, or a node of family, friends or your company. The app does not warn before it gives this node your sensitive values.'**
+  String get celautNodesTrustedHint;
 }
 
 class _AppLocalizationsDelegate

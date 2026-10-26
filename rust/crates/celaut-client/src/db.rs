@@ -71,6 +71,12 @@ pub struct NodeRecord {
     /// What the checks of the node say: when, how fast, and why a check failed.
     #[serde(default)]
     pub health: crate::health::Health,
+    /// True if the user marked the node as fully trusted: a node of the user, or of family,
+    /// friends or the company (`docs/celaut/env-variables.md`, section 3.2). Before a
+    /// sensitive variable goes to a node that is not trusted, the app warns. A node of an
+    /// earlier version is not trusted.
+    #[serde(default)]
+    pub trusted: bool,
 }
 
 fn listed_by_default() -> bool {
@@ -89,6 +95,7 @@ impl Default for NodeRecord {
             free_credit_mu: None,
             earlier_client_ids: Vec::new(),
             health: crate::health::Health::default(),
+            trusted: false,
         }
     }
 }
@@ -281,7 +288,7 @@ pub struct CelautData {
 }
 
 /// One environment variable of the container of the app.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EnvRecord {
     /// The value, as UTF-8 text.
     #[serde(default)]
@@ -289,6 +296,26 @@ pub struct EnvRecord {
     /// The time of the last change, in Unix seconds.
     #[serde(default)]
     pub changed_at: i64,
+    /// True if the value is a credential (`docs/celaut/env-variables.md`, section 3.2). Only
+    /// a sensitive value makes the app warn before a launch. A variable of an earlier version
+    /// is sensitive: the user saved it to keep it.
+    #[serde(default = "sensitive_by_default")]
+    pub sensitive: bool,
+}
+
+fn sensitive_by_default() -> bool {
+    true
+}
+
+impl Default for EnvRecord {
+    /// A variable of the container is sensitive unless the user says that it is not.
+    fn default() -> Self {
+        EnvRecord {
+            value: String::new(),
+            changed_at: 0,
+            sensitive: true,
+        }
+    }
 }
 
 /// A service file that the user loaded into the app.
@@ -403,12 +430,14 @@ impl CelautData {
         }
     }
 
-    /// Add or replace the environment variable `name`. The name and the value follow
-    /// [`crate::env`]; a new name over [`crate::env::MAX_VARIABLES`] is refused.
+    /// Add or replace the environment variable `name`, with its mark `sensitive`. The name
+    /// and the value follow [`crate::env`]; a new name over [`crate::env::MAX_VARIABLES`] is
+    /// refused.
     pub fn set_env(
         &mut self,
         name: &str,
         value: &str,
+        sensitive: bool,
         at: i64,
     ) -> Result<(), crate::env::EnvError> {
         crate::env::check_name(name)?;
@@ -423,6 +452,7 @@ impl CelautData {
             EnvRecord {
                 value: value.to_string(),
                 changed_at: at,
+                sensitive,
             },
         );
         Ok(())
@@ -728,8 +758,8 @@ mod tests {
         let old: CelautData = serde_json::from_str(r#"{"version": 1}"#).unwrap();
         assert!(old.env_variables.is_empty());
         let mut data = CelautData::default();
-        data.set_env("API_KEY", "sk-1", 5).unwrap();
-        data.set_env("API_KEY", "sk-2", 6).unwrap();
+        data.set_env("API_KEY", "sk-1", true, 5).unwrap();
+        data.set_env("API_KEY", "sk-2", true, 6).unwrap();
         let back: CelautData =
             serde_json::from_str(&serde_json::to_string(&data).unwrap()).unwrap();
         assert_eq!(back.env_variables.len(), 1);
@@ -738,30 +768,58 @@ mod tests {
     }
 
     #[test]
+    fn an_old_variable_is_sensitive_and_an_old_node_is_not_trusted() {
+        let old: CelautData = serde_json::from_str(
+            r#"{"version": 1,
+                "nodes": {"aa": {"client_id": "c1"}},
+                "env_variables": {"API_KEY": {"value": "sk-1", "changed_at": 5}}}"#,
+        )
+        .unwrap();
+        assert!(old.env_variables["API_KEY"].sensitive);
+        assert!(!old.nodes["aa"].trusted);
+        let mut data = CelautData::default();
+        data.set_env("MODE", "fast", false, 1).unwrap();
+        data.nodes.insert(
+            "bb".into(),
+            NodeRecord {
+                trusted: true,
+                ..Default::default()
+            },
+        );
+        let back: CelautData =
+            serde_json::from_str(&serde_json::to_string(&data).unwrap()).unwrap();
+        assert!(!back.env_variables["MODE"].sensitive);
+        assert!(back.nodes["bb"].trusted);
+        // A change of the value keeps the mark that the caller gives.
+        data.set_env("MODE", "slow", true, 2).unwrap();
+        assert!(data.env_variables["MODE"].sensitive);
+    }
+
+    #[test]
     fn the_container_refuses_bad_entries_and_too_many() {
         let mut data = CelautData::default();
-        assert!(data.set_env("1A", "x", 0).is_err());
-        assert!(data.set_env("A", "", 0).is_err());
+        assert!(data.set_env("1A", "x", true, 0).is_err());
+        assert!(data.set_env("A", "", true, 0).is_err());
         assert!(data.env_variables.is_empty());
         for i in 0..crate::env::MAX_VARIABLES {
-            data.set_env(&format!("V{i}"), "x", 0).unwrap();
+            data.set_env(&format!("V{i}"), "x", true, 0).unwrap();
         }
         assert_eq!(
-            data.set_env("EXTRA", "x", 0),
+            data.set_env("EXTRA", "x", true, 0),
             Err(crate::env::EnvError::TooMany)
         );
         // An existing name is a change, not a new entry.
-        data.set_env("V0", "y", 1).unwrap();
+        data.set_env("V0", "y", true, 1).unwrap();
         assert_eq!(data.env_variables.len(), crate::env::MAX_VARIABLES);
     }
 
     #[test]
     fn a_merge_keeps_the_variables_that_exist() {
         let mut a = CelautData::default();
-        a.set_env("A", "mine", 1).unwrap();
+        a.set_env("A", "mine", true, 1).unwrap();
         let mut b = CelautData::default();
-        b.set_env("A", "other", 2).unwrap();
-        b.set_env("B", "new", 2).unwrap();
+        b.set_env("A", "other", true, 2).unwrap();
+        b.set_env("B", "new", true, 2).unwrap();
         a.merge_missing(b);
         assert_eq!(a.env_variables["A"].value, "mine");
         assert_eq!(a.env_variables["B"].value, "new");
