@@ -1471,6 +1471,10 @@
   "chatsStateStopped": "Detenida",
   "chatsNoPreview": "Ningún mensaje visto desde que se abrió la app",
   "chatsNoChatSlot": "Sin conversación: este servicio no tiene ranura de chat",
+  "chatsNoInterface": "Sin interfaz: este servicio no tiene ranura de chat ni web",
+  "chatsWebPreview": "Servicio web · se abre en el navegador",
+  "chatsOpenInBrowser": "Abrir en el navegador",
+  "chatsBrowserFailed": "No se pudo abrir el navegador",
   "chatsPreviewYou": "Tú: {text}",
   "@chatsPreviewYou": {
     "placeholders": {

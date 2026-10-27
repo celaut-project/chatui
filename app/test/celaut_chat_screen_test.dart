@@ -264,6 +264,7 @@ final _echo = InstanceListView(
   serviceId: '65' * 32,
   slots: Uint16List.fromList([8080]),
   chatSlots: Uint16List.fromList([8080]),
+  webSlots: Uint16List(0),
   startedAt: 1760000000,
   startChargeMu: '1000',
   refundMu: '',

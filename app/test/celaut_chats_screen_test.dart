@@ -32,6 +32,7 @@ InstanceListView _instance(
   String id, {
   String name = 'Echo chat',
   bool chat = true,
+  bool web = false,
   int startedAt = 100,
   String address = 'node.example:53460',
   int? stoppedAt,
@@ -44,6 +45,7 @@ InstanceListView _instance(
       serviceId: _echoId,
       slots: Uint16List.fromList([8080]),
       chatSlots: Uint16List.fromList(chat ? [8080] : []),
+      webSlots: Uint16List.fromList(web ? [3000] : []),
       startedAt: startedAt,
       startChargeMu: '1000',
       name: name,
@@ -59,6 +61,7 @@ InstanceListView _stopped(InstanceListView i, String refundMu) => InstanceListVi
       serviceId: i.serviceId,
       slots: i.slots,
       chatSlots: i.chatSlots,
+      webSlots: i.webSlots,
       startedAt: i.startedAt,
       startChargeMu: i.startChargeMu,
       name: i.name,
@@ -279,6 +282,7 @@ void main() {
                 peerId: 'aa' * 32,
                 slots: started.slots,
                 chatSlots: started.chatSlots,
+                webSlots: started.webSlots,
                 clientBalanceMu: '5',
               ),
               skipped: const [],
@@ -449,12 +453,28 @@ void main() {
       );
     });
 
-    testWidgets('an instance without a chat slot is not in the list of conversations',
+    testWidgets('an instance with no chat and no web slot is in the list, and a tap says that it has no interface',
         (tester) async {
       node.db = [_instance('plain', chat: false)];
       await open(tester);
-      expect(find.byKey(const Key('chats-row-plain')), findsNothing);
-      expect(find.byKey(const Key('chats-empty')), findsOneWidget);
+      expect(find.byKey(const Key('chats-row-plain')), findsOneWidget);
+      expect(find.text(appL10n.chatsNoInterface), findsOneWidget);
+      await tester.tap(find.byKey(const Key('chats-row-plain')));
+      await tester.pumpAndSettle();
+      expect(node.tunnels, isEmpty);
+      expect(find.text(appL10n.chatsNoInterface), findsNWidgets(2));
+    });
+
+    testWidgets('an instance with a web slot is in the list, and a tap opens a port for the browser',
+        (tester) async {
+      node.db = [_instance('web1', chat: false, web: true)];
+      await open(tester);
+      expect(find.text(appL10n.chatsWebPreview), findsOneWidget);
+      await tester.tap(find.byKey(const Key('chats-row-web1')));
+      await tester.pumpAndSettle();
+      // The tunnel is to the web slot, and no conversation opens.
+      expect(node.tunnels, ['web1:3000']);
+      expect(find.textContaining('chat web1'), findsNothing);
     });
 
     testWidgets('a tap opens the conversation of a running instance, which reads it again', (
@@ -1003,7 +1023,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('chats-row-plain')), findsOneWidget);
       expect(find.byKey(const Key('chats-row-chat')), findsNothing);
-      expect(find.text(appL10n.chatsNoChatSlot), findsOneWidget);
+      expect(find.text(appL10n.chatsNoInterface), findsOneWidget);
       await tester.tap(find.byKey(const Key('chats-row-plain')));
       await tester.pumpAndSettle();
       expect(node.tunnels, isEmpty);

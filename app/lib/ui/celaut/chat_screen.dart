@@ -26,6 +26,7 @@ import 'chat_floating.dart';
 import 'html_widget.dart';
 import 'instance_actions.dart';
 import 'instance_info_screen.dart';
+import 'open_web.dart';
 
 /// The conversation with a running instance that follows the chat convention
 /// (`docs/celaut/chat.md`), as a chat in a messenger (`docs/celaut/ui-chat-first.md`).
@@ -930,6 +931,7 @@ class _ChatScreenState extends State<ChatScreen>
                   onSelected: (choice) => switch (choice) {
                     'stop' => _stop(),
                     'mute' => _toggleMute(),
+                    'browser' => openWebInBrowser(context, _instance),
                     _ => _info(),
                   },
                   itemBuilder: (context) => [
@@ -938,6 +940,12 @@ class _ChatScreenState extends State<ChatScreen>
                       value: 'info',
                       child: Text(l10n.chatsActionInfo),
                     ),
+                    if (_instance.webSlots.isNotEmpty)
+                      PopupMenuItem(
+                        key: const Key('chat-menu-browser'),
+                        value: 'browser',
+                        child: Text(l10n.chatsOpenInBrowser),
+                      ),
                     PopupMenuItem(
                       key: const Key('chat-menu-mute'),
                       value: 'mute',

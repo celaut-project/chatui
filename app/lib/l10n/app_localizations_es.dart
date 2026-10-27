@@ -5586,6 +5586,19 @@ class AppLocalizationsEs extends AppLocalizations {
       'Sin conversación: este servicio no tiene ranura de chat';
 
   @override
+  String get chatsNoInterface =>
+      'Sin interfaz: este servicio no tiene ranura de chat ni web';
+
+  @override
+  String get chatsWebPreview => 'Servicio web · se abre en el navegador';
+
+  @override
+  String get chatsOpenInBrowser => 'Abrir en el navegador';
+
+  @override
+  String get chatsBrowserFailed => 'No se pudo abrir el navegador';
+
+  @override
   String chatsPreviewYou(String text) {
     return 'Tú: $text';
   }

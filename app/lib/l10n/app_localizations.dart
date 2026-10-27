@@ -8729,6 +8729,30 @@ abstract class AppLocalizations {
   /// **'No conversation: this service has no chat slot'**
   String get chatsNoChatSlot;
 
+  /// No description provided for @chatsNoInterface.
+  ///
+  /// In en, this message translates to:
+  /// **'No interface: this service has no chat or web slot'**
+  String get chatsNoInterface;
+
+  /// No description provided for @chatsWebPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Web service · opens in the browser'**
+  String get chatsWebPreview;
+
+  /// No description provided for @chatsOpenInBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in browser'**
+  String get chatsOpenInBrowser;
+
+  /// No description provided for @chatsBrowserFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the browser'**
+  String get chatsBrowserFailed;
+
   /// No description provided for @chatsPreviewYou.
   ///
   /// In en, this message translates to:
