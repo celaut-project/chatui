@@ -4141,6 +4141,10 @@
   "chatsStateStopped": "Stopped",
   "chatsNoPreview": "No message seen since the app opened",
   "chatsNoChatSlot": "No conversation: this service has no chat slot",
+  "chatsNoInterface": "No interface: this service has no chat or web slot",
+  "chatsWebPreview": "Web service · opens in the browser",
+  "chatsOpenInBrowser": "Open in browser",
+  "chatsBrowserFailed": "Could not open the browser",
   "chatsPreviewYou": "You: {text}",
   "@chatsPreviewYou": {
     "placeholders": {

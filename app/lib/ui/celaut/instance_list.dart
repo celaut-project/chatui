@@ -19,6 +19,7 @@ import '../home/home_style.dart';
 import 'chat_screen.dart';
 import 'instance_actions.dart';
 import 'instance_info_screen.dart';
+import 'open_web.dart';
 
 /// The conversation screen of an instance. Tests give their own.
 typedef ChatPageBuilder = Widget Function(InstanceListView instance, int port, bool starting);
@@ -42,6 +43,7 @@ InstanceListView instanceOfLaunch(LaunchOutcome outcome, String serviceId, Strin
     serviceId: serviceId.toLowerCase(),
     slots: i.slots,
     chatSlots: i.chatSlots,
+    webSlots: i.webSlots,
     startedAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
     startChargeMu: '',
     name: name ?? '',
@@ -52,7 +54,8 @@ InstanceListView instanceOfLaunch(LaunchOutcome outcome, String serviceId, Strin
 
 /// The rows of the instances of the app, as the chat list of a messenger
 /// (`docs/celaut/ui-chat-first.md`): the instances whose interface has a chat slot
-/// ([chats] true, the home screen), or the others ([chats] false, "Other instances").
+/// ([chats] true, the home screen: all of them), or only those with no chat and no web
+/// slot ([chats] false, "Other instances").
 ///
 /// The rows come from the database at once ([load]): the instances that run and the
 /// stopped ones that the user did not delete. The list asks each node for its running
@@ -89,7 +92,7 @@ class InstanceList extends StatefulWidget {
   /// The filter that hides the stopped instances. Tests give their own.
   final StoppedFilter? filter;
 
-  /// The instances with a chat slot, or the others.
+  /// Every instance, or only those that have no chat and no web slot.
   final bool chats;
 
   /// What the list shows with no row.
@@ -152,7 +155,11 @@ class InstanceListState extends State<InstanceList> {
     if (mounted) setState(() {});
   }
 
-  bool _wanted(InstanceListView i) => i.chatSlots.isNotEmpty == widget.chats;
+  /// The home list has every instance: all of them are a conversation, and one that has
+  /// only a web slot opens in the browser. The others have no interface to use, and
+  /// "Other instances" keeps them.
+  bool _wanted(InstanceListView i) =>
+      widget.chats || (i.chatSlots.isEmpty && i.webSlots.isEmpty);
 
   /// Read the database, then ask the nodes.
   Future<void> refresh() async {
@@ -303,10 +310,16 @@ class InstanceListState extends State<InstanceList> {
   }
 
   Future<void> _tap(InstanceListView i, InstanceState state) async {
-    if (state == InstanceState.stopped || i.chatSlots.isEmpty) {
+    final noInterface = i.chatSlots.isEmpty && i.webSlots.isEmpty;
+    // "Other instances" has the ones with no interface: a tap opens their info.
+    if (state == InstanceState.stopped || (noInterface && !widget.chats)) {
       await _openInfo(i, state);
-    } else {
+    } else if (i.chatSlots.isNotEmpty) {
       await openChat(i);
+    } else {
+      // A web slot opens in the browser; with no slot the snack bar says that there is no
+      // interface.
+      await openWebInBrowser(context, i, openTunnel: widget.openTunnel);
     }
   }
 
@@ -495,7 +508,11 @@ class _InstanceRow extends StatelessWidget {
       InstanceState.checking || InstanceState.stopped => tones.muted,
     };
     final preview = last == null
-        ? (instance.chatSlots.isEmpty ? l.chatsNoChatSlot : l.chatsNoPreview)
+        ? (instance.chatSlots.isNotEmpty
+            ? l.chatsNoPreview
+            : instance.webSlots.isNotEmpty
+                ? l.chatsWebPreview
+                : l.chatsNoInterface)
         : last!.fromUser
             ? l.chatsPreviewYou(messagePreview(last!, l))
             : messagePreview(last!, l);

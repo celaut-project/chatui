@@ -44,6 +44,11 @@ impl StartedInstance {
     pub fn chat_slots(&self) -> Vec<u16> {
         chat_slots(&self.instance)
     }
+
+    /// The slots that a browser can open (see [`web_slots`]), in the order of `Service.Api`.
+    pub fn web_slots(&self) -> Vec<u16> {
+        web_slots(&self.instance)
+    }
 }
 
 /// The tags of the chat slot, from bottom to top: `http2`, `grpc`, `chat`.
@@ -84,6 +89,45 @@ pub fn chat_slots(instance: &Instance) -> Vec<u16> {
         return Vec::new();
     };
     api_chat_ports(api)
+        .into_iter()
+        .filter(|port| {
+            instance
+                .uri_slot
+                .iter()
+                .any(|u| u16::try_from(u.internal_port) == Ok(*port))
+        })
+        .collect()
+}
+
+/// The ports of `api` that a browser can open: a slot with the transport `tcp` and a
+/// protocol `http` in its stack, and no `chat` protocol (a service of the chat convention
+/// has its own screen, and an old revision of it speaks JSON, not pages). Another
+/// protocol above `http` that a browser does not speak (`grpc`, `http2`) does not count.
+pub fn api_web_ports(api: &Api) -> Vec<u16> {
+    let has = |tags: &[String], tag: &str| tags.iter().any(|t| t == tag);
+    let mut found = Vec::new();
+    for slot in &api.slot {
+        let tcp = slot.transport.as_ref().is_some_and(|t| has(&t.tags, "tcp"));
+        let stack = &slot.protocol_stack;
+        let web = stack.iter().any(|p| has(&p.tags, "http"))
+            && !stack.iter().any(|p| has(&p.tags, "chat") || has(&p.tags, "grpc"));
+        let Ok(port) = u16::try_from(slot.port) else {
+            continue;
+        };
+        if tcp && web && !found.contains(&port) {
+            found.push(port);
+        }
+    }
+    found
+}
+
+/// The slots of `instance` that a browser can open (see [`api_web_ports`]). As for the
+/// chat, a slot counts only if the instance has that port.
+pub fn web_slots(instance: &Instance) -> Vec<u16> {
+    let Some(api) = instance.api.as_ref() else {
+        return Vec::new();
+    };
+    api_web_ports(api)
         .into_iter()
         .filter(|port| {
             instance
@@ -333,6 +377,40 @@ mod chat_slot_tests {
                 ..Default::default()
             }),
             uri_slot,
+        }
+    }
+
+    #[test]
+    fn tcp_http_is_a_web_slot() {
+        let i = instance(vec![slot(80, "tcp", &[&["http"]])]);
+        assert_eq!(web_slots(&i), vec![80]);
+        assert!(chat_slots(&i).is_empty());
+    }
+
+    #[test]
+    fn a_service_can_have_a_chat_slot_and_a_web_slot() {
+        let i = instance(vec![
+            slot(8080, "tcp", &[&["http2"], &["grpc"], &["chat"]]),
+            slot(3000, "tcp", &[&["http"]]),
+        ]);
+        assert_eq!(chat_slots(&i), vec![8080]);
+        assert_eq!(web_slots(&i), vec![3000]);
+    }
+
+    #[test]
+    fn grpc_chat_and_udp_are_not_web_slots() {
+        let grpc = instance(vec![slot(1, "tcp", &[&["http2"], &["grpc"]])]);
+        let old_chat = instance(vec![slot(2, "tcp", &[&["http"], &["chat"]])]);
+        let udp = instance(vec![slot(3, "udp", &[&["http"]])]);
+        let absent = Instance {
+            api: Some(Api {
+                slot: vec![slot(4, "tcp", &[&["http"]])],
+                ..Default::default()
+            }),
+            uri_slot: Vec::new(),
+        };
+        for i in [grpc, old_chat, udp, absent] {
+            assert!(web_slots(&i).is_empty());
         }
     }
 

@@ -22,6 +22,7 @@ InstanceListView withAlias(InstanceListView i, String alias) => InstanceListView
       serviceId: i.serviceId,
       slots: i.slots,
       chatSlots: i.chatSlots,
+      webSlots: i.webSlots,
       startedAt: i.startedAt,
       startChargeMu: i.startChargeMu,
       name: i.name,

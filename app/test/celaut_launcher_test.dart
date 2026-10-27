@@ -44,6 +44,7 @@ InstanceView _instance(String id) => InstanceView(
   peerId: 'p',
   slots: Uint16List.fromList([8080]),
   chatSlots: Uint16List.fromList([8080]),
+  webSlots: Uint16List(0),
   clientBalanceMu: '5',
 );
 

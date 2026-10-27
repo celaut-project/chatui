@@ -132,6 +132,9 @@ class InstanceListView {
   /// The ports that follow the chat convention, a part of `slots`.
   final Uint16List chatSlots;
 
+  /// The ports that a browser can open, a part of `slots`.
+  final Uint16List webSlots;
+
   /// The time of the start, in Unix seconds.
   final PlatformInt64 startedAt;
 
@@ -157,6 +160,7 @@ class InstanceListView {
     required this.serviceId,
     required this.slots,
     required this.chatSlots,
+    required this.webSlots,
     required this.startedAt,
     required this.startChargeMu,
     required this.name,
@@ -173,6 +177,7 @@ class InstanceListView {
       serviceId.hashCode ^
       slots.hashCode ^
       chatSlots.hashCode ^
+      webSlots.hashCode ^
       startedAt.hashCode ^
       startChargeMu.hashCode ^
       name.hashCode ^
@@ -191,6 +196,7 @@ class InstanceListView {
           serviceId == other.serviceId &&
           slots == other.slots &&
           chatSlots == other.chatSlots &&
+          webSlots == other.webSlots &&
           startedAt == other.startedAt &&
           startChargeMu == other.startChargeMu &&
           name == other.name &&
@@ -252,6 +258,9 @@ class InstanceView {
   /// `slots`. The chat screen uses the first one.
   final Uint16List chatSlots;
 
+  /// The ports that a browser can open (`tcp` and `http`, no chat), a part of `slots`.
+  final Uint16List webSlots;
+
   /// The balance of this client on the node after the start, in MU (empty if
   /// unknown).
   final String clientBalanceMu;
@@ -261,6 +270,7 @@ class InstanceView {
     required this.peerId,
     required this.slots,
     required this.chatSlots,
+    required this.webSlots,
     required this.clientBalanceMu,
   });
 
@@ -270,6 +280,7 @@ class InstanceView {
       peerId.hashCode ^
       slots.hashCode ^
       chatSlots.hashCode ^
+      webSlots.hashCode ^
       clientBalanceMu.hashCode;
 
   @override
@@ -281,6 +292,7 @@ class InstanceView {
           peerId == other.peerId &&
           slots == other.slots &&
           chatSlots == other.chatSlots &&
+          webSlots == other.webSlots &&
           clientBalanceMu == other.clientBalanceMu;
 }
 

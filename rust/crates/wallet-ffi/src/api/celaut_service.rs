@@ -471,6 +471,8 @@ pub struct InstanceView {
     /// The ports that follow the chat convention (`docs/celaut/chat.md`), a part of
     /// `slots`. The chat screen uses the first one.
     pub chat_slots: Vec<u16>,
+    /// The ports that a browser can open (`tcp` and `http`, no chat), a part of `slots`.
+    pub web_slots: Vec<u16>,
     /// The balance of this client on the node after the start, in MU (empty if
     /// unknown).
     pub client_balance_mu: String,
@@ -511,6 +513,7 @@ pub async fn celaut_start_service(
         service_id: hex::encode(id),
         slots: started.slots(),
         chat_slots: started.chat_slots(),
+        web_slots: started.web_slots(),
         started_at: now_seconds(),
         start_charge_mu: match (before, after) {
             (Some(b), Some(a)) if b >= a => Some((b - a).to_string()),
@@ -527,6 +530,7 @@ pub async fn celaut_start_service(
         peer_id: record.peer_id.clone(),
         slots: record.slots.clone(),
         chat_slots: record.chat_slots.clone(),
+        web_slots: record.web_slots.clone(),
         client_balance_mu: after.map(|b| b.to_string()).unwrap_or_default(),
     };
     db().update(|d| {
@@ -586,6 +590,8 @@ pub struct InstanceListView {
     pub slots: Vec<u16>,
     /// The ports that follow the chat convention, a part of `slots`.
     pub chat_slots: Vec<u16>,
+    /// The ports that a browser can open, a part of `slots`.
+    pub web_slots: Vec<u16>,
     /// The time of the start, in Unix seconds.
     pub started_at: i64,
     /// What the start took from the balance of the client, in MU (empty if unknown).
@@ -614,6 +620,7 @@ pub fn celaut_instances() -> Vec<InstanceListView> {
                 service_id: r.service_id.clone(),
                 slots: r.slots.clone(),
                 chat_slots: r.chat_slots.clone(),
+                web_slots: r.web_slots.clone(),
                 started_at: r.started_at,
                 start_charge_mu: r.start_charge_mu.clone().unwrap_or_default(),
                 name: r.name.clone().unwrap_or_default(),

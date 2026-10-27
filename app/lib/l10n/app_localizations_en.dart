@@ -5515,6 +5515,19 @@ class AppLocalizationsEn extends AppLocalizations {
       'No conversation: this service has no chat slot';
 
   @override
+  String get chatsNoInterface =>
+      'No interface: this service has no chat or web slot';
+
+  @override
+  String get chatsWebPreview => 'Web service · opens in the browser';
+
+  @override
+  String get chatsOpenInBrowser => 'Open in browser';
+
+  @override
+  String get chatsBrowserFailed => 'Could not open the browser';
+
+  @override
   String chatsPreviewYou(String text) {
     return 'You: $text';
   }

@@ -324,7 +324,20 @@ class ChatHtmlWidget extends StatelessWidget {
     final tree = parseChatHtml(html);
     final children = r.blocks(tree, base, null, theme.scaffoldBackgroundColor);
     if (children.isEmpty) return const SizedBox.shrink();
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: children);
+    // The card has the color that the renderer takes as the surface, so the contrast of
+    // the text is checked against the real background.
+    return Container(
+      key: const Key('chat-html-card'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: children),
+    );
   }
 }
 

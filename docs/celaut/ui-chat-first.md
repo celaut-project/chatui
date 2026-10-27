@@ -263,6 +263,22 @@ Known limits of the notices:
 - If many answers get done between two reads of the conversation, the user gets one
   notice for the chat, not one for each answer.
 
+### 9.0 Web services (2026-10-27, Josemi)
+
+Every instance is a conversation, and Chats lists all of them. A row does this:
+
+- A chat slot (`http2`, `grpc`, `chat`): it opens the chat.
+- No chat slot, but a web slot (`tcp` with `http`, and no `chat` or `grpc`): it opens the
+  browser of the phone at `http://127.0.0.1:<port>/`. The port is the local port of the slot
+  (`celautOpenTunnel`), so the browser reaches the node through the tunnel. Each TCP
+  connection of the browser is one tunnel stream, and the node charges each one. The port
+  lasts while the app runs.
+- Neither: the row says that there is no interface, and a tap shows the same.
+- Both: the chat opens, and the menu (⋮) of the chat has "Open in browser" for the web slot.
+
+An instance that an older version started has no web slots recorded: it shows as with no
+interface.
+
 ### 9.1 Changes of revision 6 of the protocol (2026-10-24)
 
 - The app sends over the `Connect` stream while it is open, and with `SendMessage` while it is not (the watcher uses `SendMessage` only if it must send). It reads new messages with the stream and not with a poll. While a stream
