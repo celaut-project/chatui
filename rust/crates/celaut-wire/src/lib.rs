@@ -11,6 +11,7 @@
 //! - [`relay`]: the call that gives a service to a node, and stops when the node
 //!   answers before the end (it already has the service).
 //! - [`tunnel`]: `ServiceTunnel`, a byte stream to one port of an instance.
+//! - [`receipt`]: the execution receipts that a node signs (nodo#419), and their check.
 //!
 //! Input from a peer must never make this crate panic.
 #![forbid(unsafe_code)]
@@ -23,6 +24,7 @@ pub mod channel;
 pub mod error;
 pub mod gateway;
 pub mod identity;
+pub mod receipt;
 pub mod relay;
 pub mod skips;
 pub mod transport;

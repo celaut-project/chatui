@@ -735,6 +735,7 @@ name = "celaut-wire"
 version = "0.1.0"
 dependencies = [
  "bee-rpc",
+ "blake2 0.11.0",
  "celaut-net",
  "celaut-proto",
  "hex",

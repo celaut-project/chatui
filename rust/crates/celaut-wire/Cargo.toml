@@ -19,6 +19,8 @@ tonic-prost = { version = "0.14", default-features = false }
 hyper-util = { version = "0.1", default-features = false, features = ["tokio"] }
 tower = { version = "0.5", default-features = false, features = ["util"] }
 ring = "0.17"
+# Blake2b-256 of the execution receipts (nodo#419); the same version as celaut-client.
+blake2 = "0.11"
 hex = { workspace = true }
 thiserror = { workspace = true }
 prost = "0.14"
