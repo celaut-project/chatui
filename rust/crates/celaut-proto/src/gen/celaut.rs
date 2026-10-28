@@ -908,9 +908,10 @@ pub struct ExecutionReceipt {
     /// celaut-gateway layer gives the canonical text.
     #[prost(string, tag = "6")]
     pub envs_digest: ::prost::alloc::string::String,
-    /// Only in "start". A random value that the node selects for each start. The
+    /// Only in "start". 16 random bytes that the node selects for each start. The
     /// signature does not cover it: it lets the holder of the receipt show the digest
-    /// to others and keep the values secret.
+    /// to others and keep the values secret. A verifier refuses a salt of another
+    /// length, because nothing separates the salt from the canonical text.
     #[prost(bytes = "vec", tag = "7")]
     pub envs_salt: ::prost::alloc::vec::Vec<u8>,
     /// Only in "start". The Configuration.initial_mu of the start, in MU: what the node
