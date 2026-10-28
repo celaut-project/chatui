@@ -17,7 +17,7 @@ use celaut_proto::celaut::service::container::Architecture;
 use celaut_proto::celaut::{
     Amount, ArchitectureResources, BytesKeyValue, Client, Configuration, Contract, ContractRate,
     EstimatedCost, Instance, Metrics, ModifyDepositInput, ModifyDepositOutput, Peer,
-    RecursionGuard, Refund, ServiceInstance,
+    ExecutionReceipt, RecursionGuard, Refund, ServiceInstance,
     Sysresources, TokenMessage,
 };
 use celaut_wire::gateway::SHA3_256_TYPE;
@@ -199,12 +199,17 @@ async fn start_gives_the_token_and_the_slots() {
                 uri: vec![],
             }],
         }),
-        receipt: None,
+        receipt: Some(ExecutionReceipt {
+            kind: "start".into(),
+            ..Default::default()
+        }),
     };
     let s = session(vec![after_signal(&instance)]).await;
     let started = s.start(SERVICE, Configuration::default()).await.unwrap();
     assert_eq!(started.token, "instance-token");
     assert_eq!(started.slots(), vec![3030]);
+    // The start receipt comes with it, for the app to check.
+    assert_eq!(started.receipt.map(|r| r.kind).as_deref(), Some("start"));
     let (method, parts) = s.transport().request(2);
     assert_eq!(method, "StartService");
     assert_eq!(indices(&parts), vec![1, 2, 4]);

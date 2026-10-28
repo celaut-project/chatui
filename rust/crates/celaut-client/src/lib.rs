@@ -15,6 +15,8 @@
 //! - [`quotes`]: the quotes of several nodes, best first ([`celaut_balancer`]).
 //! - [`local_port`]: a TCP port on 127.0.0.1 for one port of an instance. Each TCP
 //!   connection is one `ServiceTunnel` stream.
+//! - [`receipts`]: the execution receipts of the instances (nodo#419): their check when
+//!   they come, the form that the database keeps, and the export.
 //!
 //! Milestone M3, a deposit in ERG:
 //!
@@ -48,6 +50,7 @@ pub mod package;
 pub mod peer;
 pub mod pow;
 pub mod quotes;
+pub mod receipts;
 pub mod refusal;
 pub mod session;
 pub mod store;

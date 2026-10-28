@@ -16,15 +16,21 @@
 //! `/`) and `CELAUT_INITIAL_MU`, the balance of the instance at the start (default
 //! 1000000 MU; the default of the node is one hour of the resources, more than the free
 //! credit). The service must answer HTTP/1.1 on its first slot.
+//!
+//! With `CELAUT_RECEIPTS=1`, for a node with execution receipts (nodo#419), it also
+//! checks the start receipt, the close of the kept-alive stream, and a second stream that
+//! the client cancels (no close, and no fault). `CELAUT_RECEIPTS_OUT=<file>` writes the
+//! receipts in the form of `nodo receipt verify`.
 
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use celaut_balancer::QuoteCache;
+use celaut_client::receipts::{check_start, export_jsonl, summarize, InstanceReceipts};
 use celaut_client::session::parse_service_id;
 use celaut_client::{quotes, LocalPort, MemoryPeerStore, NodeSession};
 use celaut_proto::celaut::{Amount, Configuration};
-use celaut_wire::{ConnectOptions, Connection, TunnelOpener};
+use celaut_wire::{ConnectOptions, Connection, ReceiptEvent, ReceiptSink, TunnelOpener};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
 
@@ -128,13 +134,44 @@ async fn quote_start_call_stop_and_refund() {
         "started: slots {slots:?}\nclient balance after the start: {after_start} MU\ninstance balance: {instance_balance} MU"
     );
     assert!(!slots.is_empty(), "the instance has no slot");
+    let receipts = env("CELAUT_RECEIPTS").is_some();
+    if receipts {
+        let start = started.receipt.as_ref().expect("a start receipt");
+        let faults = check_start(
+            start,
+            &peer_id,
+            &started.token,
+            &service_id,
+            &configuration.environment_variables,
+            configuration.initial_mu.as_ref().map(|a| a.n.as_str()),
+        );
+        println!("start receipt: initial_mu {:?}, faults {faults:?}", start.initial_mu);
+        assert!(faults.is_empty(), "{faults:?}");
+    }
+    let kept = Arc::new(Mutex::new(InstanceReceipts {
+        start: started
+            .receipt
+            .as_ref()
+            .map(|r| celaut_client::receipts::StoredReceipt::new(r, vec![])),
+        ..Default::default()
+    }));
+    let ends = Arc::new(Mutex::new(Vec::new()));
+    let sink: ReceiptSink = {
+        let (kept, ends) = (kept.clone(), ends.clone());
+        Arc::new(move |event: ReceiptEvent| {
+            if let ReceiptEvent::Ended { closed, cancelled, .. } = &event {
+                ends.lock().unwrap().push((*closed, *cancelled));
+            }
+            kept.lock().unwrap().apply(&event, 0);
+        })
+    };
     assert!(after_start < credit, "the start cost nothing");
 
     // Calls through the local port, all on one TCP connection (one stream). The
     // service can need a moment to listen: a connection that closes before an answer
     // is tried again.
     let opener: Arc<dyn TunnelOpener> = Arc::new(session.transport().clone());
-    let local = LocalPort::bind(opener, started.token.clone(), slots[0])
+    let local = LocalPort::bind(opener, started.token.clone(), slots[0], Some(sink))
         .await
         .expect("local port");
     let deadline = Instant::now() + Duration::from_secs(120);
@@ -169,6 +206,43 @@ async fn quote_start_call_stop_and_refund() {
         "the kept-alive calls opened new streams"
     );
     drop(socket);
+    if receipts {
+        // The end of the local connection half-closes the stream: the node ends it on
+        // its own, with a close. Then a second stream, cancelled by this side.
+        let deadline = Instant::now() + Duration::from_secs(30);
+        while !ends.lock().unwrap().contains(&(true, false)) {
+            assert!(Instant::now() < deadline, "no close: {:?}", ends.lock().unwrap());
+            tokio::time::sleep(Duration::from_millis(200)).await;
+        }
+        let mut second = BufReader::new(
+            TcpStream::connect(("127.0.0.1", local.port()))
+                .await
+                .expect("connect to the local port"),
+        );
+        get(&mut second, &path).await.expect("a call on a second stream");
+        // A checkpoint comes after 5 s of traffic.
+        tokio::time::sleep(Duration::from_secs(6)).await;
+        get(&mut second, &path).await.expect("a second call");
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        // Dropping the port aborts the relay: the stream is cancelled.
+        drop(local);
+        let deadline = Instant::now() + Duration::from_secs(30);
+        while !ends.lock().unwrap().iter().any(|e| e.1) {
+            assert!(Instant::now() < deadline, "no cancel: {:?}", ends.lock().unwrap());
+            tokio::time::sleep(Duration::from_millis(200)).await;
+        }
+        let kept = kept.lock().unwrap().clone();
+        let summary = summarize(&kept, &peer_id, &started.token);
+        println!("receipts: {summary:?}\nends: {:?}", ends.lock().unwrap());
+        assert!(summary.faults.is_empty(), "{summary:?}");
+        assert_eq!(summary.start_ok, Some(true));
+        assert!(summary.closed >= 1 && summary.cancelled >= 1, "{summary:?}");
+        if let Some(out) = env("CELAUT_RECEIPTS_OUT") {
+            std::fs::write(&out, export_jsonl(&kept)).expect("write the receipts");
+            println!("receipts written to {out}");
+        }
+        return stop_and_refund(&session, &started.token).await;
+    }
     let instance_after_calls = session
         .instance_balance(&started.token)
         .await
@@ -178,10 +252,13 @@ async fn quote_start_call_stop_and_refund() {
         local.streams_opened()
     );
     drop(local);
+    stop_and_refund(&session, &started.token).await;
+}
 
-    // Stop, and the refund in the balance of the client.
+/// Stop, and the refund in the balance of the client.
+async fn stop_and_refund(session: &NodeSession<Connection>, token: &str) {
     let before_stop = session.balance().await.expect("balance");
-    let refund = session.stop(&started.token).await.expect("stop");
+    let refund = session.stop(token).await.expect("stop");
     let after_stop = session.balance().await.expect("balance");
     println!(
         "refund: {refund} MU\nclient balance: {before_stop} MU before the stop, {after_stop} MU after"
@@ -193,7 +270,7 @@ async fn quote_start_call_stop_and_refund() {
         "the refund is not in GetMetrics"
     );
     // The node forgets the token of a stopped instance.
-    let gone = session.instance_balance(&started.token).await;
+    let gone = session.instance_balance(token).await;
     assert!(
         gone.is_err(),
         "the stopped instance is still known: {gone:?}"

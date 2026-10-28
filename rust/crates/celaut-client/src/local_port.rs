@@ -9,13 +9,15 @@
 //! of the stream closes the local connection. An error of the stream (for example a
 //! refusal of the node) closes the local connection and is kept in
 //! [`LocalPort::last_error`].
+//!
+//! The receipts of each stream go to the [`ReceiptSink`] of the port, if it has one.
 
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use celaut_wire::tunnel::MAX_PAYLOAD;
-use celaut_wire::{Tunnel, TunnelOpener};
+use celaut_wire::{ReceiptSink, Tunnel, TunnelOpener};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::task::{JoinHandle, JoinSet};
@@ -36,16 +38,25 @@ pub struct LocalPort {
 }
 
 impl LocalPort {
-    /// Listen on `127.0.0.1` and a free port. Must be called inside a Tokio runtime.
+    /// Listen on `127.0.0.1` and a free port. The receipts of the streams go to
+    /// `receipts`. Must be called inside a Tokio runtime.
     pub async fn bind(
         opener: Arc<dyn TunnelOpener>,
         token: String,
         slot: u16,
+        receipts: Option<ReceiptSink>,
     ) -> std::io::Result<LocalPort> {
         let listener = TcpListener::bind(SocketAddr::from((Ipv4Addr::LOCALHOST, 0))).await?;
         let port = listener.local_addr()?.port();
         let shared = Arc::new(Shared::default());
-        let task = tokio::spawn(accept(listener, opener, token, slot, shared.clone()));
+        let task = tokio::spawn(accept(
+            listener,
+            opener,
+            token,
+            slot,
+            receipts,
+            shared.clone(),
+        ));
         Ok(LocalPort { port, shared, task })
     }
 
@@ -77,6 +88,7 @@ async fn accept(
     opener: Arc<dyn TunnelOpener>,
     token: String,
     slot: u16,
+    receipts: Option<ReceiptSink>,
     shared: Arc<Shared>,
 ) {
     let mut connections = JoinSet::new();
@@ -90,7 +102,7 @@ async fn accept(
                 };
                 let _ = socket.set_nodelay(true);
                 shared.streams.fetch_add(1, Ordering::Relaxed);
-                let tunnel = opener.open_tunnel(&token, slot, None);
+                let tunnel = opener.open_tunnel(&token, slot, receipts.clone());
                 connections.spawn(relay(socket, tunnel, shared.clone()));
             }
             // Collect the ended connections, so that the set does not grow.

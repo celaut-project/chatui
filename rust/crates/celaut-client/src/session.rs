@@ -7,7 +7,7 @@
 
 use celaut_balancer::{amount, erg_rate};
 use celaut_proto::celaut::service::Api;
-use celaut_proto::celaut::{Configuration, EstimatedCost, Instance, Payment};
+use celaut_proto::celaut::{Configuration, EstimatedCost, ExecutionReceipt, Instance, Payment};
 use celaut_wire::gateway::{
     generate_deposit_token, get_metrics, get_service_estimated_cost,
     get_service_estimated_cost_with_service, get_service_raw, get_service_skippable,
@@ -26,6 +26,9 @@ pub struct StartedInstance {
     pub token: String,
     /// The ports of the instance and their addresses.
     pub instance: Instance,
+    /// The start receipt that the node signed (nodo#419), if it gave one. Not checked
+    /// here: see [`crate::receipts::check_start`].
+    pub receipt: Option<ExecutionReceipt>,
 }
 
 impl StartedInstance {
@@ -272,6 +275,7 @@ impl<T: Transport> NodeSession<T> {
         Ok(StartedInstance {
             token: answer.token,
             instance: answer.instance.unwrap_or_default(),
+            receipt: answer.receipt,
         })
     }
 
@@ -497,6 +501,7 @@ mod chat_slot_tests {
         let started = StartedInstance {
             token: "t".into(),
             instance: instance(vec![slot(8080, "tcp", &[&["http2"], &["grpc"], &["chat"]])]),
+            receipt: None,
         };
         assert_eq!(started.chat_slots(), vec![8080]);
         assert_eq!(started.slots(), vec![8080]);
