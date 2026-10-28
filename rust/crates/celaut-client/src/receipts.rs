@@ -266,6 +266,9 @@ pub struct ReceiptSummary {
     pub closed: u64,
     /// The streams that the phone ended (no close, and not a fault).
     pub cancelled: u64,
+    /// The streams that ended with no close, and that the phone did not end: for example
+    /// the node stopped the instance. A missing close is not by itself a fault.
+    pub no_close: u64,
     /// Everything wrong, the start first. Empty when all is good.
     pub faults: Vec<Fault>,
 }
@@ -301,6 +304,8 @@ pub fn summarize(receipts: &InstanceReceipts, peer_id: &str, token: &str) -> Rec
             summary.closed += 1;
         } else if stream.cancelled {
             summary.cancelled += 1;
+        } else if stream.ended {
+            summary.no_close += 1;
         }
         for stored in stream
             .evidence
@@ -617,22 +622,42 @@ mod tests {
             },
             3,
         );
+        // A stream that the node ended with no close, and one that is still open.
+        let c = "dd".repeat(16);
+        let d = "ee".repeat(16);
+        kept.apply(
+            &good(checkpoint(receipt::KIND_CHECKPOINT, &c, 1, &[b"z"])),
+            4,
+        );
+        kept.apply(
+            &ReceiptEvent::Ended {
+                session: Some(c.clone()),
+                closed: false,
+                cancelled: false,
+            },
+            4,
+        );
+        kept.apply(
+            &good(checkpoint(receipt::KIND_CHECKPOINT, &d, 1, &[b"w"])),
+            5,
+        );
         let s = summarize(&kept, &peer_id(), TOKEN);
         assert_eq!(
             s,
             ReceiptSummary {
                 start_ok: Some(true),
-                checkpoints: 3,
-                streams: 2,
+                checkpoints: 5,
+                streams: 4,
                 closed: 1,
                 cancelled: 1,
+                no_close: 1,
                 faults: vec![],
             }
         );
-        // The start, the close of a (its checkpoint goes), the last checkpoint of b.
+        // The start, the close of a (its checkpoint goes), the last checkpoint of b, c, d.
         let jsonl = export_jsonl(&kept);
         let lines: Vec<&str> = jsonl.lines().collect();
-        assert_eq!(lines.len(), 3);
+        assert_eq!(lines.len(), 5);
         let first: Value = serde_json::from_str(lines[0]).unwrap();
         assert_eq!(first["kind"], "start");
         assert_eq!(first["ts"], "100");

@@ -4268,7 +4268,7 @@
       }
     }
   },
-  "chatsReceiptsNote": "The node signs these receipts. They are evidence against the node, and you can give them to other persons. When this phone stops a tunnel, the tunnel has no close, and that is not a fault.",
+  "chatsReceiptsNote": "The node signs these receipts. They are evidence against the node, and you can give them to other persons. A tunnel with no close is not by itself a fault: for example, this phone or the node stopped it.",
   "celautErrorNodeClosed": "The node is closed now: its operator accepts new work only at certain hours. Try later or choose another node.",
   "celautErrorNoRoom": "The node has not enough free resources for this service now. Try later or choose another node.",
   "celautErrorServiceMissing": "The node does not have this service. Choose a node that has it.",

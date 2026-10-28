@@ -5826,7 +5826,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get chatsReceiptsNote =>
-      'El nodo firma estos recibos. Son pruebas contra el nodo, y puede darlas a otras personas. Cuando este teléfono detiene un túnel, el túnel no tiene cierre, y eso no es una falta.';
+      'El nodo firma estos recibos. Son pruebas contra el nodo, y puede darlas a otras personas. Un túnel sin cierre no es por sí solo una falta: por ejemplo, este teléfono o el nodo lo detuvo.';
 
   @override
   String get celautErrorNodeClosed =>

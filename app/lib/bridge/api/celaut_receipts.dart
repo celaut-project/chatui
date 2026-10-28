@@ -82,6 +82,10 @@ class ReceiptsView {
   /// The streams that the phone ended: no close, and that is not a fault.
   final BigInt cancelled;
 
+  /// The streams that ended with no close, and that the phone did not end (for example
+  /// the node stopped the instance). A missing close is not by itself a fault.
+  final BigInt noClose;
+
   /// Everything wrong. Empty when all is good.
   final List<ReceiptFaultView> faults;
 
@@ -91,6 +95,7 @@ class ReceiptsView {
     required this.streams,
     required this.closed,
     required this.cancelled,
+    required this.noClose,
     required this.faults,
   });
 
@@ -101,6 +106,7 @@ class ReceiptsView {
       streams.hashCode ^
       closed.hashCode ^
       cancelled.hashCode ^
+      noClose.hashCode ^
       faults.hashCode;
 
   @override
@@ -113,6 +119,7 @@ class ReceiptsView {
           streams == other.streams &&
           closed == other.closed &&
           cancelled == other.cancelled &&
+          noClose == other.noClose &&
           faults == other.faults;
 }
 

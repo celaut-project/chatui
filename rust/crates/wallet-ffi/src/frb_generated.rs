@@ -5094,6 +5094,7 @@ impl SseDecode for crate::api::celaut_receipts::ReceiptsView {
         let mut var_streams = <u64>::sse_decode(deserializer);
         let mut var_closed = <u64>::sse_decode(deserializer);
         let mut var_cancelled = <u64>::sse_decode(deserializer);
+        let mut var_noClose = <u64>::sse_decode(deserializer);
         let mut var_faults =
             <Vec<crate::api::celaut_receipts::ReceiptFaultView>>::sse_decode(deserializer);
         return crate::api::celaut_receipts::ReceiptsView {
@@ -5102,6 +5103,7 @@ impl SseDecode for crate::api::celaut_receipts::ReceiptsView {
             streams: var_streams,
             closed: var_closed,
             cancelled: var_cancelled,
+            no_close: var_noClose,
             faults: var_faults,
         };
     }
@@ -6833,6 +6835,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::celaut_receipts::ReceiptsView
             self.streams.into_into_dart().into_dart(),
             self.closed.into_into_dart().into_dart(),
             self.cancelled.into_into_dart().into_dart(),
+            self.no_close.into_into_dart().into_dart(),
             self.faults.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -8189,6 +8192,7 @@ impl SseEncode for crate::api::celaut_receipts::ReceiptsView {
         <u64>::sse_encode(self.streams, serializer);
         <u64>::sse_encode(self.closed, serializer);
         <u64>::sse_encode(self.cancelled, serializer);
+        <u64>::sse_encode(self.no_close, serializer);
         <Vec<crate::api::celaut_receipts::ReceiptFaultView>>::sse_encode(self.faults, serializer);
     }
 }
