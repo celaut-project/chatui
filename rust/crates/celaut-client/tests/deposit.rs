@@ -326,6 +326,7 @@ fn token_answer(token: &str) -> Vec<bee_rpc::buffer::Buffer> {
         &TokenMessage {
             token: token.into(),
             slot: None,
+            receipts: false,
         },
     )
 }

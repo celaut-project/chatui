@@ -55,6 +55,7 @@ impl TunnelOpener for Connection {
         let handshake = TokenMessage {
             token: token.to_string(),
             slot: Some(slot.to_string()),
+            receipts: false,
         };
         let channel = self.channel();
         tokio::spawn(async move {
@@ -183,6 +184,7 @@ mod tests {
         let handshake = TokenMessage {
             token: "tok".into(),
             slot: Some("8080".into()),
+            receipts: false,
         };
         let big = vec![7u8; MAX_PAYLOAD + 10];
         let buffers = request_buffers(

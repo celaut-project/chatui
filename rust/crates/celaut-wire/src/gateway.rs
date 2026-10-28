@@ -261,6 +261,7 @@ fn token_part(token: &str) -> Vec<Part> {
     let message = TokenMessage {
         token: token.to_string(),
         slot: None,
+        receipts: false,
     };
     vec![Part::new(1, message.encode_to_vec())]
 }

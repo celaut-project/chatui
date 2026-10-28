@@ -339,7 +339,7 @@ pub mod service {
         #[prost(message, repeated, tag = "6")]
         pub node_protocol_stack: ::prost::alloc::vec::Vec<api::Protocol>,
         /// The environment variables that the service declares, each with its format.
-        /// Senders do not set it now. A caller gives the values in
+        /// The packer sets the names (service.json envs). A caller gives the values in
         /// Configuration.environment_variables.
         #[prost(message, repeated, tag = "7")]
         pub environment_variables: ::prost::alloc::vec::Vec<super::DataFormatKeyValue>,
@@ -544,9 +544,15 @@ pub struct Configuration {
     /// Not used. Senders do not set it, and receivers ignore it.
     #[prost(int32, repeated, tag = "2")]
     pub spec_slot: ::prost::alloc::vec::Vec<i32>,
-    /// The balance of the instance at the start, in MU. The node charges it to the
-    /// caller. If it is absent or zero, the node calculates a default from the
-    /// resources at the start.
+    /// The most that the start can cost the caller, in MU. The node charges all of it to
+    /// the caller, and only this: no node charges the build of the service to the account
+    /// of the caller. The node takes the cost of the build from this amount. What is left
+    /// is the balance of the new instance, and the caller gets back what the instance
+    /// does not spend. If the build does not fit in the amount, or if the balance that
+    /// is left is less than one maintenance period with the resources at the start, the
+    /// node rejects the start and charges nothing. If it is absent or zero, the node uses
+    /// the cost of the build plus a default balance that it calculates from the resources
+    /// at the start.
     #[prost(message, optional, tag = "3")]
     pub initial_mu: ::core::option::Option<Amount>,
 }
@@ -635,20 +641,33 @@ pub struct TokenMessage {
     /// Instance.uri_slot.internal_port values. Other methods do not use it.
     #[prost(string, optional, tag = "2")]
     pub slot: ::core::option::Option<::prost::alloc::string::String>,
+    /// In ServiceTunnel: true to also get the checkpoints of the execution receipt, as
+    /// ExecutionReceipt at index 2 of the response. Other methods do not use it.
+    #[prost(bool, tag = "3")]
+    pub receipts: bool,
 }
 /// The cost to run a service on the node. The node that answers sets it.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EstimatedCost {
-    /// The cost at the start, in MU: the cost to build the service, plus the balance of
-    /// the instance at the start. This balance is Configuration.initial_mu. If the
-    /// request has no initial_mu, the node uses its own default balance for the
-    /// resources at the start.
+    /// The least Configuration.initial_mu with which the node starts the service, in MU.
+    /// It is the cost to build the service, plus the balance that the instance has after
+    /// the build. This balance is the initial_mu of the request. If the request has no
+    /// initial_mu, the node uses its own default balance for the resources at the start.
+    /// A caller that sets initial_mu to this value pays no more than this value for the
+    /// start, because the node takes the cost of the build from initial_mu.
     #[prost(message, optional, tag = "1")]
     pub cost: ::core::option::Option<Amount>,
     /// The cost of one maintenance period with the resources at the start, in MU.
     #[prost(message, optional, tag = "2")]
     pub init_maintenance_cost: ::core::option::Option<Amount>,
-    /// The cost of one maintenance period with the maximum resources, in MU.
+    /// The cost of one maintenance period with the maximum resources, in MU. This is the
+    /// statement that the node signs about the price. If the node sets
+    /// `pricing.MAX_PRICE_VOLATILITY`, the figure is a hard ceiling: it is priced at the
+    /// worst-case price multiplier that the bound allows, and no maintenance period of the
+    /// instance charges more. A client that sees a charge above this figure has proof
+    /// that the node broke its quote. If the node does not set the bound, the figure is
+    /// only the charge at the current load of the node, and a later period can charge
+    /// more. In that case the figure is not a ceiling.
     #[prost(message, optional, tag = "3")]
     pub max_maintenance_cost: ::core::option::Option<Amount>,
     /// The length of one maintenance period, in seconds.
@@ -656,7 +675,9 @@ pub struct EstimatedCost {
     pub maintenance_seconds_loop: i32,
     /// How much the real costs can be different from the estimate, with no unit. A
     /// reader multiplies each cost by (1 + variance * k). The reader selects the factor
-    /// k. A node that cannot estimate the difference sends 0.
+    /// k. A node that cannot estimate the difference sends 0. The variance does not
+    /// limit the price of a running instance. The ceiling of the price is in
+    /// max_maintenance_cost, and only when the node sets the bound.
     #[prost(float, tag = "5")]
     pub variance: f32,
 }
@@ -684,6 +705,22 @@ pub struct ResourceAvailability {
     /// Why the node cannot. Empty if can_execute is true. For a person: do not parse it.
     #[prost(string, tag = "2")]
     pub reason: ::prost::alloc::string::String,
+}
+/// The request of LocateShare.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ShareLocationRequest {
+    /// The id of a network share: hex of H("network", tag, formal, name, share_env,
+    /// value). See docs/SHARED_FILESYSTEMS.md.
+    #[prost(string, tag = "1")]
+    pub share_id: ::prost::alloc::string::String,
+}
+/// The answer of LocateShare.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ShareLocation {
+    /// True if the node holds the network share now: it has the directory, and at
+    /// least one instance of the node uses it.
+    #[prost(bool, tag = "1")]
+    pub held: bool,
 }
 /// The answer of StopService.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -715,6 +752,236 @@ pub struct Metrics {
     #[prost(message, optional, tag = "1")]
     pub balance: ::core::option::Option<Amount>,
 }
+/// The request of GetBalanceStatement. The caller asks for a range of movements by their
+/// seq, and nothing about the range changes what the node has already signed: a movement
+/// that a statement showed cannot change afterwards, because the hash of each one commits
+/// to all the ones before it.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct BalanceStatementRequest {
+    /// The instance token of a child of the caller, to read the account of that child.
+    /// Empty to read the account of the caller: its client_id, or the local instance
+    /// that calls, by its address.
+    #[prost(string, tag = "1")]
+    pub token: ::prost::alloc::string::String,
+    /// The first movement asked for. 0 asks for no movement, only the head of the
+    /// account: the last movement and its hash.
+    #[prost(uint64, tag = "2")]
+    pub from_seq: u64,
+    /// The last movement asked for, included. 0 asks up to the head. The node never
+    /// returns more than its own limit in one answer.
+    #[prost(uint64, tag = "3")]
+    pub to_seq: u64,
+}
+/// One movement of a balance.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct BalanceMovement {
+    /// The number of the movement in its account. The first movement is 1, and each
+    /// movement adds 1, with no gap.
+    #[prost(uint64, tag = "1")]
+    pub seq: u64,
+    /// When the node wrote the movement, in unix seconds, on the clock of the node.
+    #[prost(int64, tag = "2")]
+    pub ts: i64,
+    /// The change of the balance, in MU. A charge is negative.
+    #[prost(message, optional, tag = "3")]
+    pub amount: ::core::option::Option<Amount>,
+    /// The balance after the movement, in MU.
+    #[prost(message, optional, tag = "4")]
+    pub balance_after: ::core::option::Option<Amount>,
+    /// What the movement is: "deposit" (a payment), "credit" (MU that nobody paid in),
+    /// "debit" (the operator took MU), "start" (the initial_mu that the instance got),
+    /// "build", "maintenance" (one period), "child_start" (the account paid the start of a child), "child_bound" (the
+    /// child of a child_start exists; moves nothing), "top_up", "withdrawal", "refund"
+    /// (MU that goes back to the parent), "tunnel", "resource_change" or
+    /// "statement_query". A reader treats a kind that it does not
+    /// know as a charge that it did not cause.
+    #[prost(string, tag = "5")]
+    pub kind: ::prost::alloc::string::String,
+    /// The instance that the movement concerns, when it is not the account: the child of
+    /// a child_start, child_bound, top_up, withdrawal or refund. In a statement_query,
+    /// the account that was read. It is a hash of the token, never the token:
+    /// blake2b-256 hex of "celaut-ledger-instance:" followed by the token. A token is a
+    /// credential, and a statement can be shown to others.
+    #[prost(string, tag = "6")]
+    pub instance_ref: ::prost::alloc::string::String,
+    /// The cause of the movement, as JSON with sorted keys and no spaces. Empty if there
+    /// is none. For a maintenance period: "seconds", and the resources that the node
+    /// priced ("mem_limit", "disk_space", "cpu_period", "cpu_quota"). For a refund of a
+    /// charge that was not used: "refunds_seq", the seq of that charge. For a
+    /// child_bound: "starts_seq", the seq of the child_start whose child it names. For a
+    /// start: "execution_name", the name that the execution receipts of the instance
+    /// carry. For a tunnel: "open" or "bytes", "execution_name", and "session", the
+    /// receipt stream of the tunnel when the caller asked for receipts.
+    #[prost(string, tag = "7")]
+    pub detail: ::prost::alloc::string::String,
+    /// The hash of the movement before this one. For the first movement, the genesis
+    /// hash of the account: blake2b-256 hex of "celaut-balance-genesis:" followed by the
+    /// account_ref. The hash of a movement is blake2b-256 hex of
+    /// "celaut-balance-movement:" prev_hash "|" seq "~" ts "~" hex(amount) "~"
+    /// hex(balance_after) "~" hex(kind) "~" instance_ref "~" hex(detail), with the
+    /// amounts as decimal integers and hex() the lowercase hexadecimal of the UTF-8.
+    #[prost(string, tag = "8")]
+    pub prev_hash: ::prost::alloc::string::String,
+}
+/// The answer of GetBalanceStatement.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BalanceStatement {
+    /// The account, as a hash: blake2b-256 hex of "celaut-ledger-account:" followed by
+    /// the client_id or the instance token. Never the credential itself, so that a
+    /// statement can be shown to others.
+    #[prost(string, tag = "1")]
+    pub account_ref: ::prost::alloc::string::String,
+    /// The first movement that the request asked for. 0 means none given.
+    #[prost(uint64, tag = "2")]
+    pub from_seq: u64,
+    /// The last movement that the request asked for. 0 means none given.
+    #[prost(uint64, tag = "3")]
+    pub to_seq: u64,
+    /// The movements of the range, in ascending seq order and with no gap. When the
+    /// caller reads its own account up to the head, the last movement is the charge for
+    /// this answer. If the node holds fewer movements than the range, because of its
+    /// retention or its limit, they are the first it holds from from_seq: the caller asks
+    /// again from the last seq it received.
+    #[prost(message, repeated, tag = "4")]
+    pub movements: ::prost::alloc::vec::Vec<BalanceMovement>,
+    /// The balance of the account at the head, in MU.
+    #[prost(message, optional, tag = "5")]
+    pub balance: ::core::option::Option<Amount>,
+    /// The last movement of the account when the node answered. The balance is the
+    /// balance after that movement. 0 for an account with no movement.
+    #[prost(uint64, tag = "6")]
+    pub head_seq: u64,
+    /// The hash of the last movement. For an account with no movement, its genesis hash.
+    #[prost(string, tag = "7")]
+    pub head_hash: ::prost::alloc::string::String,
+    /// The first movement that the node still holds. Older ones were deleted when they
+    /// passed its retention, and the first movement it holds hangs from the hash of a
+    /// movement that it no longer has.
+    #[prost(uint64, tag = "8")]
+    pub oldest_seq: u64,
+    /// How long the node keeps movements, in days.
+    #[prost(uint32, tag = "9")]
+    pub retention_days: u32,
+    /// When the node answered, in unix seconds, on the clock of the node.
+    #[prost(int64, tag = "10")]
+    pub ts: i64,
+    /// The signature of the node, with the key and the scheme of its Peer, in lowercase
+    /// hexadecimal. The celaut-gateway layer gives the text that it signs. A statement
+    /// without a valid signature is not valid.
+    #[prost(string, tag = "11")]
+    pub signature: ::prost::alloc::string::String,
+}
+/// An execution receipt (docs/EXECUTION_RECEIPTS.md): a statement that the node signs
+/// about one execution that it runs. It gives a client evidence against the node. It is
+/// never evidence for the node. The celaut-gateway layer gives the exact text that the
+/// node signs and how to calculate each hash. A receipt is one of three kinds:
+///    * "start": the answer of StartService gives it. It names the service, the
+///      environment variables and the amount of the start.
+///    * "checkpoint": a ServiceTunnel or Observe stream gives it from time to time. It
+///      gives the counters and the hash chains of the stream up to that point.
+///    * "close": the last checkpoint of a stream. The node sends it when the stream
+///      stops normally. A caller that cancels the stream gets no close, so a stream with
+///      no close is not by itself proof of a fault.
+/// A field that the kind does not use is empty or zero, and the signature covers it too.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ExecutionReceipt {
+    /// "start", "checkpoint" or "close".
+    #[prost(string, tag = "1")]
+    pub kind: ::prost::alloc::string::String,
+    /// The peer_id of the node that signs: its public key, in lowercase hexadecimal.
+    #[prost(string, tag = "2")]
+    pub peer_id: ::prost::alloc::string::String,
+    /// The name of the execution: blake2b-256 hex of the UTF-8 bytes of the instance
+    /// token followed by the 32 bytes of the public key (not its hexadecimal text). The
+    /// client, who has the token, can calculate it. A receipt never contains the token.
+    #[prost(string, tag = "3")]
+    pub execution_name: ::prost::alloc::string::String,
+    /// When the node signed, in unix seconds, on the clock of the node.
+    #[prost(int64, tag = "4")]
+    pub ts: i64,
+    /// Only in "start". The service of the instance, as the content hash with which the
+    /// registry of the node keeps it.
+    #[prost(message, optional, tag = "5")]
+    pub service_id: ::core::option::Option<metadata::hash_tag::Hash>,
+    /// Only in "start". blake2b-256 hex of envs_salt followed by the UTF-8 of the
+    /// canonical text of the environment variables that the service got. The
+    /// celaut-gateway layer gives the canonical text.
+    #[prost(string, tag = "6")]
+    pub envs_digest: ::prost::alloc::string::String,
+    /// Only in "start". A random value that the node selects for each start. The
+    /// signature does not cover it: it lets the holder of the receipt show the digest
+    /// to others and keep the values secret.
+    #[prost(bytes = "vec", tag = "7")]
+    pub envs_salt: ::prost::alloc::vec::Vec<u8>,
+    /// Only in "start". The Configuration.initial_mu of the start, in MU: what the node
+    /// charged the caller, the build included. It is the amount of the "start" movement
+    /// of the instance in its balance statement.
+    #[prost(message, optional, tag = "8")]
+    pub initial_mu: ::core::option::Option<Amount>,
+    /// Only in "checkpoint" and "close". The stream: "tunnel" (ServiceTunnel) or
+    /// "observe" (Observe).
+    #[prost(string, tag = "9")]
+    pub plane: ::prost::alloc::string::String,
+    /// Only in "checkpoint" and "close". A random identifier of the stream, in
+    /// lowercase hexadecimal, that the node selects when the stream starts.
+    #[prost(string, tag = "10")]
+    pub session: ::prost::alloc::string::String,
+    /// Only in "checkpoint" and "close" of a tunnel. The slot of the tunnel.
+    #[prost(string, tag = "11")]
+    pub slot: ::prost::alloc::string::String,
+    /// Only in "checkpoint" and "close". The number of the checkpoint in the stream: 1
+    /// for the first, and one more for each next checkpoint.
+    #[prost(uint64, tag = "12")]
+    pub seq: u64,
+    /// Only in "checkpoint" and "close". The events into the instance: for a tunnel,
+    /// the messages from the caller that the node sent to the service; for Observe,
+    /// the packets with direction "IN".
+    #[prost(uint64, tag = "13")]
+    pub in_events: u64,
+    /// The bytes of these events.
+    #[prost(uint64, tag = "14")]
+    pub in_bytes: u64,
+    /// The hash chain of these events. The celaut-gateway layer gives how to calculate
+    /// it.
+    #[prost(string, tag = "15")]
+    pub in_head: ::prost::alloc::string::String,
+    /// The events out of the instance: for a tunnel, the messages from the service that
+    /// the node sent to the caller; for Observe, the packets with direction "OUT".
+    #[prost(uint64, tag = "16")]
+    pub out_events: u64,
+    /// The bytes of these events.
+    #[prost(uint64, tag = "17")]
+    pub out_bytes: u64,
+    /// The hash chain of these events.
+    #[prost(string, tag = "18")]
+    pub out_head: ::prost::alloc::string::String,
+    /// Only for a tunnel, and always there. What the node charged the instance for this
+    /// tunnel up to the checkpoint, in MU: the charge to open it and the traffic it
+    /// billed. It is the sum of the "tunnel" movements of this session in the balance
+    /// statement. The chains cover only the messages that the meter accepted.
+    #[prost(message, optional, tag = "19")]
+    pub mu_charged: ::core::option::Option<Amount>,
+    /// Only in "checkpoint" and "close". What the node can see of the traffic of the
+    /// instance: "client-tunnel" (all the bytes of this tunnel, and nothing else),
+    /// "instance-tap" (the packets of the instance that the capture got, with the bytes
+    /// that it holds: the capture cuts a long frame and can drop packets under load) or
+    /// "counters-only" (only counts and lengths).
+    #[prost(string, tag = "20")]
+    pub coverage: ::prost::alloc::string::String,
+    /// Only for Observe. The capture mode of the session: "pcap" or "conntrack".
+    #[prost(string, tag = "21")]
+    pub capture_mode: ::prost::alloc::string::String,
+    /// Only for Observe. Why the capture is not full. Empty when it is full.
+    #[prost(string, tag = "22")]
+    pub degraded_reason: ::prost::alloc::string::String,
+    /// The scheme of the signature, as on the Peer, without the prose.
+    #[prost(message, optional, tag = "23")]
+    pub signature_scheme: ::core::option::Option<peer::SignatureScheme>,
+    /// The signature, in lowercase hexadecimal. The celaut-gateway layer gives the text
+    /// that the node signs. A receipt without a valid signature is not valid.
+    #[prost(string, tag = "24")]
+    pub signature: ::prost::alloc::string::String,
+}
 /// The answer of StartService.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ServiceInstance {
@@ -725,6 +992,11 @@ pub struct ServiceInstance {
     /// The addresses of the instance.
     #[prost(message, optional, tag = "2")]
     pub instance: ::core::option::Option<Instance>,
+    /// The start receipt of the instance, signed by the node that answers. When the node
+    /// gave the start to a peer, it signs the receipt as the executor, with the token
+    /// that the caller got. Absent if the node has no identity key.
+    #[prost(message, optional, tag = "3")]
+    pub receipt: ::core::option::Option<ExecutionReceipt>,
 }
 /// What a node announces about itself: its addresses, its prices, its reputation
 /// proofs, its resources and its identity. The node signs it. A reader refuses a Peer
@@ -744,7 +1016,8 @@ pub struct Peer {
     /// The rates of the node. Keys: "ram_mu_per_gib_second" (and
     /// "ram_mu_per_gib_second:<architecture>"), "cpu_mu_per_vcpu_second",
     /// "disk_mu_per_gib_second", "net_mu_per_gib", "build_mu", "tunnel_open_mu",
-    /// "modify_resources_mu", "scarcity_max_multiplier". The values of the "_mu" keys
+    /// "modify_resources_mu", "statement_query_mu", "statement_row_mu",
+    /// "scarcity_max_multiplier". The values of the "_mu" keys
     /// are in MU. Each RAM, CPU and disk rate is a base price. When a resource is scarce,
     /// the node multiplies its rate by a factor from 1 to scarcity_max_multiplier. The
     /// other rates do not change. scarcity_max_multiplier has no unit. The node does not
@@ -955,6 +1228,36 @@ pub struct RecursionGuard {
     #[prost(uint32, optional, tag = "2")]
     pub remaining_hops: ::core::option::Option<u32>,
 }
+/// The reference of a StartService request, chosen by the caller (#578). With it, the
+/// request is idempotent: a caller that lost the answer asks again with the same
+/// reference and learns what the node did.
+///
+/// The node keys the reference by the caller: its client_id, or the local instance that
+/// asks. The same reference from another caller is another start. A second request with
+/// the same reference and caller does not start anything and charges nothing:
+///    * after the first start succeeded, the node returns the same ServiceInstance;
+///    * while the first start runs, the node refuses with ABORTED, and the caller asks
+///      again later;
+///    * after the first start failed, the node refuses with FAILED_PRECONDITION and the
+///      error of that start.
+/// A request that the node answers from its reference needs no service: a Client and a
+/// StartReference are enough. The StartReference must come before the hashes of the
+/// service: the node can begin the start at the first one, and a reference that comes
+/// after that is ignored.
+///
+/// A start with a reference whose call ends before the answer keeps its instance: the
+/// caller can ask for it again. With no reference, the node stops that instance.
+///
+/// The node keeps a reference while its instance lives, and at least
+/// ledger.RETENTION_DAYS after the start ended. The child_start movement that pays the
+/// start carries the reference, in hex, in detail.start_ref. A caller can then tell
+/// which request caused each start that it paid for.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct StartReference {
+    /// From 1 to 64 bytes. The node refuses a longer reference.
+    #[prost(bytes = "vec", tag = "1")]
+    pub r#ref: ::prost::alloc::vec::Vec<u8>,
+}
 /// The answer of AssociateClient.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct AssociateClientOutput {
@@ -1018,6 +1321,10 @@ pub struct ObserveRequest {
     /// session, the metrics and the notices.
     #[prost(bool, tag = "2")]
     pub include_packets: bool,
+    /// True to also get the checkpoints of the execution receipt, as events of kind
+    /// "receipt". The hash chains cover the packet events of this stream.
+    #[prost(bool, tag = "3")]
+    pub include_receipts: bool,
 }
 /// One live event of an observed instance.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -1026,11 +1333,11 @@ pub struct ObserveEvent {
     /// notice that tells why the observation did not start.
     #[prost(string, tag = "1")]
     pub time: ::prost::alloc::string::String,
-    /// The kind of the event: "session", "metrics", "packet" or "notice". It names the
-    /// field of the oneof that the event sets.
+    /// The kind of the event: "session", "metrics", "packet", "notice" or "receipt". It
+    /// names the field of the oneof that the event sets.
     #[prost(string, tag = "2")]
     pub kind: ::prost::alloc::string::String,
-    #[prost(oneof = "observe_event::Payload", tags = "10, 11, 12, 13")]
+    #[prost(oneof = "observe_event::Payload", tags = "10, 11, 12, 13, 14")]
     pub payload: ::core::option::Option<observe_event::Payload>,
 }
 /// Nested message and enum types in `ObserveEvent`.
@@ -1181,5 +1488,9 @@ pub mod observe_event {
         /// A notice. Only when kind is "notice".
         #[prost(message, tag = "13")]
         Notice(Notice),
+        /// A checkpoint of the execution receipt. Only when kind is "receipt", and only
+        /// if the request has include_receipts.
+        #[prost(message, tag = "14")]
+        Receipt(super::ExecutionReceipt),
     }
 }
