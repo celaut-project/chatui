@@ -24,3 +24,4 @@ Sources read for these notes:
 | [env-variables.md](env-variables.md) | Environment variables: a container in the app, and one question per variable at a launch (choose, type or skip) |
 | [invite.md](invite.md) | The peer invitation of nodo in a QR code: what the app reads, the binary scanner, and how it chooses the address that can work on the route |
 | [service-info.md](service-info.md) | The details of a service, read from its Service as a stream that skips the filesystem, and the check of the chat interface before a launch |
+| [receipts.md](receipts.md) | The execution receipts of nodo#419: the start receipt, the checkpoints and the close of each tunnel, how the app checks them against what the phone sent and got, what it keeps, the Receipts part of the info page, and the export for `nodo receipt verify` |

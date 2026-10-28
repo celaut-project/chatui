@@ -85,13 +85,13 @@ client). Auth "token" = possession of an instance token.
 | GenerateDepositToken | 1 `Client` | 1 `TokenMessage` | client |
 | Payable | 1 `Payment`, 2 `Client` | 1 `buffer.Empty` | client |
 | GetServiceEstimatedCost | 1 Client, 2 RecursionGuard, 3 Configuration, 4 `Metadata.HashTag.Hash`, 5 Metadata, 6 Service | signal, then 1 `EstimatedCost` | client |
-| StartService | same as above | signal, then 1 `ServiceInstance` | client |
+| StartService | same as above | signal, then 1 `ServiceInstance` (with the start receipt, [receipts.md](receipts.md)) | client |
 | StopService | 1 `TokenMessage{instance token}` | 1 `Refund` | token |
 | ModifyDeposit | 1 `ModifyDepositInput` | 1 `ModifyDepositOutput` | token |
 | GetMetrics | 1 `TokenMessage{instance token or client_id}` | 1 `Metrics` | token |
 | GetResourceAvailability | 1 `ArchitectureResources`, 2 `Client` | 1 `ResourceAvailability` | client |
 | GetService | 1 Hash, 2 Client (send Client first) | 4 Hash, 5 Metadata, 6 Service | client |
-| ServiceTunnel | 1 `TokenMessage{token, slot}`, then 0 bytes | 0 bytes | token |
+| ServiceTunnel | 1 `TokenMessage{token, slot, receipts}`, then 0 bytes | 0 bytes, 2 `ExecutionReceipt` | token |
 | Observe | 1 `ObserveRequest{instance_id = instance token}` | 1 `ObserveEvent` (stream) | token |
 | Chat | 1 `ChatMessage` | 1 `ChatAck` | peers only |
 
@@ -213,9 +213,12 @@ Notes:
 
 ## 5. ServiceTunnel bytes
 
-- Request: `Buffer{head{1}, chunk=TokenMessage{token, slot="<internal port>"}, separator}`,
+- Request: `Buffer{head{1}, chunk=TokenMessage{token, slot="<internal port>", receipts=true}, separator}`,
   then each payload as `Buffer{head{0}, chunk, separator}` (`head.index=0` is required).
-- Response: `Buffer{head{0}, chunk (64 KiB or less), separator}`.
+- Response: `Buffer{head{0}, chunk (64 KiB or less), separator}`, and the signed
+  checkpoints of the execution receipt as `Buffer{head{2}, chunk=ExecutionReceipt,
+  separator}` (nodo#419). The client always asks for them, and it accepts index 2 also
+  when it did not ask. See [receipts.md](receipts.md).
 - TCP: message boundaries carry no meaning. UDP: one message = one datagram.
 - Half-closing the request closes the write side of the TCP connection to the service.
 
