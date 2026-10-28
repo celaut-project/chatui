@@ -67,8 +67,10 @@ changed shows as a receipt that does not verify.
 ## 5. The info page
 
 The info page of an instance has a **Receipts** part: the start (✓, ✗ or none), the
-count of the checkpoints, the close of the tunnels (✓, "none (cancelled)" or "open"),
-and each fault in red. **Export receipts** shares a JSON Lines file: one receipt on
+count of the checkpoints, the close of the tunnels, and each fault in red. The close
+of a tunnel is ✓, "none (cancelled)" (the phone ended it), "none" (it ended with no
+close, and the phone did not end it: for example the node stopped the instance and
+closed its tunnels) or "open". A missing close is never shown as a fault. **Export receipts** shares a JSON Lines file: one receipt on
 each line, in the proto3 JSON form. This command checks it:
 
     nodo receipt verify receipts-<id>.jsonl --peer <peer_id> [--token <token>]

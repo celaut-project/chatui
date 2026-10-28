@@ -1577,7 +1577,7 @@
   "chatsReceiptsExport": "Exportar recibos",
   "chatsReceiptsExportNone": "No hay recibos para exportar.",
   "chatsReceiptsExportFailed": "La exportación falló: {error}",
-  "chatsReceiptsNote": "El nodo firma estos recibos. Son pruebas contra el nodo, y puede darlas a otras personas. Cuando este teléfono detiene un túnel, el túnel no tiene cierre, y eso no es una falta.",
+  "chatsReceiptsNote": "El nodo firma estos recibos. Son pruebas contra el nodo, y puede darlas a otras personas. Un túnel sin cierre no es por sí solo una falta: por ejemplo, este teléfono o el nodo lo detuvo.",
   "celautErrorNodeClosed": "El nodo está cerrado ahora: su operador solo acepta trabajo nuevo en ciertas horas. Inténtalo más tarde o elige otro nodo.",
   "celautErrorNoRoom": "El nodo no tiene recursos libres suficientes para este servicio ahora. Inténtalo más tarde o elige otro nodo.",
   "celautErrorServiceMissing": "El nodo no tiene este servicio. Elige un nodo que lo tenga.",

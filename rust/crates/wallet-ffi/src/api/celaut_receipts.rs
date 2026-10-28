@@ -62,6 +62,9 @@ pub struct ReceiptsView {
     pub closed: u64,
     /// The streams that the phone ended: no close, and that is not a fault.
     pub cancelled: u64,
+    /// The streams that ended with no close, and that the phone did not end (for example
+    /// the node stopped the instance). A missing close is not by itself a fault.
+    pub no_close: u64,
     /// Everything wrong. Empty when all is good.
     pub faults: Vec<ReceiptFaultView>,
 }
@@ -111,6 +114,7 @@ pub fn celaut_instance_receipts(instance_id: String) -> Result<ReceiptsView, Cel
         streams: s.streams,
         closed: s.closed,
         cancelled: s.cancelled,
+        no_close: s.no_close,
         faults: s.faults.iter().map(fault_view).collect(),
     })
 }

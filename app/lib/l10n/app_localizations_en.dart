@@ -5755,7 +5755,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatsReceiptsNote =>
-      'The node signs these receipts. They are evidence against the node, and you can give them to other persons. When this phone stops a tunnel, the tunnel has no close, and that is not a fault.';
+      'The node signs these receipts. They are evidence against the node, and you can give them to other persons. A tunnel with no close is not by itself a fault: for example, this phone or the node stopped it.';
 
   @override
   String get celautErrorNodeClosed =>

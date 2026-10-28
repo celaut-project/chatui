@@ -31,6 +31,7 @@ ReceiptsView _view({
   int streams = 1,
   int closed = 1,
   int cancelled = 0,
+  int noClose = 0,
   List<ReceiptFaultView> faults = const [],
 }) =>
     ReceiptsView(
@@ -39,6 +40,7 @@ ReceiptsView _view({
       streams: BigInt.from(streams),
       closed: BigInt.from(closed),
       cancelled: BigInt.from(cancelled),
+      noClose: BigInt.from(noClose),
       faults: faults,
     );
 
@@ -128,9 +130,10 @@ void main() {
     final l = appL10n;
     expect(receiptsCloseText(l, _view(streams: 0, closed: 0)), l.chatsReceiptsNoTunnel);
     expect(receiptsCloseText(l, _view(streams: 1, closed: 0)), l.chatsReceiptsOpen);
+    expect(receiptsCloseText(l, _view(streams: 1, closed: 0, noClose: 1)), l.chatsReceiptsNone);
     expect(
-      receiptsCloseText(l, _view(streams: 4, closed: 2, cancelled: 1)),
-      '✓ 2 · ${l.chatsReceiptsCancelled} 1 · ${l.chatsReceiptsOpen} 1',
+      receiptsCloseText(l, _view(streams: 5, closed: 2, cancelled: 1, noClose: 1)),
+      '✓ 2 · ${l.chatsReceiptsCancelled} 1 · ${l.chatsReceiptsNone} 1 · ${l.chatsReceiptsOpen} 1',
     );
   });
 }

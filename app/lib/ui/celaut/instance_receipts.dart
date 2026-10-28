@@ -25,14 +25,13 @@ Future<bool> shareReceipts(String instanceId) async {
   final text = celautExportReceipts(instanceId: instanceId);
   if (text.isEmpty) return false;
   final short = instanceId.length > 8 ? instanceId.substring(0, 8) : instanceId;
+  final name = 'receipts-$short.jsonl';
   await SharePlus.instance.share(ShareParams(
     files: [
-      XFile.fromData(
-        Uint8List.fromList(utf8.encode(text)),
-        mimeType: 'text/plain',
-        name: 'receipts-$short.jsonl',
-      ),
+      XFile.fromData(Uint8List.fromList(utf8.encode(text)), mimeType: 'text/plain', name: name),
     ],
+    // Without it, the file of the data gets a random name.
+    fileNameOverrides: [name],
   ));
   return true;
 }
@@ -46,16 +45,18 @@ String receiptFaultText(AppLocalizations l, ReceiptFaultKind kind) => switch (ki
       ReceiptFaultKind.invalid => l.chatsReceiptsFaultInvalid,
     };
 
-/// The close of the tunnels: ✓, "none (cancelled)" or "open", with a count for each
-/// when the instance had more than one tunnel.
+/// The close of the tunnels: ✓, "none (cancelled)" (this phone ended the tunnel),
+/// "none" (it ended with no close, not by this phone) or "open", with a count for each
+/// when the instance had more than one tunnel. No close is not shown as a fault.
 String receiptsCloseText(AppLocalizations l, ReceiptsView v) {
   if (v.streams == BigInt.zero) return l.chatsReceiptsNoTunnel;
-  final open = v.streams - v.closed - v.cancelled;
+  final open = v.streams - v.closed - v.cancelled - v.noClose;
   final many = v.streams > BigInt.one;
   String part(String word, BigInt n) => many ? '$word $n' : word;
   return [
     if (v.closed > BigInt.zero) part('✓', v.closed),
     if (v.cancelled > BigInt.zero) part(l.chatsReceiptsCancelled, v.cancelled),
+    if (v.noClose > BigInt.zero) part(l.chatsReceiptsNone, v.noClose),
     if (open > BigInt.zero) part(l.chatsReceiptsOpen, open),
   ].join(' · ');
 }
