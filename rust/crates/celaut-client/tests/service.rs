@@ -199,6 +199,7 @@ async fn start_gives_the_token_and_the_slots() {
                 uri: vec![],
             }],
         }),
+        receipt: None,
     };
     let s = session(vec![after_signal(&instance)]).await;
     let started = s.start(SERVICE, Configuration::default()).await.unwrap();
@@ -214,6 +215,7 @@ async fn an_instance_with_no_token_is_refused() {
     let instance = ServiceInstance {
         token: String::new(),
         instance: Some(Instance::default()),
+        receipt: None,
     };
     let s = session(vec![after_signal(&instance)]).await;
     let err = s

@@ -6,6 +6,9 @@
 //! ```sh
 //! cargo run -p gen-protos
 //! ```
+//!
+//! `buffer.proto` has proto3 `optional` fields, so `protoc` must be 3.15 or later
+//! (`PROTOC=/path/to/protoc`). protoc 29.3 gives the committed code byte for byte.
 
 use std::path::PathBuf;
 
