@@ -59,7 +59,12 @@ struct FakeNode {
 }
 
 impl TunnelOpener for FakeNode {
-    fn open_tunnel(&self, token: &str, slot: u16) -> Tunnel {
+    fn open_tunnel(
+        &self,
+        token: &str,
+        slot: u16,
+        _receipts: Option<celaut_wire::ReceiptSink>,
+    ) -> Tunnel {
         self.opened.lock().unwrap().push((token.to_string(), slot));
         let (to_service, mut to_rx) = mpsc::channel::<Vec<u8>>(16);
         let (from_tx, from_service) = mpsc::channel(16);

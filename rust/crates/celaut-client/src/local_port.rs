@@ -90,7 +90,7 @@ async fn accept(
                 };
                 let _ = socket.set_nodelay(true);
                 shared.streams.fetch_add(1, Ordering::Relaxed);
-                let tunnel = opener.open_tunnel(&token, slot);
+                let tunnel = opener.open_tunnel(&token, slot, None);
                 connections.spawn(relay(socket, tunnel, shared.clone()));
             }
             // Collect the ended connections, so that the set does not grow.
