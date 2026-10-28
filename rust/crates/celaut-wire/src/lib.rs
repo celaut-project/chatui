@@ -34,4 +34,4 @@ pub use channel::{ConnectOptions, Connection};
 pub use error::{IdentityError, WireError};
 pub use skips::Skips;
 pub use transport::{Buffers, RawAnswer, SendCounter, Skipper, Transport};
-pub use tunnel::{Tunnel, TunnelOpener};
+pub use tunnel::{ReceiptEvent, ReceiptSink, StreamReceipt, Tunnel, TunnelOpener};
