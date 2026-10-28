@@ -289,6 +289,10 @@ pub struct CelautData {
     /// (`docs/celaut/env-variables.md`). A value can be a secret.
     #[serde(default)]
     pub env_variables: BTreeMap<String, EnvRecord>,
+    /// The execution receipts of the instances, by local instance id (nodo#419). They
+    /// go when the instance is deleted.
+    #[serde(default)]
+    pub receipts: BTreeMap<String, crate::receipts::InstanceReceipts>,
 }
 
 /// One environment variable of the container of the app.
@@ -431,6 +435,9 @@ impl CelautData {
         }
         for (k, v) in other.env_variables {
             self.env_variables.entry(k).or_insert(v);
+        }
+        for (k, v) in other.receipts {
+            self.receipts.entry(k).or_insert(v);
         }
     }
 

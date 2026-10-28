@@ -14,6 +14,7 @@ import 'api/celaut_home.dart';
 import 'api/celaut_invite.dart';
 import 'api/celaut_network.dart';
 import 'api/celaut_package.dart';
+import 'api/celaut_receipts.dart';
 import 'api/celaut_service.dart';
 import 'api/celaut_service_info.dart';
 import 'api/mempool.dart';
@@ -227,6 +228,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<QuoteView> dco_decode_list_quote_view(dynamic raw);
 
   @protected
+  List<ReceiptFaultView> dco_decode_list_receipt_fault_view(dynamic raw);
+
+  @protected
   List<RunningInstanceView> dco_decode_list_running_instance_view(dynamic raw);
 
   @protected
@@ -338,6 +342,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   QuotesView dco_decode_quotes_view(dynamic raw);
 
   @protected
+  ReceiptFaultKind dco_decode_receipt_fault_kind(dynamic raw);
+
+  @protected
+  ReceiptFaultView dco_decode_receipt_fault_view(dynamic raw);
+
+  @protected
+  ReceiptsView dco_decode_receipts_view(dynamic raw);
+
+  @protected
   RunningInstanceView dco_decode_running_instance_view(dynamic raw);
 
   @protected
@@ -348,6 +361,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SkillView dco_decode_skill_view(dynamic raw);
+
+  @protected
+  StartReceiptState dco_decode_start_receipt_state(dynamic raw);
 
   @protected
   StopView dco_decode_stop_view(dynamic raw);
@@ -627,6 +643,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<QuoteView> sse_decode_list_quote_view(SseDeserializer deserializer);
 
   @protected
+  List<ReceiptFaultView> sse_decode_list_receipt_fault_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<RunningInstanceView> sse_decode_list_running_instance_view(
     SseDeserializer deserializer,
   );
@@ -758,6 +779,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   QuotesView sse_decode_quotes_view(SseDeserializer deserializer);
 
   @protected
+  ReceiptFaultKind sse_decode_receipt_fault_kind(SseDeserializer deserializer);
+
+  @protected
+  ReceiptFaultView sse_decode_receipt_fault_view(SseDeserializer deserializer);
+
+  @protected
+  ReceiptsView sse_decode_receipts_view(SseDeserializer deserializer);
+
+  @protected
   RunningInstanceView sse_decode_running_instance_view(
     SseDeserializer deserializer,
   );
@@ -770,6 +800,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SkillView sse_decode_skill_view(SseDeserializer deserializer);
+
+  @protected
+  StartReceiptState sse_decode_start_receipt_state(
+    SseDeserializer deserializer,
+  );
 
   @protected
   StopView sse_decode_stop_view(SseDeserializer deserializer);
@@ -1132,6 +1167,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_receipt_fault_view(
+    List<ReceiptFaultView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_running_instance_view(
     List<RunningInstanceView> self,
     SseSerializer serializer,
@@ -1303,6 +1344,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_quotes_view(QuotesView self, SseSerializer serializer);
 
   @protected
+  void sse_encode_receipt_fault_kind(
+    ReceiptFaultKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_receipt_fault_view(
+    ReceiptFaultView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_receipts_view(ReceiptsView self, SseSerializer serializer);
+
+  @protected
   void sse_encode_running_instance_view(
     RunningInstanceView self,
     SseSerializer serializer,
@@ -1322,6 +1378,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_skill_view(SkillView self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_start_receipt_state(
+    StartReceiptState self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_stop_view(StopView self, SseSerializer serializer);

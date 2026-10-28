@@ -142,7 +142,7 @@ async fn connect(port: u16) -> BufReader<TcpStream> {
 #[tokio::test]
 async fn keep_alive_uses_one_stream_for_many_requests() {
     let fake = node(None).await;
-    let local = LocalPort::bind(fake.clone(), "tok".into(), 3030)
+    let local = LocalPort::bind(fake.clone(), "tok".into(), 3030, None)
         .await
         .unwrap();
 
@@ -167,7 +167,9 @@ async fn keep_alive_uses_one_stream_for_many_requests() {
 #[tokio::test]
 async fn a_half_close_reaches_the_service() {
     let fake = node(None).await;
-    let local = LocalPort::bind(fake, "tok".into(), 3030).await.unwrap();
+    let local = LocalPort::bind(fake, "tok".into(), 3030, None)
+        .await
+        .unwrap();
     let mut socket = TcpStream::connect(("127.0.0.1", local.port()))
         .await
         .unwrap();
@@ -188,7 +190,9 @@ async fn a_half_close_reaches_the_service() {
 #[tokio::test]
 async fn a_refusal_closes_the_connection_and_is_kept() {
     let fake = node(Some("InvalidArgument: no local instance")).await;
-    let local = LocalPort::bind(fake, "bad".into(), 3030).await.unwrap();
+    let local = LocalPort::bind(fake, "bad".into(), 3030, None)
+        .await
+        .unwrap();
     let mut socket = TcpStream::connect(("127.0.0.1", local.port()))
         .await
         .unwrap();
@@ -209,7 +213,9 @@ async fn a_refusal_closes_the_connection_and_is_kept() {
 #[tokio::test]
 async fn dropping_the_port_closes_it() {
     let fake = node(None).await;
-    let local = LocalPort::bind(fake, "tok".into(), 3030).await.unwrap();
+    let local = LocalPort::bind(fake, "tok".into(), 3030, None)
+        .await
+        .unwrap();
     let port = local.port();
     let mut socket = connect(port).await;
     assert_eq!(get(&mut socket, "/").await, "1 /");

@@ -15,6 +15,7 @@ use std::sync::{Arc, Mutex};
 
 use celaut_balancer::QuoteCache;
 use celaut_client::db::{InstanceRecord, NodeRecord, QuoteRecord};
+use celaut_client::receipts::{check_start, InstanceReceipts, StoredReceipt};
 use celaut_client::session::parse_service_id;
 use celaut_client::{new_client_id, quotes, ClientError, LocalPort, NodeSession};
 use celaut_proto::celaut::{Amount, Configuration, EstimatedCost};
@@ -495,6 +496,9 @@ pub async fn celaut_start_service(
 ) -> Result<InstanceView, CelautError> {
     let id = service_id(&service_id_hex)?;
     let configuration = start_configuration(initial_mu, &environment)?;
+    // What the start receipt must sign: the variables and the balance that the phone sent.
+    let sent_envs = configuration.environment_variables.clone();
+    let sent_mu = configuration.initial_mu.as_ref().map(|a| a.n.clone());
     let session = session(&node).await?;
     let before = session.balance().await.ok();
     let started = match session.start(id, configuration).await {
@@ -533,7 +537,25 @@ pub async fn celaut_start_service(
         web_slots: record.web_slots.clone(),
         client_balance_mu: after.map(|b| b.to_string()).unwrap_or_default(),
     };
+    let start_receipt = started.receipt.as_ref().map(|r| {
+        let faults = check_start(
+            r,
+            session.peer_id(),
+            &started.token,
+            &id,
+            &sent_envs,
+            sent_mu.as_deref(),
+        );
+        StoredReceipt::new(r, faults)
+    });
     db().update(|d| {
+        d.receipts.insert(
+            instance_id.clone(),
+            InstanceReceipts {
+                start: start_receipt,
+                ..Default::default()
+            },
+        );
         d.instances.insert(instance_id, record);
     })
     .map_err(storage_error)?;
@@ -695,6 +717,7 @@ pub fn celaut_forget_instance(instance_id: String) -> Result<(), CelautError> {
             )),
             Some(_) => {
                 d.instances.remove(&instance_id);
+                d.receipts.remove(&instance_id);
                 Ok(())
             }
         })
@@ -717,7 +740,8 @@ pub async fn celaut_open_tunnel(instance_id: String, slot: u16) -> Result<u16, C
         return Err(invalid("The instance has no such slot."));
     }
     let opener: Arc<dyn TunnelOpener> = Arc::new(session.transport().clone());
-    let port = LocalPort::bind(opener, record.token.clone(), slot)
+    let sink = super::celaut_receipts::sink(instance_id.clone());
+    let port = LocalPort::bind(opener, record.token.clone(), slot, Some(sink))
         .await
         .map_err(|e| CelautError {
             kind: CelautErrorKind::Unreachable,

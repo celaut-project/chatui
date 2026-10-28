@@ -60,6 +60,9 @@ pub mod celaut_health;
 /// Give a service to a node that does not have it (a package).
 pub mod celaut_package;
 
+/// The execution receipts of the instances: what the app keeps, shows and exports.
+pub mod celaut_receipts;
+
 fn err_str<E: Into<ArgusError>>(e: E) -> String {
     e.into().to_json_string()
 }
