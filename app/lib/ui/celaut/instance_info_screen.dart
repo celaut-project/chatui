@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../bridge/api/celaut_receipts.dart';
 import '../../bridge/api/celaut_service.dart';
 import '../../celaut/host_port.dart';
 import '../../celaut/celaut_format.dart';
@@ -12,6 +13,7 @@ import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
 import '../home/home_style.dart';
 import 'instance_actions.dart';
+import 'instance_receipts.dart';
 import 'robot_avatar.dart';
 import 'service_info_screen.dart';
 
@@ -33,7 +35,17 @@ class InstanceInfoScreen extends StatefulWidget {
     this.loadInfo = readServiceInfo,
     this.rename,
     this.onRenamed,
+    this.loadReceipts = readReceipts,
+    this.exportReceipts = shareReceipts,
   });
+
+  /// Read the execution receipts of an instance; null if the app cannot. Tests give
+  /// their own.
+  final ReceiptsView? Function(String instanceId) loadReceipts;
+
+  /// Share the receipts file of an instance; false if it has no receipt. Tests give
+  /// their own.
+  final Future<bool> Function(String instanceId) exportReceipts;
 
   /// Keep a new name of the instance. Tests give their own.
   final void Function(String instanceId, String alias)? rename;
@@ -70,6 +82,19 @@ class InstanceInfoScreen extends StatefulWidget {
 class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
   bool _stopping = false;
   late InstanceListView _instance = widget.instance;
+  late final ReceiptsView? _receipts = widget.loadReceipts(widget.instance.instanceId);
+
+  /// Give the receipts of the instance to another app, as a file.
+  Future<void> _exportReceipts() async {
+    final l = context.l10n;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final shared = await widget.exportReceipts(_instance.instanceId);
+      if (!shared) messenger.showSnackBar(SnackBar(content: Text(l.chatsReceiptsExportNone)));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(l.chatsReceiptsExportFailed('$e'))));
+    }
+  }
 
   Future<void> _rename() async {
     final renamed = await renameInstance(context, _instance, rename: widget.rename);
@@ -284,6 +309,10 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
                 style: t.secondary.copyWith(color: rustFor(context)),
               ),
             ),
+          if (_receipts case final receipts?) ...[
+            const SizedBox(height: 16),
+            InstanceReceiptsSection(view: receipts, onExport: _exportReceipts),
+          ],
           if (widget.state != InstanceState.stopped) ...[
             const SizedBox(height: 24),
             FilledButton.icon(

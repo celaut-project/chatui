@@ -4244,6 +4244,31 @@
   "chatsInfoRefund": "Refund at the stop",
   "chatsInfoStopNote": "Stop ends the conversation. The node refunds what is left of the instance.",
   "chatsInfoDeleteNote": "Only a stopped instance can be deleted. The app keeps every other instance, even if its node does not answer.",
+  "chatsReceiptsTitle": "Receipts",
+  "chatsReceiptsStart": "Start",
+  "chatsReceiptsCheckpoints": "Checkpoints",
+  "chatsReceiptsClose": "Close",
+  "chatsReceiptsNone": "none",
+  "chatsReceiptsNoTunnel": "no tunnel yet",
+  "chatsReceiptsCancelled": "none (cancelled)",
+  "chatsReceiptsOpen": "open",
+  "chatsReceiptsFaultSent": "Node signed data that doesn't match what this phone sent",
+  "chatsReceiptsFaultReceived": "Node signed data that doesn't match what this phone received",
+  "chatsReceiptsFaultEnvs": "Node signed environment variables that this phone did not send",
+  "chatsReceiptsFaultService": "Node signed a different service from the one that this phone started",
+  "chatsReceiptsFaultAmount": "Node signed a different start balance from the one that this phone asked for",
+  "chatsReceiptsFaultInvalid": "A receipt does not verify",
+  "chatsReceiptsExport": "Export receipts",
+  "chatsReceiptsExportNone": "There are no receipts to export.",
+  "chatsReceiptsExportFailed": "Export failed: {error}",
+  "@chatsReceiptsExportFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsReceiptsNote": "The node signs these receipts. They are evidence against the node, and you can give them to other persons. When this phone stops a tunnel, the tunnel has no close, and that is not a fault.",
   "celautErrorNodeClosed": "The node is closed now: its operator accepts new work only at certain hours. Try later or choose another node.",
   "celautErrorNoRoom": "The node has not enough free resources for this service now. Try later or choose another node.",
   "celautErrorServiceMissing": "The node does not have this service. Choose a node that has it.",
