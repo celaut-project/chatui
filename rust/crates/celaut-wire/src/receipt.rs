@@ -66,7 +66,13 @@ pub const RESERVED_ENV: &str = "__nodo_instance_name";
 /// (`node_identity.SIGNATURE_SCHEME_COMPONENTS`).
 pub const ED25519_FORMAL: &str = "algorithm=eddsa\ncontext=none\ncurve=edwards25519\nmessage=as-given\nprehash=none\nprivate_key_bytes=32\npublic_key_bytes=32\npublic_key_encoding=hex-lowercase\nsignature_bytes=64\nsignature_encoding=hex-lowercase\nsignature_layout=R||S\nspec=RFC8032\nvariant=pure\nverification=RFC8032-5.1.7";
 
+/// The length of `envs_salt` (`execution_receipt.ENVS_SALT_BYTES`). A verifier refuses
+/// another length: nothing separates the salt from the canonical text.
+pub const ENVS_SALT_BYTES: usize = 16;
+
 const DIGEST_HEX_LEN: usize = 64;
+/// Ed25519: 64 bytes, in lowercase hex.
+const SIGNATURE_HEX_LEN: usize = 128;
 
 fn blake2b_256(data: &[u8]) -> [u8; 32] {
     let mut hasher = Blake2b::<U32>::new();
@@ -167,6 +173,10 @@ pub fn canonical_envs(
 }
 
 /// `blake2b_256(salt || UTF-8(canonical_envs))`, lowercase hex.
+///
+/// The salt is always [`ENVS_SALT_BYTES`] long, and a verifier must refuse another
+/// length ([`envs_match`]): nothing separates the salt from the text, so a longer salt
+/// could hold the first entries of the map and open the digest with fewer.
 pub fn envs_digest(
     envs: &BTreeMap<String, Vec<u8>>,
     salt: &[u8],
@@ -175,6 +185,23 @@ pub fn envs_digest(
     let mut data = salt.to_vec();
     data.extend_from_slice(canonical_envs(envs, origins).as_bytes());
     blake2b_256_hex(&data)
+}
+
+/// `envs_match`: whether `envs` is the map that the `start` receipt `r` names.
+///
+/// `salt` defaults to the `envs_salt` of the receipt. A salt of another length than
+/// [`ENVS_SALT_BYTES`] never matches. This only compares the digest: check the
+/// signature with [`verify`].
+pub fn envs_match(
+    r: &ExecutionReceipt,
+    envs: &BTreeMap<String, Vec<u8>>,
+    origins: &BTreeMap<String, Origin>,
+    salt: Option<&[u8]>,
+) -> bool {
+    let salt = salt.unwrap_or(&r.envs_salt);
+    r.kind == KIND_START
+        && salt.len() == ENVS_SALT_BYTES
+        && envs_digest(envs, salt, origins) == r.envs_digest
 }
 
 /// The Blake2b-256 of one payload, in hex.
@@ -440,6 +467,16 @@ pub fn problems(r: &ExecutionReceipt, peer_id: Option<&str>, token: Option<&str>
     }
     if !r.session.is_empty() && !is_hex(&r.session, None) {
         found.push("session is not lowercase hex".into());
+    }
+    // hex::decode reads uppercase too: one spelling only, as the proto says.
+    if !is_hex(&r.signature, Some(SIGNATURE_HEX_LEN)) {
+        found.push("signature is not 128 lowercase hex".into());
+    }
+    if !r.envs_salt.is_empty() && (r.kind != KIND_START || r.envs_salt.len() != ENVS_SALT_BYTES)
+    {
+        found.push(format!(
+            "envs_salt is not {ENVS_SALT_BYTES} bytes of a start receipt"
+        ));
     }
 
     let listed = |fields: &[&'static str]| -> Vec<&'static str> {
@@ -1033,16 +1070,82 @@ mod tests {
             assert_ne!(receipt_digest(&r), digest, "{field}");
             assert!(!verify(&r, None, None), "{field}");
         }
-        // Not signed: the salt and the signature itself.
+        // Not signed: the salt and the signature itself. Another salt of the same
+        // length (a salt of another length is refused).
         let mut r = start();
         let digest = receipt_digest(&r);
-        r.envs_salt = vec![0; 16];
+        r.envs_salt[0] ^= 1;
         assert_eq!(receipt_digest(&r), digest);
         assert!(verify(&r, None, None));
-        assert_ne!(
-            envs_digest(&envs(), &r.envs_salt, &no_origins()),
-            r.envs_digest
-        );
+        assert!(!envs_match(&r, &envs(), &no_origins(), None));
+        // Only a start receipt carries a salt.
+        let mut r = checkpoint();
+        let digest = receipt_digest(&r);
+        r.envs_salt = vec![1; ENVS_SALT_BYTES];
+        assert_eq!(receipt_digest(&r), digest);
+        assert!(!verify(&r, None, None));
+    }
+
+    /// Final review of nodo#593: nothing separates the salt from the text, so a salt
+    /// that holds the first entry opens the same digest with the rest of the map only.
+    #[test]
+    fn a_longer_salt_cannot_open_the_envs_with_fewer_variables() {
+        let r = start();
+        assert!(envs_match(&r, &envs(), &no_origins(), None));
+        let mut rest = envs();
+        let (first, value) = rest.pop_first().unwrap();
+        let mut long_salt = r.envs_salt.clone();
+        let one = BTreeMap::from([(first, value)]);
+        long_salt.extend_from_slice(format!("{}/", canonical_envs(&one, &no_origins())).as_bytes());
+        // The digest alone has two readings...
+        assert_eq!(envs_digest(&rest, &long_salt, &no_origins()), r.envs_digest);
+        // ...so the check refuses any salt that is not 16 bytes.
+        assert!(!envs_match(&r, &rest, &no_origins(), Some(&long_salt)));
+        let mut r = r;
+        r.envs_salt = long_salt;
+        assert!(!envs_match(&r, &rest, &no_origins(), None));
+        assert!(problems(&r, None, None)
+            .contains(&format!("envs_salt is not {ENVS_SALT_BYTES} bytes of a start receipt")));
+    }
+
+    #[test]
+    fn envs_match_needs_the_right_map_and_a_start() {
+        let r = start();
+        let mut more = envs();
+        more.insert("extra".into(), b"1".to_vec());
+        assert!(!envs_match(&r, &more, &no_origins(), None));
+        assert!(!envs_match(&checkpoint(), &envs(), &no_origins(), None));
+        // Published without the salt.
+        let mut stripped = r.clone();
+        stripped.envs_salt.clear();
+        assert!(verify(&stripped, None, None));
+        assert!(envs_match(&stripped, &envs(), &no_origins(), Some(&r.envs_salt)));
+    }
+
+    /// Final review of nodo#593: the hex decoder reads uppercase (and Python's reads
+    /// spaces), so the same signature verified in other spellings.
+    #[test]
+    fn the_signature_has_one_spelling() {
+        let good = start();
+        assert!(verify(&good, None, None));
+        let spaced = (0..128)
+            .step_by(2)
+            .map(|i| &good.signature[i..i + 2])
+            .collect::<Vec<_>>()
+            .join(" ");
+        for spelling in [
+            good.signature.to_uppercase(),
+            spaced,
+            format!("{}00", good.signature),
+            String::new(),
+        ] {
+            let mut r = start();
+            r.signature = spelling.clone();
+            assert!(
+                problems(&r, None, None).contains(&"signature is not 128 lowercase hex".to_string()),
+                "{spelling:.20}"
+            );
+        }
     }
 
     #[test]

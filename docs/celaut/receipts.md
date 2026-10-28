@@ -13,7 +13,8 @@ The app checks each receipt when it comes, keeps it, and lets the user export it
 | `close` | the same place, as the last receipt | the same fields; the stream stopped normally |
 
 The node signs `celaut-execution-receipt:<peer_id>|<receipt_digest>` with its identity
-key (Ed25519). `rust/crates/celaut-wire/src/receipt.rs` has the canonical text, the
+key (Ed25519). The signature has one spelling: 128 lowercase hex characters; the app
+refuses any other spelling. `rust/crates/celaut-wire/src/receipt.rs` has the canonical text, the
 digests, the chains and the check. Its tests use the vectors of
 `nodo:tests/identity/test_execution_receipt.py`, and give the same bytes.
 
@@ -46,7 +47,9 @@ The app checks the start receipt against what it sent:
 - `service_id` is the SHA3-256 id of the service that the phone started;
 - `envs_digest` is `blake2b_256(envs_salt || canonical envs)` of the variables that the
   phone sent (the last value of a name, no `__nodo_instance_name`), with the salt of the
-  receipt;
+  receipt. The salt must be exactly 16 bytes: nothing separates the salt from the text,
+  so a longer salt could hold the first variables and open the digest with fewer
+  (`envs_match` of nodo);
 - if the phone sent `Configuration.initial_mu`, the receipt has the same amount.
 
 ## 4. What the app keeps
