@@ -5767,6 +5767,68 @@ class AppLocalizationsEs extends AppLocalizations {
       'Solo se puede eliminar una instancia detenida. La app guarda todas las demás, aunque su nodo no responda.';
 
   @override
+  String get chatsReceiptsTitle => 'Recibos';
+
+  @override
+  String get chatsReceiptsStart => 'Inicio';
+
+  @override
+  String get chatsReceiptsCheckpoints => 'Puntos de control';
+
+  @override
+  String get chatsReceiptsClose => 'Cierre';
+
+  @override
+  String get chatsReceiptsNone => 'ninguno';
+
+  @override
+  String get chatsReceiptsNoTunnel => 'aún sin túnel';
+
+  @override
+  String get chatsReceiptsCancelled => 'ninguno (cancelado)';
+
+  @override
+  String get chatsReceiptsOpen => 'abierto';
+
+  @override
+  String get chatsReceiptsFaultSent =>
+      'El nodo firmó datos que no coinciden con lo que este teléfono envió';
+
+  @override
+  String get chatsReceiptsFaultReceived =>
+      'El nodo firmó datos que no coinciden con lo que este teléfono recibió';
+
+  @override
+  String get chatsReceiptsFaultEnvs =>
+      'El nodo firmó variables de entorno que este teléfono no envió';
+
+  @override
+  String get chatsReceiptsFaultService =>
+      'El nodo firmó un servicio distinto del que inició este teléfono';
+
+  @override
+  String get chatsReceiptsFaultAmount =>
+      'El nodo firmó un saldo inicial distinto del que pidió este teléfono';
+
+  @override
+  String get chatsReceiptsFaultInvalid => 'Un recibo no se verifica';
+
+  @override
+  String get chatsReceiptsExport => 'Exportar recibos';
+
+  @override
+  String get chatsReceiptsExportNone => 'No hay recibos para exportar.';
+
+  @override
+  String chatsReceiptsExportFailed(String error) {
+    return 'La exportación falló: $error';
+  }
+
+  @override
+  String get chatsReceiptsNote =>
+      'El nodo firma estos recibos. Son pruebas contra el nodo, y puede darlas a otras personas. Cuando este teléfono detiene un túnel, el túnel no tiene cierre, y eso no es una falta.';
+
+  @override
   String get celautErrorNodeClosed =>
       'El nodo está cerrado ahora: su operador solo acepta trabajo nuevo en ciertas horas. Inténtalo más tarde o elige otro nodo.';
 

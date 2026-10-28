@@ -9035,6 +9035,114 @@ abstract class AppLocalizations {
   /// **'Only a stopped instance can be deleted. The app keeps every other instance, even if its node does not answer.'**
   String get chatsInfoDeleteNote;
 
+  /// No description provided for @chatsReceiptsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Receipts'**
+  String get chatsReceiptsTitle;
+
+  /// No description provided for @chatsReceiptsStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get chatsReceiptsStart;
+
+  /// No description provided for @chatsReceiptsCheckpoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Checkpoints'**
+  String get chatsReceiptsCheckpoints;
+
+  /// No description provided for @chatsReceiptsClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get chatsReceiptsClose;
+
+  /// No description provided for @chatsReceiptsNone.
+  ///
+  /// In en, this message translates to:
+  /// **'none'**
+  String get chatsReceiptsNone;
+
+  /// No description provided for @chatsReceiptsNoTunnel.
+  ///
+  /// In en, this message translates to:
+  /// **'no tunnel yet'**
+  String get chatsReceiptsNoTunnel;
+
+  /// No description provided for @chatsReceiptsCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'none (cancelled)'**
+  String get chatsReceiptsCancelled;
+
+  /// No description provided for @chatsReceiptsOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'open'**
+  String get chatsReceiptsOpen;
+
+  /// No description provided for @chatsReceiptsFaultSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Node signed data that doesn\'t match what this phone sent'**
+  String get chatsReceiptsFaultSent;
+
+  /// No description provided for @chatsReceiptsFaultReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'Node signed data that doesn\'t match what this phone received'**
+  String get chatsReceiptsFaultReceived;
+
+  /// No description provided for @chatsReceiptsFaultEnvs.
+  ///
+  /// In en, this message translates to:
+  /// **'Node signed environment variables that this phone did not send'**
+  String get chatsReceiptsFaultEnvs;
+
+  /// No description provided for @chatsReceiptsFaultService.
+  ///
+  /// In en, this message translates to:
+  /// **'Node signed a different service from the one that this phone started'**
+  String get chatsReceiptsFaultService;
+
+  /// No description provided for @chatsReceiptsFaultAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Node signed a different start balance from the one that this phone asked for'**
+  String get chatsReceiptsFaultAmount;
+
+  /// No description provided for @chatsReceiptsFaultInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'A receipt does not verify'**
+  String get chatsReceiptsFaultInvalid;
+
+  /// No description provided for @chatsReceiptsExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export receipts'**
+  String get chatsReceiptsExport;
+
+  /// No description provided for @chatsReceiptsExportNone.
+  ///
+  /// In en, this message translates to:
+  /// **'There are no receipts to export.'**
+  String get chatsReceiptsExportNone;
+
+  /// No description provided for @chatsReceiptsExportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Export failed: {error}'**
+  String chatsReceiptsExportFailed(String error);
+
+  /// No description provided for @chatsReceiptsNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The node signs these receipts. They are evidence against the node, and you can give them to other persons. When this phone stops a tunnel, the tunnel has no close, and that is not a fault.'**
+  String get chatsReceiptsNote;
+
   /// No description provided for @celautErrorNodeClosed.
   ///
   /// In en, this message translates to:

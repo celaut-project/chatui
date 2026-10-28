@@ -5696,6 +5696,68 @@ class AppLocalizationsEn extends AppLocalizations {
       'Only a stopped instance can be deleted. The app keeps every other instance, even if its node does not answer.';
 
   @override
+  String get chatsReceiptsTitle => 'Receipts';
+
+  @override
+  String get chatsReceiptsStart => 'Start';
+
+  @override
+  String get chatsReceiptsCheckpoints => 'Checkpoints';
+
+  @override
+  String get chatsReceiptsClose => 'Close';
+
+  @override
+  String get chatsReceiptsNone => 'none';
+
+  @override
+  String get chatsReceiptsNoTunnel => 'no tunnel yet';
+
+  @override
+  String get chatsReceiptsCancelled => 'none (cancelled)';
+
+  @override
+  String get chatsReceiptsOpen => 'open';
+
+  @override
+  String get chatsReceiptsFaultSent =>
+      'Node signed data that doesn\'t match what this phone sent';
+
+  @override
+  String get chatsReceiptsFaultReceived =>
+      'Node signed data that doesn\'t match what this phone received';
+
+  @override
+  String get chatsReceiptsFaultEnvs =>
+      'Node signed environment variables that this phone did not send';
+
+  @override
+  String get chatsReceiptsFaultService =>
+      'Node signed a different service from the one that this phone started';
+
+  @override
+  String get chatsReceiptsFaultAmount =>
+      'Node signed a different start balance from the one that this phone asked for';
+
+  @override
+  String get chatsReceiptsFaultInvalid => 'A receipt does not verify';
+
+  @override
+  String get chatsReceiptsExport => 'Export receipts';
+
+  @override
+  String get chatsReceiptsExportNone => 'There are no receipts to export.';
+
+  @override
+  String chatsReceiptsExportFailed(String error) {
+    return 'Export failed: $error';
+  }
+
+  @override
+  String get chatsReceiptsNote =>
+      'The node signs these receipts. They are evidence against the node, and you can give them to other persons. When this phone stops a tunnel, the tunnel has no close, and that is not a fault.';
+
+  @override
   String get celautErrorNodeClosed =>
       'The node is closed now: its operator accepts new work only at certain hours. Try later or choose another node.';
 
