@@ -229,12 +229,13 @@ pub fn check_start(
     {
         faults.push(Fault::Service);
     }
-    let digest = receipt::envs_digest(
+    // With the salt of the receipt, which must be 16 bytes.
+    if !receipt::envs_match(
+        r,
         &receipt::service_envs(envs),
-        &r.envs_salt,
         &BTreeMap::<String, Origin>::new(),
-    );
-    if digest != r.envs_digest {
+        None,
+    ) {
         faults.push(Fault::Envs);
     }
     let signed = r
