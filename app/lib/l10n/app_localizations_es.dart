@@ -513,6 +513,14 @@ class AppLocalizationsEs extends AppLocalizations {
       'Nueva línea';
 
   @override
+  String get chatStepBack =>
+      'Atrás';
+
+  @override
+  String get chatStepNext =>
+      'Siguiente';
+
+  @override
   String get chatBgNone => 'Ninguno';
 
   @override
