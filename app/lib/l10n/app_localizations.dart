@@ -9827,6 +9827,12 @@ abstract class AppLocalizations {
   /// **'The file is gone. Import it again.'**
   String get celautPkgMissing;
 
+  /// No description provided for @celautPkgRedownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download the file again and try once more: a browser sometimes saves it damaged.'**
+  String get celautPkgRedownload;
+
   /// No description provided for @celautSendFromLibrary.
   ///
   /// In en, this message translates to:

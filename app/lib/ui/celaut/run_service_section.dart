@@ -606,7 +606,13 @@ class _RunServiceSectionState extends State<RunServiceSection> {
     final text = e.kind == CelautErrorKind.invalidInput
         ? l.celautPkgBadFile(e.message)
         : CelautStrings.errorText(e.kind);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    // A browser sometimes saves a .celaut.bee file damaged, so any failure to load one says to
+    // download it again.
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      key: const Key('pkg-bad-file'),
+      duration: const Duration(seconds: 8),
+      content: Text('$text\n${l.celautPkgRedownload}'),
+    ));
   }
 
   /// Load a service file into the app, from the "Import" button.

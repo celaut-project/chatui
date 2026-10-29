@@ -6184,6 +6184,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get celautPkgMissing => 'The file is gone. Import it again.';
 
   @override
+  String get celautPkgRedownload =>
+      'Download the file again and try once more: a browser sometimes saves it damaged.';
+
+  @override
   String celautSendFromLibrary(String to) {
     return 'Send your loaded file to $to';
   }

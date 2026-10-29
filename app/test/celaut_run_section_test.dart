@@ -755,10 +755,20 @@ void main() {
       await tester.tap(find.byKey(const Key('pkg-import')));
       await tester.pumpAndSettle();
       expect(
-        find.text(appL10n.celautPkgBadFile('the file does not say which service it is')),
+        find.text('${appL10n.celautPkgBadFile('the file does not say which service it is')}\n${appL10n.celautPkgRedownload}'),
         findsOneWidget,
       );
       expect(find.byKey(const Key('pkg-empty')), findsOneWidget);
+    });
+
+    testWidgets('any other error of the load also says to download the file again', (tester) async {
+      packages.picked = const PickedPackage(path: '/cache/a.bee', bytes: 10, name: 'a.bee');
+      lib.importError = const CelautError(kind: CelautErrorKind.storage, message: 'disk');
+      await open(tester, packages: packages, lib: lib);
+      await showFiles(tester);
+      await tester.tap(find.byKey(const Key('pkg-import')));
+      await tester.pumpAndSettle();
+      expect(find.textContaining(appL10n.celautPkgRedownload), findsOneWidget);
     });
 
     testWidgets('Run launches the loaded service by its id', (tester) async {
