@@ -1440,6 +1440,42 @@ void main() {
       expect(find.byKey(const Key('chat-virtual-keyboard')), findsNothing);
     });
 
+    List<ChatMessage> longChat({bool withForm = false}) => [
+          for (var i = 0; i < 20; i++)
+            ChatMessage(
+              seq: i,
+              role: i.isEven ? 'user' : 'assistant',
+              text: 'Line $i ${'word ' * 30}',
+              replyTo: i.isEven ? null : i - 1,
+            ),
+          if (withForm) ChatMessage(seq: 20, role: 'assistant', text: form.text, replyTo: 19),
+        ];
+
+    testWidgets('a scroll of the conversation hides the keyboard of the app, and a tap on the input shows it', (tester) async {
+      chat = _FakeChat(history: longChat());
+      await open(tester);
+      expect(find.byKey(const Key('chat-virtual-keyboard')), findsOneWidget);
+      await tester.drag(find.byKey(const Key('chat-messages')), const Offset(0, 200));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-virtual-keyboard')), findsNothing);
+      await tester.tap(find.byKey(const Key('chat-input')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-virtual-keyboard')), findsOneWidget);
+    });
+
+    testWidgets('a scroll of the conversation hides the form too', (tester) async {
+      chat = _FakeChat(history: longChat(withForm: true));
+      await open(tester);
+      expect(find.byKey(const Key('chat-keyboard-dock')), findsOneWidget);
+      await tester.drag(find.byKey(const Key('chat-messages')), const Offset(0, 200));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-keyboard-dock')), findsNothing);
+      expect(find.byKey(const Key('chat-virtual-keyboard')), findsNothing);
+      await tester.tap(find.byKey(const Key('chat-input')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-keyboard-dock')), findsOneWidget);
+    });
+
     testWidgets('with the keyboard of the system on, the input uses it, but not under a form', (tester) async {
       chatPrefs.systemKeyboard = true;
       await open(tester);

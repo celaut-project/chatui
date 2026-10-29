@@ -443,6 +443,26 @@ class _ChatScreenState extends State<ChatScreen>
   /// The `seq` of the message whose keyboard the user closed.
   int? _keyboardClosedSeq;
 
+  /// The `seq` of the last message (-1 if there is none) when the user scrolled the
+  /// conversation: the form and the keyboard of the app hide while that is still the last
+  /// message. A new message, or a tap on the input, shows them again.
+  int? _keyboardHiddenAt;
+
+  int get _lastSeq => _chat.messages.lastOrNull?.seq ?? -1;
+
+  bool get _keyboardHidden => _keyboardHiddenAt != null && _keyboardHiddenAt == _lastSeq;
+
+  /// The user is dragging or flinging the list. The bar at the bottom changes its height while
+  /// the keyboard hides, and the list does not jump to its end under the finger of the user.
+  bool _userScrolling = false;
+
+  bool _onUserScroll(UserScrollNotification n) {
+    if (n.depth != 0) return false;
+    _userScrolling = n.direction != ScrollDirection.idle;
+    if (_userScrolling && !_keyboardHidden) setState(() => _keyboardHiddenAt = _lastSeq);
+    return false;
+  }
+
   /// The field of the form of message [seq] that has the focus, or null.
   ({int seq, TextEditingController field})? _formField;
 
@@ -909,7 +929,10 @@ class _ChatScreenState extends State<ChatScreen>
     // The dots show while the service has nothing to show yet for the answer.
     final typing = _waiting && !messages.any((m) => m.isOpen && _hasContent(m));
     final error = _error == null ? null : _errorText(_error!);
-    final keyboard = _dockedKeyboard();
+    // The form exists even while it is hidden: the input does not open the keyboard of the
+    // system under it.
+    final formExists = _dockedKeyboard() != null;
+    final keyboard = _keyboardHidden ? null : _dockedKeyboard();
     final pinned =
         _pinnedSeq == null ? null : messages.where((m) => m.seq == _pinnedSeq).firstOrNull;
     final title = instanceTitle(_instance);
@@ -1136,9 +1159,12 @@ class _ChatScreenState extends State<ChatScreen>
                               key: const Key('chat-input'),
                               controller: _input,
                               focusNode: _inputFocus,
+                              onTap: () {
+                                if (_keyboardHidden) setState(() => _keyboardHiddenAt = null);
+                              },
                               // The keyboard of the system shows only if the user chose it in
                               // the settings, and never while a form is under the input.
-                              keyboardType: chatPrefs.systemKeyboard && keyboard == null
+                              keyboardType: chatPrefs.systemKeyboard && !formExists
                                   ? TextInputType.multiline
                                   : TextInputType.none,
                               minLines: 1,
@@ -1216,7 +1242,7 @@ class _ChatScreenState extends State<ChatScreen>
                       ),
                   ],
                 )
-              else if (!chatPrefs.systemKeyboard && !_recording)
+              else if (!chatPrefs.systemKeyboard && !_recording && !_keyboardHidden)
                 ChatVirtualKeyboard(controller: _input, focusNode: _inputFocus),
             ],
           ),
@@ -1263,9 +1289,14 @@ class _ChatScreenState extends State<ChatScreen>
                     : _fadeEdges(
                         top: headerBottom + _bannerHeight,
                         bottom: _bottomHeight,
+                        child: NotificationListener<UserScrollNotification>(
+                        onNotification: _onUserScroll,
                         child: ListView.custom(
                         key: const Key('chat-messages'),
                         controller: _scroll,
+                        // A drag on the list takes the focus from the input, and with it the
+                        // keyboard of the system.
+                        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                         // Room for the bars that float over the list.
                         padding: EdgeInsets.fromLTRB(
                           16,
@@ -1328,6 +1359,7 @@ class _ChatScreenState extends State<ChatScreen>
                         ),
                       ),
                       ),
+                      ),
               ),
               if (pinned != null)
                 Positioned(
@@ -1377,7 +1409,7 @@ class _ChatScreenState extends State<ChatScreen>
                     final atEnd = !_scroll.hasClients ||
                         _scroll.position.maxScrollExtent - _scroll.position.pixels < 80;
                     setState(() => _bottomHeight = h);
-                    if (atEnd) _scrollToEnd();
+                    if (atEnd && !_userScrolling) _scrollToEnd();
                   },
                   child: inputBar,
                 ),
