@@ -138,7 +138,15 @@ String applySay(String current, String say) {
 /// key has `data-send`. A key that uses an empty field cannot be tapped. The widget sends
 /// nothing itself. The keys scroll if they do not fit in [maxHeight].
 class ChatKeyboard extends StatefulWidget {
-  const ChatKeyboard({super.key, required this.html, required this.onSay, this.maxHeight = 240, this.style});
+  const ChatKeyboard({
+    super.key,
+    required this.html,
+    required this.onSay,
+    this.maxHeight = 240,
+    this.style,
+    this.systemKeyboard = true,
+    this.onFieldFocus,
+  });
 
   final String html;
   final void Function(ChatKey key, String say) onSay;
@@ -147,6 +155,13 @@ class ChatKeyboard extends StatefulWidget {
   /// The base text style: the font and the size of the chat. The default is the body text
   /// of the theme. The colors always come from the theme.
   final TextStyle? style;
+
+  /// The fields use the keyboard of the system. If false, they do not open it: the client
+  /// shows its own keyboard for the field that [onFieldFocus] tells.
+  final bool systemKeyboard;
+
+  /// A field got the focus (true) or lost it (false). It gives the controller of the field.
+  final void Function(TextEditingController field, bool focused)? onFieldFocus;
 
   @override
   State<ChatKeyboard> createState() => _ChatKeyboardState();
@@ -217,17 +232,23 @@ class _ChatKeyboardState extends State<ChatKeyboard> {
                       else if (item is ChatKeyField)
                         SizedBox(
                           width: 200,
-                          child: TextField(
-                            key: Key('chat-field-${item.name}'),
-                            controller: _field(item.name),
-                            style: text,
-                            maxLength: keyboardMaxFieldChars,
-                            maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                            textInputAction: TextInputAction.done,
-                            decoration: InputDecoration(
-                              isDense: true,
-                              counterText: '',
-                              hintText: item.placeholder,
+                          child: Focus(
+                            canRequestFocus: false,
+                            skipTraversal: true,
+                            onFocusChange: (f) => widget.onFieldFocus?.call(_field(item.name), f),
+                            child: TextField(
+                              key: Key('chat-field-${item.name}'),
+                              controller: _field(item.name),
+                              keyboardType: widget.systemKeyboard ? null : TextInputType.none,
+                              style: text,
+                              maxLength: keyboardMaxFieldChars,
+                              maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                              textInputAction: TextInputAction.done,
+                              decoration: InputDecoration(
+                                isDense: true,
+                                counterText: '',
+                                hintText: item.placeholder,
+                              ),
                             ),
                           ),
                         )
@@ -255,14 +276,16 @@ class _ChatKeyboardState extends State<ChatKeyboard> {
 
 /// What a keyboard block shows in the message: a quiet card. The keys are in the keyboard
 /// of the chat ([ChatKeyboard]) while this is the last message, so they are not twice on
-/// the screen.
+/// the screen. If the user closed the keyboard, [onTap] opens it again.
 class ChatKeyboardNote extends StatelessWidget {
-  const ChatKeyboardNote({super.key});
+  const ChatKeyboardNote({super.key, this.onTap});
+
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
+    final card = Container(
       key: const Key('chat-keyboard-note'),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
@@ -281,6 +304,13 @@ class ChatKeyboardNote extends StatelessWidget {
           ),
         ],
       ),
+    );
+    if (onTap == null) return card;
+    return InkWell(
+      key: const Key('chat-keyboard-reopen'),
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: card,
     );
   }
 }

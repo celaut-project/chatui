@@ -890,6 +890,60 @@ abstract class AppLocalizations {
   /// **'Show simple HTML from the assistant as widgets. If off, it shows as code. No scripts and no network.'**
   String get chatSettingsHtmlWidgetsSubtitle;
 
+  /// No description provided for @chatSettingsKeyboardGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyboard'**
+  String get chatSettingsKeyboardGroup;
+
+  /// No description provided for @chatSettingsSystemKeyboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the system keyboard'**
+  String get chatSettingsSystemKeyboard;
+
+  /// No description provided for @chatSettingsSystemKeyboardSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'If off, the chat types with the keyboard of the app, under the input. If on, the system keyboard shows, except while a form is open.'**
+  String get chatSettingsSystemKeyboardSubtitle;
+
+  /// No description provided for @chatVkBackspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get chatVkBackspace;
+
+  /// No description provided for @chatVkShift.
+  ///
+  /// In en, this message translates to:
+  /// **'Capital letter'**
+  String get chatVkShift;
+
+  /// No description provided for @chatVkSymbols.
+  ///
+  /// In en, this message translates to:
+  /// **'Numbers and symbols'**
+  String get chatVkSymbols;
+
+  /// No description provided for @chatVkLetters.
+  ///
+  /// In en, this message translates to:
+  /// **'Letters'**
+  String get chatVkLetters;
+
+  /// No description provided for @chatVkSpace.
+  ///
+  /// In en, this message translates to:
+  /// **'Space'**
+  String get chatVkSpace;
+
+  /// No description provided for @chatVkEnter.
+  ///
+  /// In en, this message translates to:
+  /// **'New line'**
+  String get chatVkEnter;
+
   /// No description provided for @chatBgNone.
   ///
   /// In en, this message translates to:

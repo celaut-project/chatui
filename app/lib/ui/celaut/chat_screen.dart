@@ -28,6 +28,7 @@ import 'instance_actions.dart';
 import 'instance_info_screen.dart';
 import 'keyboard_widget.dart';
 import 'open_web.dart';
+import 'virtual_keyboard.dart';
 
 /// The conversation with a running instance that follows the chat convention
 /// (`docs/celaut/chat.md`), as a chat in a messenger (`docs/celaut/ui-chat-first.md`).
@@ -152,6 +153,7 @@ class _Reveal {
 class _ChatScreenState extends State<ChatScreen>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   final _input = TextEditingController();
+  final _inputFocus = FocusNode();
   final _scroll = ScrollController();
   late final ChatClient _chat = widget.chat ?? ChatClient(port: widget.port);
   late final ConversationKeepAlive _keepAlive = widget.keepAlive ?? ChannelConversationKeepAlive();
@@ -441,6 +443,21 @@ class _ChatScreenState extends State<ChatScreen>
   /// The `seq` of the message whose keyboard the user closed.
   int? _keyboardClosedSeq;
 
+  /// The field of the form of message [seq] that has the focus, or null.
+  ({int seq, TextEditingController field})? _formField;
+
+  void _formFieldFocus(int seq, TextEditingController field, bool focused) {
+    // The focus can change while the tree builds, so the state changes after the frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (focused) {
+        setState(() => _formField = (seq: seq, field: field));
+      } else if (_formField?.field == field) {
+        setState(() => _formField = null);
+      }
+    });
+  }
+
   /// The keyboard block of the last message, if the service made it, the message is
   /// complete and the user has not closed it. The block is the last "```keyboard" one of
   /// the message. A message of the user after it, or a new answer, takes it away.
@@ -458,7 +475,10 @@ class _ChatScreenState extends State<ChatScreen>
   void _say(ChatKey key, String say, int seq) {
     if (key.send) {
       if (_stopping) return;
-      setState(() => _keyboardClosedSeq = seq);
+      setState(() {
+        _keyboardClosedSeq = seq;
+        _formField = null;
+      });
       _send(only: say);
       return;
     }
@@ -874,6 +894,7 @@ class _ChatScreenState extends State<ChatScreen>
     _ticker?.cancel();
     _poll?.cancel();
     _input.dispose();
+    _inputFocus.dispose();
     _scroll.dispose();
     _chat.removeListener(_onChat);
     if (widget.chat == null) unawaited(_chat.close());
@@ -1033,33 +1054,6 @@ class _ChatScreenState extends State<ChatScreen>
                     ],
                   ),
                 ),
-              if (keyboard != null)
-                Column(
-                  key: const Key('chat-keyboard-dock'),
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        const SizedBox(width: 16),
-                        Icon(Icons.keyboard_outlined, size: 18, color: scheme.onSurfaceVariant),
-                        const Spacer(),
-                        IconButton(
-                          key: const Key('chat-keyboard-close'),
-                          tooltip: l10n.chatKeyboardClose,
-                          onPressed: () => setState(() => _keyboardClosedSeq = keyboard.seq),
-                          icon: const Icon(Icons.keyboard_hide_outlined),
-                        ),
-                      ],
-                    ),
-                    ChatKeyboard(
-                      html: keyboard.html,
-                      onSay: (key, say) => _say(key, say, keyboard.seq),
-                      style: chatPrefs.textStyle,
-                      maxHeight: MediaQuery.sizeOf(context).height * 0.35,
-                    ),
-                    const Divider(height: 1),
-                  ],
-                ),
               if (_pending.isNotEmpty)
                 SizedBox(
                   height: 48,
@@ -1141,6 +1135,12 @@ class _ChatScreenState extends State<ChatScreen>
                             child: TextField(
                               key: const Key('chat-input'),
                               controller: _input,
+                              focusNode: _inputFocus,
+                              // The keyboard of the system shows only if the user chose it in
+                              // the settings, and never while a form is under the input.
+                              keyboardType: chatPrefs.systemKeyboard && keyboard == null
+                                  ? TextInputType.multiline
+                                  : TextInputType.none,
                               minLines: 1,
                               maxLines: 4,
                               textInputAction: TextInputAction.newline,
@@ -1176,6 +1176,48 @@ class _ChatScreenState extends State<ChatScreen>
                         ],
                       ),
               ),
+              if (keyboard != null)
+                Column(
+                  key: const Key('chat-keyboard-dock'),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Divider(height: 1),
+                    Row(
+                      children: [
+                        const SizedBox(width: 16),
+                        Icon(Icons.keyboard_outlined, size: 18, color: scheme.onSurfaceVariant),
+                        const Spacer(),
+                        IconButton(
+                          key: const Key('chat-keyboard-close'),
+                          tooltip: l10n.chatKeyboardClose,
+                          onPressed: () => setState(() {
+                            _keyboardClosedSeq = keyboard.seq;
+                            _formField = null;
+                          }),
+                          icon: const Icon(Icons.keyboard_hide_outlined),
+                        ),
+                      ],
+                    ),
+                    ChatKeyboard(
+                      html: keyboard.html,
+                      onSay: (key, say) => _say(key, say, keyboard.seq),
+                      style: chatPrefs.textStyle,
+                      maxHeight: MediaQuery.sizeOf(context).height * 0.35,
+                      systemKeyboard: chatPrefs.systemKeyboard,
+                      onFieldFocus: (field, focused) => _formFieldFocus(keyboard.seq, field, focused),
+                    ),
+                    // The fields of the form type with the keyboard of the app while one of
+                    // them has the focus.
+                    if (!chatPrefs.systemKeyboard && _formField?.seq == keyboard.seq)
+                      ChatVirtualKeyboard(
+                        key: const Key('chat-virtual-keyboard-form'),
+                        controller: _formField!.field,
+                        maxLength: keyboardMaxFieldChars,
+                      ),
+                  ],
+                )
+              else if (!chatPrefs.systemKeyboard && !_recording)
+                ChatVirtualKeyboard(controller: _input, focusNode: _inputFocus),
             ],
           ),
         ),
@@ -1252,6 +1294,12 @@ class _ChatScreenState extends State<ChatScreen>
                                 onLoaded: _fileLoaded,
                                 onPin: _chat.canPin && m.id.isNotEmpty ? () => _togglePin(m) : null,
                                 onCopy: () => _copy(m),
+                                onReopenKeyboard: m.seq == _keyboardClosedSeq && i == messages.length - 1
+                                    ? () => setState(() {
+                                          _keyboardClosedSeq = null;
+                                          _formField = null;
+                                        })
+                                    : null,
                               );
                               return m.pinned
                                   ? KeyedSubtree(
@@ -1534,6 +1582,7 @@ class _Bubble extends StatelessWidget {
     required this.onLoaded,
     required this.onPin,
     required this.onCopy,
+    this.onReopenKeyboard,
   });
 
   final ChatMessage message;
@@ -1558,6 +1607,10 @@ class _Bubble extends StatelessWidget {
   /// Pins or unpins the message. Null while the service does not take it.
   final VoidCallback? onPin;
   final VoidCallback onCopy;
+
+  /// Opens the keyboard of this message again, after the user closed it. Null while the
+  /// keyboard is open or this is not the last message.
+  final VoidCallback? onReopenKeyboard;
 
   /// The menu of a long press on the message, anywhere on it: copy, select the text, and
   /// pin or unpin. The text of a bubble is not selectable by itself, so that a long press
@@ -1695,6 +1748,7 @@ class _Bubble extends StatelessWidget {
                   html: html && !mine,
                   markdown: !mine,
                   streaming: message.isOpen,
+                  onKeyboardTap: onReopenKeyboard,
                   // Not selectable: a long press opens the menu, which can select the text.
                   selectable: false,
                 ),
@@ -1778,6 +1832,7 @@ class _MessageText extends StatelessWidget {
     required this.streaming,
     required this.selectable,
     this.markdown = true,
+    this.onKeyboardTap,
   });
 
   final String text;
@@ -1788,6 +1843,9 @@ class _MessageText extends StatelessWidget {
   /// of the user is plain, so it has it off.
   final bool markdown;
   final bool streaming;
+
+  /// A tap on the keyboard note opens the keyboard again. Null: the note does not react.
+  final VoidCallback? onKeyboardTap;
 
   /// The text can be selected. The pinned banner has it off: a tap there opens it.
   /// Pin and unpin are in the menu of the bubble (a long press).
@@ -1818,9 +1876,9 @@ class _MessageText extends StatelessWidget {
                 padding: EdgeInsets.symmetric(vertical: 4),
                 child: ChatHtmlPendingCard(),
               ),
-            ChatSegmentKind.keyboard => const Padding(
-                padding: EdgeInsets.symmetric(vertical: 4),
-                child: ChatKeyboardNote(),
+            ChatSegmentKind.keyboard => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: ChatKeyboardNote(onTap: onKeyboardTap),
               ),
             ChatSegmentKind.pendingKeyboard => const Padding(
                 padding: EdgeInsets.symmetric(vertical: 4),
