@@ -5715,6 +5715,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatsInfoServiceId => 'Service id';
 
   @override
+  String get chatsInfoInstanceId => 'Instance id (token)';
+
+  @override
   String get chatsInfoSlot => 'Interface';
 
   @override

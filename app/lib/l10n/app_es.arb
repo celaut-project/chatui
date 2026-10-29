@@ -1564,6 +1564,7 @@
   "chatsInfoNode": "Nodo",
   "chatsInfoPeer": "ID de par del nodo",
   "chatsInfoServiceId": "ID del servicio",
+  "chatsInfoInstanceId": "ID de la instancia (token)",
   "chatsInfoSlot": "Interfaz",
   "chatsInfoChatSlot": "Chat por HTTP",
   "chatsInfoNoChatSlot": "Sin interfaz de chat",

@@ -9059,6 +9059,12 @@ abstract class AppLocalizations {
   /// **'Service id'**
   String get chatsInfoServiceId;
 
+  /// No description provided for @chatsInfoInstanceId.
+  ///
+  /// In en, this message translates to:
+  /// **'Instance id (token)'**
+  String get chatsInfoInstanceId;
+
   /// No description provided for @chatsInfoSlot.
   ///
   /// In en, this message translates to:
