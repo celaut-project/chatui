@@ -2,25 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../celaut/auto_top_up.dart';
-import '../../celaut/celaut_format.dart';
-import '../../celaut/payers.dart';
 import '../../l10n/l10n.dart';
 import '../home/home_style.dart';
 
-/// Settings, Compute, "Automatic top-up" (Josemi, 2026-10-23): the switch, off by
-/// default, the threshold and the amount ([AutoTopUp]).
+/// Settings, Compute, "Keep running" (Josemi, 2026-10-29): when the app tops up an instance
+/// that the user asked to keep running, and how much time each top-up gives ([AutoTopUp]).
+/// The switch is not here: it is per instance, at the launch and on its info page.
 ///
-/// To turn it on, the user opens the wallet (fingerprint or screen lock): the app then moves
-/// credit of the user without asking each time. It never pays a node by itself: a top-up
-/// moves credit that the app already has on the node, and with too little credit the app
-/// asks the user, who can make a deposit with its own confirmation.
+/// The app never pays a node by itself: a top-up moves credit that the app already has on
+/// the node, and with too little credit the app asks the user, who can make a deposit with
+/// its own confirmation.
 class AutoTopUpScreen extends StatefulWidget {
-  const AutoTopUpScreen({super.key, this.topUp, this.wallets = const AppFullWallets()});
+  const AutoTopUpScreen({super.key, this.topUp});
 
-  /// The top-up of the app. Tests give their own.
+  /// The keep-alive engine of the app. Tests give their own.
   final AutoTopUp? topUp;
-
-  final FullWallets wallets;
 
   @override
   State<AutoTopUpScreen> createState() => _AutoTopUpScreenState();
@@ -29,9 +25,8 @@ class AutoTopUpScreen extends StatefulWidget {
 class _AutoTopUpScreenState extends State<AutoTopUpScreen> {
   late final AutoTopUp _topUp = widget.topUp ?? autoTopUp;
   final _threshold = TextEditingController();
-  final _amount = TextEditingController();
+  final _chunk = TextEditingController();
   bool _ready = false;
-  bool _on = false;
 
   @override
   void initState() {
@@ -39,9 +34,8 @@ class _AutoTopUpScreenState extends State<AutoTopUpScreen> {
     _topUp.load().then((_) {
       if (!mounted) return;
       setState(() {
-        _on = _topUp.on;
-        _threshold.text = '${_topUp.threshold}';
-        _amount.text = '${_topUp.amount}';
+        _threshold.text = '${_topUp.threshold.inMinutes}';
+        _chunk.text = '${_topUp.chunk.inMinutes}';
         _ready = true;
       });
     });
@@ -50,42 +44,30 @@ class _AutoTopUpScreenState extends State<AutoTopUpScreen> {
   @override
   void dispose() {
     _threshold.dispose();
-    _amount.dispose();
+    _chunk.dispose();
     super.dispose();
   }
 
-  BigInt? _value(TextEditingController c, BigInt max) {
-    final v = BigInt.tryParse(c.text.trim());
-    if (v == null || v < AutoTopUp.minMu || v > max) return null;
-    return v;
+  Duration? _value(TextEditingController c, Duration max) {
+    final m = int.tryParse(c.text.trim());
+    if (m == null) return null;
+    final d = Duration(minutes: m);
+    return d < AutoTopUp.minTime || d > max ? null : d;
   }
 
-  String? _error(TextEditingController c, BigInt max) => _value(c, max) == null
-      ? context.l10n.celautTopUpRange(muOrUnknown('${AutoTopUp.minMu}'), muOrUnknown('$max'))
+  String? _error(TextEditingController c, Duration max) => _value(c, max) == null
+      ? context.l10n.celautTopUpRange('${AutoTopUp.minTime.inMinutes}', '${max.inMinutes}')
       : null;
 
-  Future<void> _save({bool? on}) async {
+  Future<void> _save() async {
     final threshold = _value(_threshold, AutoTopUp.maxThreshold);
-    final amount = _value(_amount, AutoTopUp.maxAmount);
-    if (threshold == null || amount == null) {
+    final chunk = _value(_chunk, AutoTopUp.maxChunk);
+    if (threshold == null || chunk == null) {
       setState(() {});
       return;
     }
-    final turnOn = on ?? _on;
-    if (turnOn && !_topUp.on) {
-      // The app will move credit without asking each time: the user says so with the key
-      // of the wallet.
-      if (!await ensureOpenFullWallet(context, widget.wallets)) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.l10n.celautOpenFullWalletNeeded)),
-          );
-        }
-        return;
-      }
-    }
-    await _topUp.save(on: turnOn, threshold: threshold, amount: amount);
-    if (mounted) setState(() => _on = turnOn);
+    await _topUp.save(threshold: threshold, chunk: chunk);
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.celautTopUpSaved)));
   }
 
   @override
@@ -99,14 +81,8 @@ class _AutoTopUpScreenState extends State<AutoTopUpScreen> {
           : ListView(
               padding: EdgeInsets.fromLTRB(homeGutter, 8, homeGutter, 32 + MediaQuery.paddingOf(context).bottom),
               children: [
-                SwitchListTile(
-                  key: const Key('top-up-switch'),
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(l.celautTopUpSwitch),
-                  value: _on,
-                  onChanged: (v) => _save(on: v),
-                ),
-                const SizedBox(height: 8),
+                Text(l.celautTopUpIntro, key: const Key('top-up-intro'), style: t.secondary),
+                const SizedBox(height: 16),
                 TextField(
                   key: const Key('top-up-threshold'),
                   controller: _threshold,
@@ -116,22 +92,22 @@ class _AutoTopUpScreenState extends State<AutoTopUpScreen> {
                   onSubmitted: (_) => _save(),
                   decoration: InputDecoration(
                     labelText: l.celautTopUpThreshold,
-                    suffixText: 'MU',
+                    suffixText: 'min',
                     errorText: _error(_threshold, AutoTopUp.maxThreshold),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   key: const Key('top-up-amount'),
-                  controller: _amount,
+                  controller: _chunk,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   onChanged: (_) => setState(() {}),
                   onSubmitted: (_) => _save(),
                   decoration: InputDecoration(
                     labelText: l.celautTopUpAmount,
-                    suffixText: 'MU',
-                    errorText: _error(_amount, AutoTopUp.maxAmount),
+                    suffixText: 'min',
+                    errorText: _error(_chunk, AutoTopUp.maxChunk),
                   ),
                 ),
                 const SizedBox(height: 12),

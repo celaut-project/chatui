@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use celaut_balancer::QuoteCache;
-use celaut_client::db::{InstanceRecord, NodeRecord, QuoteRecord};
+use celaut_client::db::{InstancePricing, InstanceRecord, KeepAlive, NodeRecord, QuoteRecord};
 use celaut_client::receipts::{check_start, InstanceReceipts, StoredReceipt};
 use celaut_client::session::parse_service_id;
 use celaut_client::{new_client_id, quotes, ClientError, LocalPort, NodeSession};
@@ -528,6 +528,8 @@ pub async fn celaut_start_service(
         topped_up_mu: None,
         stopped_at: None,
         refund_mu: None,
+        pricing: None,
+        keep_alive: None,
     };
     let view = InstanceView {
         instance_id: instance_id.clone(),
@@ -821,6 +823,136 @@ pub async fn celaut_instance_status(
     })
 }
 
+/// What the app knows to keep an instance running: the price of its node, and whether the
+/// user asked for it to run until they stop it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct InstancePlanView {
+    /// The app tops the instance up when its balance is low.
+    pub keep_alive: bool,
+    /// The most that the app may move from now on, in MU (empty: no limit).
+    pub budget_mu: String,
+    /// What the app moved since the user turned `keep_alive` on, in MU (empty if off).
+    pub spent_mu: String,
+    /// The maintenance of one period, in MU (empty if the app does not know it).
+    pub maintenance_mu: String,
+    /// The seconds of one period (0 if unknown).
+    pub maintenance_seconds: u32,
+    /// The margin of the node for the difference of the real cost.
+    pub variance: f64,
+}
+
+/// What the app moved to the instance since `keep_alive` started, in MU.
+pub(crate) fn spent_since(topped_up_mu: Option<&str>, at_start_mu: &str) -> u128 {
+    let now: u128 = topped_up_mu.and_then(|t| t.parse().ok()).unwrap_or(0);
+    let before: u128 = at_start_mu.parse().unwrap_or(0);
+    now.saturating_sub(before)
+}
+
+/// The plan of an instance: its price and its keep-alive settings. Reads the database
+/// only; no node is asked.
+#[flutter_rust_bridge::frb(sync)]
+pub fn celaut_instance_plan(instance_id: String) -> Result<InstancePlanView, CelautError> {
+    db().read(|d| {
+        let r = d.instances.get(&instance_id).ok_or_else(unknown_instance)?;
+        let keep = r.keep_alive.as_ref();
+        let (maintenance_mu, maintenance_seconds, variance) = match &r.pricing {
+            Some(p) => (
+                p.maintenance_mu.clone(),
+                p.maintenance_seconds,
+                p.variance.parse().unwrap_or(0.0),
+            ),
+            None => (String::new(), 0, 0.0),
+        };
+        Ok(InstancePlanView {
+            keep_alive: keep.is_some(),
+            budget_mu: keep.and_then(|k| k.budget_mu.clone()).unwrap_or_default(),
+            spent_mu: keep
+                .map(|k| {
+                    spent_since(r.topped_up_mu.as_deref(), &k.topped_up_at_start_mu).to_string()
+                })
+                .unwrap_or_default(),
+            maintenance_mu,
+            maintenance_seconds,
+            variance,
+        })
+    })
+}
+
+/// Keep the price of the node of an instance, from the quote that won its start, so that
+/// the app can say how long a balance lasts and how much a time costs.
+#[flutter_rust_bridge::frb(sync)]
+pub fn celaut_set_instance_pricing(
+    instance_id: String,
+    maintenance_mu: String,
+    maintenance_seconds: u32,
+    variance: f64,
+) -> Result<(), CelautError> {
+    if maintenance_mu.parse::<u128>().map_or(true, |m| m == 0) || maintenance_seconds == 0 {
+        return Err(invalid("The price of the maintenance is not valid."));
+    }
+    let known = db()
+        .update(|d| match d.instances.get_mut(&instance_id) {
+            Some(r) => {
+                r.pricing = Some(InstancePricing {
+                    maintenance_mu,
+                    maintenance_seconds,
+                    variance: variance.max(0.0).to_string(),
+                });
+                true
+            }
+            None => false,
+        })
+        .map_err(storage_error)?;
+    if known {
+        Ok(())
+    } else {
+        Err(unknown_instance())
+    }
+}
+
+/// Turn "run until I stop it" on or off for a running instance (Josemi, 2026-10-29).
+/// `budget_mu` is the most that the app may move from now on; empty or none is no limit.
+/// Turning it on again restarts the count of the spent amount. This moves no credit.
+#[flutter_rust_bridge::frb(sync)]
+pub fn celaut_set_keep_alive(
+    instance_id: String,
+    enabled: bool,
+    budget_mu: Option<String>,
+) -> Result<(), CelautError> {
+    let budget = match budget_mu
+        .as_deref()
+        .map(str::trim)
+        .filter(|b| !b.is_empty())
+    {
+        None => None,
+        Some(text) => match text.parse::<u128>() {
+            Ok(b) if b > 0 => Some(b.to_string()),
+            _ => return Err(invalid("The limit is not a number of MU above zero.")),
+        },
+    };
+    db().update(|d| match d.instances.get_mut(&instance_id) {
+        None => Err(unknown_instance()),
+        Some(r) if r.stopped_at.is_some() => Err(stopped_instance()),
+        Some(r) => {
+            r.keep_alive = enabled.then(|| KeepAlive {
+                budget_mu: budget,
+                topped_up_at_start_mu: r.topped_up_mu.clone().unwrap_or_default(),
+            });
+            Ok(())
+        }
+    })
+    .map_err(storage_error)?
+}
+
+/// The credit of the app on the node of the instance, in MU: what is left to spend on it
+/// and on the other instances of that node. If it runs out, the user must make a deposit.
+#[flutter_rust_bridge::frb]
+pub async fn celaut_instance_credit(instance_id: String) -> Result<String, CelautError> {
+    let (session, _) = instance(&instance_id).await?;
+    let credit = session.balance().await.map_err(error_of)?;
+    Ok(credit.to_string())
+}
+
 /// The balances after an automatic top-up.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TopUpView {
@@ -990,6 +1122,73 @@ mod tests {
         assert_eq!(name_of(&id).as_deref(), Some(""));
         let err = celaut_name_instance("nope".into(), "x".into()).unwrap_err();
         assert_eq!(err.kind, CelautErrorKind::InvalidInput);
+        drop(db().update(|d| d.instances.remove(&id)));
+    }
+
+    #[test]
+    fn keep_alive_counts_what_was_spent_since_it_was_turned_on() {
+        assert_eq!(spent_since(None, ""), 0);
+        assert_eq!(spent_since(Some("500"), ""), 500);
+        assert_eq!(spent_since(Some("1500"), "500"), 1000);
+        assert_eq!(spent_since(Some("100"), "500"), 0);
+    }
+
+    #[test]
+    fn an_instance_keeps_its_price_and_its_keep_alive_settings() {
+        let id = "keep-alive-test-instance".to_string();
+        db().update(|d| {
+            d.instances.insert(
+                id.clone(),
+                InstanceRecord {
+                    peer_id: "ab".repeat(32),
+                    token: "token".into(),
+                    topped_up_mu: Some("700".into()),
+                    ..Default::default()
+                },
+            );
+        })
+        .unwrap();
+        let plan = celaut_instance_plan(id.clone()).unwrap();
+        assert!(!plan.keep_alive);
+        assert_eq!(
+            (plan.maintenance_mu.as_str(), plan.maintenance_seconds),
+            ("", 0)
+        );
+
+        celaut_set_instance_pricing(id.clone(), "1000".into(), 60, 0.25).unwrap();
+        let plan = celaut_instance_plan(id.clone()).unwrap();
+        assert_eq!(plan.maintenance_mu, "1000");
+        assert_eq!(plan.maintenance_seconds, 60);
+        assert_eq!(plan.variance, 0.25);
+        assert!(celaut_set_instance_pricing(id.clone(), "0".into(), 60, 0.0).is_err());
+        assert!(celaut_set_instance_pricing(id.clone(), "5".into(), 0, 0.0).is_err());
+
+        // The count starts at the 700 MU that were already moved.
+        celaut_set_keep_alive(id.clone(), true, Some(" 5000 ".into())).unwrap();
+        let plan = celaut_instance_plan(id.clone()).unwrap();
+        assert!(plan.keep_alive);
+        assert_eq!(
+            (plan.budget_mu.as_str(), plan.spent_mu.as_str()),
+            ("5000", "0")
+        );
+        db().update(|d| d.instances.get_mut(&id).unwrap().topped_up_mu = Some("1200".into()))
+            .unwrap();
+        assert_eq!(celaut_instance_plan(id.clone()).unwrap().spent_mu, "500");
+
+        // No limit: an empty text, or none.
+        celaut_set_keep_alive(id.clone(), true, Some("".into())).unwrap();
+        assert_eq!(celaut_instance_plan(id.clone()).unwrap().budget_mu, "");
+        assert!(celaut_set_keep_alive(id.clone(), true, Some("0".into())).is_err());
+        assert!(celaut_set_keep_alive(id.clone(), true, Some("abc".into())).is_err());
+
+        celaut_set_keep_alive(id.clone(), false, None).unwrap();
+        assert!(!celaut_instance_plan(id.clone()).unwrap().keep_alive);
+
+        // A stopped instance cannot be kept alive.
+        db().update(|d| d.instances.get_mut(&id).unwrap().stopped_at = Some(5))
+            .unwrap();
+        assert!(celaut_set_keep_alive(id.clone(), true, None).is_err());
+        assert!(celaut_set_keep_alive("nope".into(), true, None).is_err());
         drop(db().update(|d| d.instances.remove(&id)));
     }
 

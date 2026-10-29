@@ -476,40 +476,32 @@ class AppLocalizationsEn extends AppLocalizations {
       'Show simple HTML from the assistant as widgets. If off, it shows as code. No scripts and no network.';
 
   @override
-  String get chatSettingsKeyboardGroup =>
-      'Keyboard';
+  String get chatSettingsKeyboardGroup => 'Keyboard';
 
   @override
-  String get chatSettingsSystemKeyboard =>
-      'Use the system keyboard';
+  String get chatSettingsSystemKeyboard => 'Use the system keyboard';
 
   @override
   String get chatSettingsSystemKeyboardSubtitle =>
       'If off, the chat types with the keyboard of the app, under the input. If on, the system keyboard shows, except while a form is open.';
 
   @override
-  String get chatVkBackspace =>
-      'Delete';
+  String get chatVkBackspace => 'Delete';
 
   @override
-  String get chatVkShift =>
-      'Capital letter';
+  String get chatVkShift => 'Capital letter';
 
   @override
-  String get chatVkSymbols =>
-      'Numbers and symbols';
+  String get chatVkSymbols => 'Numbers and symbols';
 
   @override
-  String get chatVkLetters =>
-      'Letters';
+  String get chatVkLetters => 'Letters';
 
   @override
-  String get chatVkSpace =>
-      'Space';
+  String get chatVkSpace => 'Space';
 
   @override
-  String get chatVkEnter =>
-      'New line';
+  String get chatVkEnter => 'New line';
 
   @override
   String get chatBgNone => 'None';
@@ -6031,37 +6023,22 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get celautTopUpTitle => 'Automatic top-up';
+  String get celautTopUpTitle => 'Keep running';
 
   @override
-  String get celautTopUpRowOn =>
-      'On: the app moves your credit on a node to an instance that runs low';
+  String get celautTopUpThreshold => 'When an instance would last less than';
 
   @override
-  String get celautTopUpRowOff => 'Off';
-
-  @override
-  String get celautTopUpSwitch => 'Top up instances that run low';
-
-  @override
-  String get celautTopUpThreshold => 'When an instance has less than';
-
-  @override
-  String get celautTopUpAmount => 'Move this much of your credit on its node';
+  String get celautTopUpAmount => 'Each time, add this much time';
 
   @override
   String celautTopUpRange(String min, String max) {
-    return 'From $min to $max.';
+    return 'From $min to $max minutes.';
   }
 
   @override
   String get celautTopUpNote =>
-      'The app checks your running instances when the list of conversations opens and once a minute while the app runs. A top-up moves credit that you already have on the node of the instance (ModifyDeposit): nothing is paid on the blockchain and nothing is signed. If that credit is too low, the app does not pay: it asks you, and a deposit always needs your confirmation and your fingerprint or screen lock. To turn this on, open the wallet.';
-
-  @override
-  String celautTopUpNeed(String node, String amount) {
-    return 'Automatic top-up: your credit on $node is less than $amount. Make a deposit to keep its instances running.';
-  }
+      'The app checks the instances that you keep running when the list of conversations opens and once a minute while the app runs. A top-up moves credit that you already have on the node of the instance (ModifyDeposit): nothing is paid on the blockchain and nothing is signed. If that credit is too low, the app does not pay: it asks you, and a deposit always needs your confirmation and your fingerprint or screen lock. The app does not run when it is closed: then nothing is added, and the node stops the instance when its balance runs out.';
 
   @override
   String get celautTopUpNeedLater => 'Later';
@@ -6618,4 +6595,132 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get celautNodesTrustedHint =>
       'Your node, or a node of family, friends or your company. The app does not warn before it gives this node your sensitive values.';
+
+  @override
+  String get celautRunModeTime => 'For a time';
+
+  @override
+  String get celautRunModeKeep => 'Until I stop it';
+
+  @override
+  String get celautRunButtonKeep => 'Run until stopped';
+
+  @override
+  String get celautKeepWarning =>
+      'Risk: the app will keep adding time to this instance from your credit on this node until you stop it. If you forget it, it can use all of that credit. It works while the app runs and while there is credit; if the credit runs out, the instance stops.';
+
+  @override
+  String get celautKeepLimitLabel => 'Spending limit (optional)';
+
+  @override
+  String get celautKeepLimitHint => 'Empty: no limit';
+
+  @override
+  String get celautKeepLimitWrong => 'A number of MU above zero.';
+
+  @override
+  String celautKeepRate(String rate, String credit, String time) {
+    return 'This node charges about $rate per hour. Your credit there is $credit: about $time.';
+  }
+
+  @override
+  String celautKeepRateOnly(String rate) {
+    return 'This node charges about $rate per hour.';
+  }
+
+  @override
+  String celautKeepCredit(String credit) {
+    return 'Your credit on this node is $credit.';
+  }
+
+  @override
+  String get celautKeepLowCredit =>
+      'Your credit there covers only a few hours. Make a deposit first if you want it to run longer.';
+
+  @override
+  String get celautKeepBadge => 'Runs until you stop it';
+
+  @override
+  String get celautTimeTitle => 'Time and credit';
+
+  @override
+  String get celautTimeBalance => 'Balance of the instance';
+
+  @override
+  String get celautTimeCredit => 'Your credit on this node';
+
+  @override
+  String celautTimeAbout(String time) {
+    return 'about $time';
+  }
+
+  @override
+  String get celautKeepSwitch => 'Keep it running until I stop it';
+
+  @override
+  String celautKeepOnNoLimit(String spent) {
+    return 'The app adds time by itself while you have credit. Added so far: $spent. No limit.';
+  }
+
+  @override
+  String celautKeepOnLimit(String spent, String limit) {
+    return 'The app adds time by itself while you have credit. Added so far: $spent of $limit.';
+  }
+
+  @override
+  String get celautKeepOff => 'It stops when its balance runs out.';
+
+  @override
+  String get celautKeepEnableTitle => 'Keep it running?';
+
+  @override
+  String get celautKeepEnableConfirm => 'Keep running';
+
+  @override
+  String get celautAddTime => 'Add time';
+
+  @override
+  String get celautAddTimeMinutes => 'Add';
+
+  @override
+  String celautAddTimeCost(String cost, String left, String time) {
+    return 'It costs $cost. You keep $left on this node: about $time more for this instance.';
+  }
+
+  @override
+  String celautAddTimeCostOnly(String cost) {
+    return 'It costs $cost.';
+  }
+
+  @override
+  String celautAddTimeNoCredit(String cost, String credit) {
+    return 'It costs $cost, and your credit on this node is $credit. Make a deposit to add this time.';
+  }
+
+  @override
+  String get celautAddTimeConfirm => 'Add';
+
+  @override
+  String get celautAddTimeDone => 'Time added.';
+
+  @override
+  String celautKeepNeed(String node) {
+    return 'Keep running: your credit on $node is too low to add time to an instance. Make a deposit to keep it running.';
+  }
+
+  @override
+  String celautKeepNeedBudget(String node) {
+    return 'An instance on $node reached the spending limit that you set. It stops when its balance runs out. Turn \"keep it running\" off and on again on its info page to set a new limit.';
+  }
+
+  @override
+  String get celautTopUpRow =>
+      'When to add time to the instances that you keep running';
+
+  @override
+  String get celautTopUpIntro =>
+      'For the instances that you keep running until you stop them (set it when you run one, or on its info page). The app adds time from your credit on their node; it never makes a deposit by itself.';
+
+  @override
+  String get celautTopUpSaved => 'Saved.';
 }

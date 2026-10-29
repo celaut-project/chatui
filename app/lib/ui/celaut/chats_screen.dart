@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../../bridge/api/celaut_service.dart';
 import '../../celaut/auto_top_up.dart';
-import '../../celaut/celaut_format.dart';
 import '../../celaut/conversations.dart';
 import '../../celaut/launcher.dart';
 import '../../celaut/payers.dart';
@@ -211,28 +210,29 @@ class _TopUpBanner extends StatelessWidget {
         return MaterialBanner(
           key: const Key('top-up-need'),
           leading: const Icon(Icons.savings_outlined),
-          content: Text(l.celautTopUpNeed(need.address, muOrUnknown(topUp.amount.toString()))),
+          content: Text(need.budget ? l.celautKeepNeedBudget(need.address) : l.celautKeepNeed(need.address)),
           actions: [
             TextButton(
               key: const Key('top-up-need-dismiss'),
               onPressed: topUp.dismissNeed,
               child: Text(l.celautTopUpNeedLater),
             ),
-            TextButton(
-              key: const Key('top-up-need-deposit'),
-              onPressed: () {
-                topUp.dismissNeed();
-                final open = openDeposit;
-                if (open != null) {
-                  open();
-                } else {
-                  Navigator.of(context).push<void>(
-                    MaterialPageRoute(builder: (_) => const DepositScreen()),
-                  );
-                }
-              },
-              child: Text(l.celautTopUpNeedDeposit),
-            ),
+            if (!need.budget)
+              TextButton(
+                key: const Key('top-up-need-deposit'),
+                onPressed: () {
+                  topUp.dismissNeed();
+                  final open = openDeposit;
+                  if (open != null) {
+                    open();
+                  } else {
+                    Navigator.of(context).push<void>(
+                      MaterialPageRoute(builder: (_) => const DepositScreen()),
+                    );
+                  }
+                },
+                child: Text(l.celautTopUpNeedDeposit),
+              ),
           ],
         );
       },

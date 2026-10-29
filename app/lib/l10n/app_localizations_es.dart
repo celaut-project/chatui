@@ -477,40 +477,32 @@ class AppLocalizationsEs extends AppLocalizations {
       'Muestra el HTML simple del asistente como widgets. Si está apagado, se ve como código. Sin scripts ni red.';
 
   @override
-  String get chatSettingsKeyboardGroup =>
-      'Teclado';
+  String get chatSettingsKeyboardGroup => 'Teclado';
 
   @override
-  String get chatSettingsSystemKeyboard =>
-      'Usar el teclado del sistema';
+  String get chatSettingsSystemKeyboard => 'Usar el teclado del sistema';
 
   @override
   String get chatSettingsSystemKeyboardSubtitle =>
       'Si está apagado, el chat escribe con el teclado de la app, debajo del input. Si está encendido, se muestra el del sistema, salvo mientras hay un formulario.';
 
   @override
-  String get chatVkBackspace =>
-      'Borrar';
+  String get chatVkBackspace => 'Borrar';
 
   @override
-  String get chatVkShift =>
-      'Mayúscula';
+  String get chatVkShift => 'Mayúscula';
 
   @override
-  String get chatVkSymbols =>
-      'Números y símbolos';
+  String get chatVkSymbols => 'Números y símbolos';
 
   @override
-  String get chatVkLetters =>
-      'Letras';
+  String get chatVkLetters => 'Letras';
 
   @override
-  String get chatVkSpace =>
-      'Espacio';
+  String get chatVkSpace => 'Espacio';
 
   @override
-  String get chatVkEnter =>
-      'Nueva línea';
+  String get chatVkEnter => 'Nueva línea';
 
   @override
   String get chatBgNone => 'Ninguno';
@@ -6106,38 +6098,23 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get celautTopUpTitle => 'Recarga automática';
+  String get celautTopUpTitle => 'Mantener en marcha';
 
   @override
-  String get celautTopUpRowOn =>
-      'Activada: la app pasa tu crédito en un nodo a una instancia que se queda sin saldo';
+  String get celautTopUpThreshold =>
+      'Cuando una instancia vaya a durar menos de';
 
   @override
-  String get celautTopUpRowOff => 'Desactivada';
-
-  @override
-  String get celautTopUpSwitch => 'Recargar las instancias con poco saldo';
-
-  @override
-  String get celautTopUpThreshold => 'Cuando una instancia tenga menos de';
-
-  @override
-  String get celautTopUpAmount =>
-      'Pasar esta cantidad de tu crédito en su nodo';
+  String get celautTopUpAmount => 'Cada vez, añadir este tiempo';
 
   @override
   String celautTopUpRange(String min, String max) {
-    return 'De $min a $max.';
+    return 'De $min a $max minutos.';
   }
 
   @override
   String get celautTopUpNote =>
-      'La app revisa tus instancias en marcha cuando se abre la lista de conversaciones y una vez por minuto mientras la app está abierta. Una recarga pasa crédito que ya tienes en el nodo de la instancia (ModifyDeposit): no se paga nada en la cadena de bloques y no se firma nada. Si ese crédito no basta, la app no paga: te lo pregunta, y un depósito siempre necesita tu confirmación y tu huella o el bloqueo de pantalla. Para activarla, abre la billetera.';
-
-  @override
-  String celautTopUpNeed(String node, String amount) {
-    return 'Recarga automática: tu crédito en $node es menor que $amount. Haz un depósito para mantener sus instancias en marcha.';
-  }
+      'La app revisa las instancias que mantienes en marcha cuando se abre la lista de conversaciones y una vez por minuto mientras la app está abierta. Una recarga pasa crédito que ya tienes en el nodo de la instancia (ModifyDeposit): no se paga nada en la cadena de bloques y no se firma nada. Si ese crédito no basta, la app no paga: te lo pregunta, y un depósito siempre necesita tu confirmación y tu huella o el bloqueo de pantalla. Si la app está cerrada no se añade nada, y el nodo detiene la instancia cuando se le acaba el saldo.';
 
   @override
   String get celautTopUpNeedLater => 'Más tarde';
@@ -6694,4 +6671,132 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get celautNodesTrustedHint =>
       'Tu nodo, o un nodo de tu familia, tus amigos o tu empresa. La app no avisa antes de dar a este nodo tus valores sensibles.';
+
+  @override
+  String get celautRunModeTime => 'Por tiempo';
+
+  @override
+  String get celautRunModeKeep => 'Hasta que la detenga';
+
+  @override
+  String get celautRunButtonKeep => 'Ejecutar sin límite de tiempo';
+
+  @override
+  String get celautKeepWarning =>
+      'Riesgo: la app irá añadiendo tiempo a esta instancia con tu crédito en este nodo hasta que la detengas. Si te olvidas, puede gastar todo ese crédito. Funciona mientras la app esté abierta y haya crédito; si el crédito se acaba, la instancia se detiene.';
+
+  @override
+  String get celautKeepLimitLabel => 'Tope de gasto (opcional)';
+
+  @override
+  String get celautKeepLimitHint => 'Vacío: sin tope';
+
+  @override
+  String get celautKeepLimitWrong => 'Un número de MU mayor que cero.';
+
+  @override
+  String celautKeepRate(String rate, String credit, String time) {
+    return 'Este nodo cobra unos $rate por hora. Tu crédito allí es $credit: unos $time.';
+  }
+
+  @override
+  String celautKeepRateOnly(String rate) {
+    return 'Este nodo cobra unos $rate por hora.';
+  }
+
+  @override
+  String celautKeepCredit(String credit) {
+    return 'Tu crédito en este nodo es $credit.';
+  }
+
+  @override
+  String get celautKeepLowCredit =>
+      'Tu crédito allí solo cubre unas pocas horas. Haz antes un depósito si quieres que dure más.';
+
+  @override
+  String get celautKeepBadge => 'Se mantiene hasta que la detengas';
+
+  @override
+  String get celautTimeTitle => 'Tiempo y crédito';
+
+  @override
+  String get celautTimeBalance => 'Saldo de la instancia';
+
+  @override
+  String get celautTimeCredit => 'Tu crédito en este nodo';
+
+  @override
+  String celautTimeAbout(String time) {
+    return 'unos $time';
+  }
+
+  @override
+  String get celautKeepSwitch => 'Mantenerla en marcha hasta que la detenga';
+
+  @override
+  String celautKeepOnNoLimit(String spent) {
+    return 'La app añade tiempo sola mientras tengas crédito. Añadido hasta ahora: $spent. Sin tope.';
+  }
+
+  @override
+  String celautKeepOnLimit(String spent, String limit) {
+    return 'La app añade tiempo sola mientras tengas crédito. Añadido hasta ahora: $spent de $limit.';
+  }
+
+  @override
+  String get celautKeepOff => 'Se detiene cuando se le acaba el saldo.';
+
+  @override
+  String get celautKeepEnableTitle => '¿Mantenerla en marcha?';
+
+  @override
+  String get celautKeepEnableConfirm => 'Mantener en marcha';
+
+  @override
+  String get celautAddTime => 'Añadir tiempo';
+
+  @override
+  String get celautAddTimeMinutes => 'Añadir';
+
+  @override
+  String celautAddTimeCost(String cost, String left, String time) {
+    return 'Cuesta $cost. Te quedan $left en este nodo: unos $time más para esta instancia.';
+  }
+
+  @override
+  String celautAddTimeCostOnly(String cost) {
+    return 'Cuesta $cost.';
+  }
+
+  @override
+  String celautAddTimeNoCredit(String cost, String credit) {
+    return 'Cuesta $cost y tu crédito en este nodo es $credit. Haz un depósito para añadir este tiempo.';
+  }
+
+  @override
+  String get celautAddTimeConfirm => 'Añadir';
+
+  @override
+  String get celautAddTimeDone => 'Tiempo añadido.';
+
+  @override
+  String celautKeepNeed(String node) {
+    return 'Mantener en marcha: tu crédito en $node es demasiado bajo para añadir tiempo a una instancia. Haz un depósito para que siga en marcha.';
+  }
+
+  @override
+  String celautKeepNeedBudget(String node) {
+    return 'Una instancia en $node llegó al tope de gasto que pusiste. Se detendrá cuando se le acabe el saldo. Apaga y vuelve a encender «mantenerla en marcha» en su página de información para poner otro tope.';
+  }
+
+  @override
+  String get celautTopUpRow =>
+      'Cuándo añadir tiempo a las instancias que mantienes en marcha';
+
+  @override
+  String get celautTopUpIntro =>
+      'Para las instancias que mantienes en marcha hasta que las detengas (se elige al ejecutarlas, o en su página de información). La app añade tiempo con tu crédito en su nodo; nunca hace un depósito por sí sola.';
+
+  @override
+  String get celautTopUpSaved => 'Guardado.';
 }

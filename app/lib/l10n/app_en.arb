@@ -4441,27 +4441,13 @@
   "celautRunDefaultBalanceLasts": "Start balance {balance} (the default): about {time} on this node.",
   "celautRunSurvivalNoPrice": "This node gives no price for its time. The app uses the default start balance.",
   "celautRunSurvivalEstimate": "Start cost about {cost}, with a balance of {balance} for at least {time} at the price of the node now. A busy node, and the traffic of the conversation, cost more. The node gives back what the instance does not use.",
-  "celautTopUpTitle": "Automatic top-up",
-  "celautTopUpRowOn": "On: the app moves your credit on a node to an instance that runs low",
-  "celautTopUpRowOff": "Off",
-  "celautTopUpSwitch": "Top up instances that run low",
-  "celautTopUpThreshold": "When an instance has less than",
-  "celautTopUpAmount": "Move this much of your credit on its node",
-  "celautTopUpRange": "From {min} to {max}.",
-  "celautTopUpNote": "The app checks your running instances when the list of conversations opens and once a minute while the app runs. A top-up moves credit that you already have on the node of the instance (ModifyDeposit): nothing is paid on the blockchain and nothing is signed. If that credit is too low, the app does not pay: it asks you, and a deposit always needs your confirmation and your fingerprint or screen lock. To turn this on, open the wallet.",
-  "celautTopUpNeed": "Automatic top-up: your credit on {node} is less than {amount}. Make a deposit to keep its instances running.",
+  "celautTopUpTitle": "Keep running",
+  "celautTopUpThreshold": "When an instance would last less than",
+  "celautTopUpAmount": "Each time, add this much time",
+  "celautTopUpRange": "From {min} to {max} minutes.",
+  "celautTopUpNote": "The app checks the instances that you keep running when the list of conversations opens and once a minute while the app runs. A top-up moves credit that you already have on the node of the instance (ModifyDeposit): nothing is paid on the blockchain and nothing is signed. If that credit is too low, the app does not pay: it asks you, and a deposit always needs your confirmation and your fingerprint or screen lock. The app does not run when it is closed: then nothing is added, and the node stops the instance when its balance runs out.",
   "celautTopUpNeedLater": "Later",
   "celautTopUpNeedDeposit": "Deposit",
-  "@celautTopUpNeed": {
-    "placeholders": {
-      "node": {
-        "type": "String"
-      },
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
   "@celautTopUpRange": {
     "placeholders": {
       "min": {
@@ -4842,5 +4828,134 @@
   "celautEnvDeny": "Deny",
   "celautEnvRunAnyway": "Send the values and run",
   "celautNodesTrusted": "Fully trusted",
-  "celautNodesTrustedHint": "Your node, or a node of family, friends or your company. The app does not warn before it gives this node your sensitive values."
+  "celautNodesTrustedHint": "Your node, or a node of family, friends or your company. The app does not warn before it gives this node your sensitive values.",
+  "celautRunModeTime": "For a time",
+  "celautRunModeKeep": "Until I stop it",
+  "celautRunButtonKeep": "Run until stopped",
+  "celautKeepWarning": "Risk: the app will keep adding time to this instance from your credit on this node until you stop it. If you forget it, it can use all of that credit. It works while the app runs and while there is credit; if the credit runs out, the instance stops.",
+  "celautKeepLimitLabel": "Spending limit (optional)",
+  "celautKeepLimitHint": "Empty: no limit",
+  "celautKeepLimitWrong": "A number of MU above zero.",
+  "celautKeepRate": "This node charges about {rate} per hour. Your credit there is {credit}: about {time}.",
+  "@celautKeepRate": {
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      },
+      "credit": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "celautKeepRateOnly": "This node charges about {rate} per hour.",
+  "@celautKeepRateOnly": {
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      }
+    }
+  },
+  "celautKeepCredit": "Your credit on this node is {credit}.",
+  "@celautKeepCredit": {
+    "placeholders": {
+      "credit": {
+        "type": "String"
+      }
+    }
+  },
+  "celautKeepLowCredit": "Your credit there covers only a few hours. Make a deposit first if you want it to run longer.",
+  "celautKeepBadge": "Runs until you stop it",
+  "celautTimeTitle": "Time and credit",
+  "celautTimeBalance": "Balance of the instance",
+  "celautTimeCredit": "Your credit on this node",
+  "celautTimeAbout": "about {time}",
+  "@celautTimeAbout": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "celautKeepSwitch": "Keep it running until I stop it",
+  "celautKeepOnNoLimit": "The app adds time by itself while you have credit. Added so far: {spent}. No limit.",
+  "@celautKeepOnNoLimit": {
+    "placeholders": {
+      "spent": {
+        "type": "String"
+      }
+    }
+  },
+  "celautKeepOnLimit": "The app adds time by itself while you have credit. Added so far: {spent} of {limit}.",
+  "@celautKeepOnLimit": {
+    "placeholders": {
+      "spent": {
+        "type": "String"
+      },
+      "limit": {
+        "type": "String"
+      }
+    }
+  },
+  "celautKeepOff": "It stops when its balance runs out.",
+  "celautKeepEnableTitle": "Keep it running?",
+  "celautKeepEnableConfirm": "Keep running",
+  "celautAddTime": "Add time",
+  "celautAddTimeMinutes": "Add",
+  "celautAddTimeCost": "It costs {cost}. You keep {left} on this node: about {time} more for this instance.",
+  "@celautAddTimeCost": {
+    "placeholders": {
+      "cost": {
+        "type": "String"
+      },
+      "left": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "celautAddTimeCostOnly": "It costs {cost}.",
+  "@celautAddTimeCostOnly": {
+    "placeholders": {
+      "cost": {
+        "type": "String"
+      }
+    }
+  },
+  "celautAddTimeNoCredit": "It costs {cost}, and your credit on this node is {credit}. Make a deposit to add this time.",
+  "@celautAddTimeNoCredit": {
+    "placeholders": {
+      "cost": {
+        "type": "String"
+      },
+      "credit": {
+        "type": "String"
+      }
+    }
+  },
+  "celautAddTimeConfirm": "Add",
+  "celautAddTimeDone": "Time added.",
+  "celautKeepNeed": "Keep running: your credit on {node} is too low to add time to an instance. Make a deposit to keep it running.",
+  "@celautKeepNeed": {
+    "placeholders": {
+      "node": {
+        "type": "String"
+      }
+    }
+  },
+  "celautKeepNeedBudget": "An instance on {node} reached the spending limit that you set. It stops when its balance runs out. Turn \"keep it running\" off and on again on its info page to set a new limit.",
+  "@celautKeepNeedBudget": {
+    "placeholders": {
+      "node": {
+        "type": "String"
+      }
+    }
+  },
+  "celautTopUpRow": "When to add time to the instances that you keep running",
+  "celautTopUpIntro": "For the instances that you keep running until you stop them (set it when you run one, or on its info page). The app adds time from your credit on their node; it never makes a deposit by itself.",
+  "celautTopUpSaved": "Saved."
 }

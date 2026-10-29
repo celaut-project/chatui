@@ -41,6 +41,8 @@ typedef LaunchCall = Future<LaunchOutcome> Function({
   required String serviceIdHex,
   String? initialMu,
   Duration? minSurvival,
+  bool keepAlive,
+  String? budgetMu,
   EnvironmentStep? environment,
 });
 
@@ -166,6 +168,8 @@ class _RunServiceSectionState extends State<RunServiceSection> {
   /// The least time that the user asked for in that confirmation; null for the default
   /// start balance.
   Duration? _lastSurvival;
+  bool _lastKeepAlive = false;
+  String? _lastBudget;
   List<LibraryPackageView> _packages = const [];
   late final PackageLibrary _library = widget.library ?? PackageLibrary();
 
@@ -266,6 +270,8 @@ class _RunServiceSectionState extends State<RunServiceSection> {
       if (choice == null || !mounted) return;
       _lastName = name;
       _lastSurvival = choice.minSurvival;
+      _lastKeepAlive = choice.keepAlive;
+      _lastBudget = choice.budgetMu;
     }
     if (!await ensureOpenFullWallet(context, widget.wallets) || !mounted) {
       if (mounted) {
@@ -279,10 +285,12 @@ class _RunServiceSectionState extends State<RunServiceSection> {
     _showRocket(serviceId);
     try {
       final launch = widget.launch ??
-          ({required serviceIdHex, initialMu, minSurvival, environment}) => launchService(
+          ({required serviceIdHex, initialMu, minSurvival, keepAlive = false, budgetMu, environment}) => launchService(
                 serviceIdHex: serviceIdHex,
                 initialMu: initialMu,
                 minSurvival: minSurvival,
+                keepAlive: keepAlive,
+                budgetMu: budgetMu,
                 environment: environment,
               );
       // The launch goes on with the screen off or the app in the background, and the
@@ -292,6 +300,8 @@ class _RunServiceSectionState extends State<RunServiceSection> {
           serviceIdHex: serviceId,
           initialMu: ServiceStrings.initialDefault,
           minSurvival: _lastSurvival,
+          keepAlive: _lastKeepAlive,
+          budgetMu: _lastBudget,
           environment: (quotes) => _inspectBeforeRun(serviceId, quotes),
         );
         // The rocket lifts off before the next screen.

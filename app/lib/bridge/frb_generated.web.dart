@@ -129,6 +129,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   InstanceListView dco_decode_instance_list_view(dynamic raw);
 
   @protected
+  InstancePlanView dco_decode_instance_plan_view(dynamic raw);
+
+  @protected
   InstanceStatusView dco_decode_instance_status_view(dynamic raw);
 
   @protected
@@ -506,6 +509,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   InstanceListView sse_decode_instance_list_view(SseDeserializer deserializer);
+
+  @protected
+  InstancePlanView sse_decode_instance_plan_view(SseDeserializer deserializer);
 
   @protected
   InstanceStatusView sse_decode_instance_status_view(
@@ -982,6 +988,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_instance_list_view(
     InstanceListView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_instance_plan_view(
+    InstancePlanView self,
     SseSerializer serializer,
   );
 

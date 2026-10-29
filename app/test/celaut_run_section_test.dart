@@ -221,8 +221,11 @@ void main() {
               },
               loadServices: (id) async => services ?? _ranked(),
               previewQuote: (id) async => preview,
-              launch: ({required serviceIdHex, initialMu, minSurvival, environment}) async {
-                launched.add('$serviceIdHex $initialMu${minSurvival == null ? '' : ' ${minSurvival.inMinutes} min'}');
+              launch: ({required serviceIdHex, initialMu, minSurvival, keepAlive = false, budgetMu, environment}) async {
+                launched.add(
+                  '$serviceIdHex $initialMu${minSurvival == null ? '' : ' ${minSurvival.inMinutes} min'}'
+                  '${keepAlive ? ' keep ${budgetMu ?? 'no limit'}' : ''}',
+                );
                 if (launchGate != null) await launchGate!.future;
                 if (launchError != null) throw launchError!;
                 if (askEnvironment) {
@@ -461,6 +464,77 @@ void main() {
     // The next confirmation starts with the same time.
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getInt('celaut_min_survival_minutes_v1'), 90);
+  });
+
+  group('the mode until I stop it', () {
+    // 100 MU each 60 s, a client credit of 10,000 MU on the best node.
+    final best = QuoteView(
+      address: const NodeAddress(host: '127.0.0.1', port: 18460),
+      peerId: 'aa' * 32,
+      costMu: '1000300',
+      initMaintenanceMu: '100',
+      maxMaintenanceMu: '100',
+      maintenanceSecondsLoop: 60,
+      variance: 0,
+      comparedNanoErg: '1',
+      clientBalanceMu: '10000',
+    );
+
+    Future<void> confirm(WidgetTester tester) async {
+      await open(tester, preview: best);
+      await tester.tap(find.byKey(const Key('run-skill-skill-sat')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('skill-sheet-run')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('starts in the mode by time, with no warning', (tester) async {
+      await confirm(tester);
+      expect(find.byKey(const Key('run-confirm-minutes')), findsOneWidget);
+      expect(find.byKey(const Key('run-confirm-warning')), findsNothing);
+      expect(find.byKey(const Key('run-confirm-limit')), findsNothing);
+    });
+
+    testWidgets('warns about the credit, shows the price and the credit, and has a limit', (tester) async {
+      await confirm(tester);
+      await tester.tap(find.text(appL10n.celautRunModeKeep));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('run-confirm-warning')), findsOneWidget);
+      expect(find.text(appL10n.celautKeepWarning), findsOneWidget);
+      expect(find.byKey(const Key('run-confirm-minutes')), findsNothing);
+      // 6,000 MU an hour; 10,000 MU last 1 h 39 min (99 periods) there. A few hours: a warning.
+      expect(
+        tester.widget<Text>(find.byKey(const Key('run-confirm-keep'))).data,
+        '${appL10n.celautKeepRate('6,000 MU', '10,000 MU', '1 h 39 min')}\n${appL10n.celautKeepLowCredit}',
+      );
+      expect(find.text(appL10n.celautRunButtonKeep), findsOneWidget);
+      // A zero limit is wrong.
+      await tester.enterText(find.byKey(const Key('run-confirm-limit')), '0');
+      await tester.pump();
+      expect(find.text(appL10n.celautKeepLimitWrong), findsOneWidget);
+      expect(tester.widget<FilledButton>(find.byKey(const Key('run-confirm-ok'))).onPressed, isNull);
+    });
+
+    testWidgets('runs with no limit, or with the limit that was typed, and keeps no time', (tester) async {
+      await confirm(tester);
+      await tester.tap(find.text(appL10n.celautRunModeKeep));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('run-confirm-ok')));
+      await tester.pumpAndSettle();
+      expect(launched, ['$_best 1000000 keep no limit']);
+      expect((await SharedPreferences.getInstance()).getInt('celaut_min_survival_minutes_v1'), isNull);
+    });
+
+    testWidgets('the limit goes to the launch', (tester) async {
+      await confirm(tester);
+      await tester.tap(find.text(appL10n.celautRunModeKeep));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('run-confirm-limit')), '250000');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('run-confirm-ok')));
+      await tester.pumpAndSettle();
+      expect(launched, ['$_best 1000000 keep 250000']);
+    });
   });
 
   group('the rocket of a launch', () {

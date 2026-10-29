@@ -176,30 +176,59 @@ Tor). "Check now" under the node cards checks all the nodes. A check changes onl
 cards: the overview (the figures) is not loaded again. Nothing is checked while Tor is
 starting or has failed.
 
-## 4b. Automatic top-up (2026-10-23, Josemi)
+## 4b. Keep running (2026-10-29, Josemi; before: "Automatic top-up", 2026-10-23)
 
-An instance stops when its balance on the node runs out. The automatic top-up moves credit
-to it before that. It is off by default; Settings, Compute, "Automatic top-up" turns it on.
+An instance stops when its balance on the node runs out. Two ways to choose how long it runs:
 
-- **What it moves.** When a running instance has less than the threshold (default
-  200 000 MU; 10 000 to 50 000 000), the app moves the amount (default 1 000 000 MU;
-  10 000 to 10 000 000) from the credit of its client on that node to the instance, with
-  `ModifyDeposit` (`celaut_top_up_instance`). That credit is already on the node: nothing goes
-  on the blockchain and nothing is signed. The instance keeps the sum of its top-ups
-  (`InstanceRecord.topped_up_mu`), and the cost so far counts it.
+- **For a time.** The confirmation of a launch has a field in minutes; the app turns it into
+  the start balance (`initial_mu`) with the price of the node (`survivalBalanceMu`: the periods
+  in the time plus one, each at `init_maintenance_mu * (1 + variance)`). Without a time, the
+  default start balance. On a running instance, **Add time** on its info page moves that much
+  more.
+- **Until I stop it.** The second choice of the confirmation, and a switch on the info page.
+  The app tops the instance up while the user does not stop it. It is the dangerous one: it
+  uses the credit of the user on the node. The warning is always on screen when the user
+  chooses it, and it says that it works only while the app runs and there is credit.
+
+Details:
+
+- **Per instance.** `InstanceRecord.keep_alive` (with an optional limit, `budget_mu`) and
+  `InstanceRecord.pricing` (the price of the node that won the start, so that MU and time turn
+  into each other). `celaut_set_keep_alive`, `celaut_set_instance_pricing`,
+  `celaut_instance_plan` (the plan, from the database) and `celaut_instance_credit` (the credit
+  of the user on the node, asked to the node). There is no global switch any more: the old
+  one (`celaut_auto_top_up_v1`) is not read, so an instance that ran under it must be turned
+  on again.
+- **What it moves.** When a kept instance would last less than the threshold (default 15 min;
+  1 min to 1 day), the app moves a chunk of time (default 1 h; 1 min to 30 days) from the credit
+  of its client on that node to the instance, with `ModifyDeposit` (`celaut_top_up_instance`,
+  at most 100 000 000 MU a call; a longer time goes in several calls). The threshold and the
+  chunk are in Settings, Compute, "Keep running". An instance with no price (it started before
+  the app kept it) uses 200 000 MU and 1 000 000 MU. That credit is already on the node:
+  nothing goes on the blockchain and nothing is signed. The instance keeps the sum of its
+  top-ups (`topped_up_mu`), and the cost so far counts it.
+- **The limit.** Optional, in MU, from the moment the user turned it on (`spent_mu`: what was
+  moved since then). At the limit the app moves nothing and says so; the instance stops when
+  its balance runs out. A new limit: turn the switch off and on.
+- **Time and credit** on the info page of a running instance: the balance and the credit of the
+  user on the node, each with the time that it lasts; the switch; Add time (chips +30 min, +1 h,
+  +1 day, or minutes; the cost, and what is left). If the credit is not enough, the sheet says
+  so and offers the deposit screen. The list marks a kept instance with the infinity sign.
 - **No transaction without the user.** The app checks the credit first. If it is less than
   the amount, the app moves nothing and pays nothing: the list of conversations shows a
   banner, and its Deposit button opens the deposit screen, where the user chooses the amount
   and confirms the transaction with the PIN or the fingerprint, as for any deposit. Choice:
-  the automatic top-up never makes an on-chain deposit, also not a small one with a cap;
-  only node credit moves without a question.
-- **Turning it on** needs the wallet open (PIN or fingerprint), because from then on the
-  app moves credit without asking each time.
+  keep running never makes an on-chain deposit, also not a small one with a cap; only node
+  credit moves without a question.
+- **Turning it on** asks again, with the warning and the limit, and needs the wallet open (PIN
+  or fingerprint), because from then on the app moves credit without asking each time. Turning
+  it off moves nothing.
 - **When it checks.** When the list of conversations reads the balances (it opens, the user
-  comes back, a pull), and once a minute while the app runs and the top-up is on. With the
-  top-up off, nothing polls. After a top-up of an instance the app waits a minute before the
-  next one for it; after a failure, ten minutes. The app does not run when it is closed: then
-  nothing tops up, and the node stops the instance when its balance runs out.
+  comes back, a pull), and once a minute while the app runs and an instance is kept; with none
+  kept, nothing polls and there is no timer. Only kept instances are read for this. After a
+  top-up of an instance the app waits a minute before the next one for it; after a failure, ten
+  minutes. The app does not run when it is closed: then nothing tops up, and the node stops the
+  instance when its balance runs out. A foreground service for that is not done.
 
 ## 5. Open items
 

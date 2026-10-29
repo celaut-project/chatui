@@ -1,4 +1,3 @@
-import 'dart:math';
 
 import '../bridge/api/celaut.dart';
 import '../bridge/api/celaut_env.dart';
@@ -6,11 +5,27 @@ import '../bridge/api/celaut_health.dart';
 import '../bridge/api/celaut_home.dart';
 import '../bridge/api/celaut_service.dart';
 import 'host_port.dart';
+import 'maintenance_price.dart';
 
 typedef QuoteCall = Future<QuotesView> Function({
   required List<NodeAddress> nodes,
   required String serviceIdHex,
   String? initialMu,
+});
+
+/// Keep the price of the node of a started instance (`celautSetInstancePricing`).
+typedef PricingCall = void Function({
+  required String instanceId,
+  required String maintenanceMu,
+  required int maintenanceSeconds,
+  required double variance,
+});
+
+/// Turn "run until I stop it" on for a started instance (`celautSetKeepAlive`).
+typedef KeepAliveCall = void Function({
+  required String instanceId,
+  required bool enabled,
+  String? budgetMu,
 });
 
 typedef StartCall = Future<InstanceView> Function({
@@ -148,29 +163,18 @@ const maxMinSurvival = Duration(days: 30);
 /// of the node for the difference of the real cost (`cost * (1 + variance)`, as nodo's
 /// `variance_cost_normalization` with k = 1), rounded up. Null if the quote gives no
 /// maintenance price.
-BigInt? survivalBalanceMu(QuoteView quote, Duration time) {
-  final period = quote.maintenanceSecondsLoop;
-  final perPeriod = BigInt.tryParse(quote.initMaintenanceMu);
-  if (period <= 0 || perPeriod == null || perPeriod <= BigInt.zero) return null;
-  final seconds = time.inSeconds < 0 ? 0 : time.inSeconds;
-  final periods = (seconds + period - 1) ~/ period + 1;
-  final margin = 1 + max(0.0, quote.variance.toDouble());
-  final withMargin = BigInt.from((perPeriod.toDouble() * margin).ceil());
-  return withMargin * BigInt.from(periods);
-}
+BigInt? survivalBalanceMu(QuoteView quote, Duration time) => quotePrice(quote)?.balanceFor(time);
 
 /// How long the balance [balanceMu] keeps an instance on the node of [quote], the inverse
 /// of [survivalBalanceMu]. Null if the quote gives no maintenance price.
-Duration? survivalOf(QuoteView quote, BigInt balanceMu) {
-  final period = quote.maintenanceSecondsLoop;
-  final perPeriod = BigInt.tryParse(quote.initMaintenanceMu);
-  if (period <= 0 || perPeriod == null || perPeriod <= BigInt.zero) return null;
-  final margin = 1 + max(0.0, quote.variance.toDouble());
-  final withMargin = BigInt.from((perPeriod.toDouble() * margin).ceil());
-  final periods = balanceMu ~/ withMargin - BigInt.one;
-  if (periods <= BigInt.zero) return Duration.zero;
-  return Duration(seconds: periods.toInt() * period);
-}
+Duration? survivalOf(QuoteView quote, BigInt balanceMu) => quotePrice(quote)?.lasts(balanceMu);
+
+/// The maintenance price of the node of [quote]; null if the quote gives none.
+MaintenancePrice? quotePrice(QuoteView quote) => MaintenancePrice.of(
+      perPeriodMu: quote.initMaintenanceMu,
+      periodSeconds: quote.maintenanceSecondsLoop,
+      variance: quote.variance,
+    );
 
 /// The start cost of [quote] with the balance [balanceMu] instead of [quotedBalanceMu],
 /// the balance that the quote was asked with: the quote is the build plus that balance
@@ -249,14 +253,24 @@ String _hostPort(NodeAddress a) => '${a.host}:${a.port}';
 /// that keeps the instance for that time on the most expensive of them
 /// ([survivalBalanceMu]), so the quote and the start balance are right on every node. A
 /// node keeps what the instance did not use and gives it back at the stop.
+///
+/// [keepAlive] makes the instance run until the user stops it (Josemi, 2026-10-29): the app
+/// tops it up when its balance is low (`AutoTopUp`). [budgetMu] is the most that it may
+/// move for that; null is no limit. After the start, the app keeps the price of the node
+/// with the instance, so that it can say how long a balance lasts. A failure of that is
+/// not a failure of the launch: the instance runs.
 Future<LaunchOutcome> launchService({
   required String serviceIdHex,
   String? initialMu,
   Duration? minSurvival,
+  bool keepAlive = false,
+  String? budgetMu,
   List<NodeAddress>? nodes,
   EnvironmentStep? environment,
   QuoteCall quote = celautQuoteService,
   StartCall start = celautStartService,
+  PricingCall setPricing = celautSetInstancePricing,
+  KeepAliveCall setKeepAlive = celautSetKeepAlive,
   List<KnownNodeView> Function() knownNodes = celautKnownNodes,
   List<NodeHealthView> Function() health = celautNodesHealth,
 }) async {
@@ -307,6 +321,7 @@ Future<LaunchOutcome> launchService({
         initialMu: candidate.costMu,
         environment: values,
       );
+      _keepPlan(instance.instanceId, candidate, keepAlive, budgetMu, setPricing, setKeepAlive);
       return LaunchOutcome(
         quote: candidate,
         instance: instance,
@@ -323,4 +338,29 @@ Future<LaunchOutcome> launchService({
     skipped: skipped,
     leftOut: leftOut,
   );
+}
+
+/// Keep the price of the winning node with the new instance, and turn keep-alive on if the
+/// user asked for it. The instance already runs: an error here is dropped.
+void _keepPlan(
+  String instanceId,
+  QuoteView quote,
+  bool keepAlive,
+  String? budgetMu,
+  PricingCall setPricing,
+  KeepAliveCall setKeepAlive,
+) {
+  try {
+    if (quotePrice(quote) != null) {
+      setPricing(
+        instanceId: instanceId,
+        maintenanceMu: quote.initMaintenanceMu,
+        maintenanceSeconds: quote.maintenanceSecondsLoop,
+        variance: quote.variance,
+      );
+    }
+    if (keepAlive) setKeepAlive(instanceId: instanceId, enabled: true, budgetMu: budgetMu);
+  } on Object {
+    // The instance runs; the user can turn keep-alive on from its info page.
+  }
 }

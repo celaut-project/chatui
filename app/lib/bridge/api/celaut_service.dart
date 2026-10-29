@@ -8,9 +8,9 @@ import 'celaut.dart';
 import 'celaut_env.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `address_of_key`, `check`, `configuration`, `cost_so_far`, `forget_if_broken_key`, `forget_if_broken`, `instance`, `key`, `n`, `new_client_session`, `open_session`, `quote_view`, `service_id`, `session_pinned`, `session_with`, `session`, `start_configuration`, `state`, `stopped_instance`, `unknown_instance`
+// These functions are ignored because they are not marked as `pub`: `address_of_key`, `check`, `configuration`, `cost_so_far`, `forget_if_broken_key`, `forget_if_broken`, `instance`, `key`, `n`, `new_client_session`, `open_session`, `quote_view`, `service_id`, `session_pinned`, `session_with`, `session`, `spent_since`, `start_configuration`, `state`, `stopped_instance`, `unknown_instance`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `State`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
 
 /// Make a new client on the node, after the node forgot the stored client id and the
@@ -96,6 +96,47 @@ Future<InstanceStatusView> celautInstanceStatus({required String instanceId}) =>
     RustLib.instance.api.crateApiCelautServiceCelautInstanceStatus(
       instanceId: instanceId,
     );
+
+/// The plan of an instance: its price and its keep-alive settings. Reads the database
+/// only; no node is asked.
+InstancePlanView celautInstancePlan({required String instanceId}) => RustLib
+    .instance
+    .api
+    .crateApiCelautServiceCelautInstancePlan(instanceId: instanceId);
+
+/// Keep the price of the node of an instance, from the quote that won its start, so that
+/// the app can say how long a balance lasts and how much a time costs.
+void celautSetInstancePricing({
+  required String instanceId,
+  required String maintenanceMu,
+  required int maintenanceSeconds,
+  required double variance,
+}) => RustLib.instance.api.crateApiCelautServiceCelautSetInstancePricing(
+  instanceId: instanceId,
+  maintenanceMu: maintenanceMu,
+  maintenanceSeconds: maintenanceSeconds,
+  variance: variance,
+);
+
+/// Turn "run until I stop it" on or off for a running instance (Josemi, 2026-10-29).
+/// `budget_mu` is the most that the app may move from now on; empty or none is no limit.
+/// Turning it on again restarts the count of the spent amount. This moves no credit.
+void celautSetKeepAlive({
+  required String instanceId,
+  required bool enabled,
+  String? budgetMu,
+}) => RustLib.instance.api.crateApiCelautServiceCelautSetKeepAlive(
+  instanceId: instanceId,
+  enabled: enabled,
+  budgetMu: budgetMu,
+);
+
+/// The credit of the app on the node of the instance, in MU: what is left to spend on it
+/// and on the other instances of that node. If it runs out, the user must make a deposit.
+Future<String> celautInstanceCredit({required String instanceId}) => RustLib
+    .instance
+    .api
+    .crateApiCelautServiceCelautInstanceCredit(instanceId: instanceId);
 
 /// Move `amount_mu` MU of the credit of the app on the node of the instance to the
 /// instance (`ModifyDeposit`), for the automatic top-up (Josemi, 2026-10-23). This moves
@@ -203,6 +244,58 @@ class InstanceListView {
           alias == other.alias &&
           stoppedAt == other.stoppedAt &&
           refundMu == other.refundMu;
+}
+
+/// What the app knows to keep an instance running: the price of its node, and whether the
+/// user asked for it to run until they stop it.
+class InstancePlanView {
+  /// The app tops the instance up when its balance is low.
+  final bool keepAlive;
+
+  /// The most that the app may move from now on, in MU (empty: no limit).
+  final String budgetMu;
+
+  /// What the app moved since the user turned `keep_alive` on, in MU (empty if off).
+  final String spentMu;
+
+  /// The maintenance of one period, in MU (empty if the app does not know it).
+  final String maintenanceMu;
+
+  /// The seconds of one period (0 if unknown).
+  final int maintenanceSeconds;
+
+  /// The margin of the node for the difference of the real cost.
+  final double variance;
+
+  const InstancePlanView({
+    required this.keepAlive,
+    required this.budgetMu,
+    required this.spentMu,
+    required this.maintenanceMu,
+    required this.maintenanceSeconds,
+    required this.variance,
+  });
+
+  @override
+  int get hashCode =>
+      keepAlive.hashCode ^
+      budgetMu.hashCode ^
+      spentMu.hashCode ^
+      maintenanceMu.hashCode ^
+      maintenanceSeconds.hashCode ^
+      variance.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is InstancePlanView &&
+          runtimeType == other.runtimeType &&
+          keepAlive == other.keepAlive &&
+          budgetMu == other.budgetMu &&
+          spentMu == other.spentMu &&
+          maintenanceMu == other.maintenanceMu &&
+          maintenanceSeconds == other.maintenanceSeconds &&
+          variance == other.variance;
 }
 
 /// The state of an instance.

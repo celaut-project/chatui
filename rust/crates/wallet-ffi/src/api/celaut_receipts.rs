@@ -226,6 +226,8 @@ mod tests {
                     topped_up_mu: None,
                     stopped_at: None,
                     refund_mu: None,
+                    pricing: None,
+                    keep_alive: None,
                 },
             );
         })
