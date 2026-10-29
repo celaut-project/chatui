@@ -579,6 +579,18 @@ ThemeData argusThemeFor(PaletteSpec p) {
         borderRadius: BorderRadius.circular(buttonRadius),
         borderSide: BorderSide(color: p.accent, width: 1.2),
       ),
+      // The error colour of the scheme is a dark red, about 2:1 on a dark page: the
+      // message and the border of a field with an error take the red of the palette
+      // (rustFor), which is 4.5:1 or more on each page.
+      errorStyle: TextStyle(color: watchful ? rustBright : rust),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(buttonRadius),
+        borderSide: BorderSide(color: watchful ? rustBright : rust),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(buttonRadius),
+        borderSide: BorderSide(color: watchful ? rustBright : rust, width: 1.2),
+      ),
       labelStyle: TextStyle(color: p.muted),
       // Left to the scheme, a focused field's label took the decorative
       // accent; as text it takes the accent's text colour.

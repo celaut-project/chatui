@@ -2071,6 +2071,17 @@ void main() {
     });
   });
 
+  testWidgets('the time in a bubble of the user has the colour of its text', (tester) async {
+    chat = _FakeChat(history: [
+      ChatMessage(seq: 1, role: 'user', text: 'hi', createdAt: DateTime.now().millisecondsSinceEpoch),
+      const ChatMessage(seq: 2, role: 'assistant', text: 'hello', replyTo: 1),
+    ]);
+    await open(tester);
+    final scheme = Theme.of(tester.element(find.byKey(const Key('chat-time-1')))).colorScheme;
+    final time = tester.widget<Text>(find.byKey(const Key('chat-time-1')));
+    expect(time.style?.color, scheme.onPrimaryContainer);
+  });
+
   group('the input', () {
     IconButton send(WidgetTester tester) => tester.widget<IconButton>(find.byKey(const Key('chat-send')));
 
