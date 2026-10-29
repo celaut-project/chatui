@@ -24,6 +24,9 @@ const int htmlMaxImageBytes = 256 * 1024;
 /// decodes, so a small file cannot use much memory.
 const int htmlMaxImageDecodeWidth = 1024;
 
+/// Whether [tag] is a block element of the parser.
+bool htmlIsBlockTag(String tag) => _blockTags.contains(tag);
+
 /// A node of the parsed HTML: an element ([tag] is its name in lower case) or a text
 /// ([tag] is null and [text] is set).
 class HtmlNode {
@@ -43,8 +46,8 @@ class HtmlNode {
 const _blockTags = {
   'p', 'div', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'table', 'tr', 'td', 'th', 'hr', 'pre', 'img',
 };
-const _inlineTags = {'b', 'strong', 'i', 'em', 'u', 's', 'a', 'span', 'code', 'br'};
-const _voidTags = {'br', 'hr', 'img'};
+const _inlineTags = {'b', 'strong', 'i', 'em', 'u', 's', 'a', 'span', 'code', 'br', 'button', 'input'};
+const _voidTags = {'br', 'hr', 'img', 'input'};
 
 /// Elements that are dropped with all their content.
 const _dropWithContent = {
@@ -53,7 +56,7 @@ const _dropWithContent = {
 };
 
 /// The attributes that the parser keeps. All other attributes (all `on*` ones too) are lost.
-const _keptAttrs = {'style', 'href', 'src', 'alt', 'colspan'};
+const _keptAttrs = {'style', 'href', 'src', 'alt', 'colspan', 'data-say', 'data-send', 'data-name', 'placeholder'};
 
 bool _isNameChar(int c) =>
     (c >= 0x61 && c <= 0x7a) || (c >= 0x41 && c <= 0x5a) || (c >= 0x30 && c <= 0x39) || c == 0x2d;

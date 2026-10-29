@@ -26,6 +26,7 @@ import 'chat_floating.dart';
 import 'html_widget.dart';
 import 'instance_actions.dart';
 import 'instance_info_screen.dart';
+import 'keyboard_widget.dart';
 import 'open_web.dart';
 
 /// The conversation with a running instance that follows the chat convention
@@ -437,18 +438,50 @@ class _ChatScreenState extends State<ChatScreen>
     });
   }
 
-  Future<void> _send() async {
-    final text = _input.text.trim();
-    if ((text.isEmpty && _pending.isEmpty) || _stopping) return;
-    final files = List.of(_pending);
+  /// The `seq` of the message whose keyboard the user closed.
+  int? _keyboardClosedSeq;
+
+  /// The keyboard block of the last message, if the service made it, the message is
+  /// complete and the user has not closed it. The block is the last "```keyboard" one of
+  /// the message. A message of the user after it, or a new answer, takes it away.
+  ({int seq, String html})? _dockedKeyboard() {
+    if (!chatPrefs.htmlWidgets) return null;
+    final m = _chat.messages.lastOrNull;
+    if (m == null || m.fromUser || m.isOpen || m.seq == _keyboardClosedSeq) return null;
+    final block = splitHtmlBlocks(m.text).where((p) => p.kind == ChatSegmentKind.keyboard).lastOrNull;
+    return block == null ? null : (seq: m.seq, html: block.text);
+  }
+
+  /// A key of the keyboard. [say] (its `data-say`, with the fields in it) goes in the
+  /// input, and the user sends it. A key with `data-send` sends [say] at once, and keeps
+  /// the input and the files as they are. The keyboard of that message is then closed.
+  void _say(ChatKey key, String say, int seq) {
+    if (key.send) {
+      if (_stopping) return;
+      setState(() => _keyboardClosedSeq = seq);
+      _send(only: say);
+      return;
+    }
+    final text = applySay(_input.text, say);
+    _input.value = TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
+  }
+
+  /// Sends the input and the files. With [only], it sends that text with no files, and
+  /// leaves the input and the files as they are.
+  Future<void> _send({String? only}) async {
+    final text = only ?? _input.text.trim();
+    if ((text.isEmpty && (only != null || _pending.isEmpty)) || _stopping) return;
+    final files = only != null ? <OutgoingAttachment>[] : List.of(_pending);
     final flying = (text: text, files: files);
     setState(() {
       _error = null;
       _flying.add(flying);
       // The field is free at once: the user can write the next message, and send it,
       // while the service answers.
-      _input.clear();
-      _pending.clear();
+      if (only == null) {
+        _input.clear();
+        _pending.clear();
+      }
     });
     _syncTicker();
     _scrollToEnd();
@@ -855,6 +888,7 @@ class _ChatScreenState extends State<ChatScreen>
     // The dots show while the service has nothing to show yet for the answer.
     final typing = _waiting && !messages.any((m) => m.isOpen && _hasContent(m));
     final error = _error == null ? null : _errorText(_error!);
+    final keyboard = _dockedKeyboard();
     final pinned =
         _pinnedSeq == null ? null : messages.where((m) => m.seq == _pinnedSeq).firstOrNull;
     final title = instanceTitle(_instance);
@@ -998,6 +1032,33 @@ class _ChatScreenState extends State<ChatScreen>
                         ),
                     ],
                   ),
+                ),
+              if (keyboard != null)
+                Column(
+                  key: const Key('chat-keyboard-dock'),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        const SizedBox(width: 16),
+                        Icon(Icons.keyboard_outlined, size: 18, color: scheme.onSurfaceVariant),
+                        const Spacer(),
+                        IconButton(
+                          key: const Key('chat-keyboard-close'),
+                          tooltip: l10n.chatKeyboardClose,
+                          onPressed: () => setState(() => _keyboardClosedSeq = keyboard.seq),
+                          icon: const Icon(Icons.keyboard_hide_outlined),
+                        ),
+                      ],
+                    ),
+                    ChatKeyboard(
+                      html: keyboard.html,
+                      onSay: (key, say) => _say(key, say, keyboard.seq),
+                      style: chatPrefs.textStyle,
+                      maxHeight: MediaQuery.sizeOf(context).height * 0.35,
+                    ),
+                    const Divider(height: 1),
+                  ],
                 ),
               if (_pending.isNotEmpty)
                 SizedBox(
@@ -1705,7 +1766,8 @@ class _LayoutDelegate extends SliverChildBuilderDelegate {
 }
 
 /// The text of a message. The fenced blocks show as cards: "```html" as a widget
-/// ([ChatHtmlWidget]) if [html] is on, any other as code ([ChatCodeBlock]); the rest shows
+/// ([ChatHtmlWidget]) and "```keyboard" as a note ([ChatKeyboardNote]; its keys are in the
+/// keyboard of the chat) if [html] is on, any other as code ([ChatCodeBlock]); the rest shows
 /// as text. A block that is still open while the message grows shows as a card until its
 /// closing fence comes: with a loading mark for HTML, with the code so far for code.
 class _MessageText extends StatelessWidget {
@@ -1753,6 +1815,14 @@ class _MessageText extends StatelessWidget {
                 child: ChatHtmlWidget(html: part.text, style: style),
               ),
             ChatSegmentKind.pendingHtml => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 4),
+                child: ChatHtmlPendingCard(),
+              ),
+            ChatSegmentKind.keyboard => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 4),
+                child: ChatKeyboardNote(),
+              ),
+            ChatSegmentKind.pendingKeyboard => const Padding(
                 padding: EdgeInsets.symmetric(vertical: 4),
                 child: ChatHtmlPendingCard(),
               ),

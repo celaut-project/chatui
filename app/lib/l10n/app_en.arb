@@ -304,6 +304,8 @@
   "chatSettingsPinnedNote": "A pinned message stays at the top of the chat. It uses at most this part of the chat height.",
   "chatSettingsWidgetsGroup": "Widgets",
   "chatHtmlLoading": "Making the widget…",
+  "chatKeyboardLabel": "Keyboard",
+  "chatKeyboardClose": "Close the keyboard",
   "chatSettingsHtmlWidgets": "HTML widgets",
   "chatSettingsHtmlWidgetsSubtitle": "Show simple HTML from the assistant as widgets. If off, it shows as code. No scripts and no network.",
   "chatBgNone": "None",
