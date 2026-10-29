@@ -1179,7 +1179,10 @@ class _ChatScreenState extends State<ChatScreen>
                                   : TextInputType.none,
                               minLines: 1,
                               maxLines: 4,
+                              // As in a messenger: Enter makes a new line, Send sends, and
+                              // a sentence starts with a capital letter.
                               textInputAction: TextInputAction.newline,
+                              textCapitalization: TextCapitalization.sentences,
                               decoration: InputDecoration(
                                 hintText: l10n.chatInputHint,
                                 filled: false,
@@ -1205,7 +1208,12 @@ class _ChatScreenState extends State<ChatScreen>
                                 : IconButton(
                                     key: const Key('chat-send'),
                                     tooltip: l10n.chatSend,
-                                    onPressed: _stopping ? null : _send,
+                                    // Off while there is nothing to send: a tap that does
+                                    // nothing looks like a fault.
+                                    onPressed: _stopping ||
+                                            (_input.text.trim().isEmpty && _pending.isEmpty)
+                                        ? null
+                                        : _send,
                                     icon: const Icon(Icons.send),
                                   ),
                           ),
