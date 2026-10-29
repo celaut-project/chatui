@@ -193,6 +193,37 @@ pub struct InstanceRecord {
     /// What the node gave back at the stop, in MU, if the app knows it.
     #[serde(default)]
     pub refund_mu: Option<String>,
+    /// What the node charges to keep the instance, from the quote that won the start. It
+    /// turns MU into time and back. An old record has none.
+    #[serde(default)]
+    pub pricing: Option<InstancePricing>,
+    /// The instance runs until the user stops it: the app tops it up when its balance is
+    /// low (`docs/celaut/ui.md`, section 4b). Off for an old record.
+    #[serde(default)]
+    pub keep_alive: Option<KeepAlive>,
+}
+
+/// The price of keeping an instance on its node, as the quote gave it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InstancePricing {
+    /// The maintenance of one period, in MU.
+    pub maintenance_mu: String,
+    /// The seconds of one period (`maintenance_seconds_loop`).
+    pub maintenance_seconds: u32,
+    /// The margin of the node for the difference of the real cost, as text.
+    pub variance: String,
+}
+
+/// The settings of an instance that runs until the user stops it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct KeepAlive {
+    /// The most that the app may move to the instance from now on, in MU. None: no limit.
+    #[serde(default)]
+    pub budget_mu: Option<String>,
+    /// What `InstanceRecord::topped_up_mu` was when the user turned this on, so that the
+    /// spent amount counts only from then.
+    #[serde(default)]
+    pub topped_up_at_start_mu: String,
 }
 
 /// Where a deposit is.
@@ -756,6 +787,8 @@ mod tests {
                 topped_up_mu: Some("50".into()),
                 stopped_at: None,
                 refund_mu: None,
+                pricing: None,
+                keep_alive: None,
             },
         );
         data.deposits.insert(
@@ -901,7 +934,8 @@ mod tests {
         let record = data.instances.get_mut("i1").unwrap();
         record.stopped_at = Some(7);
         record.refund_mu = Some("700".into());
-        let back: CelautData = serde_json::from_str(&serde_json::to_string(&data).unwrap()).unwrap();
+        let back: CelautData =
+            serde_json::from_str(&serde_json::to_string(&data).unwrap()).unwrap();
         assert_eq!(back.instances["i1"].stopped_at, Some(7));
         assert_eq!(back.instances["i1"].refund_mu.as_deref(), Some("700"));
     }

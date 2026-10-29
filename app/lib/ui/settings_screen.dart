@@ -193,7 +193,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             key: const Key('settings-top-up'),
             icon: Icons.autorenew,
             title: t.celautTopUpTitle,
-            subtitle: autoTopUp.on ? t.celautTopUpRowOn : t.celautTopUpRowOff,
+            subtitle: t.celautTopUpRow,
             onTap: () => _open(const AutoTopUpScreen()),
           ),
         ),

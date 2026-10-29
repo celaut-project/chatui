@@ -128,10 +128,15 @@
   the foreground service holds the process and a partial wake lock while they run. The
   auto-lock still locks the wallet on time; while one of them runs it does not close its
   page. See [ui-chat-first.md](ui-chat-first.md), section 8.
-- **Automatic top-up (2026-10-23, Josemi):** off by default. It moves credit that the app
-  already has on a node to a running instance under a threshold (`ModifyDeposit`). It never
-  makes an on-chain deposit: with too little credit it asks the user, and a deposit keeps its
-  own confirmation and PIN. See [ui.md](ui.md), section 4b.
+- **Keep running (2026-10-29, Josemi; before: automatic top-up, 2026-10-23):** per instance,
+  not global. At the launch the user chooses "for a time" or "until I stop it", and can change
+  it on the info page of the running instance, where Add time and the credit on the node
+  are. The app moves credit that it already has on a node to a kept instance that would last
+  less than a threshold (`ModifyDeposit`), in time and not in MU. It never makes an on-chain
+  deposit: with too little credit it asks the user, and a deposit keeps its own confirmation
+  and PIN. The mode "until I stop it" always shows a warning, and has an optional limit of
+  spending. It works only while the app runs; a foreground service is left for later. The
+  switch of 2026-10-23 is gone and its value is not read. See [ui.md](ui.md), section 4b.
 - **Watcher of answers (2026-10-24, Josemi):** the notice of a done answer also comes when
   the user left the chat screen while a service still makes an answer. When the screen
   closes with an answer pending (an open message, or more user messages than assistant

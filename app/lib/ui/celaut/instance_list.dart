@@ -439,6 +439,8 @@ class InstanceListState extends State<InstanceList> {
           state: _stateOf(i),
           costMu: _costOf(i.instanceId),
           last: _notes.lastMessage(i.instanceId),
+          keepAlive: i.stoppedAt == null &&
+              (widget.topUp ?? autoTopUp).planOf(i.instanceId)?.keepAlive == true,
           onTap: () => _tap(i, _stateOf(i)),
           onLongPress: () => _actions(i, _stateOf(i)),
         ),
@@ -485,7 +487,11 @@ class _InstanceRow extends StatelessWidget {
     required this.last,
     required this.onTap,
     required this.onLongPress,
+    this.keepAlive = false,
   });
+
+  /// The instance runs until the user stops it ([AutoTopUp]).
+  final bool keepAlive;
 
   final InstanceListView instance;
   final InstanceState state;
@@ -548,6 +554,18 @@ class _InstanceRow extends StatelessWidget {
                           key: Key('chats-muted-$id'),
                           size: 16,
                           color: t.muted,
+                        ),
+                      ],
+                      if (keepAlive && state != InstanceState.stopped) ...[
+                        const SizedBox(width: 6),
+                        Tooltip(
+                          message: l.celautKeepBadge,
+                          child: Icon(
+                            Icons.all_inclusive,
+                            key: Key('chats-keep-$id'),
+                            size: 16,
+                            color: t.muted,
+                          ),
                         ),
                       ],
                       if (state != InstanceState.stopped && (costMu ?? '').isNotEmpty) ...[

@@ -9578,56 +9578,32 @@ abstract class AppLocalizations {
   /// No description provided for @celautTopUpTitle.
   ///
   /// In en, this message translates to:
-  /// **'Automatic top-up'**
+  /// **'Keep running'**
   String get celautTopUpTitle;
-
-  /// No description provided for @celautTopUpRowOn.
-  ///
-  /// In en, this message translates to:
-  /// **'On: the app moves your credit on a node to an instance that runs low'**
-  String get celautTopUpRowOn;
-
-  /// No description provided for @celautTopUpRowOff.
-  ///
-  /// In en, this message translates to:
-  /// **'Off'**
-  String get celautTopUpRowOff;
-
-  /// No description provided for @celautTopUpSwitch.
-  ///
-  /// In en, this message translates to:
-  /// **'Top up instances that run low'**
-  String get celautTopUpSwitch;
 
   /// No description provided for @celautTopUpThreshold.
   ///
   /// In en, this message translates to:
-  /// **'When an instance has less than'**
+  /// **'When an instance would last less than'**
   String get celautTopUpThreshold;
 
   /// No description provided for @celautTopUpAmount.
   ///
   /// In en, this message translates to:
-  /// **'Move this much of your credit on its node'**
+  /// **'Each time, add this much time'**
   String get celautTopUpAmount;
 
   /// No description provided for @celautTopUpRange.
   ///
   /// In en, this message translates to:
-  /// **'From {min} to {max}.'**
+  /// **'From {min} to {max} minutes.'**
   String celautTopUpRange(String min, String max);
 
   /// No description provided for @celautTopUpNote.
   ///
   /// In en, this message translates to:
-  /// **'The app checks your running instances when the list of conversations opens and once a minute while the app runs. A top-up moves credit that you already have on the node of the instance (ModifyDeposit): nothing is paid on the blockchain and nothing is signed. If that credit is too low, the app does not pay: it asks you, and a deposit always needs your confirmation and your fingerprint or screen lock. To turn this on, open the wallet.'**
+  /// **'The app checks the instances that you keep running when the list of conversations opens and once a minute while the app runs. A top-up moves credit that you already have on the node of the instance (ModifyDeposit): nothing is paid on the blockchain and nothing is signed. If that credit is too low, the app does not pay: it asks you, and a deposit always needs your confirmation and your fingerprint or screen lock. The app does not run when it is closed: then nothing is added, and the node stops the instance when its balance runs out.'**
   String get celautTopUpNote;
-
-  /// No description provided for @celautTopUpNeed.
-  ///
-  /// In en, this message translates to:
-  /// **'Automatic top-up: your credit on {node} is less than {amount}. Make a deposit to keep its instances running.'**
-  String celautTopUpNeed(String node, String amount);
 
   /// No description provided for @celautTopUpNeedLater.
   ///
@@ -10546,6 +10522,210 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your node, or a node of family, friends or your company. The app does not warn before it gives this node your sensitive values.'**
   String get celautNodesTrustedHint;
+
+  /// No description provided for @celautRunModeTime.
+  ///
+  /// In en, this message translates to:
+  /// **'For a time'**
+  String get celautRunModeTime;
+
+  /// No description provided for @celautRunModeKeep.
+  ///
+  /// In en, this message translates to:
+  /// **'Until I stop it'**
+  String get celautRunModeKeep;
+
+  /// No description provided for @celautRunButtonKeep.
+  ///
+  /// In en, this message translates to:
+  /// **'Run until stopped'**
+  String get celautRunButtonKeep;
+
+  /// No description provided for @celautKeepWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Risk: the app will keep adding time to this instance from your credit on this node until you stop it. If you forget it, it can use all of that credit. It works while the app runs and while there is credit; if the credit runs out, the instance stops.'**
+  String get celautKeepWarning;
+
+  /// No description provided for @celautKeepLimitLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Spending limit (optional)'**
+  String get celautKeepLimitLabel;
+
+  /// No description provided for @celautKeepLimitHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty: no limit'**
+  String get celautKeepLimitHint;
+
+  /// No description provided for @celautKeepLimitWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'A number of MU above zero.'**
+  String get celautKeepLimitWrong;
+
+  /// No description provided for @celautKeepRate.
+  ///
+  /// In en, this message translates to:
+  /// **'This node charges about {rate} per hour. Your credit there is {credit}: about {time}.'**
+  String celautKeepRate(String rate, String credit, String time);
+
+  /// No description provided for @celautKeepRateOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This node charges about {rate} per hour.'**
+  String celautKeepRateOnly(String rate);
+
+  /// No description provided for @celautKeepCredit.
+  ///
+  /// In en, this message translates to:
+  /// **'Your credit on this node is {credit}.'**
+  String celautKeepCredit(String credit);
+
+  /// No description provided for @celautKeepLowCredit.
+  ///
+  /// In en, this message translates to:
+  /// **'Your credit there covers only a few hours. Make a deposit first if you want it to run longer.'**
+  String get celautKeepLowCredit;
+
+  /// No description provided for @celautKeepBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs until you stop it'**
+  String get celautKeepBadge;
+
+  /// No description provided for @celautTimeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Time and credit'**
+  String get celautTimeTitle;
+
+  /// No description provided for @celautTimeBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Balance of the instance'**
+  String get celautTimeBalance;
+
+  /// No description provided for @celautTimeCredit.
+  ///
+  /// In en, this message translates to:
+  /// **'Your credit on this node'**
+  String get celautTimeCredit;
+
+  /// No description provided for @celautTimeAbout.
+  ///
+  /// In en, this message translates to:
+  /// **'about {time}'**
+  String celautTimeAbout(String time);
+
+  /// No description provided for @celautKeepSwitch.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it running until I stop it'**
+  String get celautKeepSwitch;
+
+  /// No description provided for @celautKeepOnNoLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'The app adds time by itself while you have credit. Added so far: {spent}. No limit.'**
+  String celautKeepOnNoLimit(String spent);
+
+  /// No description provided for @celautKeepOnLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'The app adds time by itself while you have credit. Added so far: {spent} of {limit}.'**
+  String celautKeepOnLimit(String spent, String limit);
+
+  /// No description provided for @celautKeepOff.
+  ///
+  /// In en, this message translates to:
+  /// **'It stops when its balance runs out.'**
+  String get celautKeepOff;
+
+  /// No description provided for @celautKeepEnableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it running?'**
+  String get celautKeepEnableTitle;
+
+  /// No description provided for @celautKeepEnableConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep running'**
+  String get celautKeepEnableConfirm;
+
+  /// No description provided for @celautAddTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Add time'**
+  String get celautAddTime;
+
+  /// No description provided for @celautAddTimeMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get celautAddTimeMinutes;
+
+  /// No description provided for @celautAddTimeCost.
+  ///
+  /// In en, this message translates to:
+  /// **'It costs {cost}. You keep {left} on this node: about {time} more for this instance.'**
+  String celautAddTimeCost(String cost, String left, String time);
+
+  /// No description provided for @celautAddTimeCostOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'It costs {cost}.'**
+  String celautAddTimeCostOnly(String cost);
+
+  /// No description provided for @celautAddTimeNoCredit.
+  ///
+  /// In en, this message translates to:
+  /// **'It costs {cost}, and your credit on this node is {credit}. Make a deposit to add this time.'**
+  String celautAddTimeNoCredit(String cost, String credit);
+
+  /// No description provided for @celautAddTimeConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get celautAddTimeConfirm;
+
+  /// No description provided for @celautAddTimeDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Time added.'**
+  String get celautAddTimeDone;
+
+  /// No description provided for @celautKeepNeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep running: your credit on {node} is too low to add time to an instance. Make a deposit to keep it running.'**
+  String celautKeepNeed(String node);
+
+  /// No description provided for @celautKeepNeedBudget.
+  ///
+  /// In en, this message translates to:
+  /// **'An instance on {node} reached the spending limit that you set. It stops when its balance runs out. Turn \"keep it running\" off and on again on its info page to set a new limit.'**
+  String celautKeepNeedBudget(String node);
+
+  /// No description provided for @celautTopUpRow.
+  ///
+  /// In en, this message translates to:
+  /// **'When to add time to the instances that you keep running'**
+  String get celautTopUpRow;
+
+  /// No description provided for @celautTopUpIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'For the instances that you keep running until you stop them (set it when you run one, or on its info page). The app adds time from your credit on their node; it never makes a deposit by itself.'**
+  String get celautTopUpIntro;
+
+  /// No description provided for @celautTopUpSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved.'**
+  String get celautTopUpSaved;
 }
 
 class _AppLocalizationsDelegate

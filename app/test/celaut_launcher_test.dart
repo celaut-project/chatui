@@ -7,6 +7,7 @@ import 'package:argus_wallet/bridge/api/celaut_home.dart';
 import 'package:argus_wallet/bridge/api/celaut_service.dart';
 import 'package:argus_wallet/celaut/launch_problems.dart';
 import 'package:argus_wallet/celaut/launcher.dart';
+import 'package:argus_wallet/celaut/maintenance_price.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 QuoteView _quote(String peer, int port, {String credit = '', String cost = '1000'}) => QuoteView(
@@ -500,6 +501,92 @@ void main() {
         start: ({required node, required serviceIdHex, initialMu, required environment}) async => _instance('i'),
       );
       expect(initials, ['1000000']);
+    });
+  });
+  group('keep running', () {
+    QuoteView priced({String init = '1000', int loop = 60, double variance = 0.25}) => QuoteView(
+          address: const NodeAddress(host: 'node1.example', port: 1),
+          peerId: 'p1',
+          costMu: '5000',
+          initMaintenanceMu: init,
+          maxMaintenanceMu: init,
+          maintenanceSecondsLoop: loop,
+          variance: variance,
+          comparedNanoErg: '1',
+          clientBalanceMu: '',
+        );
+
+    Future<LaunchOutcome> launch({
+      required QuoteView quote,
+      required List<String> calls,
+      bool keepAlive = false,
+      String? budgetMu,
+      bool failing = false,
+    }) =>
+        launchService(
+          serviceIdHex: _service,
+          keepAlive: keepAlive,
+          budgetMu: budgetMu,
+          nodes: const [NodeAddress(host: 'node1.example', port: 1)],
+          health: () => const [],
+          quote: ({required nodes, required serviceIdHex, initialMu}) async =>
+              QuotesView(quotes: [quote], failures: const []),
+          start: ({required node, required serviceIdHex, initialMu, required environment}) async => _instance('i'),
+          setPricing: ({required instanceId, required maintenanceMu, required maintenanceSeconds, required variance}) {
+            calls.add('price $instanceId $maintenanceMu $maintenanceSeconds $variance');
+            if (failing) throw StateError('no core');
+          },
+          setKeepAlive: ({required instanceId, required enabled, budgetMu}) {
+            calls.add('keep $instanceId $enabled $budgetMu');
+          },
+        );
+
+    test('the price of the node is kept with the instance, and keep-alive stays off', () async {
+      final calls = <String>[];
+      await launch(quote: priced(), calls: calls);
+      expect(calls, ['price i 1000 60 0.25']);
+    });
+
+    test('keep-alive turns on after the start, with its limit', () async {
+      final calls = <String>[];
+      await launch(quote: priced(), calls: calls, keepAlive: true, budgetMu: '90000');
+      expect(calls, ['price i 1000 60 0.25', 'keep i true 90000']);
+      calls.clear();
+      await launch(quote: priced(), calls: calls, keepAlive: true);
+      expect(calls.last, 'keep i true null');
+    });
+
+    test('a failure to keep the plan does not fail a launch that worked', () async {
+      final calls = <String>[];
+      final outcome = await launch(quote: priced(), calls: calls, failing: true, keepAlive: true);
+      expect(outcome.instance.instanceId, 'i');
+    });
+
+    test('a quote with no price keeps no price, but still turns keep-alive on', () async {
+      final calls = <String>[];
+      await launch(quote: priced(init: '0'), calls: calls, keepAlive: true);
+      expect(calls, ['keep i true null']);
+    });
+  });
+
+  group('the price of keeping an instance', () {
+    test('turns time into MU and back', () {
+      final p = MaintenancePrice.of(perPeriodMu: '1000', periodSeconds: 60, variance: 0.5)!;
+      // 1500 MU with the margin each minute.
+      expect(p.addFor(const Duration(minutes: 10)), BigInt.from(15000));
+      // A start balance has one more period, for the one that runs at the end.
+      expect(p.balanceFor(const Duration(minutes: 10)), BigInt.from(16500));
+      // A part of a period is a whole one.
+      expect(p.addFor(const Duration(seconds: 61)), BigInt.from(3000));
+      expect(p.lasts(BigInt.from(16500)), const Duration(minutes: 10));
+      expect(p.lasts(BigInt.from(1500)), Duration.zero);
+      expect(p.lasts(BigInt.zero), Duration.zero);
+    });
+
+    test('gives nothing for a missing or wrong price', () {
+      expect(MaintenancePrice.of(perPeriodMu: '', periodSeconds: 60, variance: 0), isNull);
+      expect(MaintenancePrice.of(perPeriodMu: '0', periodSeconds: 60, variance: 0), isNull);
+      expect(MaintenancePrice.of(perPeriodMu: '5', periodSeconds: 0, variance: 0), isNull);
     });
   });
 }

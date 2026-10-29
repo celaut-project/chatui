@@ -14,6 +14,7 @@ import '../../theme/argus_theme.dart';
 import '../home/home_style.dart';
 import 'instance_actions.dart';
 import 'instance_receipts.dart';
+import 'instance_time_section.dart';
 import 'robot_avatar.dart';
 import 'service_info_screen.dart';
 
@@ -322,6 +323,10 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
                 style: t.secondary.copyWith(color: rustFor(context)),
               ),
             ),
+          if (widget.state != InstanceState.stopped) ...[
+            const SizedBox(height: 16),
+            InstanceTimeSection(instanceId: _instance.instanceId, wallets: widget.wallets),
+          ],
           if (_receipts case final receipts?) ...[
             const SizedBox(height: 16),
             InstanceReceiptsSection(view: receipts, onExport: _exportReceipts),

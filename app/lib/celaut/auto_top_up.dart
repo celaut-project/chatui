@@ -5,13 +5,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../bridge/api/celaut.dart';
 import '../bridge/api/celaut_service.dart';
+import 'maintenance_price.dart';
 
-/// A top-up that the app could not make: the credit of the app on the node of the
-/// instance is less than the amount. The app does not pay a node by itself; the user
+/// A top-up that the app could not make. Either the credit of the app on the node of the
+/// instance is less than the amount ([budget] false), or the instance reached the limit
+/// that the user set ([budget] true). The app does not pay a node by itself; the user
 /// chooses to make a deposit, which has its own confirmation and unlock.
 @immutable
 class TopUpNeed {
-  const TopUpNeed({required this.instanceId, required this.address, required this.detail});
+  const TopUpNeed({
+    required this.instanceId,
+    required this.address,
+    required this.detail,
+    this.budget = false,
+  });
 
   final String instanceId;
 
@@ -20,50 +27,70 @@ class TopUpNeed {
 
   /// The numbers of the node, as the error gives them (credit and amount).
   final String detail;
+
+  /// The limit of the instance was reached, not the credit.
+  final bool budget;
 }
 
-/// The automatic top-up of instances (Josemi, 2026-10-23). Off by default; the user turns
-/// it on in Settings, Compute.
+/// "Run until I stop it" (Josemi, 2026-10-29). The user turns it on for an instance, at
+/// the launch or later, and the app keeps the instance running: when its balance would
+/// last less than [threshold], the app moves [chunk] of time of the credit that it already
+/// has on the node of the instance to the instance (`celaut_top_up_instance`,
+/// `ModifyDeposit`). That is not a payment: nothing goes on the blockchain and nothing is
+/// signed. The time is turned into MU with the price of the node that the instance keeps
+/// ([MaintenancePrice]); an instance without a price uses [fallbackThresholdMu] and
+/// [fallbackAmountMu].
 ///
-/// When a running instance has less than [threshold] MU, the app moves [amount] MU of the
-/// credit that it already has on the node of the instance to the instance
-/// (`celaut_top_up_instance`, `ModifyDeposit`). That is not a payment: nothing goes on the
-/// blockchain and nothing is signed. If the credit on the node is too low, the app does
-/// not pay: it sets [need], and the list of conversations asks the user, who can make a
-/// deposit. A deposit has its own confirmation and asks for the fingerprint or the screen lock,
-/// as always. So no transaction ever happens without the user.
+/// The danger is the credit of the user: the app keeps moving it until the user stops the
+/// instance. The limits are the credit of the node, which is all that the app can move, and
+/// an optional limit per instance. If the credit is too low, or the limit is reached, the
+/// app does not pay: it sets [need], and the list of conversations asks the user, who can make
+/// a deposit. A deposit has its own confirmation and asks for the fingerprint or the screen
+/// lock, as always. So no transaction ever happens without the user.
 ///
 /// The app checks when the list of conversations reads the instances ([observe]), and
-/// once a minute while the app runs ([start]). After a top-up of an instance, it waits a
-/// minute before the next one; after a failure, ten minutes.
+/// once a minute while the app runs ([start]); only instances that the user asked to keep
+/// are read from their nodes. After a top-up of an instance, it waits a minute before the
+/// next one; after a failure, ten minutes. The app does not run when it is closed: then
+/// nothing tops up, and the node stops the instance when its balance runs out.
 class AutoTopUp extends ChangeNotifier {
   AutoTopUp({
     Future<TopUpView> Function(String instanceId, String amountMu)? topUp,
     List<InstanceListView> Function()? instances,
     Future<InstanceStatusView> Function(String instanceId)? status,
+    InstancePlanView Function(String instanceId)? plan,
+    void Function(String instanceId, bool enabled, String? budgetMu)? setKeepAlive,
     DateTime Function()? now,
     this.periodic = true,
   })  : _topUp = topUp ?? ((id, mu) => celautTopUpInstance(instanceId: id, amountMu: mu)),
         _instances = instances ?? celautInstances,
         _status = status ?? ((id) => celautInstanceStatus(instanceId: id)),
+        _plan = plan ?? ((id) => celautInstancePlan(instanceId: id)),
+        _setKeepAlive = setKeepAlive ??
+            ((id, enabled, budget) => celautSetKeepAlive(instanceId: id, enabled: enabled, budgetMu: budget)),
         _now = now ?? DateTime.now;
 
-  static const keyOn = 'celaut_auto_top_up_v1';
-  static const keyThreshold = 'celaut_auto_top_up_threshold_mu_v1';
-  static const keyAmount = 'celaut_auto_top_up_amount_mu_v1';
+  static const keyThreshold = 'celaut_keep_alive_threshold_minutes_v1';
+  static const keyChunk = 'celaut_keep_alive_chunk_minutes_v1';
 
-  static final defaultThreshold = BigInt.from(200000);
-  static final defaultAmount = BigInt.from(1000000);
+  static const defaultThreshold = Duration(minutes: 15);
+  static const defaultChunk = Duration(hours: 1);
 
-  /// The least threshold and amount, in MU.
-  static final minMu = BigInt.from(10000);
+  /// The least threshold and chunk.
+  static const minTime = Duration(minutes: 1);
 
-  /// The largest threshold, in MU.
-  static final maxThreshold = BigInt.from(50000000);
+  /// The largest threshold: a day.
+  static const maxThreshold = Duration(days: 1);
 
-  /// The largest amount of one top-up, in MU (the app refuses more, `TOP_UP_MAX_MU` is
-  /// 100,000,000).
-  static final maxAmount = BigInt.from(10000000);
+  /// The largest chunk of one top-up: 30 days, as the longest time of a launch.
+  static const maxChunk = Duration(days: 30);
+
+  /// For an instance that keeps no price (it started before the app kept it), in MU.
+  static final fallbackThresholdMu = BigInt.from(200000);
+  static final fallbackAmountMu = BigInt.from(1000000);
+
+  /// The most that one call moves, in MU (`TOP_UP_MAX_MU` of the core).
+  static final maxCallMu = BigInt.from(100000000);
 
   static const _afterTopUp = Duration(minutes: 1);
   static const _afterFailure = Duration(minutes: 10);
@@ -72,25 +99,28 @@ class AutoTopUp extends ChangeNotifier {
   final Future<TopUpView> Function(String instanceId, String amountMu) _topUp;
   final List<InstanceListView> Function() _instances;
   final Future<InstanceStatusView> Function(String instanceId) _status;
+  final InstancePlanView Function(String instanceId) _plan;
+  final void Function(String instanceId, bool enabled, String? budgetMu) _setKeepAlive;
   final DateTime Function() _now;
 
-  /// Check once a minute while on. Tests check by hand.
+  /// Check once a minute. Tests check by hand.
   final bool periodic;
 
-  bool _on = false;
-  BigInt _threshold = defaultThreshold;
-  BigInt _amount = defaultAmount;
+  Duration _threshold = defaultThreshold;
+  Duration _chunk = defaultChunk;
   bool _loaded = false;
   TopUpNeed? _need;
   final Map<String, DateTime> _wait = {};
   final Set<String> _busy = {};
   Timer? _timer;
 
-  bool get on => _on;
-  BigInt get threshold => _threshold;
-  BigInt get amount => _amount;
+  /// Top up when the balance of an instance would last less than this.
+  Duration get threshold => _threshold;
 
-  /// A top-up that needs a deposit first; null if none.
+  /// How much time one top-up gives.
+  Duration get chunk => _chunk;
+
+  /// A top-up that needs a deposit (or a new limit) first; null if none.
   TopUpNeed? get need => _need;
 
   /// Read the settings, once.
@@ -99,39 +129,81 @@ class AutoTopUp extends ChangeNotifier {
     _loaded = true;
     try {
       final prefs = await SharedPreferences.getInstance();
-      _on = prefs.getBool(keyOn) ?? false;
-      _threshold = _parse(prefs.getString(keyThreshold), defaultThreshold, maxThreshold);
-      _amount = _parse(prefs.getString(keyAmount), defaultAmount, maxAmount);
+      _threshold = _parse(prefs.getInt(keyThreshold), defaultThreshold, maxThreshold);
+      _chunk = _parse(prefs.getInt(keyChunk), defaultChunk, maxChunk);
     } catch (_) {
-      // No preferences: the defaults, off.
+      // No preferences: the defaults.
     }
     notifyListeners();
   }
 
-  static BigInt _parse(String? text, BigInt fallback, BigInt max) {
-    final v = text == null ? null : BigInt.tryParse(text);
-    if (v == null || v < minMu || v > max) return fallback;
-    return v;
+  static Duration _parse(int? minutes, Duration fallback, Duration max) {
+    if (minutes == null) return fallback;
+    final d = Duration(minutes: minutes);
+    return d < minTime || d > max ? fallback : d;
   }
 
-  /// Keep new settings. [threshold] and [amount] must be in their limits.
-  Future<void> save({required bool on, required BigInt threshold, required BigInt amount}) async {
+  /// Keep new settings. [threshold] and [chunk] must be in their limits.
+  Future<void> save({required Duration threshold, required Duration chunk}) async {
     _loaded = true;
-    _on = on;
     _threshold = threshold;
-    _amount = amount;
-    if (!on) _need = null;
-    _schedule();
+    _chunk = chunk;
     notifyListeners();
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(keyOn, on);
-      await prefs.setString(keyThreshold, '$threshold');
-      await prefs.setString(keyAmount, '$amount');
+      await prefs.setInt(keyThreshold, threshold.inMinutes);
+      await prefs.setInt(keyChunk, chunk.inMinutes);
     } catch (_) {
       // Not kept: the settings last for this run only.
     }
   }
+
+  /// The plan of the instance (its price and its keep-alive settings); null if the core
+  /// does not know the instance.
+  InstancePlanView? planOf(String instanceId) {
+    try {
+      return _plan(instanceId);
+    } on Object {
+      return null;
+    }
+  }
+
+  /// Turn "run until I stop it" on or off for an instance. [budgetMu] is the most that the
+  /// app may move from now on; null is no limit. Moves no credit. Throws [CelautError] if
+  /// the instance is stopped or unknown.
+  void setKeepAlive(String instanceId, {required bool enabled, String? budgetMu}) {
+    _setKeepAlive(instanceId, enabled, budgetMu);
+    _wait.remove(instanceId);
+    if (_need?.instanceId == instanceId) _need = null;
+    _schedule();
+    notifyListeners();
+  }
+
+  /// Add [time] to a running instance, once, from the credit of the app on its node
+  /// (Josemi, 2026-10-29). The core takes at most 100,000,000 MU a call, so a long time
+  /// goes in several. If the credit is not enough, it throws [CelautError] with
+  /// [CelautErrorKind.insufficientCredit]; what was moved before stays. Null if the price
+  /// of the node is not known.
+  Future<TopUpView?> addTime(String instanceId, Duration time) async {
+    final plan = planOf(instanceId);
+    final price = plan == null ? null : priceOf(plan);
+    if (price == null) return null;
+    var left = price.addFor(time);
+    TopUpView? last;
+    while (left > BigInt.zero) {
+      final step = left > maxCallMu ? maxCallMu : left;
+      last = await _topUp(instanceId, '$step');
+      left -= step;
+    }
+    return last;
+  }
+
+  /// The price of the node of an instance, from its plan; null if the app does not know it.
+  static MaintenancePrice? priceOf(InstancePlanView plan) => MaintenancePrice.of(
+        perPeriodMu: plan.maintenanceMu,
+        periodSeconds: plan.maintenanceSeconds,
+        variance: plan.variance,
+      );
 
   /// The user saw the [need] and closed it.
   void dismissNeed() {
@@ -140,15 +212,22 @@ class AutoTopUp extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Read the settings, and check once a minute while the app runs and the top-up is on.
+  /// Read the settings, and check once a minute while the app runs and an instance is kept.
   Future<void> start() async {
     await load();
     _schedule();
   }
 
-  /// A timer only while the top-up is on: with it off, nothing polls the nodes.
+  /// A timer only while an instance is kept: with none, nothing polls the nodes.
   void _schedule() {
-    if (_on && periodic) {
+    if (!periodic) return;
+    var kept = false;
+    try {
+      kept = _instances().any((i) => i.stoppedAt == null && planOf(i.instanceId)?.keepAlive == true);
+    } on Object {
+      // No list: no timer.
+    }
+    if (kept) {
       _timer ??= Timer.periodic(_every, (_) => unawaited(check()));
     } else {
       _timer?.cancel();
@@ -162,10 +241,10 @@ class AutoTopUp extends ChangeNotifier {
     super.dispose();
   }
 
-  /// Read the balance of each running instance, and top up the ones under the threshold.
+  /// Read the balance of each running instance that the user asked to keep, and top up the
+  /// ones that run low. An instance that is not kept is not asked.
   Future<void> check() async {
     await load();
-    if (!_on) return;
     List<InstanceListView> all;
     try {
       all = _instances();
@@ -173,13 +252,14 @@ class AutoTopUp extends ChangeNotifier {
       return;
     }
     for (final i in all) {
-      if (i.stoppedAt != null || _waiting(i.instanceId)) continue;
+      if (i.stoppedAt != null || _waiting(i.instanceId) || planOf(i.instanceId)?.keepAlive != true) continue;
       try {
         await observe(i, await _status(i.instanceId));
       } on Object {
         // The node does not answer: the list says so; the next check tries again.
       }
     }
+    _schedule();
   }
 
   bool _waiting(String id) {
@@ -187,16 +267,39 @@ class AutoTopUp extends ChangeNotifier {
     return until != null && _now().isBefore(until);
   }
 
-  /// The balance of the running instance [i] is known ([status]): top it up if it is
-  /// under the threshold.
+  /// The balance of the running instance [i] is known ([status]): if the user asked to keep
+  /// it, top it up when it runs low.
   Future<void> observe(InstanceListView i, InstanceStatusView status) async {
-    if (!_on || i.stoppedAt != null) return;
+    if (i.stoppedAt != null) return;
     final id = i.instanceId;
+    final plan = planOf(id);
+    if (plan == null || !plan.keepAlive) return;
+    _schedule();
     final balance = BigInt.tryParse(status.instanceBalanceMu);
-    if (balance == null || balance >= _threshold) return;
-    if (_waiting(id) || !_busy.add(id)) return;
+    if (balance == null) return;
+    final price = priceOf(plan);
+    final low = price == null ? balance < fallbackThresholdMu : price.lasts(balance) < _threshold;
+    if (!low || _waiting(id) || !_busy.add(id)) return;
     try {
-      await _topUp(id, '$_amount');
+      var amount = price == null ? fallbackAmountMu : price.addFor(_chunk);
+      if (amount > maxCallMu) amount = maxCallMu;
+      final limit = BigInt.tryParse(plan.budgetMu);
+      if (limit != null) {
+        final left = limit - (BigInt.tryParse(plan.spentMu) ?? BigInt.zero);
+        if (left <= BigInt.zero) {
+          _wait[id] = _now().add(_afterFailure);
+          _need = TopUpNeed(
+            instanceId: id,
+            address: i.address,
+            detail: 'limit $limit MU, spent ${plan.spentMu} MU',
+            budget: true,
+          );
+          notifyListeners();
+          return;
+        }
+        if (amount > left) amount = left;
+      }
+      await _topUp(id, '$amount');
       _wait[id] = _now().add(_afterTopUp);
       if (_need?.instanceId == id) {
         _need = null;
@@ -216,5 +319,5 @@ class AutoTopUp extends ChangeNotifier {
   }
 }
 
-/// The automatic top-up of the app.
+/// The keep-alive engine of the app.
 final autoTopUp = AutoTopUp();
