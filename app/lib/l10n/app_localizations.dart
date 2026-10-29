@@ -944,18 +944,6 @@ abstract class AppLocalizations {
   /// **'New line'**
   String get chatVkEnter;
 
-  /// No description provided for @chatStepBack.
-  ///
-  /// In en, this message translates to:
-  /// **'Back'**
-  String get chatStepBack;
-
-  /// No description provided for @chatStepNext.
-  ///
-  /// In en, this message translates to:
-  /// **'Next'**
-  String get chatStepNext;
-
   /// No description provided for @chatBgNone.
   ///
   /// In en, this message translates to:

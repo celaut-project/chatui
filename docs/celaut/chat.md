@@ -421,11 +421,10 @@ Format:
 | Rule | Value |
 |---|---|
 | Fence | A line "```` ```keyboard ````" opens the block, and a line "```` ``` ````" closes it, as the HTML block (section 5.4) |
-| Content | The same restricted HTML as the HTML block: allowed tags and attributes only, no script, no network, no `on*` attribute. `button`, `input`, `select` and `option` are allowed tags (`select` and `option` only in a keyboard block: the HTML block drops `select`). `data-say`, `data-send`, `data-name`, `placeholder`, `type`, `min`, `max`, `step`, `value`, `checked`, `data-off`, `multiple`, `selected` and `data-step` are allowed attributes, and the only ones that have a meaning here |
+| Content | The same restricted HTML as the HTML block: allowed tags and attributes only, no script, no network, no `on*` attribute. `button`, `input`, `select` and `option` are allowed tags (`select` and `option` only in a keyboard block: the HTML block drops `select`). `data-say`, `data-send`, `data-name`, `placeholder`, `type`, `min`, `max`, `step`, `value`, `checked`, `data-off`, `multiple` and `selected` are allowed attributes, and the only ones that have a meaning here |
 | Key | An element that has a `data-say` that is not empty. Its text is the label of the key. If it has no text, the label is the `data-say` |
 | Field | An `input` or `select` element that has a `data-name` is a field: the user gives a value in it, and the `placeholder` is its hint (the label of a checkbox, and the name of a slider). A `data-name` has 1 to 32 characters of `A-Z`, `a-z`, `0-9`, `_` and `-`. An `input` or `select` with no valid `data-name`, a second field with the same name, and a field after the 8th are not shown. Its kind comes from the `type` of the `input`, or from `select`. A `type` that is not in the table of the kinds below (or no `type`) is a line of text, and the client ignores the other attributes of it |
 | Placeholders | A `{name}` in a `data-say` is replaced by the value of the field `name` (for every kind of field: the value is always text). The client does this when the key is tapped, in one pass, so a `{x}` inside a value stays as it is. A `{name}` that is not the name of a field stays as it is. A value has its white space (and line breaks) changed to one space, with none at the ends. It has at most 200 characters, and the field does not take more. The `placeholder` of a field has at most 80 characters, and the client cuts the rest |
-| Steps | An element that has a `data-step` that is not empty is a step, and its `data-step` is the title (at most 80 characters, the client cuts the rest). The client shows one step at a time, with Back and Next. A block has at most 8 steps: an element with `data-step` after that, one inside another step, one that is a key (it has a `data-say`) and one that has nothing in it are not steps, and are read as any other element. What is before the first step shows in every step. All the rest that is not in a step (the keys, most of the time) shows in the last step only. The limits of the keys and the fields are for the whole block. Next waits until each field of the step has a value (a slider and a checkbox always have one). Back keeps the values. A `{name}` of a key can use any field of any step. A client that does not know steps shows all the rows, in the order of the block |
 | Empty field | A key whose `data-say` uses a field that is empty cannot be tapped. A key that does not use the field can. A text, a date, a time and a select are empty until the user gives a value (or until the service gives a `value`). A slider and a checkbox always have a value, so they never block a key |
 | Layout | A block element (`div`, `p`, `li`, `tr`, a heading) starts a new row. Text that is not in a key is shown as text between the keys |
 | Tap | The client puts the `data-say` (with the values of the fields in it) in the input of the user. If the input is not empty, the client adds it after the text, with a space between them if the text does not end in a space or a line break. A key must not replace what the user has written |
@@ -457,29 +456,6 @@ shows a check mark). A `select` without `multiple` shows the chosen chip and doe
 empty. The `placeholder` shows above the chips. A client can show the options in another way,
 for example in a menu: the values are the same. The order of the `option` elements is the order
 of the chips.
-
-Steps. A form in steps lets the user answer in turn, for example the exercise, then the weight,
-then the repetitions, and send one message with all of them:
-
-````text
-```keyboard
-<div data-step="Exercise">
-  <select data-name="ex" placeholder="Which one"><option>Bench</option><option>Squat</option></select>
-</div>
-<div data-step="Weight">
-  <input type="range" data-name="kg" min="0" max="200" step="2.5" placeholder="kg">
-</div>
-<div data-step="Repetitions">
-  <input type="range" data-name="reps" min="1" max="30" value="10" placeholder="Repetitions">
-</div>
-<button data-say="Did {ex}: {kg} kg x {reps} repetitions">Prepare the message</button>
-```
-````
-
-The steps are all in one block, so they do not need an answer of the service between them:
-the form is the same in each step, and a step does not change with what the user chose in
-another. A form that must change (for example other questions for each exercise) is one
-block for each message of the service.
 
 A service that wants a kind that a client does not know can write a plain `input` with a
 `placeholder` that says the format (for example `YYYY-MM-DD`), or keys that give the values.
@@ -1510,4 +1486,4 @@ more than 30 seconds. The service must follow these rules:
 | 6 (round 4) | 2026-10-24 | More clarifications of revision 6. A later `file` of an upload is found while the chunks are read, after the checks of size, type and storage. A `type` that is set and empty is an unknown type. A SHA3-256 hash with a `value` that is not 32 bytes is `bad_request`. The queue limit of a stream is at least 1 000 events. The cases of a failing first event of `Connect`, and the client behavior after each (also after `busy` and after a `ProtocolError` with no `event_id`). A client does not call `DownloadFile` for a `FileReference` with no SHA3-256 hash. `error` is 1 to 1 024 bytes, and a client can cut it for display. Test 29 is valid for a service that never uses `PENDING`. New tests 27j, 27k, 27l, 48b, 55e and 55f; changes to tests 29 and 55c |
 | 6 (round 5) | 2026-10-24 | `Hash.type` is required: `chat.proto` has `bytes type = 1;` (it was `optional`, and the field number is the same). The `type` is explicit in each `Hash` of each call. The rule "reuse the last `type` of the stream" is gone. An empty `type` is the same as a missing `type`: `bad_request` in each call that takes a `Hash`, `QueryFiles` too. A `type` that is not empty and not known is an unknown algorithm. A SHA3-256 hash with a `value` that is not 32 bytes is `bad_request` in `QueryFiles` too. Test 48b is removed (its number stays). Tests 48, 49, 55b and 71 are changed, and test 49a is new |
 | 6 (round 6) | 2026-10-29 | New section 5.5 and a line in the decisions table: the keyboard block (```` ```keyboard ````). It is a client feature, as the HTML block, and the wire does not change. Keys can send at once (`data-send`), and the block can have fields (`input` with `data-name`) that a `{name}` in a `data-say` uses |
-| 6 (round 7) | 2026-10-29 | Section 5.5: the fields of a keyboard block can be of the types `date`, `time`, `range`, `checkbox` and `select` (one option, or many with `multiple`), with new attributes (`type`, `min`, `max`, `step`, `value`, `checked`, `data-off`, `multiple`, `selected`, and the `option` element). New limits: 32 options in a `select`, 80 characters in the label of an option. Where chatui shows the form, the keyboard of the app, the setting of the keyboard of the system, and how to open a closed form. The options of a `select` show as chips side by side, in a wheel. A keyboard block can have steps (`data-step`). The wire does not change |
+| 6 (round 7) | 2026-10-29 | Section 5.5: the fields of a keyboard block can be of the types `date`, `time`, `range`, `checkbox` and `select` (one option, or many with `multiple`), with new attributes (`type`, `min`, `max`, `step`, `value`, `checked`, `data-off`, `multiple`, `selected`, and the `option` element). New limits: 32 options in a `select`, 80 characters in the label of an option. Where chatui shows the form, the keyboard of the app, the setting of the keyboard of the system, and how to open a closed form. The options of a `select` show as chips side by side, in a wheel. The wire does not change |
