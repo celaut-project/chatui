@@ -219,6 +219,23 @@ void main() {
       expect(field('<select data-name="s">$many</select>').options.length, keyboardMaxOptions);
     });
 
+    test('a select with multiple starts with its selected options, joined', () {
+      final f = field('<select multiple data-name="s"><option selected>A</option><option>B</option><option selected>C</option></select>');
+      expect((f.multiple, f.chosen, f.initial), (true, ['A', 'C'], 'A, C'));
+    });
+
+    test('a select without multiple keeps only the first selected option', () {
+      final f = field('<select data-name="s"><option selected>A</option><option selected>B</option></select>');
+      expect((f.multiple, f.chosen, f.initial), (false, ['A'], 'A'));
+    });
+
+    test('fitChosen stops before the value that does not fit, and never cuts one', () {
+      final a = 'a' * 150, b = 'b' * 60;
+      expect(fitChosen([a, b]), [a]);
+      expect(fitChosen([a, 'c']), [a, 'c']);
+      expect(fitChosen([]), isEmpty);
+    });
+
     test('the controls count as fields: same name and the limit of 8', () {
       expect(keyboardRows('<input type="date" data-name="a"><select data-name="a"></select>').single.length, 1);
       final html = List.generate(keyboardMaxFields + 2, (i) => '<input type="range" data-name="f$i">').join();
@@ -273,6 +290,43 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(find.byType(ActionChip));
       expect(said, ['Take b']);
+    });
+
+    testWidgets('a select with multiple gives the chosen values in the order of the options', (t) async {
+      final said = <String>[];
+      await pump(t, '<select multiple data-name="s" placeholder="Pick"><option value="a">Alpha</option><option value="b">Beta</option><option value="c">Gamma</option></select>'
+          '<button data-say="Take {s}">Go</button>', said);
+      await t.tap(find.byType(ActionChip), warnIfMissed: false);
+      expect(said, isEmpty);
+      await t.tap(find.byKey(const Key('chat-field-s')));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Gamma'));
+      await t.tap(find.text('Alpha'));
+      await t.tap(find.text('OK'));
+      await t.pumpAndSettle();
+      await t.tap(find.byType(ActionChip));
+      expect(said, ['Take a, c']);
+      expect(find.text('Alpha, Gamma'), findsOneWidget);
+    });
+
+    testWidgets('cancel keeps what was chosen, and a box can be turned off', (t) async {
+      final said = <String>[];
+      await pump(t, '<select multiple data-name="s"><option selected>A</option><option>B</option></select>'
+          '<button data-say="Take {s}">Go</button>', said);
+      await t.tap(find.byKey(const Key('chat-field-s')));
+      await t.pumpAndSettle();
+      await t.tap(find.text('B'));
+      await t.tap(find.text('Cancel'));
+      await t.pumpAndSettle();
+      await t.tap(find.byType(ActionChip));
+      expect(said, ['Take A']);
+      await t.tap(find.byKey(const Key('chat-field-s')));
+      await t.pumpAndSettle();
+      await t.tap(find.text('A'));
+      await t.tap(find.text('OK'));
+      await t.pumpAndSettle();
+      await t.tap(find.byType(ActionChip), warnIfMissed: false);
+      expect(said, ['Take A']);
     });
 
     testWidgets('a date waits for a day from the calendar', (t) async {
