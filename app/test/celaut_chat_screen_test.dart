@@ -902,6 +902,8 @@ void main() {
     expect(find.text(appL10n.chatsInfoTitle), findsOneWidget);
     expect(find.byKey(const Key('info-name')), findsOneWidget);
     expect(tester.widget<SelectableText>(find.byKey(const Key('info-service'))).data, '65' * 32);
+    expect(tester.widget<SelectableText>(find.byKey(const Key('info-instance'))).data, 'i1');
+    expect(find.text(appL10n.chatsInfoInstanceId.toUpperCase()), findsOneWidget);
     expect(tester.widget<SelectableText>(find.byKey(const Key('info-node'))).data,
         'node.example:53460');
     expect(tester.widget<SelectableText>(find.byKey(const Key('info-slot'))).data,

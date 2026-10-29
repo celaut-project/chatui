@@ -240,6 +240,7 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
       (l.chatsInfoNode, i.address, const Key('info-node')),
       (l.chatsInfoPeer, i.peerId, const Key('info-peer')),
       (l.chatsInfoServiceId, i.serviceId, const Key('info-service')),
+      (l.chatsInfoInstanceId, i.instanceId, const Key('info-instance')),
       (
         l.chatsInfoSlot,
         slot == null ? l.chatsInfoNoChatSlot : l.chatsInfoChatSlot,

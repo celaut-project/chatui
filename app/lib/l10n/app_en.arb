@@ -4248,6 +4248,7 @@
   "chatsInfoNode": "Node",
   "chatsInfoPeer": "Peer id of the node",
   "chatsInfoServiceId": "Service id",
+  "chatsInfoInstanceId": "Instance id (token)",
   "chatsInfoSlot": "Interface",
   "chatsInfoChatSlot": "Chat over HTTP",
   "chatsInfoNoChatSlot": "No chat interface",

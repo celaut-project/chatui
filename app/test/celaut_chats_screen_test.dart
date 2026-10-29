@@ -731,6 +731,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.widget<SelectableText>(find.byKey(const Key('info-cost'))).data, '321 MU');
       expect(tester.widget<SelectableText>(find.byKey(const Key('info-service'))).data, _echoId);
+      expect(tester.widget<SelectableText>(find.byKey(const Key('info-instance'))).data, 'i1');
     });
 
     testWidgets('Stop asks, stops, and the row stays as stopped until the user deletes it', (
