@@ -279,8 +279,60 @@ ChatKeyField _fieldOf(HtmlNode n, String name) {
 /// and texts ([String]) in the order of the source. A block element (`div`, `p`, `li`, `tr`, a heading...) starts
 /// and ends a row. It reads the same restricted HTML as [parseChatHtml]: no script, no
 /// network and no `on*` attribute.
-List<List<Object>> keyboardRows(String html) {
-  final rows = <List<Object>>[];
+List<List<Object>> keyboardRows(String html) => keyboardPlan(html).all;
+
+/// The most steps that a keyboard block has. An element with `data-step` after this is not a
+/// step: it is read as any other element.
+const int keyboardMaxSteps = 8;
+
+/// The most characters of the title of a step. The client cuts the rest.
+const int keyboardMaxStepTitleChars = 80;
+
+/// A step of a keyboard block: an element that has a `data-step` (its title) and the rows
+/// that are in it.
+class ChatStep {
+  const ChatStep(this.title, this.rows);
+
+  final String title;
+  final List<List<Object>> rows;
+}
+
+/// A keyboard block in its parts. Without steps, everything is in [before]. With steps,
+/// [before] is what comes before the first step (it shows in every step), [steps] are the
+/// steps in order, and [after] is the rest that comes after the first step (the keys, most of
+/// the time): it shows in the last step only.
+class ChatKeyboardPlan {
+  const ChatKeyboardPlan(this.before, this.steps, this.after);
+
+  final List<List<Object>> before;
+  final List<ChatStep> steps;
+  final List<List<Object>> after;
+
+  /// All the rows, in the order of [before], the steps and [after].
+  List<List<Object>> get all => [
+        ...before,
+        for (final step in steps) ...step.rows,
+        ...after,
+      ];
+
+  /// The rows that show in step [i] (0 to `steps.length - 1`). With no steps, all of them.
+  List<List<Object>> rowsOfStep(int i) => steps.isEmpty
+      ? before
+      : [
+          ...before,
+          ...steps[i].rows,
+          if (i == steps.length - 1) ...after,
+        ];
+}
+
+/// The parts of a keyboard block ([ChatKeyboardPlan]). The limits of keys and fields are for
+/// the whole block, not for each step.
+ChatKeyboardPlan keyboardPlan(String html) {
+  final before = <List<Object>>[];
+  final steps = <ChatStep>[];
+  final after = <List<Object>>[];
+  var rows = before;
+  var inStep = false;
   var row = <Object>[];
   var keys = 0;
   final names = <String>{};
@@ -316,6 +368,24 @@ List<List<Object>> keyboardRows(String html) {
         keys++;
         continue;
       }
+      final stepTitle = (n.attrs['data-step'] ?? '').replaceAll(_spaces, ' ').trim();
+      if (stepTitle.isNotEmpty && !inStep && steps.length < keyboardMaxSteps) {
+        flush();
+        final own = <List<Object>>[];
+        rows = own;
+        inStep = true;
+        walk(n.children);
+        flush();
+        inStep = false;
+        rows = after;
+        if (own.isNotEmpty) {
+          steps.add(ChatStep(
+            stepTitle.length > keyboardMaxStepTitleChars ? stepTitle.substring(0, keyboardMaxStepTitleChars) : stepTitle,
+            own,
+          ));
+        }
+        continue;
+      }
       final block = tag != 'td' && tag != 'th' && htmlIsBlockTag(tag);
       if (block) flush();
       walk(n.children);
@@ -325,7 +395,9 @@ List<List<Object>> keyboardRows(String html) {
 
   walk(parseChatHtml(html, forms: true));
   flush();
-  return rows;
+  // With no step, what came after the first (empty) step is not "after": it is the block.
+  if (steps.isEmpty) return ChatKeyboardPlan([...before, ...after], const [], const []);
+  return ChatKeyboardPlan(before, steps, after);
 }
 
 /// The value of a field as it goes in a message: the white space is one space, with none at
@@ -397,6 +469,9 @@ class ChatKeyboard extends StatefulWidget {
 class _ChatKeyboardState extends State<ChatKeyboard> {
   final Map<String, TextEditingController> _fields = {};
 
+  /// The step that shows, if the block has steps.
+  int _step = 0;
+
   /// The values that are chosen in a `select` with `multiple`, by name of the field.
   final Map<String, List<String>> _chosen = {};
 
@@ -419,7 +494,10 @@ class _ChatKeyboardState extends State<ChatKeyboard> {
   void didUpdateWidget(ChatKeyboard old) {
     super.didUpdateWidget(old);
     // Another block is another form: the values of the old one do not go to it.
-    if (old.html != widget.html) _clear();
+    if (old.html != widget.html) {
+      _clear();
+      _step = 0;
+    }
   }
 
   @override
@@ -432,10 +510,14 @@ class _ChatKeyboardState extends State<ChatKeyboard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final text = theme.textTheme.bodyMedium!.merge(widget.style);
-    final rows = keyboardRows(widget.html);
-    if (rows.isEmpty) return const SizedBox.shrink();
+    final plan = keyboardPlan(widget.html);
+    final all = plan.all;
+    if (all.isEmpty) return const SizedBox.shrink();
+    final steps = plan.steps.length;
+    final step = _step.clamp(0, steps == 0 ? 0 : steps - 1);
+    final rows = plan.rowsOfStep(step);
     final values = {
-      for (final row in rows)
+      for (final row in all)
         for (final item in row)
           if (item is ChatKeyField) item.name: _field(item).text,
     };
@@ -453,6 +535,7 @@ class _ChatKeyboardState extends State<ChatKeyboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (steps > 0) _stepHeader(plan, step, text),
                 for (final row in rows)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 3),
@@ -471,11 +554,56 @@ class _ChatKeyboardState extends State<ChatKeyboard> {
                       ],
                     ),
                   ),
+                if (steps > 0) _stepNav(plan, step),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  /// The title of the step, with its place: "2/3 · Weight".
+  Widget _stepHeader(ChatKeyboardPlan plan, int step, TextStyle text) => Padding(
+        key: const Key('chat-step-header'),
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Text(
+          '${step + 1}/${plan.steps.length} · ${plan.steps[step].title}',
+          style: text.copyWith(fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.primary),
+        ),
+      );
+
+  /// Back and Next. Next waits until every field of the step has a value.
+  Widget _stepNav(ChatKeyboardPlan plan, int step) {
+    final l10n = context.l10n;
+    final ready = [
+      for (final row in plan.steps[step].rows)
+        for (final item in row)
+          if (item is ChatKeyField) _field(item).text.isNotEmpty,
+    ].every((r) => r);
+    final last = step == plan.steps.length - 1;
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          if (step > 0)
+            TextButton.icon(
+              key: const Key('chat-step-back'),
+              onPressed: () => setState(() => _step = step - 1),
+              icon: const Icon(Icons.chevron_left),
+              label: Text(l10n.chatStepBack),
+            ),
+          const Spacer(),
+          if (!last)
+            FilledButton.icon(
+              key: const Key('chat-step-next'),
+              onPressed: ready ? () => setState(() => _step = step + 1) : null,
+              icon: const Icon(Icons.chevron_right),
+              iconAlignment: IconAlignment.end,
+              label: Text(l10n.chatStepNext),
+            ),
+        ],
+      ),
     );
   }
 

@@ -141,6 +141,8 @@
   "chatVkLetters": "Letras",
   "chatVkSpace": "Espacio",
   "chatVkEnter": "Nueva línea",
+  "chatStepBack": "Atrás",
+  "chatStepNext": "Siguiente",
   "chatBgNone": "Ninguno",
   "chatBgDawn": "Amanecer",
   "chatBgOcean": "Océano",
