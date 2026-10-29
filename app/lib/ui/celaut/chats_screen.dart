@@ -88,7 +88,7 @@ class ChatsScreenState extends State<ChatsScreen> {
 
   /// A service started from the picker: back to the list, and into the conversation,
   /// as a messenger does after "New chat". An instance without a chat slot is in
-  /// Compute, under "Other instances".
+  /// Compute, under Services, in the page of the service.
   Future<void> _started(LaunchOutcome outcome, String serviceId, String? name) async {
     final instance = outcome.instance;
     final chat = instance.chatSlots.isNotEmpty;
@@ -187,47 +187,6 @@ class ChatsScreenState extends State<ChatsScreen> {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// The instances whose interface has no chat slot (`docs/celaut/chat.md`, section 3).
-/// They have no conversation: a row opens the info page of the instance.
-class OtherInstancesScreen extends StatelessWidget {
-  const OtherInstancesScreen({
-    super.key,
-    this.wallets = const AppFullWallets(),
-    this.notes,
-    this.list,
-  });
-
-  final FullWallets wallets;
-  final ConversationNotes? notes;
-
-  /// The list. Tests give their own.
-  final InstanceList? list;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = context.l10n;
-    final t = HomeText.of(context);
-    return Scaffold(
-      appBar: AppBar(title: Text(l.chatsOtherTitle)),
-      body: list ??
-          InstanceList(
-            chats: false,
-            wallets: wallets,
-            notes: notes,
-            empty: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40),
-              child: Text(
-                l.chatsOtherEmpty,
-                key: const Key('other-empty'),
-                style: t.secondary,
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
     );
   }
 }

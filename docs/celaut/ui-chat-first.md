@@ -33,8 +33,8 @@ Not taken from the messengers:
 - **Unread counts.** A service answers only to a message of the user, while the
   conversation is open ([chat.md](chat.md)). There is nothing unread.
 - **Archived chats.** An instance costs money while it runs, so it is not hidden: the user
-  stops it. The instances without a chat slot have their own page ("Other instances"), which
-  is the nearest thing.
+  stops it. The instances without a chat slot are not in the list: the page of their service, in Compute,
+  under Services, shows them with Stop.
 - **Selection mode on a long press.** One instance at a time is enough: a long press opens a
   sheet with the actions of that row.
 
@@ -49,7 +49,7 @@ of the wallet and the pages under a tab open over the bar.
 |---|---|---|
 | Chats | The instances with a chat slot: the running ones, newest first, then the stopped ones (hidden by default, see below). The pencil button opens "New conversation"; only this tab has it | `ChatsScreen`, `InstanceList` (`chats_screen.dart`, `instance_list.dart`) |
 | Wallet | Only the ERG that the wallet holds and its latest transactions (2026-10-24, Josemi). "Wallet details" opens the page of the wallet, which has Send, Receive, the tokens, the addresses, "Deposit to a node" (under More) and the rest. A locked wallet shows its public snapshot, with the transactions of the same refresh. With no wallet: create or restore | `WalletSummaryScreen` (`home/wallet_summary.dart`), `WalletsOverviewScreen` (the welcome), `DepositScreen` |
-| Compute | The compute view of [ui.md](ui.md), section 2: the running instances with Stop, "Run a service", the card of state (nodes, credit on the nodes, ERG of the wallet). Under it: Nodes, Services, Other instances | `ComputeHomeScreen` |
+| Compute | The compute view of [ui.md](ui.md), section 2: only the card of state (nodes, credit on the nodes, ERG of the wallet). Under it: Nodes, Services. It has no list of instances and no "Run a service" button: the instances are in the conversations (Stop is on their info page), and a service is run from Services | `ComputeHomeScreen` |
 | Settings | The settings of the app in three sections (2026-10-23): Ergo (the wallet, the Ergo network, the address book, the remote previews), Compute (nodes, deposit, automatic top-up, Tor, environment variables, node check, Celaut service) and General (security, display, the switch of the home screen, About) | `SettingsScreen` |
 
 | Place | Where | What it holds | Code |
@@ -61,7 +61,6 @@ of the wallet and the pages under a tab open over the bar.
 | Deposit to a node | Wallet details, More | The deposit screen | `DepositScreen` |
 | Nodes | Compute | The node list with its availability; add a node by address or QR code ("connect to a new peer") | `KnownNodesScreen` |
 | Services | Compute | The same picker as "New conversation": the catalog, the service files and the import. The transfer of a service that a node does not have stays in the sheet of a failed launch | `RunServiceScreen` |
-| Other instances | Compute | The instances without a chat slot. A row opens the info page | `OtherInstancesScreen` |
 | Network and Tor | Settings | The network route ([network.md](network.md)) | `NetworkScreen` |
 | About | Settings | The version and the update check | `AboutPage` |
 
@@ -71,7 +70,7 @@ name is the name of the skill or the service file at the start; the database kee
 the instance (`InstanceRecord.name`). An instance of an earlier version has no name: the row
 shows the short service id.
 
-A filter hides the stopped instances, on Chats and on Other instances (Josemi, 2026-10-23).
+A filter hides the stopped instances, on Chats (Josemi, 2026-10-23).
 It is on by default. Under the rows, "Show N stopped instances" shows them, and "Hide stopped
 instances" hides them again; the app keeps the choice (`celaut_hide_stopped_v1`). A shown
 stopped instance has Delete, as before. A stopped instance stays in the database while it is
@@ -112,7 +111,7 @@ is not asked for.
   service starts (`ChatClient.syncWhenStarted`). Back from the conversation is the list.
   "Services" and "Run a service" in the Compute tab end the same way, on the Chats tab. A
   service without a chat slot starts, and a message says that it is in Compute, under
-  "Other instances".
+  Services, in the page of the service.
 - **Open a conversation again.** A tap on a row opens the local port of the chat slot and
   reads the history from `after_sequence` 0 and opens `Connect` ([chat.md](chat.md), sections 6.2 and 6.5). This works after the lock of the
   app closed the screen, and after a restart of the app. The screen shows at once, with the

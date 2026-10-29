@@ -55,7 +55,7 @@ InstanceListView instanceOfLaunch(LaunchOutcome outcome, String serviceId, Strin
 /// The rows of the instances of the app, as the chat list of a messenger
 /// (`docs/celaut/ui-chat-first.md`): the instances whose interface has a chat slot
 /// ([chats] true, the home screen: all of them), or only those with no chat and no web
-/// slot ([chats] false, "Other instances").
+/// slot ([chats] false: no screen shows this list now).
 ///
 /// The rows come from the database at once ([load]): the instances that run and the
 /// stopped ones that the user did not delete. The list asks each node for its running
@@ -157,7 +157,7 @@ class InstanceListState extends State<InstanceList> {
 
   /// The home list has every instance: all of them are a conversation, and one that has
   /// only a web slot opens in the browser. The others have no interface to use, and
-  /// "Other instances" keeps them.
+  /// the list with [chats] false keeps them.
   bool _wanted(InstanceListView i) =>
       widget.chats || (i.chatSlots.isEmpty && i.webSlots.isEmpty);
 
@@ -311,7 +311,7 @@ class InstanceListState extends State<InstanceList> {
 
   Future<void> _tap(InstanceListView i, InstanceState state) async {
     final noInterface = i.chatSlots.isEmpty && i.webSlots.isEmpty;
-    // "Other instances" has the ones with no interface: a tap opens their info.
+    // The list with [chats] false has the ones with no interface: a tap opens their info.
     if (state == InstanceState.stopped || (noInterface && !widget.chats)) {
       await _openInfo(i, state);
     } else if (i.chatSlots.isNotEmpty) {

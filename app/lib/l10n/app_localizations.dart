@@ -9026,7 +9026,7 @@ abstract class AppLocalizations {
   /// No description provided for @chatsStartedOther.
   ///
   /// In en, this message translates to:
-  /// **'The service started on {node}. It has no conversation: find it in Compute, under Other instances.'**
+  /// **'The service started on {node}. It has no conversation: find it in Compute, under Services, in the page of the service.'**
   String chatsStartedOther(String node);
 
   /// No description provided for @chatsInfoTitle.

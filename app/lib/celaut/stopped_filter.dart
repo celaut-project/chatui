@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// The filter of the lists of instances (Chats and Other instances): it hides the stopped
+/// The filter of the lists of instances (Chats): it hides the stopped
 /// instances. On by default (Josemi, 2026-10-23). The lists have a button that shows them
 /// again; a shown stopped instance can be deleted as before. The choice is kept.
 class StoppedFilter extends ValueNotifier<bool> {

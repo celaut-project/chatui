@@ -19,7 +19,7 @@ import 'run_service_section.dart' show StartedCall;
 enum HomeTab { chats, wallet, compute, settings }
 
 /// The pages that a tab opens over the bar.
-enum HomePlace { deposit, nodes, services, otherInstances }
+enum HomePlace { deposit, nodes, services }
 
 /// The home screen of the app, chat first, with a bottom bar as WhatsApp and Telegram
 /// on Android (`docs/celaut/ui-chat-first.md`):
@@ -137,7 +137,6 @@ class HomeTabsState extends State<HomeTabs> {
       HomePlace.deposit => const DepositScreen(),
       HomePlace.nodes => KnownNodesScreen(newClient: widget.newClient),
       HomePlace.services => _runPage(l.chatsServicesTitle),
-      HomePlace.otherInstances => OtherInstancesScreen(wallets: widget.wallets, notes: widget.notes),
     };
   }
 
@@ -198,10 +197,8 @@ class HomeTabsState extends State<HomeTabs> {
           refreshPrice: widget.refreshPrice,
           onWallets: () => select(HomeTab.wallet),
           onNodes: () => _open(HomePlace.nodes),
-          wallets: widget.wallets,
           newClient: widget.newClient,
           load: widget.loadCompute,
-          runScreen: (context) => _runPage(context.l10n.celautRunTitle),
           sections: [
             _row(HomePlace.nodes, Icons.hub_outlined, l.celautNodesTitle, l.chatsNodesRowSubtitle),
             _row(
@@ -209,12 +206,6 @@ class HomeTabsState extends State<HomeTabs> {
               Icons.widgets_outlined,
               l.chatsServicesTitle,
               l.chatsServicesRowSubtitle,
-            ),
-            _row(
-              HomePlace.otherInstances,
-              Icons.layers_outlined,
-              l.chatsOtherTitle,
-              l.chatsOtherRowSubtitle,
             ),
           ],
         );

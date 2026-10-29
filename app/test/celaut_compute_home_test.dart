@@ -96,19 +96,6 @@ ComputeOverviewView _overview() => ComputeOverviewView(
 );
 
 extension on ComputeOverviewView {
-  ComputeOverviewView copyWithNoInstances() => ComputeOverviewView(
-    nodesCounted: nodesCounted,
-    nodesUnreachable: nodesUnreachable,
-    cpuCores: cpuCores,
-    memBytes: memBytes,
-    diskBytes: diskBytes,
-    creditNanoErg: creditNanoErg,
-    paidNanoErg: paidNanoErg,
-    freeNanoErg: freeNanoErg,
-    nodes: nodes,
-    instances: const [],
-  );
-
   ComputeOverviewView copyWithNoNodes() => ComputeOverviewView(
     nodesCounted: 0,
     nodesUnreachable: 0,
@@ -125,28 +112,7 @@ extension on ComputeOverviewView {
 
 const _full = WalletSum(count: 1, unknown: 0, knownNano: 250000000);
 
-class _Wallets implements FullWallets {
-  _Wallets({this.open = true, this.unlocks = true});
-
-  bool open;
-  final bool unlocks;
-  final unlocked = <String>[];
-
-  @override
-  Future<List<PayerWallet>> payers() async => [
-    PayerWallet(walletId: 'w1', name: 'Main', balanceNano: 250000000, open: open),
-  ];
-
-  @override
-  Future<bool> unlock(BuildContext context, PayerWallet wallet) async {
-    unlocked.add(wallet.walletId);
-    if (unlocks) open = true;
-    return unlocks;
-  }
-}
-
 class _Run {
-  final stops = <String>[];
   final newClients = <String>[];
   var loads = 0;
   var nodesOpened = 0;
@@ -158,7 +124,6 @@ void main() {
     WidgetTester tester, {
     WalletMoney? money,
     double? usdPerErg = 2.0,
-    FullWallets? wallets,
     Future<ComputeOverviewView> Function()? load,
   }) async {
     tester.view.physicalSize = const Size(390, 4000);
@@ -174,15 +139,9 @@ void main() {
           usdPerErg: usdPerErg,
           onWallets: () => run.walletsOpened++,
           onNodes: () => run.nodesOpened++,
-          runScreen: (_) => const Scaffold(body: Text('the run screen')),
-          wallets: wallets ?? _Wallets(),
           load: () async {
             run.loads++;
             return load == null ? _overview() : load();
-          },
-          stop: (id) async {
-            run.stops.add(id);
-            return const StopView(refundMu: '900000', clientBalanceMu: '');
           },
           newClient: (node) async {
             run.newClients.add('${node.host}:${node.port}');
@@ -204,15 +163,11 @@ void main() {
 
   setUp(() => overviewCache.value = null);
 
-  testWidgets('the order: running instances, then Run, then the card of state', (tester) async {
+  testWidgets('the card of state: nodes, then credit, then wallets', (tester) async {
     await pump(tester);
-    final instance = tester.getTopLeft(find.byKey(const Key('compute-home-instance-i1'))).dy;
-    final runButton = tester.getTopLeft(find.byKey(const Key('compute-home-run'))).dy;
     final nodes = tester.getTopLeft(find.byKey(const Key('compute-home-nodes'))).dy;
     final credit = tester.getTopLeft(find.byKey(const Key('compute-home-credit'))).dy;
     final wallets = tester.getTopLeft(find.byKey(const Key('compute-home-wallets'))).dy;
-    expect(instance, lessThan(runButton));
-    expect(runButton, lessThan(nodes));
     expect(nodes, lessThan(credit));
     expect(credit, lessThan(wallets));
     expect(find.text('Chatui', findRichText: true), findsOneWidget);
@@ -268,24 +223,20 @@ void main() {
     expect(find.textContaining('\$0'), findsNothing);
   });
 
-  testWidgets('with no instance, the instances are not on the home screen', (tester) async {
-    await pump(tester, load: () async => _overview().copyWithNoInstances());
+  testWidgets('the running instances and Run a service are not on the home screen', (tester) async {
+    // The overview has two running instances: they are in the conversations, not here.
+    await pump(tester);
     expect(find.text(appL10n.celautHomeInstancesTitle.toUpperCase()), findsNothing);
-    expect(find.text(appL10n.celautHomeNoInstances), findsNothing);
-    expect(find.byKey(const Key('compute-home-run')), findsOneWidget);
+    expect(find.byKey(const Key('compute-home-instance-i1')), findsNothing);
+    expect(find.byKey(const Key('compute-home-stop-i1')), findsNothing);
+    expect(find.byKey(const Key('compute-home-run')), findsNothing);
+    expect(find.text(appL10n.celautRunTitle), findsNothing);
   });
 
   testWidgets('with no node, the nodes line says how to add one', (tester) async {
     await pump(tester, load: () async => _overview().copyWithNoNodes());
     expect(rowTexts(tester, 'compute-home-nodes'), contains(appL10n.celautHomeNoNodes));
     expect(find.byKey(const Key('compute-home-credit')), findsNothing);
-  });
-
-  testWidgets('Run a service opens its own screen', (tester) async {
-    await pump(tester);
-    await tester.tap(find.byKey(const Key('compute-home-run')));
-    await tester.pumpAndSettle();
-    expect(find.text('the run screen'), findsOneWidget);
   });
 
   testWidgets('the last overview shows at once when the screen opens again', (tester) async {
@@ -332,8 +283,7 @@ void main() {
     );
     await tester.pump();
     expect(rowTexts(tester, 'compute-home-nodes'), contains(appL10n.celautHomeLoading));
-    // The button and the wallets do not wait for the nodes.
-    expect(find.byKey(const Key('compute-home-run')), findsOneWidget);
+    // The wallets do not wait for the nodes.
     expect(rowTexts(tester, 'compute-home-wallets'), contains(formatErg(250000000)));
     never.complete(_overview());
     await tester.pumpAndSettle();
@@ -361,63 +311,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(run.newClients, isEmpty);
     expect(run.loads, 1);
-  });
-
-  testWidgets('running instances show the cost so far and stop', (tester) async {
-    final run = await pump(tester);
-    final l = appL10n;
-    expect(text(tester, 'compute-home-cost-i1'), l.celautHomeCostSoFar('100,000 MU', formatErg(100000)));
-    expect(
-      text(tester, 'compute-home-cost-i2'),
-      l.celautHomeCostSoFar(l.celautUnknown, l.celautUnknown),
-    );
-    await tester.tap(find.byKey(const Key('compute-home-stop-i1')));
-    await tester.pumpAndSettle();
-    expect(run.stops, ['i1']);
-    expect(text(tester, 'compute-home-note'), l.celautHomeStopped('900,000 MU'));
-  });
-
-  testWidgets('a stop with only locked full wallets asks to open one first', (tester) async {
-    final wallets = _Wallets(open: false);
-    final run = await pump(
-      tester,
-      wallets: wallets,
-      money: const WalletMoney(full: _full, gate: FullWalletGate.locked),
-    );
-    expect(find.byKey(const Key('compute-home-wallet-locked')), findsOneWidget);
-    await tester.tap(find.byKey(const Key('compute-home-stop-i1')));
-    await tester.pumpAndSettle();
-    expect(wallets.unlocked, ['w1']);
-    expect(run.stops, ['i1']);
-  });
-
-  testWidgets('a stop is not sent when the user does not open a wallet', (tester) async {
-    final wallets = _Wallets(open: false, unlocks: false);
-    final run = await pump(
-      tester,
-      wallets: wallets,
-      money: const WalletMoney(full: _full, gate: FullWalletGate.locked),
-    );
-    await tester.tap(find.byKey(const Key('compute-home-stop-i1')));
-    await tester.pumpAndSettle();
-    expect(wallets.unlocked, ['w1']);
-    expect(run.stops, isEmpty);
-  });
-
-  testWidgets('with no full wallet the stop is off, with the message', (tester) async {
-    final run = await pump(
-      tester,
-      money: const WalletMoney(
-        full: WalletSum.empty,
-        gate: FullWalletGate.none,
-      ),
-    );
-    expect(find.byKey(const Key('compute-home-no-full-wallet')), findsOneWidget);
-    expect(
-      tester.widget<FilledButton>(find.byKey(const Key('compute-home-stop-i1'))).onPressed,
-      isNull,
-    );
-    expect(run.stops, isEmpty);
   });
 
   test('the compute home is the default home screen; the setting turns it off', () async {
