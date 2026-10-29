@@ -5067,6 +5067,7 @@ impl SseDecode for crate::api::celaut_receipts::ReceiptFaultKind {
             3 => crate::api::celaut_receipts::ReceiptFaultKind::Envs,
             4 => crate::api::celaut_receipts::ReceiptFaultKind::Service,
             5 => crate::api::celaut_receipts::ReceiptFaultKind::Amount,
+            6 => crate::api::celaut_receipts::ReceiptFaultKind::Omitted,
             _ => unreachable!("Invalid variant for ReceiptFaultKind: {}", inner),
         };
     }
@@ -5092,6 +5093,7 @@ impl SseDecode for crate::api::celaut_receipts::ReceiptsView {
             <crate::api::celaut_receipts::StartReceiptState>::sse_decode(deserializer);
         let mut var_checkpoints = <u64>::sse_decode(deserializer);
         let mut var_streams = <u64>::sse_decode(deserializer);
+        let mut var_droppedStreams = <u64>::sse_decode(deserializer);
         let mut var_closed = <u64>::sse_decode(deserializer);
         let mut var_cancelled = <u64>::sse_decode(deserializer);
         let mut var_noClose = <u64>::sse_decode(deserializer);
@@ -5101,6 +5103,7 @@ impl SseDecode for crate::api::celaut_receipts::ReceiptsView {
             start: var_start,
             checkpoints: var_checkpoints,
             streams: var_streams,
+            dropped_streams: var_droppedStreams,
             closed: var_closed,
             cancelled: var_cancelled,
             no_close: var_noClose,
@@ -6790,6 +6793,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::celaut_receipts::ReceiptFault
             Self::Envs => 3.into_dart(),
             Self::Service => 4.into_dart(),
             Self::Amount => 5.into_dart(),
+            Self::Omitted => 6.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -6833,6 +6837,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::celaut_receipts::ReceiptsView
             self.start.into_into_dart().into_dart(),
             self.checkpoints.into_into_dart().into_dart(),
             self.streams.into_into_dart().into_dart(),
+            self.dropped_streams.into_into_dart().into_dart(),
             self.closed.into_into_dart().into_dart(),
             self.cancelled.into_into_dart().into_dart(),
             self.no_close.into_into_dart().into_dart(),
@@ -8167,6 +8172,7 @@ impl SseEncode for crate::api::celaut_receipts::ReceiptFaultKind {
                 crate::api::celaut_receipts::ReceiptFaultKind::Envs => 3,
                 crate::api::celaut_receipts::ReceiptFaultKind::Service => 4,
                 crate::api::celaut_receipts::ReceiptFaultKind::Amount => 5,
+                crate::api::celaut_receipts::ReceiptFaultKind::Omitted => 6,
                 _ => {
                     unimplemented!("");
                 }
@@ -8190,6 +8196,7 @@ impl SseEncode for crate::api::celaut_receipts::ReceiptsView {
         <crate::api::celaut_receipts::StartReceiptState>::sse_encode(self.start, serializer);
         <u64>::sse_encode(self.checkpoints, serializer);
         <u64>::sse_encode(self.streams, serializer);
+        <u64>::sse_encode(self.dropped_streams, serializer);
         <u64>::sse_encode(self.closed, serializer);
         <u64>::sse_encode(self.cancelled, serializer);
         <u64>::sse_encode(self.no_close, serializer);

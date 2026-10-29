@@ -9086,31 +9086,31 @@ abstract class AppLocalizations {
   /// No description provided for @chatsReceiptsFaultSent.
   ///
   /// In en, this message translates to:
-  /// **'Node signed data that doesn\'t match what this phone sent'**
+  /// **'The node signed data that does not match what this phone sent'**
   String get chatsReceiptsFaultSent;
 
   /// No description provided for @chatsReceiptsFaultReceived.
   ///
   /// In en, this message translates to:
-  /// **'Node signed data that doesn\'t match what this phone received'**
+  /// **'The node signed data that does not match what this phone received'**
   String get chatsReceiptsFaultReceived;
 
   /// No description provided for @chatsReceiptsFaultEnvs.
   ///
   /// In en, this message translates to:
-  /// **'Node signed environment variables that this phone did not send'**
+  /// **'The node signed environment variables that this phone did not send'**
   String get chatsReceiptsFaultEnvs;
 
   /// No description provided for @chatsReceiptsFaultService.
   ///
   /// In en, this message translates to:
-  /// **'Node signed a different service from the one that this phone started'**
+  /// **'The node signed a different service from the one that this phone started'**
   String get chatsReceiptsFaultService;
 
   /// No description provided for @chatsReceiptsFaultAmount.
   ///
   /// In en, this message translates to:
-  /// **'Node signed a different start balance from the one that this phone asked for'**
+  /// **'The node signed a different start balance from the one that this phone asked for'**
   String get chatsReceiptsFaultAmount;
 
   /// No description provided for @chatsReceiptsFaultInvalid.
@@ -9118,6 +9118,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A receipt does not verify'**
   String get chatsReceiptsFaultInvalid;
+
+  /// No description provided for @chatsReceiptsFaultOmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'The node gave no start receipt, but it gave one before'**
+  String get chatsReceiptsFaultOmitted;
+
+  /// No description provided for @chatsReceiptsDropped.
+  ///
+  /// In en, this message translates to:
+  /// **'Tunnels dropped'**
+  String get chatsReceiptsDropped;
 
   /// No description provided for @chatsReceiptsExport.
   ///
@@ -9140,7 +9152,7 @@ abstract class AppLocalizations {
   /// No description provided for @chatsReceiptsNote.
   ///
   /// In en, this message translates to:
-  /// **'The node signs these receipts. They are evidence against the node, and you can give them to other persons. A tunnel with no close is not by itself a fault: for example, this phone or the node stopped it.'**
+  /// **'The node signs these receipts. They are evidence against the node. You can give them to other people. A tunnel with no close is not always a fault. For example, this phone or the node can stop the tunnel.'**
   String get chatsReceiptsNote;
 
   /// No description provided for @celautErrorNodeClosed.

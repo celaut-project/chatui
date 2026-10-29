@@ -5814,6 +5814,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get chatsReceiptsFaultInvalid => 'Un recibo no se verifica';
 
   @override
+  String get chatsReceiptsFaultOmitted =>
+      'El nodo no dio recibo de inicio, pero dio uno antes';
+
+  @override
+  String get chatsReceiptsDropped => 'Túneles descartados';
+
+  @override
   String get chatsReceiptsExport => 'Exportar recibos';
 
   @override

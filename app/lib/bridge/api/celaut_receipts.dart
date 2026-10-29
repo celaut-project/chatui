@@ -45,6 +45,9 @@ enum ReceiptFaultKind {
 
   /// The node signed another start balance than the one that this phone asked for.
   amount,
+
+  /// The node gave no start receipt, but it gave one for an instance before.
+  omitted,
 }
 
 /// One fault, with the detail in English (the text of the check).
@@ -76,6 +79,9 @@ class ReceiptsView {
   /// The tunnel streams that the app keeps.
   final BigInt streams;
 
+  /// The streams that the app dropped over its limit.
+  final BigInt droppedStreams;
+
   /// The streams with a close.
   final BigInt closed;
 
@@ -93,6 +99,7 @@ class ReceiptsView {
     required this.start,
     required this.checkpoints,
     required this.streams,
+    required this.droppedStreams,
     required this.closed,
     required this.cancelled,
     required this.noClose,
@@ -104,6 +111,7 @@ class ReceiptsView {
       start.hashCode ^
       checkpoints.hashCode ^
       streams.hashCode ^
+      droppedStreams.hashCode ^
       closed.hashCode ^
       cancelled.hashCode ^
       noClose.hashCode ^
@@ -117,6 +125,7 @@ class ReceiptsView {
           start == other.start &&
           checkpoints == other.checkpoints &&
           streams == other.streams &&
+          droppedStreams == other.droppedStreams &&
           closed == other.closed &&
           cancelled == other.cancelled &&
           noClose == other.noClose &&

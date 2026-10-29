@@ -5721,26 +5721,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatsReceiptsFaultSent =>
-      'Node signed data that doesn\'t match what this phone sent';
+      'The node signed data that does not match what this phone sent';
 
   @override
   String get chatsReceiptsFaultReceived =>
-      'Node signed data that doesn\'t match what this phone received';
+      'The node signed data that does not match what this phone received';
 
   @override
   String get chatsReceiptsFaultEnvs =>
-      'Node signed environment variables that this phone did not send';
+      'The node signed environment variables that this phone did not send';
 
   @override
   String get chatsReceiptsFaultService =>
-      'Node signed a different service from the one that this phone started';
+      'The node signed a different service from the one that this phone started';
 
   @override
   String get chatsReceiptsFaultAmount =>
-      'Node signed a different start balance from the one that this phone asked for';
+      'The node signed a different start balance from the one that this phone asked for';
 
   @override
   String get chatsReceiptsFaultInvalid => 'A receipt does not verify';
+
+  @override
+  String get chatsReceiptsFaultOmitted =>
+      'The node gave no start receipt, but it gave one before';
+
+  @override
+  String get chatsReceiptsDropped => 'Tunnels dropped';
 
   @override
   String get chatsReceiptsExport => 'Export receipts';
@@ -5755,7 +5762,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatsReceiptsNote =>
-      'The node signs these receipts. They are evidence against the node, and you can give them to other persons. A tunnel with no close is not by itself a fault: for example, this phone or the node stopped it.';
+      'The node signs these receipts. They are evidence against the node. You can give them to other people. A tunnel with no close is not always a fault. For example, this phone or the node can stop the tunnel.';
 
   @override
   String get celautErrorNodeClosed =>

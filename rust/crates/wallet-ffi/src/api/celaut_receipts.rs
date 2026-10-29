@@ -6,10 +6,11 @@
 //! ([`celaut_instance_receipts`]), and the user can export them for someone else
 //! ([`celaut_export_receipts`]): the file that `nodo receipt verify` reads.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use celaut_client::receipts::{export_jsonl, summarize, Fault};
-use celaut_wire::ReceiptSink;
+use celaut_wire::{ReceiptEvent, ReceiptSink};
 
 use super::celaut::{invalid, CelautError};
 use super::celaut_db::{db, now_seconds};
@@ -41,6 +42,8 @@ pub enum ReceiptFaultKind {
     Service,
     /// The node signed another start balance than the one that this phone asked for.
     Amount,
+    /// The node gave no start receipt, but it gave one for an instance before.
+    Omitted,
 }
 
 /// One fault, with the detail in English (the text of the check).
@@ -58,6 +61,8 @@ pub struct ReceiptsView {
     pub checkpoints: u64,
     /// The tunnel streams that the app keeps.
     pub streams: u64,
+    /// The streams that the app dropped over its limit.
+    pub dropped_streams: u64,
     /// The streams with a close.
     pub closed: u64,
     /// The streams that the phone ended: no close, and that is not a fault.
@@ -72,10 +77,13 @@ pub struct ReceiptsView {
 fn fault_view(fault: &Fault) -> ReceiptFaultView {
     let (kind, detail) = match fault {
         Fault::Invalid { reason } => (ReceiptFaultKind::Invalid, reason.clone()),
+        // An ordering fault shows as an invalid receipt, with its reason as the detail.
+        Fault::Order { reason } => (ReceiptFaultKind::Invalid, reason.clone()),
         Fault::Sent => (ReceiptFaultKind::Sent, String::new()),
         Fault::Received => (ReceiptFaultKind::Received, String::new()),
         Fault::Envs => (ReceiptFaultKind::Envs, String::new()),
         Fault::Service => (ReceiptFaultKind::Service, String::new()),
+        Fault::Omitted => (ReceiptFaultKind::Omitted, String::new()),
         Fault::Amount { signed, asked } => (
             ReceiptFaultKind::Amount,
             format!("signed {signed} MU, asked {asked} MU"),
@@ -112,6 +120,7 @@ pub fn celaut_instance_receipts(instance_id: String) -> Result<ReceiptsView, Cel
         },
         checkpoints: s.checkpoints,
         streams: s.streams,
+        dropped_streams: s.dropped_streams,
         closed: s.closed,
         cancelled: s.cancelled,
         no_close: s.no_close,
@@ -135,18 +144,59 @@ pub fn celaut_export_receipts(instance_id: String) -> Result<String, CelautError
     })
 }
 
-/// The sink of the tunnel streams of an instance: each receipt goes into the database.
-/// A deleted instance keeps nothing.
+/// How long the sink waits before it writes the receipts to the disk. The receipts that
+/// come in this time go to the disk in one write.
+const FLUSH_DELAY: std::time::Duration = std::time::Duration::from_millis(500);
+
+/// True while a write to the disk is planned and has not started.
+static FLUSH_PLANNED: AtomicBool = AtomicBool::new(false);
+
+fn flush_now() {
+    // A failed write stays in memory. The next write saves it.
+    let _ = db().flush();
+}
+
+/// Write the database to the disk, off the task of the tunnel. With `force`, the write
+/// starts at once. If not, it waits for [`FLUSH_DELAY`], and the changes that come in
+/// the meantime share one write.
+fn schedule_flush(force: bool) {
+    let Ok(runtime) = tokio::runtime::Handle::try_current() else {
+        // No runtime: nothing to block, so write here.
+        flush_now();
+        return;
+    };
+    if force {
+        runtime.spawn_blocking(flush_now);
+    } else if !FLUSH_PLANNED.swap(true, Ordering::AcqRel) {
+        let inner = runtime.clone();
+        runtime.spawn(async move {
+            tokio::time::sleep(FLUSH_DELAY).await;
+            // Clear the flag before the write: a change during the write plans a new one.
+            FLUSH_PLANNED.store(false, Ordering::Release);
+            inner.spawn_blocking(flush_now);
+        });
+    }
+}
+
+/// The sink of the tunnel streams of an instance: each receipt goes into the database
+/// in memory, and the disk write comes later, off the task of the tunnel. The end of a
+/// stream forces the write. A deleted instance keeps nothing.
 pub(crate) fn sink(instance_id: String) -> ReceiptSink {
     Arc::new(move |event| {
-        let _ = db().update(|d| {
-            if d.instances.contains_key(&instance_id) {
+        let ended = matches!(event, ReceiptEvent::Ended { .. });
+        let kept = db().update_in_memory(|d| {
+            let known = d.instances.contains_key(&instance_id);
+            if known {
                 d.receipts
                     .entry(instance_id.clone())
                     .or_default()
                     .apply(&event, now_seconds());
             }
+            known
         });
+        if kept {
+            schedule_flush(ended);
+        }
     })
 }
 
@@ -155,7 +205,7 @@ mod tests {
     use super::*;
     use celaut_client::db::InstanceRecord;
     use celaut_proto::celaut::ExecutionReceipt;
-    use celaut_wire::{ReceiptEvent, StreamReceipt};
+    use celaut_wire::StreamReceipt;
 
     fn record(id: &str) {
         db().update(|d| {
@@ -194,6 +244,21 @@ mod tests {
     }
 
     #[test]
+    fn a_missing_start_receipt_of_a_node_that_gives_them_is_a_fault() {
+        record("rcpt-omit");
+        db().update(|d| {
+            d.receipts
+                .entry("rcpt-omit".into())
+                .or_default()
+                .expects_start = true;
+        })
+        .unwrap();
+        let v = celaut_instance_receipts("rcpt-omit".into()).unwrap();
+        assert_eq!(v.start, StartReceiptState::Invalid);
+        assert!(v.faults.iter().any(|f| f.kind == ReceiptFaultKind::Omitted));
+    }
+
+    #[test]
     fn the_sink_keeps_what_the_tunnel_found() {
         record("rcpt-sink");
         let sink = sink("rcpt-sink".into());
@@ -205,11 +270,13 @@ mod tests {
                 ..Default::default()
             },
             problems: vec!["the signature does not verify".into()],
+            ordering: vec![],
             sent_mismatch: false,
             got_mismatch: false,
         }));
         let v = celaut_instance_receipts("rcpt-sink".into()).unwrap();
-        assert_eq!((v.checkpoints, v.streams), (1, 1));
+        // A receipt that failed the check takes no stream slot.
+        assert_eq!((v.checkpoints, v.streams), (0, 0));
         assert!(v.faults.iter().all(|f| f.kind == ReceiptFaultKind::Invalid));
         assert!(!v.faults.is_empty());
         assert_eq!(

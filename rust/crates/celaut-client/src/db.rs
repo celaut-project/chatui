@@ -14,7 +14,7 @@
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, PoisonError};
+use std::sync::{Arc, Mutex, PoisonError};
 
 use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM, NONCE_LEN};
 use ring::rand::{SecureRandom, SystemRandom};
@@ -581,12 +581,15 @@ impl DbFile {
 
 struct Inner {
     data: CelautData,
-    file: Option<DbFile>,
+    file: Option<Arc<DbFile>>,
 }
 
 /// The Celaut database of the app: in memory, or in one encrypted file.
 pub struct CelautDb {
     inner: Mutex<Inner>,
+    /// Orders the writes of the file, so that an old copy never replaces a new one.
+    /// Take it before `inner`.
+    writing: Mutex<()>,
 }
 
 impl std::fmt::Debug for CelautDb {
@@ -615,6 +618,7 @@ impl CelautDb {
                 },
                 file: None,
             }),
+            writing: Mutex::new(()),
         }
     }
 
@@ -631,8 +635,9 @@ impl CelautDb {
         Ok(CelautDb {
             inner: Mutex::new(Inner {
                 data,
-                file: Some(file),
+                file: Some(Arc::new(file)),
             }),
+            writing: Mutex::new(()),
         })
     }
 
@@ -658,12 +663,33 @@ impl CelautDb {
     /// Change the content and write the file. If the write fails, the change stays in
     /// memory and the error comes back; the next successful write saves it.
     pub fn update<R>(&self, f: impl FnOnce(&mut CelautData) -> R) -> Result<R, DbError> {
+        let _writing = self.writing.lock().unwrap_or_else(PoisonError::into_inner);
         let mut inner = self.lock();
         let answer = f(&mut inner.data);
         if let Some(file) = &inner.file {
             file.write(&inner.data)?;
         }
         Ok(answer)
+    }
+
+    /// Change the content in memory only. It is quick and it does not touch the disk.
+    /// Call [`CelautDb::flush`] later to save the change.
+    pub fn update_in_memory<R>(&self, f: impl FnOnce(&mut CelautData) -> R) -> R {
+        f(&mut self.lock().data)
+    }
+
+    /// Write the content to the file. The content is copied first, so a change in
+    /// memory does not wait for the disk. Does nothing for a database in memory.
+    pub fn flush(&self) -> Result<(), DbError> {
+        let _writing = self.writing.lock().unwrap_or_else(PoisonError::into_inner);
+        let (file, data) = {
+            let inner = self.lock();
+            match &inner.file {
+                Some(file) => (Arc::clone(file), inner.data.clone()),
+                None => return Ok(()),
+            }
+        };
+        file.write(&data)
     }
 }
 
@@ -878,6 +904,19 @@ mod tests {
         let back: CelautData = serde_json::from_str(&serde_json::to_string(&data).unwrap()).unwrap();
         assert_eq!(back.instances["i1"].stopped_at, Some(7));
         assert_eq!(back.instances["i1"].refund_mu.as_deref(), Some("700"));
+    }
+
+    #[test]
+    fn a_change_in_memory_is_on_the_disk_only_after_a_flush() {
+        let path = dir().join("celaut.db");
+        let key = [7u8; KEY_LEN];
+        let db = CelautDb::open(&path, &key).unwrap();
+        db.update_in_memory(sample);
+        assert!(!path.exists());
+        db.flush().unwrap();
+        let again = CelautDb::open(&path, &key).unwrap();
+        assert_eq!(again.snapshot().nodes, db.snapshot().nodes);
+        assert!(CelautDb::in_memory().flush().is_ok());
     }
 
     #[test]

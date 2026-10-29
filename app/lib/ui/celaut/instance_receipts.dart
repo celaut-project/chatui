@@ -43,6 +43,7 @@ String receiptFaultText(AppLocalizations l, ReceiptFaultKind kind) => switch (ki
       ReceiptFaultKind.service => l.chatsReceiptsFaultService,
       ReceiptFaultKind.amount => l.chatsReceiptsFaultAmount,
       ReceiptFaultKind.invalid => l.chatsReceiptsFaultInvalid,
+      ReceiptFaultKind.omitted => l.chatsReceiptsFaultOmitted,
     };
 
 /// The close of the tunnels: ✓, "none (cancelled)" (this phone ended the tunnel),
@@ -88,6 +89,8 @@ class InstanceReceiptsSection extends StatelessWidget {
       ),
       (l.chatsReceiptsCheckpoints, '${v.checkpoints}', const Key('info-receipts-checkpoints'), false),
       (l.chatsReceiptsClose, receiptsCloseText(l, v), const Key('info-receipts-close'), false),
+      if (v.droppedStreams > BigInt.zero)
+        (l.chatsReceiptsDropped, '${v.droppedStreams}', const Key('info-receipts-dropped'), false),
     ];
     return Column(
       key: const Key('info-receipts'),

@@ -82,7 +82,14 @@ class InstanceInfoScreen extends StatefulWidget {
 class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
   bool _stopping = false;
   late InstanceListView _instance = widget.instance;
-  late final ReceiptsView? _receipts = widget.loadReceipts(widget.instance.instanceId);
+  late ReceiptsView? _receipts = widget.loadReceipts(widget.instance.instanceId);
+
+  /// Read the receipts again. The numbers change while a chat runs.
+  Future<void> _reloadReceipts() async {
+    final fresh = widget.loadReceipts(_instance.instanceId);
+    if (!mounted) return;
+    setState(() => _receipts = fresh);
+  }
 
   /// Give the receipts of the instance to another app, as a file.
   Future<void> _exportReceipts() async {
@@ -94,6 +101,7 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(l.chatsReceiptsExportFailed('$e'))));
     }
+    if (mounted) await _reloadReceipts();
   }
 
   Future<void> _rename() async {
@@ -185,6 +193,8 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
     );
     if (!mounted) return;
     setState(() => _stopping = false);
+    await _reloadReceipts();
+    if (!mounted) return;
     // The caller reads the list again: the instance stopped.
     if (done != null) Navigator.of(context).pop(true);
   }
@@ -266,7 +276,9 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
           ),
         ],
       ),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: _reloadReceipts,
+        child: ListView(
         padding: EdgeInsets.fromLTRB(
           homeGutter,
           16,
@@ -335,6 +347,7 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
             Text(l.chatsInfoDeleteNote, style: t.secondary),
           ],
         ],
+      ),
       ),
     );
   }
