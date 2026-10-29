@@ -1,7 +1,7 @@
 /// What a part of a chat message is: plain text, a closed fenced HTML block, a closed
-/// fenced code block (any other language, or none), or one of those two kinds of block
-/// that has no closing fence yet.
-enum ChatSegmentKind { text, html, pendingHtml, code, pendingCode }
+/// fenced keyboard block, a closed fenced code block (any other language, or none), or one
+/// of those three kinds of block that has no closing fence yet.
+enum ChatSegmentKind { text, html, pendingHtml, keyboard, pendingKeyboard, code, pendingCode }
 
 /// A part of the `text` of a chat message. For the block kinds, [text] is the content with
 /// no fence lines. For [ChatSegmentKind.text], [text] is the text as it is. For
@@ -31,6 +31,12 @@ const int maxHtmlBlockChars = 20000;
 /// The most HTML blocks that one message can have. The blocks after this stay plain text.
 const int maxHtmlBlocks = 8;
 
+/// The most characters of one keyboard block. A longer block stays plain text.
+const int maxKeyboardBlockChars = 8000;
+
+/// The most keyboard blocks that one message can have. The blocks after this stay plain text.
+const int maxKeyboardBlocks = 2;
+
 /// The most characters of one code block. A longer block stays plain text.
 const int maxCodeBlockChars = 60000;
 
@@ -42,18 +48,20 @@ final RegExp _closeFence = RegExp(r'^ {0,3}```[ \t]*$');
 
 /// Splits [text] at the fenced blocks that start with a line "```lang" (or "```") and end
 /// with a line "```", as Markdown does. The parts in sequence give back [text] when the
-/// fence lines are put back. A "```html" block is [ChatSegmentKind.html] if [html] is true,
-/// and any other block is [ChatSegmentKind.code], with the language in [ChatSegment.lang].
+/// fence lines are put back. A "```html" block is [ChatSegmentKind.html] and a "```keyboard"
+/// block is [ChatSegmentKind.keyboard] if [html] is true, and any other block is
+/// [ChatSegmentKind.code], with the language in [ChatSegment.lang].
 ///
 /// A block with no closing fence is pending if [streaming] is true (the message is open
 /// and the fence can still come), and plain text if it is false. A block that is too long,
-/// or one after [maxHtmlBlocks] or [maxCodeBlocks], stays plain text.
+/// or one after [maxHtmlBlocks], [maxKeyboardBlocks] or [maxCodeBlocks], stays plain text.
 List<ChatSegment> splitHtmlBlocks(String text, {bool streaming = false, bool html = true}) {
   if (!text.contains('`')) return text.isEmpty ? const [] : [ChatSegment(ChatSegmentKind.text, text)];
   final lines = text.split('\n');
   final out = <ChatSegment>[];
   final plain = StringBuffer();
   var htmlBlocks = 0;
+  var keyboardBlocks = 0;
   var codeBlocks = 0;
 
   void flushPlain() {
@@ -82,16 +90,35 @@ List<ChatSegment> splitHtmlBlocks(String text, {bool streaming = false, bool htm
     if (open != null) {
       final lang = open.group(1)!.toLowerCase();
       final isHtml = html && lang == 'html';
-      final canOpen = isHtml ? htmlBlocks < maxHtmlBlocks : codeBlocks < maxCodeBlocks;
-      final limit = isHtml ? maxHtmlBlockChars : maxCodeBlockChars;
+      final isKeyboard = html && lang == 'keyboard';
+      final canOpen = isHtml
+          ? htmlBlocks < maxHtmlBlocks
+          : isKeyboard
+              ? keyboardBlocks < maxKeyboardBlocks
+              : codeBlocks < maxCodeBlocks;
+      final limit = isHtml
+          ? maxHtmlBlockChars
+          : isKeyboard
+              ? maxKeyboardBlockChars
+              : maxCodeBlockChars;
       final close = nextClose[i + 1];
       final end = close < 0 ? lines.length : close;
       final fits = canOpen && size[end] - size[i + 1] <= limit + 1;
       if (close >= 0 && fits) {
         flushPlain();
         final body = raw(i + 1, close);
-        out.add(isHtml ? ChatSegment(ChatSegmentKind.html, body) : ChatSegment(ChatSegmentKind.code, body, lang));
-        isHtml ? htmlBlocks++ : codeBlocks++;
+        out.add(isHtml
+            ? ChatSegment(ChatSegmentKind.html, body)
+            : isKeyboard
+                ? ChatSegment(ChatSegmentKind.keyboard, body)
+                : ChatSegment(ChatSegmentKind.code, body, lang));
+        if (isHtml) {
+          htmlBlocks++;
+        } else if (isKeyboard) {
+          keyboardBlocks++;
+        } else {
+          codeBlocks++;
+        }
         i = close + 1;
         continue;
       }
@@ -100,7 +127,9 @@ List<ChatSegment> splitHtmlBlocks(String text, {bool streaming = false, bool htm
         final body = raw(i + 1, lines.length);
         out.add(isHtml
             ? ChatSegment(ChatSegmentKind.pendingHtml, body)
-            : ChatSegment(ChatSegmentKind.pendingCode, body, lang));
+            : isKeyboard
+                ? ChatSegment(ChatSegmentKind.pendingKeyboard, body)
+                : ChatSegment(ChatSegmentKind.pendingCode, body, lang));
         break;
       }
       if (close >= 0) {

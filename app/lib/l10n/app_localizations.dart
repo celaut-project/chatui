@@ -866,6 +866,18 @@ abstract class AppLocalizations {
   /// **'Making the widget…'**
   String get chatHtmlLoading;
 
+  /// No description provided for @chatKeyboardLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyboard'**
+  String get chatKeyboardLabel;
+
+  /// No description provided for @chatKeyboardClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close the keyboard'**
+  String get chatKeyboardClose;
+
   /// No description provided for @chatSettingsHtmlWidgets.
   ///
   /// In en, this message translates to:

@@ -128,6 +128,8 @@
   "chatSettingsPinnedNote": "Un mensaje fijado se queda arriba del chat. Ocupa como máximo esta parte de la altura del chat.",
   "chatSettingsWidgetsGroup": "Widgets",
   "chatHtmlLoading": "Creando el widget…",
+  "chatKeyboardLabel": "Teclado",
+  "chatKeyboardClose": "Cerrar el teclado",
   "chatSettingsHtmlWidgets": "Widgets HTML",
   "chatSettingsHtmlWidgetsSubtitle": "Muestra el HTML simple del asistente como widgets. Si está apagado, se ve como código. Sin scripts ni red.",
   "chatBgNone": "Ninguno",

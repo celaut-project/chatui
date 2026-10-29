@@ -464,6 +464,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get chatHtmlLoading => 'Creando el widget…';
 
   @override
+  String get chatKeyboardLabel => 'Teclado';
+
+  @override
+  String get chatKeyboardClose => 'Cerrar el teclado';
+
+  @override
   String get chatSettingsHtmlWidgets => 'Widgets HTML';
 
   @override
