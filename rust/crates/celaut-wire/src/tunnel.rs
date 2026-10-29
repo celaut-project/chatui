@@ -58,9 +58,12 @@ const MAX_MARKS: usize = 1 << 16;
 pub struct StreamReceipt {
     pub receipt: ExecutionReceipt,
     /// Why the receipt is not valid ([`receipt::problems`] against the node of the
-    /// connection and the token), and the faults of the stream (a receipt after the
-    /// close, a seq that does not go up). Empty when it is valid.
+    /// connection and the token). Empty when it is valid.
     pub problems: Vec<String>,
+    /// The faults of the order of the stream (a receipt after the close, a seq that does
+    /// not go up, a change of session). The receipt can still be valid and signed, so
+    /// these do not stop the storage of it.
+    pub ordering: Vec<String>,
     /// The `in` chain of the receipt is not the chain of the messages that this side
     /// sent: the node signed data that this side did not send.
     pub sent_mismatch: bool,
@@ -72,7 +75,10 @@ pub struct StreamReceipt {
 impl StreamReceipt {
     /// True if nothing is wrong with it.
     pub fn is_good(&self) -> bool {
-        self.problems.is_empty() && !self.sent_mismatch && !self.got_mismatch
+        self.problems.is_empty()
+            && self.ordering.is_empty()
+            && !self.sent_mismatch
+            && !self.got_mismatch
     }
 }
 
@@ -135,14 +141,17 @@ pub fn open(
     let (to_service, to_rx) = mpsc::channel(QUEUE);
     let (from_tx, from_service) = mpsc::channel(QUEUE);
     let handshake = handshake(token, slot);
-    let checker = Arc::new(Mutex::new(Checker::new(peer_id, token)));
+    // With no sink, nobody reads the receipts: the chains are not computed.
+    let checker = receipts
+        .as_ref()
+        .map(|_| Arc::new(Mutex::new(Checker::new(peer_id, token))));
     tokio::spawn(async move {
         let cancelled = match run(
             channel,
             handshake,
             to_rx,
             &from_tx,
-            &checker,
+            checker.as_ref(),
             receipts.as_ref(),
         )
         .await
@@ -153,11 +162,19 @@ pub fn open(
                 false
             }
         };
-        if let Some(sink) = &receipts {
-            let checker = checker.lock().unwrap_or_else(PoisonError::into_inner);
+        if let (Some(sink), Some(checker)) = (&receipts, &checker) {
+            // The stream ended: a checkpoint that is still ahead of the chains is a
+            // mismatch now.
+            let (last, session, closed) = {
+                let mut checker = lock(checker);
+                (checker.finish(), checker.session.clone(), checker.closed)
+            };
+            for checked in last {
+                sink(ReceiptEvent::Receipt(checked));
+            }
             sink(ReceiptEvent::Ended {
-                session: checker.session.clone(),
-                closed: checker.closed,
+                session,
+                closed,
                 cancelled,
             });
         }
@@ -178,6 +195,15 @@ pub fn handshake(token: &str, slot: u16) -> TokenMessage {
     }
 }
 
+/// The result of the check of one checkpoint against one chain.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Match {
+    Yes,
+    No,
+    /// The checkpoint counts more messages than this side has seen. It can catch up.
+    Ahead,
+}
+
 /// The messages of one direction as this side saw them: the chain, and its state after
 /// each message since the last checkpoint that matched.
 #[derive(Debug)]
@@ -186,18 +212,26 @@ struct Seen {
     chain: Chain,
     /// `(events, bytes, head)` at the last checkpoint that matched, then after each
     /// message.
-    marks: VecDeque<(u64, u64, String)>,
+    marks: VecDeque<(u64, u64, [u8; 32])>,
     /// True after more than [`MAX_MARKS`] messages with no checkpoint: the chains of the
     /// stream are not checked any more.
     unchecked: bool,
 }
 
+/// A head of a chain as 32 bytes. `None` if the text is not 64 hex digits.
+fn head_bytes(head: &str) -> Option<[u8; 32]> {
+    let mut out = [0u8; 32];
+    hex::decode_to_slice(head, &mut out).ok()?;
+    Some(out)
+}
+
 impl Seen {
     fn new(direction: &'static str) -> Self {
         let chain = Chain::default();
+        let genesis = head_bytes(&chain.head).unwrap_or_default();
         Seen {
             direction,
-            marks: VecDeque::from([(0, 0, chain.head.clone())]),
+            marks: VecDeque::from([(0, 0, genesis)]),
             chain,
             unchecked: false,
         }
@@ -214,36 +248,52 @@ impl Seen {
             return;
         }
         let c = &self.chain;
-        self.marks.push_back((c.events, c.bytes, c.head.clone()));
+        let head = head_bytes(&c.head).unwrap_or_default();
+        self.marks.push_back((c.events, c.bytes, head));
     }
 
     /// Whether the node's `(events, bytes, head)` is a state of this chain. On a match,
     /// the states before it are dropped: the next checkpoint counts at least as many.
-    fn matches(&mut self, events: u64, bytes: u64, head: &str) -> bool {
+    fn matches(&mut self, events: u64, bytes: u64, head: &str) -> Match {
         if self.unchecked {
-            return true;
+            return Match::Yes;
         }
         let Some(first) = self.marks.front().map(|m| m.0) else {
-            return true;
+            return Match::Yes;
         };
         let Some(index) = events
             .checked_sub(first)
             .and_then(|i| usize::try_from(i).ok())
         else {
-            return false;
+            return Match::No;
         };
         let Some((_, b, h)) = self.marks.get(index) else {
-            return false;
+            return Match::Ahead;
         };
-        if *b != bytes || h != head {
-            return false;
+        if *b != bytes || head_bytes(head).as_ref() != Some(h) {
+            return Match::No;
         }
         self.marks.drain(..index);
-        true
+        Match::Yes
     }
 }
 
+/// A checkpoint that waits for the chains of this side to catch up with it.
+#[derive(Debug)]
+struct Waiting {
+    checked: StreamReceipt,
+    /// `(events, bytes, head)` of the `in` and `out` chains of the receipt. `None` when
+    /// the receipt has no chain check (it failed the check of the signature).
+    counters: Option<([u64; 2], [u64; 2], [String; 2])>,
+    sent: Option<bool>,
+    got: Option<bool>,
+}
+
 /// Checks the receipts of one stream against what this side sent and got.
+///
+/// A checkpoint that counts more messages than this side has seen waits. The checkers
+/// give the receipts in the order of the stream, so a receipt waits behind the ones
+/// before it.
 #[derive(Debug)]
 struct Checker {
     peer_id: String,
@@ -253,6 +303,7 @@ struct Checker {
     session: Option<String>,
     last_seq: u64,
     closed: bool,
+    waiting: VecDeque<Waiting>,
 }
 
 impl Checker {
@@ -265,62 +316,140 @@ impl Checker {
             session: None,
             last_seq: 0,
             closed: false,
+            waiting: VecDeque::new(),
         }
     }
 
-    fn check(&mut self, receipt: ExecutionReceipt) -> StreamReceipt {
+    /// Check one receipt. Gives the receipts that are ready, in order.
+    fn check(&mut self, receipt: ExecutionReceipt) -> Vec<StreamReceipt> {
+        let waiting = self.examine(receipt);
+        self.waiting.push_back(waiting);
+        self.ready()
+    }
+
+    fn examine(&mut self, receipt: ExecutionReceipt) -> Waiting {
         let mut problems = receipt::problems(&receipt, Some(&self.peer_id), Some(&self.token));
         if problems.is_empty() && receipt.kind == receipt::KIND_START {
             problems.push("a start receipt in a tunnel stream".into());
         }
         if !problems.is_empty() {
             // Not signed by the node, or not for this token: its counters say nothing.
-            return StreamReceipt {
-                receipt,
-                problems,
-                sent_mismatch: false,
-                got_mismatch: false,
+            return Waiting {
+                checked: StreamReceipt {
+                    receipt,
+                    problems,
+                    ordering: vec![],
+                    sent_mismatch: false,
+                    got_mismatch: false,
+                },
+                counters: None,
+                sent: Some(false),
+                got: Some(false),
             };
         }
+        let mut ordering = Vec::new();
         if self.closed {
-            problems.push("a receipt after the close of the stream".into());
+            ordering.push("a receipt after the close of the stream".into());
         }
         match &self.session {
             Some(session) if *session != receipt.session => {
-                problems.push("the session of the stream changes".into());
+                ordering.push("the session of the stream changes".into());
             }
             Some(_) => {}
             None => self.session = Some(receipt.session.clone()),
         }
         if receipt.seq <= self.last_seq {
-            problems.push(format!(
+            ordering.push(format!(
                 "seq {} does not come after seq {}",
                 receipt.seq, self.last_seq
             ));
         }
         self.last_seq = self.last_seq.max(receipt.seq);
-        let sent_mismatch =
-            !self
-                .sent
-                .matches(receipt.in_events, receipt.in_bytes, &receipt.in_head);
-        let got_mismatch =
-            !self
-                .got
-                .matches(receipt.out_events, receipt.out_bytes, &receipt.out_head);
         if receipt.kind == KIND_CLOSE {
             self.closed = true;
         }
-        StreamReceipt {
-            receipt,
-            problems,
-            sent_mismatch,
-            got_mismatch,
+        let counters = (
+            [receipt.in_events, receipt.out_events],
+            [receipt.in_bytes, receipt.out_bytes],
+            [receipt.in_head.clone(), receipt.out_head.clone()],
+        );
+        Waiting {
+            checked: StreamReceipt {
+                receipt,
+                problems,
+                ordering,
+                sent_mismatch: false,
+                got_mismatch: false,
+            },
+            counters: Some(counters),
+            sent: None,
+            got: None,
         }
+    }
+
+    /// Check again the checkpoints that wait, and give the ones that are done.
+    fn ready(&mut self) -> Vec<StreamReceipt> {
+        let mut done = Vec::new();
+        while let Some(front) = self.waiting.front_mut() {
+            if let Some(([ie, oe], [ib, ob], [ih, oh])) = &front.counters {
+                if front.sent.is_none() {
+                    front.sent = match self.sent.matches(*ie, *ib, ih) {
+                        Match::Yes => Some(false),
+                        Match::No => Some(true),
+                        Match::Ahead => None,
+                    };
+                }
+                if front.got.is_none() {
+                    front.got = match self.got.matches(*oe, *ob, oh) {
+                        Match::Yes => Some(false),
+                        Match::No => Some(true),
+                        Match::Ahead => None,
+                    };
+                }
+            }
+            let (Some(sent), Some(got)) = (front.sent, front.got) else {
+                break;
+            };
+            let Some(mut item) = self.waiting.pop_front() else {
+                break;
+            };
+            item.checked.sent_mismatch = sent;
+            item.checked.got_mismatch = got;
+            done.push(item.checked);
+        }
+        done
+    }
+
+    /// The stream ended: a checkpoint that is still ahead is a mismatch.
+    fn finish(&mut self) -> Vec<StreamReceipt> {
+        let mut done = self.ready();
+        for mut item in self.waiting.drain(..) {
+            let (sent, got) = match &item.counters {
+                Some(([ie, oe], [ib, ob], [ih, oh])) => (
+                    item.sent
+                        .unwrap_or_else(|| self.sent.matches(*ie, *ib, ih) != Match::Yes),
+                    item.got
+                        .unwrap_or_else(|| self.got.matches(*oe, *ob, oh) != Match::Yes),
+                ),
+                None => (false, false),
+            };
+            item.checked.sent_mismatch = sent;
+            item.checked.got_mismatch = got;
+            done.push(item.checked);
+        }
+        done
     }
 }
 
 fn lock(checker: &Mutex<Checker>) -> std::sync::MutexGuard<'_, Checker> {
     checker.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Check the chains of a stream. Does nothing when there is no checker.
+fn track(checker: Option<&Arc<Mutex<Checker>>>, f: impl FnOnce(&mut Checker)) {
+    if let Some(checker) = checker {
+        f(&mut lock(checker));
+    }
 }
 
 /// The Buffers of the request: the handshake, then the payloads. Empty payloads are not
@@ -361,7 +490,7 @@ async fn run(
     handshake: TokenMessage,
     mut to_rx: mpsc::Receiver<Vec<u8>>,
     from_tx: &mpsc::Sender<Result<Vec<u8>, WireError>>,
-    checker: &Arc<Mutex<Checker>>,
+    checker: Option<&Arc<Mutex<Checker>>>,
     sink: Option<&ReceiptSink>,
 ) -> Result<bool, WireError> {
     let (buffer_tx, buffer_rx) = mpsc::channel::<Buffer>(QUEUE);
@@ -371,13 +500,13 @@ async fn run(
             .await
             .map_err(|_| WireError::Call("the tunnel closed".to_string()))?;
     }
-    let sent = checker.clone();
+    let sent = checker.cloned();
     let sender = tokio::spawn(async move {
         while let Some(payload) = to_rx.recv().await {
             for piece in payload.chunks(MAX_PAYLOAD) {
                 // Into the chain before it goes: a checkpoint never counts a message
                 // that this side has not counted yet.
-                lock(&sent).sent.push(piece);
+                track(sent.as_ref(), |c| c.sent.push(piece));
                 for buffer in piece_buffers(piece) {
                     if buffer_tx.send(buffer).await.is_err() {
                         return;
@@ -433,36 +562,52 @@ async fn run(
     Ok(false)
 }
 
+fn emit(sink: Option<&ReceiptSink>, receipts: Vec<StreamReceipt>) {
+    if let Some(sink) = sink {
+        for checked in receipts {
+            sink(ReceiptEvent::Receipt(checked));
+        }
+    }
+}
+
 /// Send the bytes of the parts to the reader, and the receipts to the sink. False when
 /// the reader is gone.
 async fn forward(
     parts: Vec<Part>,
     to: &mpsc::Sender<Result<Vec<u8>, WireError>>,
-    checker: &Mutex<Checker>,
+    checker: Option<&Arc<Mutex<Checker>>>,
     sink: Option<&ReceiptSink>,
 ) -> bool {
     for part in parts {
         match part.index {
             BYTES => {
-                // Every message is an event of the chain, an empty one too.
-                lock(checker).got.push(&part.data);
+                // Every message that the parser gives is an event of the chain. A
+                // checkpoint that counts more waits until this side catches up.
+                let ready = checker.map(|checker| {
+                    let mut c = lock(checker);
+                    c.got.push(&part.data);
+                    c.ready()
+                });
+                emit(sink, ready.unwrap_or_default());
                 if !part.data.is_empty() && to.send(Ok(part.data)).await.is_err() {
                     return false;
                 }
             }
             RECEIPT => {
-                let checked = match ExecutionReceipt::decode(part.data.as_slice()) {
-                    Ok(r) => lock(checker).check(r),
-                    Err(e) => StreamReceipt {
+                let ready = match ExecutionReceipt::decode(part.data.as_slice()) {
+                    Ok(r) => match checker {
+                        Some(checker) => lock(checker).check(r),
+                        None => vec![],
+                    },
+                    Err(e) => vec![StreamReceipt {
                         receipt: ExecutionReceipt::default(),
                         problems: vec![format!("cannot read a receipt: {e}")],
+                        ordering: vec![],
                         sent_mismatch: false,
                         got_mismatch: false,
-                    },
+                    }],
                 };
-                if let Some(sink) = sink {
-                    sink(ReceiptEvent::Receipt(checked));
-                }
+                emit(sink, ready);
             }
             _ => {}
         }
@@ -493,5 +638,67 @@ mod tests {
         assert_eq!(first, handshake);
         assert!(buffers.iter().all(|b| b.separator == Some(true)));
         assert_eq!(buffers[3].chunk.as_ref().unwrap().len(), 10);
+    }
+
+    fn waiting_for(chain: &Chain, in_chain: &Chain) -> Waiting {
+        Waiting {
+            checked: StreamReceipt {
+                receipt: ExecutionReceipt::default(),
+                problems: vec![],
+                ordering: vec![],
+                sent_mismatch: false,
+                got_mismatch: false,
+            },
+            counters: Some((
+                [in_chain.events, chain.events],
+                [in_chain.bytes, chain.bytes],
+                [in_chain.head.clone(), chain.head.clone()],
+            )),
+            sent: None,
+            got: None,
+        }
+    }
+
+    #[test]
+    fn a_checkpoint_ahead_of_the_client_waits_until_the_client_catches_up() {
+        let mut checker = Checker::new("peer", "tok");
+        let in_chain = Chain::default();
+        let out = receipt::replay_chain([b"one".as_slice(), b"two".as_slice()], DIRECTION_OUT);
+        checker.waiting.push_back(waiting_for(&out, &in_chain));
+        // The client has seen nothing yet: the checkpoint waits, it is not a mismatch.
+        assert!(checker.ready().is_empty());
+        checker.got.push(b"one");
+        assert!(checker.ready().is_empty());
+        checker.got.push(b"two");
+        let done = checker.ready();
+        assert_eq!(done.len(), 1);
+        assert!(!done[0].got_mismatch && !done[0].sent_mismatch);
+    }
+
+    #[test]
+    fn a_checkpoint_that_stays_ahead_is_a_mismatch_when_the_stream_ends() {
+        let mut checker = Checker::new("peer", "tok");
+        let out = receipt::replay_chain([b"one".as_slice(), b"two".as_slice()], DIRECTION_OUT);
+        checker
+            .waiting
+            .push_back(waiting_for(&out, &Chain::default()));
+        checker.got.push(b"one");
+        assert!(checker.ready().is_empty());
+        let done = checker.finish();
+        assert_eq!(done.len(), 1);
+        assert!(done[0].got_mismatch && !done[0].sent_mismatch);
+    }
+
+    #[test]
+    fn a_checkpoint_with_another_head_is_a_mismatch_at_once() {
+        let mut checker = Checker::new("peer", "tok");
+        let out = receipt::replay_chain([b"zzz".as_slice()], DIRECTION_OUT);
+        checker
+            .waiting
+            .push_back(waiting_for(&out, &Chain::default()));
+        checker.got.push(b"one");
+        let done = checker.ready();
+        assert_eq!(done.len(), 1);
+        assert!(done[0].got_mismatch);
     }
 }

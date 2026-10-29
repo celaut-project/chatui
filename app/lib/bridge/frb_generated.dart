@@ -4863,16 +4863,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ReceiptsView dco_decode_receipts_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return ReceiptsView(
       start: dco_decode_start_receipt_state(arr[0]),
       checkpoints: dco_decode_u_64(arr[1]),
       streams: dco_decode_u_64(arr[2]),
-      closed: dco_decode_u_64(arr[3]),
-      cancelled: dco_decode_u_64(arr[4]),
-      noClose: dco_decode_u_64(arr[5]),
-      faults: dco_decode_list_receipt_fault_view(arr[6]),
+      droppedStreams: dco_decode_u_64(arr[3]),
+      closed: dco_decode_u_64(arr[4]),
+      cancelled: dco_decode_u_64(arr[5]),
+      noClose: dco_decode_u_64(arr[6]),
+      faults: dco_decode_list_receipt_fault_view(arr[7]),
     );
   }
 
@@ -6438,6 +6439,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_start = sse_decode_start_receipt_state(deserializer);
     var var_checkpoints = sse_decode_u_64(deserializer);
     var var_streams = sse_decode_u_64(deserializer);
+    var var_droppedStreams = sse_decode_u_64(deserializer);
     var var_closed = sse_decode_u_64(deserializer);
     var var_cancelled = sse_decode_u_64(deserializer);
     var var_noClose = sse_decode_u_64(deserializer);
@@ -6446,6 +6448,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       start: var_start,
       checkpoints: var_checkpoints,
       streams: var_streams,
+      droppedStreams: var_droppedStreams,
       closed: var_closed,
       cancelled: var_cancelled,
       noClose: var_noClose,
@@ -7807,6 +7810,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_start_receipt_state(self.start, serializer);
     sse_encode_u_64(self.checkpoints, serializer);
     sse_encode_u_64(self.streams, serializer);
+    sse_encode_u_64(self.droppedStreams, serializer);
     sse_encode_u_64(self.closed, serializer);
     sse_encode_u_64(self.cancelled, serializer);
     sse_encode_u_64(self.noClose, serializer);

@@ -29,6 +29,7 @@ ReceiptsView _view({
   StartReceiptState start = StartReceiptState.valid,
   int checkpoints = 3,
   int streams = 1,
+  int droppedStreams = 0,
   int closed = 1,
   int cancelled = 0,
   int noClose = 0,
@@ -38,6 +39,7 @@ ReceiptsView _view({
       start: start,
       checkpoints: BigInt.from(checkpoints),
       streams: BigInt.from(streams),
+      droppedStreams: BigInt.from(droppedStreams),
       closed: BigInt.from(closed),
       cancelled: BigInt.from(cancelled),
       noClose: BigInt.from(noClose),
@@ -102,9 +104,22 @@ void main() {
     expect(start.style?.color, red);
     final fault = tester.widget<Text>(find.byKey(const Key('info-receipts-fault-1')));
     expect(fault.data, l.chatsReceiptsFaultReceived);
-    expect(fault.data, "Node signed data that doesn't match what this phone received");
+    expect(fault.data, 'The node signed data that does not match what this phone received');
     expect(fault.style?.color, red);
     expect(_text(tester, 'info-receipts-fault-0'), l.chatsReceiptsFaultEnvs);
+  });
+
+  testWidgets('an omitted start receipt and dropped tunnels are shown', (tester) async {
+    await _pump(
+      tester,
+      _view(
+        start: StartReceiptState.invalid,
+        droppedStreams: 3,
+        faults: const [ReceiptFaultView(kind: ReceiptFaultKind.omitted, detail: '')],
+      ),
+    );
+    expect(_text(tester, 'info-receipts-fault-0'), appL10n.chatsReceiptsFaultOmitted);
+    expect(_text(tester, 'info-receipts-dropped'), '3');
   });
 
   testWidgets('export shares the file, and says so when there is nothing', (tester) async {
@@ -118,6 +133,34 @@ void main() {
     await tester.pump();
     expect(asked, ['i1-receipts']);
     expect(find.text(appL10n.chatsReceiptsExportNone), findsOneWidget);
+  });
+
+  testWidgets('pull to refresh and export read the receipts again', (tester) async {
+    var checkpoints = 1;
+    tester.view.physicalSize = const Size(390, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: InstanceInfoScreen(
+        instance: _instance,
+        state: InstanceState.running,
+        loadReceipts: (_) => _view(checkpoints: checkpoints),
+        exportReceipts: (_) async => true,
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(_text(tester, 'info-receipts-checkpoints'), '1');
+    checkpoints = 4;
+    await tester.fling(find.byType(ListView), const Offset(0, 400), 1000);
+    await tester.pumpAndSettle();
+    expect(_text(tester, 'info-receipts-checkpoints'), '4');
+    checkpoints = 7;
+    await tester.ensureVisible(find.byKey(const Key('info-receipts-export')));
+    await tester.tap(find.byKey(const Key('info-receipts-export')));
+    await tester.pumpAndSettle();
+    expect(_text(tester, 'info-receipts-checkpoints'), '7');
   });
 
   testWidgets('no section when the app cannot read the receipts', (tester) async {

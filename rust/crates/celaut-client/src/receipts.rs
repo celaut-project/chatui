@@ -30,12 +30,19 @@ pub const MAX_STREAMS: usize = 64;
 /// How many receipts with a fault the app keeps for one stream.
 pub const MAX_EVIDENCE: usize = 8;
 
+/// How many receipts that failed the check the app keeps for one instance, in one
+/// bucket. These receipts do not take a stream slot.
+pub const MAX_INVALID: usize = 16;
+
 /// What the phone found wrong in a receipt when it came.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "fault", rename_all = "snake_case")]
 pub enum Fault {
     /// The receipt does not verify: the signature, the shape, the node or the token.
     Invalid { reason: String },
+    /// The receipt is valid, but it breaks the order of the stream: a receipt after the
+    /// close, a seq that does not go up, or a change of session. It is still stored.
+    Order { reason: String },
     /// The `in` chain is not the chain of the bytes that the phone sent.
     Sent,
     /// The `out` chain is not the chain of the bytes that the phone got.
@@ -47,6 +54,8 @@ pub enum Fault {
     /// The node signed a start amount that is not the start balance that the phone
     /// asked for.
     Amount { signed: String, asked: String },
+    /// The node gave no start receipt, but the app knows that the node gives them.
+    Omitted,
 }
 
 /// A receipt as the database keeps it: the protobuf bytes, and what the phone found
@@ -107,9 +116,23 @@ pub struct InstanceReceipts {
     /// The tunnel streams, by session.
     #[serde(default)]
     pub streams: BTreeMap<String, StreamRecord>,
-    /// Streams that the app dropped over [`MAX_STREAMS`], the oldest first.
+    /// Streams that the app dropped over [`MAX_STREAMS`]. The streams with no fault go
+    /// first, the oldest first.
     #[serde(default)]
     pub dropped_streams: u64,
+    /// The receipts that failed the check (the signature, the node, the token or the
+    /// shape), up to [`MAX_INVALID`]. The node chose their session, so they have no
+    /// stream. A receipt that cannot be read is not here.
+    #[serde(default)]
+    pub invalid: Vec<StoredReceipt>,
+    /// The faults of the receipts that failed the check, with no repeat, up to
+    /// [`MAX_INVALID`].
+    #[serde(default)]
+    pub invalid_faults: Vec<Fault>,
+    /// True if the app knows that the node of this instance gives receipts: it gave a
+    /// start receipt for an instance before. Then a missing start receipt is a fault.
+    #[serde(default)]
+    pub expects_start: bool,
 }
 
 /// The faults of a checked stream receipt.
@@ -119,6 +142,12 @@ fn faults_of(checked: &StreamReceipt) -> Vec<Fault> {
         .iter()
         .map(|p| Fault::Invalid { reason: p.clone() })
         .collect();
+    faults.extend(
+        checked
+            .ordering
+            .iter()
+            .map(|p| Fault::Order { reason: p.clone() }),
+    );
     if checked.sent_mismatch {
         faults.push(Fault::Sent);
     }
@@ -135,6 +164,12 @@ impl InstanceReceipts {
             ReceiptEvent::Receipt(checked) => {
                 let session = checked.receipt.session.clone();
                 let faults = faults_of(checked);
+                // The node chose the session of a receipt that failed the check. Such a
+                // receipt does not take a stream slot.
+                if !checked.problems.is_empty() || session.is_empty() {
+                    self.keep_invalid(&checked.receipt, faults);
+                    return;
+                }
                 let stored = StoredReceipt::new(&checked.receipt, faults.clone());
                 if !self.streams.contains_key(&session) {
                     self.make_room();
@@ -147,11 +182,23 @@ impl InstanceReceipts {
                 if !faults.is_empty() && stream.evidence.len() < MAX_EVIDENCE {
                     stream.evidence.push(stored.clone());
                 }
-                if checked.receipt.kind == KIND_CLOSE && checked.problems.is_empty() {
-                    stream.close = Some(stored);
-                    stream.last = None;
-                } else if checked.problems.is_empty() && stream.close.is_none() {
-                    stream.last = Some(stored);
+                // A receipt with an ordering fault is valid and signed, so it is stored.
+                // The first close stays. A checkpoint with a lower seq does not replace
+                // a checkpoint with a higher seq.
+                if checked.receipt.kind == KIND_CLOSE {
+                    if stream.close.is_none() {
+                        stream.close = Some(stored);
+                        stream.last = None;
+                    }
+                } else if stream.close.is_none() {
+                    let newer = stream
+                        .last
+                        .as_ref()
+                        .and_then(StoredReceipt::receipt)
+                        .is_none_or(|old| checked.receipt.seq >= old.seq);
+                    if newer {
+                        stream.last = Some(stored);
+                    }
                 }
             }
             ReceiptEvent::Ended {
@@ -169,12 +216,32 @@ impl InstanceReceipts {
         }
     }
 
+    /// Keep a receipt that failed the check in the bucket. A receipt with no field
+    /// (the app could not decode it) gives a fault but is not stored.
+    fn keep_invalid(&mut self, receipt: &ExecutionReceipt, mut faults: Vec<Fault>) {
+        if faults.is_empty() {
+            faults.push(Fault::Invalid {
+                reason: "the receipt has no session".to_string(),
+            });
+        }
+        for fault in &faults {
+            if self.invalid_faults.len() < MAX_INVALID && !self.invalid_faults.contains(fault) {
+                self.invalid_faults.push(fault.clone());
+            }
+        }
+        if *receipt != ExecutionReceipt::default() && self.invalid.len() < MAX_INVALID {
+            self.invalid.push(StoredReceipt::new(receipt, faults));
+        }
+    }
+
+    /// Drop the oldest stream with no fault. If all the streams have a fault, drop the
+    /// oldest of them.
     fn make_room(&mut self) {
         while self.streams.len() >= MAX_STREAMS {
             let oldest = self
                 .streams
                 .iter()
-                .min_by_key(|(_, s)| s.first_at)
+                .min_by_key(|(_, s)| (!s.evidence.is_empty(), s.first_at))
                 .map(|(k, _)| k.clone());
             let Some(oldest) = oldest else { break };
             self.streams.remove(&oldest);
@@ -186,6 +253,7 @@ impl InstanceReceipts {
     /// stream (its receipts with a fault, then its last checkpoint or its close).
     pub fn stored(&self) -> Vec<&StoredReceipt> {
         let mut out: Vec<&StoredReceipt> = self.start.iter().collect();
+        out.extend(self.invalid.iter());
         let mut streams: Vec<&StreamRecord> = self.streams.values().collect();
         streams.sort_by_key(|s| s.first_at);
         for s in streams {
@@ -263,6 +331,8 @@ pub struct ReceiptSummary {
     pub checkpoints: u64,
     /// The streams that the app keeps.
     pub streams: u64,
+    /// The streams that the app dropped over [`MAX_STREAMS`].
+    pub dropped_streams: u64,
     /// The streams with a close.
     pub closed: u64,
     /// The streams that the phone ended (no close, and not a fault).
@@ -278,7 +348,10 @@ pub struct ReceiptSummary {
 /// against the node and the token: a receipt that was changed in the database shows as
 /// [`Fault::Invalid`].
 pub fn summarize(receipts: &InstanceReceipts, peer_id: &str, token: &str) -> ReceiptSummary {
-    let mut summary = ReceiptSummary::default();
+    let mut summary = ReceiptSummary {
+        dropped_streams: receipts.dropped_streams,
+        ..Default::default()
+    };
     let again = |stored: &StoredReceipt| -> Vec<Fault> {
         let mut faults = stored.faults.clone();
         let now = match stored.receipt() {
@@ -297,6 +370,21 @@ pub fn summarize(receipts: &InstanceReceipts, peer_id: &str, token: &str) -> Rec
         let faults = again(start);
         summary.start_ok = Some(faults.is_empty());
         summary.faults.extend(faults);
+    } else if receipts.expects_start {
+        summary.start_ok = Some(false);
+        summary.faults.push(Fault::Omitted);
+    }
+    for stored in &receipts.invalid {
+        for fault in again(stored) {
+            if !summary.faults.contains(&fault) {
+                summary.faults.push(fault);
+            }
+        }
+    }
+    for fault in &receipts.invalid_faults {
+        if !summary.faults.contains(fault) {
+            summary.faults.push(fault.clone());
+        }
     }
     for stream in receipts.streams.values() {
         summary.streams += 1;
@@ -456,12 +544,14 @@ pub fn to_json(r: &ExecutionReceipt) -> Value {
 
 /// The receipts of an instance as JSON Lines, one receipt on each line: the file that
 /// `nodo receipt verify <file> --token <token> --peer <peer_id>` checks. The token is not
-/// in it. A stored receipt that cannot be read is left out.
+/// in it. A stored receipt that cannot be read, or that has no field, is left out.
 pub fn export_jsonl(receipts: &InstanceReceipts) -> String {
     receipts
         .stored()
         .into_iter()
         .filter_map(StoredReceipt::receipt)
+        // A receipt with no field is not a receipt: it would be a `{}` line.
+        .filter(|r| *r != ExecutionReceipt::default())
         .map(|r| to_json(&r).to_string() + "\n")
         .collect()
 }
@@ -544,6 +634,7 @@ mod tests {
         ReceiptEvent::Receipt(StreamReceipt {
             receipt: r,
             problems: vec![],
+            ordering: vec![],
             sent_mismatch: false,
             got_mismatch: false,
         })
@@ -649,6 +740,7 @@ mod tests {
                 start_ok: Some(true),
                 checkpoints: 5,
                 streams: 4,
+                dropped_streams: 0,
                 closed: 1,
                 cancelled: 1,
                 no_close: 1,
@@ -684,6 +776,7 @@ mod tests {
             &ReceiptEvent::Receipt(StreamReceipt {
                 receipt: checkpoint(receipt::KIND_CHECKPOINT, &s, 1, &[b"x"]),
                 problems: vec![],
+                ordering: vec![],
                 sent_mismatch: false,
                 got_mismatch: true,
             }),
@@ -723,5 +816,111 @@ mod tests {
         assert_eq!(kept.streams.len(), MAX_STREAMS);
         assert_eq!(kept.dropped_streams, 2);
         assert!(!kept.streams.contains_key(&format!("{:032x}", 0)));
+    }
+
+    fn bad(r: ExecutionReceipt) -> ReceiptEvent {
+        ReceiptEvent::Receipt(StreamReceipt {
+            receipt: r,
+            problems: vec!["the signature does not verify".into()],
+            ordering: vec![],
+            sent_mismatch: false,
+            got_mismatch: false,
+        })
+    }
+
+    #[test]
+    fn a_stream_with_a_fault_stays_while_a_clean_one_can_go() {
+        let mut kept = InstanceReceipts::default();
+        // The oldest stream has a fault.
+        kept.apply(
+            &ReceiptEvent::Receipt(StreamReceipt {
+                receipt: checkpoint(receipt::KIND_CHECKPOINT, &format!("{:032x}", 0), 1, &[b"x"]),
+                problems: vec![],
+                ordering: vec![],
+                sent_mismatch: true,
+                got_mismatch: false,
+            }),
+            0,
+        );
+        for n in 1..(MAX_STREAMS as u64 + 5) {
+            let session = format!("{n:032x}");
+            kept.apply(
+                &good(checkpoint(receipt::KIND_CHECKPOINT, &session, 1, &[b"x"])),
+                n as i64,
+            );
+        }
+        assert_eq!(kept.streams.len(), MAX_STREAMS);
+        assert_eq!(kept.dropped_streams, 5);
+        assert!(kept.streams.contains_key(&format!("{:032x}", 0)));
+        let s = summarize(&kept, &peer_id(), TOKEN);
+        assert_eq!(s.dropped_streams, 5);
+        assert_eq!(s.faults, vec![Fault::Sent]);
+    }
+
+    #[test]
+    fn a_receipt_that_failed_the_check_takes_no_stream_slot() {
+        let mut kept = InstanceReceipts::default();
+        for n in 0..(MAX_INVALID as u64 * 3) {
+            let session = format!("{n:032x}");
+            kept.apply(
+                &bad(checkpoint(receipt::KIND_CHECKPOINT, &session, 1, &[b"x"])),
+                n as i64,
+            );
+        }
+        // An undecodable receipt is a default receipt.
+        kept.apply(&bad(ExecutionReceipt::default()), 1);
+        assert!(kept.streams.is_empty());
+        assert_eq!(kept.dropped_streams, 0);
+        assert_eq!(kept.invalid.len(), MAX_INVALID);
+        let s = summarize(&kept, &peer_id(), TOKEN);
+        assert!(!s.faults.is_empty());
+        assert_eq!(s.streams, 0);
+        let jsonl = export_jsonl(&kept);
+        assert_eq!(jsonl.lines().count(), MAX_INVALID);
+        assert!(jsonl.lines().all(|l| l != "{}"));
+        // Only a default receipt: a fault, and nothing to export.
+        let mut only = InstanceReceipts::default();
+        only.apply(&bad(ExecutionReceipt::default()), 1);
+        assert!(only.invalid.is_empty());
+        assert_eq!(summarize(&only, &peer_id(), TOKEN).faults.len(), 1);
+        assert_eq!(export_jsonl(&only), "");
+    }
+
+    #[test]
+    fn a_missing_start_receipt_is_a_fault_if_the_node_gave_one_before() {
+        let mut kept = InstanceReceipts::default();
+        let s = summarize(&kept, &peer_id(), TOKEN);
+        assert_eq!((s.start_ok, s.faults.len()), (None, 0));
+        kept.expects_start = true;
+        let s = summarize(&kept, &peer_id(), TOKEN);
+        assert_eq!(s.start_ok, Some(false));
+        assert_eq!(s.faults, vec![Fault::Omitted]);
+    }
+
+    #[test]
+    fn a_receipt_with_an_ordering_fault_is_still_stored() {
+        let mut kept = InstanceReceipts::default();
+        let s = "dd".repeat(16);
+        let order = |r: ExecutionReceipt, why: &str| {
+            ReceiptEvent::Receipt(StreamReceipt {
+                receipt: r,
+                problems: vec![],
+                ordering: vec![why.to_string()],
+                sent_mismatch: false,
+                got_mismatch: false,
+            })
+        };
+        kept.apply(
+            &order(checkpoint(receipt::KIND_CLOSE, &s, 2, &[b"x"]), "late"),
+            1,
+        );
+        let stream = &kept.streams[&s];
+        assert!(stream.close.is_some());
+        assert!(matches!(
+            stream.close.as_ref().unwrap().faults.as_slice(),
+            [Fault::Order { .. }]
+        ));
+        assert_eq!(stream.evidence.len(), 1);
+        assert!(kept.invalid.is_empty());
     }
 }

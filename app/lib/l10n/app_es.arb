@@ -1574,6 +1574,8 @@
   "chatsReceiptsFaultService": "El nodo firmó un servicio distinto del que inició este teléfono",
   "chatsReceiptsFaultAmount": "El nodo firmó un saldo inicial distinto del que pidió este teléfono",
   "chatsReceiptsFaultInvalid": "Un recibo no se verifica",
+  "chatsReceiptsFaultOmitted": "El nodo no dio recibo de inicio, pero dio uno antes",
+  "chatsReceiptsDropped": "Túneles descartados",
   "chatsReceiptsExport": "Exportar recibos",
   "chatsReceiptsExportNone": "No hay recibos para exportar.",
   "chatsReceiptsExportFailed": "La exportación falló: {error}",

@@ -549,10 +549,16 @@ pub async fn celaut_start_service(
         StoredReceipt::new(r, faults)
     });
     db().update(|d| {
+        // A node that gave a start receipt for an instance before must give one now.
+        let expects_start = start_receipt.is_none()
+            && d.instances.iter().any(|(id, r)| {
+                r.peer_id == record.peer_id && d.receipts.get(id).is_some_and(|k| k.start.is_some())
+            });
         d.receipts.insert(
             instance_id.clone(),
             InstanceReceipts {
                 start: start_receipt,
+                expects_start,
                 ..Default::default()
             },
         );
@@ -808,8 +814,8 @@ pub async fn celaut_instance_status(
             record.topped_up_mu.as_deref(),
             balance,
         )
-            .map(|c| c.to_string())
-            .unwrap_or_default(),
+        .map(|c| c.to_string())
+        .unwrap_or_default(),
         streams_opened: streams,
         last_tunnel_error: last,
     })
@@ -843,7 +849,9 @@ pub async fn celaut_top_up_instance(
         .parse()
         .map_err(|_| invalid("The amount is not a number of MU."))?;
     if mu == 0 || mu > TOP_UP_MAX_MU {
-        return Err(invalid("The amount of a top-up must be from 1 to 100,000,000 MU."));
+        return Err(invalid(
+            "The amount of a top-up must be from 1 to 100,000,000 MU.",
+        ));
     }
     let (session, record) = instance(&instance_id).await?;
     let credit = session.balance().await.map_err(error_of)?;
@@ -1045,7 +1053,10 @@ mod tests {
         };
         celaut_rename_instance(id.clone(), "  My   echo ".into()).unwrap();
         let v = view(&id);
-        assert_eq!((v.name.as_str(), v.alias.as_str()), ("echo-chat", "My echo"));
+        assert_eq!(
+            (v.name.as_str(), v.alias.as_str()),
+            ("echo-chat", "My echo")
+        );
         // Empty: the alias goes, the name of the start stays.
         celaut_rename_instance(id.clone(), " ".into()).unwrap();
         let v = view(&id);
@@ -1098,7 +1109,10 @@ mod tests {
         })
         .unwrap();
         let view = listed(&id).unwrap();
-        assert_eq!((view.stopped_at, view.refund_mu.as_str()), (Some(42), "700"));
+        assert_eq!(
+            (view.stopped_at, view.refund_mu.as_str()),
+            (Some(42), "700")
+        );
         celaut_forget_instance(id.clone()).unwrap();
         assert!(listed(&id).is_none());
         let err = celaut_forget_instance(id).unwrap_err();
@@ -1147,7 +1161,11 @@ mod tests {
         );
         let c = start_configuration(Some("5".into()), &[typed("B", "2"), typed("A", "1")]).unwrap();
         assert_eq!(c.initial_mu, Some(Amount { n: "5".into() }));
-        let names: Vec<_> = c.environment_variables.iter().map(|e| e.key.as_str()).collect();
+        let names: Vec<_> = c
+            .environment_variables
+            .iter()
+            .map(|e| e.key.as_str())
+            .collect();
         assert_eq!(names, ["B", "A"]);
         // A quote never has them.
         assert!(configuration(Some("5".into()))
