@@ -549,6 +549,16 @@ class _ChatScreenState extends State<ChatScreen>
     _scrollToEnd();
   }
 
+  /// The keyboard of the system opens or closes, or the window changes its size: the list
+  /// gets shorter or taller at its foot, and its position stays. If the end of the list was
+  /// in view, keep it in view, as a messenger does. The metrics change before the next
+  /// layout, so the list still has its last size here.
+  @override
+  void didChangeMetrics() {
+    if (!_scroll.hasClients || _userScrolling) return;
+    if (_scroll.position.maxScrollExtent - _scroll.position.pixels < 80) _scrollToEnd();
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // A short pause (a system dialog, the app switcher) is "inactive": the chat is still in
