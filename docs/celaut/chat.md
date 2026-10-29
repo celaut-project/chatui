@@ -476,6 +476,14 @@ be under the input. Under the input it shows:
 | There is no form | The keyboard of the app: letters (with `ñ`), numbers and symbols, shift, Backspace, space and a new line. It types in the input of the conversation |
 | The user records audio | Nothing |
 
+When the user scrolls the conversation (a drag or a fling on the list of messages), what shows
+under the input hides: the form, or the keyboard of the app. This gives the list the room of
+the screen. They show again when the user taps the input, and when a new message comes (the
+service's, or the user's own). A tap on the card of the form of the last message (section above)
+opens a form that the user closed, not one that the scroll hid: for that the user taps the
+input. If the keyboard of the system is in use, a drag on the list also takes the focus from
+the input, and the keyboard of the system closes.
+
 The user can choose the keyboard of the system in the settings of the chat (**Use the system
 keyboard**, a setting for the whole app, off by default). Then the input uses the keyboard of
 the system, and the keyboard of the app does not show, except that while there is a form the
