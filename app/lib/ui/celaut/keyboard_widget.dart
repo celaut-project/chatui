@@ -23,13 +23,126 @@ const int keyboardMaxPlaceholderChars = 80;
 final _fieldName = RegExp(r'^[A-Za-z0-9_-]{1,32}$');
 final _placeholder = RegExp(r'\{([A-Za-z0-9_-]{1,32})\}');
 
-/// A field of a keyboard block: the `input` element that has a valid `data-name`. The
-/// user writes a value in it, and a `{name}` in the `data-say` of a key is that value.
+/// The most options that a `select` of a keyboard block shows. An option after this is lost.
+const int keyboardMaxOptions = 32;
+
+/// The most characters of the label of an option. The client cuts the rest.
+const int keyboardMaxOptionChars = 80;
+
+/// The most steps that a slider has. A slider with more is continuous, and its value is
+/// rounded to the step.
+const int keyboardMaxSliderSteps = 1000;
+
+/// What the user does in a field of a keyboard block.
+enum ChatFieldKind {
+  /// One line of text (`input`, or `input` with a `type` that the client does not know).
+  text,
+
+  /// A day, chosen in a calendar (`type="date"`). The value is `YYYY-MM-DD`.
+  date,
+
+  /// A time of day, chosen in a clock (`type="time"`). The value is `HH:MM`, in 24 hours.
+  time,
+
+  /// A number, chosen with a slider (`type="range"`).
+  range,
+
+  /// A box that is on or off (`type="checkbox"`). The value is its `value`, or its `data-off`.
+  checkbox,
+
+  /// One of some options (`select`). The value is the `value` of the option.
+  select,
+}
+
+/// An option of a `select`: [value] is what goes in the message, [label] is what the user reads.
+class ChatOption {
+  const ChatOption(this.value, this.label);
+
+  final String value;
+  final String label;
+}
+
+/// A field of a keyboard block: an `input` or a `select` element that has a valid `data-name`.
+/// The user gives a value in it, and a `{name}` in the `data-say` of a key is that value.
+/// Only the attributes of its [kind] have a meaning; the rest are [initial] and the defaults.
 class ChatKeyField {
-  const ChatKeyField(this.name, this.placeholder);
+  const ChatKeyField(
+    this.name,
+    this.placeholder, {
+    this.kind = ChatFieldKind.text,
+    this.options = const [],
+    this.min = 0,
+    this.max = 100,
+    this.step = 1,
+    this.decimals = 0,
+    this.firstDate,
+    this.lastDate,
+    this.initial = '',
+    this.on = 'yes',
+    this.off = 'no',
+  });
 
   final String name;
   final String placeholder;
+  final ChatFieldKind kind;
+
+  /// The options of a `select`.
+  final List<ChatOption> options;
+
+  /// The range and the step of a slider, and how many decimals its value has.
+  final double min, max, step;
+  final int decimals;
+
+  /// The first and the last day that a calendar offers, or null for no limit.
+  final DateTime? firstDate, lastDate;
+
+  /// The value of the field before the user does anything. Empty for a field that waits.
+  final String initial;
+
+  /// The value of a checkbox that is on, and the one of a checkbox that is off.
+  final String on, off;
+}
+
+final _datePattern = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$');
+final _timePattern = RegExp(r'^([01]\d|2[0-3]):([0-5]\d)$');
+
+/// The day of `YYYY-MM-DD`, or null if [v] is not a real day.
+DateTime? parseChatDate(String v) {
+  final m = _datePattern.firstMatch(v.trim());
+  if (m == null) return null;
+  final y = int.parse(m.group(1)!), mo = int.parse(m.group(2)!), d = int.parse(m.group(3)!);
+  final date = DateTime(y, mo, d);
+  return date.year == y && date.month == mo && date.day == d ? date : null;
+}
+
+String formatChatDate(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+/// The time of `HH:MM` (24 hours), or null.
+TimeOfDay? parseChatTime(String v) {
+  final m = _timePattern.firstMatch(v.trim());
+  return m == null ? null : TimeOfDay(hour: int.parse(m.group(1)!), minute: int.parse(m.group(2)!));
+}
+
+String formatChatTime(TimeOfDay t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+int _decimals(String? v) {
+  final i = v?.indexOf('.') ?? -1;
+  return i < 0 ? 0 : (v!.length - i - 1).clamp(0, 6);
+}
+
+/// [v] as a value of the slider of [f]: inside the range, on a step, with the decimals of
+/// the step and the minimum. It is the text that goes in the message.
+String snapRange(double v, ChatKeyField f) {
+  final c = v.clamp(f.min, f.max);
+  final snapped = (f.min + ((c - f.min) / f.step).round() * f.step).clamp(f.min, f.max);
+  return snapped.toStringAsFixed(f.decimals);
+}
+
+/// The slider of [f] has steps to snap to: the number of divisions, or null if it has too many.
+int? rangeDivisions(ChatKeyField f) {
+  final n = ((f.max - f.min) / f.step).round();
+  return n >= 1 && n <= keyboardMaxSliderSteps ? n : null;
 }
 
 /// A key of a keyboard block: the element that has a `data-say`. [label] is its text (the
@@ -44,6 +157,81 @@ class ChatKey {
 }
 
 final _spaces = RegExp(r'\s+');
+
+/// The options of a `select`: its `option` elements, also those that an `option` without a
+/// closing tag holds. An option with no value, or a value that is too long, is lost; two with
+/// the same value are one.
+List<ChatOption> _optionsOf(List<HtmlNode> nodes, [List<ChatOption>? out]) {
+  final options = out ?? <ChatOption>[];
+  for (final n in nodes) {
+    if (n.tag == null) continue;
+    if (n.tag == 'option' && options.length < keyboardMaxOptions) {
+      final text = n.children.where((c) => c.tag == null).map((c) => c.text!).join().replaceAll(_spaces, ' ').trim();
+      final value = (n.attrs['value'] ?? text).replaceAll(_spaces, ' ').trim();
+      if (value.isNotEmpty && value.length <= keyboardMaxFieldChars && !options.any((o) => o.value == value)) {
+        final label = text.isEmpty ? value : text;
+        options.add(ChatOption(
+          value,
+          label.length > keyboardMaxOptionChars ? label.substring(0, keyboardMaxOptionChars) : label,
+        ));
+      }
+    }
+    _optionsOf(n.children, options);
+  }
+  return options;
+}
+
+/// The field of an `input` or `select` element that has the valid [name].
+ChatKeyField _fieldOf(HtmlNode n, String name) {
+  final hint = (n.attrs['placeholder'] ?? '').replaceAll(_spaces, ' ').trim();
+  final placeholder = hint.length > keyboardMaxPlaceholderChars ? hint.substring(0, keyboardMaxPlaceholderChars) : hint;
+  if (n.tag == 'select') {
+    return ChatKeyField(name, placeholder, kind: ChatFieldKind.select, options: _optionsOf(n.children));
+  }
+  String attr(String k) => (n.attrs[k] ?? '').replaceAll(_spaces, ' ').trim();
+  switch (attr('type').toLowerCase()) {
+    case 'date':
+      final first = parseChatDate(attr('min')), last = parseChatDate(attr('max'));
+      final ok = first == null || last == null || !last.isBefore(first);
+      final initial = parseChatDate(attr('value'));
+      return ChatKeyField(
+        name,
+        placeholder,
+        kind: ChatFieldKind.date,
+        firstDate: ok ? first : null,
+        lastDate: ok ? last : null,
+        initial: initial == null ? '' : formatChatDate(initial),
+      );
+    case 'time':
+      final initial = parseChatTime(attr('value'));
+      return ChatKeyField(name, placeholder,
+          kind: ChatFieldKind.time, initial: initial == null ? '' : formatChatTime(initial));
+    case 'range':
+      double? number(String k) {
+        final v = double.tryParse(attr(k));
+        return v != null && v.isFinite ? v : null;
+      }
+
+      var min = number('min') ?? 0.0, max = number('max') ?? 100.0;
+      if (max <= min) {
+        min = 0;
+        max = 100;
+      }
+      var step = number('step') ?? 1.0;
+      if (step <= 0) step = 1;
+      final decimals = _decimals(attr('min')) > _decimals(attr('step')) ? _decimals(attr('min')) : _decimals(attr('step'));
+      ChatKeyField range([String initial = '']) => ChatKeyField(name, placeholder,
+          kind: ChatFieldKind.range, min: min, max: max, step: step, decimals: decimals, initial: initial);
+      return range(snapRange(number('value') ?? min, range()));
+    case 'checkbox':
+      String cut(String v) => v.length > keyboardMaxFieldChars ? v.substring(0, keyboardMaxFieldChars) : v;
+      final on = cut(attr('value').isEmpty ? 'yes' : attr('value'));
+      final off = cut(attr('data-off').isEmpty ? 'no' : attr('data-off'));
+      return ChatKeyField(name, placeholder,
+          kind: ChatFieldKind.checkbox, on: on, off: off, initial: n.attrs.containsKey('checked') ? on : off);
+  }
+  return ChatKeyField(name, placeholder);
+}
 
 /// The rows of a keyboard block. A row has keys ([ChatKey]), fields ([ChatKeyField])
 /// and texts ([String]) in the order of the source. A block element (`div`, `p`, `li`, `tr`, a heading...) starts
@@ -71,17 +259,14 @@ List<List<Object>> keyboardRows(String html) {
         if (t.isNotEmpty) row.add(t);
         continue;
       }
-      if (tag == 'input') {
+      if (tag == 'input' || tag == 'select') {
         final name = n.attrs['data-name'] ?? '';
         if (_fieldName.hasMatch(name) && names.length < keyboardMaxFields && names.add(name)) {
-          final hint = (n.attrs['placeholder'] ?? '').replaceAll(_spaces, ' ').trim();
-          row.add(ChatKeyField(
-            name,
-            hint.length > keyboardMaxPlaceholderChars ? hint.substring(0, keyboardMaxPlaceholderChars) : hint,
-          ));
+          row.add(_fieldOf(n, name));
         }
         continue;
       }
+      if (tag == 'option') continue;
       final say = n.attrs['data-say'];
       if (say != null && say.trim().isNotEmpty && say.length <= keyboardMaxSayChars && keys < keyboardMaxKeys) {
         final label = textOf(n).replaceAll(_spaces, ' ').trim();
@@ -96,7 +281,7 @@ List<List<Object>> keyboardRows(String html) {
     }
   }
 
-  walk(parseChatHtml(html));
+  walk(parseChatHtml(html, forms: true));
   flush();
   return rows;
 }
@@ -170,8 +355,8 @@ class ChatKeyboard extends StatefulWidget {
 class _ChatKeyboardState extends State<ChatKeyboard> {
   final Map<String, TextEditingController> _fields = {};
 
-  TextEditingController _field(String name) => _fields.putIfAbsent(name, () {
-        final c = TextEditingController();
+  TextEditingController _field(ChatKeyField f) => _fields.putIfAbsent(f.name, () {
+        final c = TextEditingController(text: f.initial);
         // A key can need the field, so the keys follow what the user writes.
         c.addListener(() => setState(() {}));
         return c;
@@ -206,7 +391,7 @@ class _ChatKeyboardState extends State<ChatKeyboard> {
     final values = {
       for (final row in rows)
         for (final item in row)
-          if (item is ChatKeyField) item.name: _field(item.name).text,
+          if (item is ChatKeyField) item.name: _field(item).text,
     };
     var index = 0;
     return ConstrainedBox(
@@ -230,28 +415,7 @@ class _ChatKeyboardState extends State<ChatKeyboard> {
                       if (item is ChatKey)
                         _key(item, values, text, index++)
                       else if (item is ChatKeyField)
-                        SizedBox(
-                          width: 200,
-                          child: Focus(
-                            canRequestFocus: false,
-                            skipTraversal: true,
-                            onFocusChange: (f) => widget.onFieldFocus?.call(_field(item.name), f),
-                            child: TextField(
-                              key: Key('chat-field-${item.name}'),
-                              controller: _field(item.name),
-                              keyboardType: widget.systemKeyboard ? null : TextInputType.none,
-                              style: text,
-                              maxLength: keyboardMaxFieldChars,
-                              maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                              textInputAction: TextInputAction.done,
-                              decoration: InputDecoration(
-                                isDense: true,
-                                counterText: '',
-                                hintText: item.placeholder,
-                              ),
-                            ),
-                          ),
-                        )
+                        _fieldWidget(item, text)
                       else
                         Text(item as String, style: text),
                   ],
@@ -261,6 +425,141 @@ class _ChatKeyboardState extends State<ChatKeyboard> {
         ),
       ),
     );
+  }
+
+  Widget _fieldWidget(ChatKeyField item, TextStyle text) {
+    final c = _field(item);
+    final hint = item.placeholder;
+    // A field that waits shows its hint; one with a value shows the value.
+    Widget chooser(String shown, IconData icon, {VoidCallback? onTap}) => InkWell(
+          key: Key('chat-field-${item.name}'),
+          onTap: onTap,
+          child: InputDecorator(
+            isEmpty: shown.isEmpty,
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: hint,
+              suffixIcon: Icon(icon, size: 18),
+            ),
+            child: Text(shown, style: text, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+        );
+    switch (item.kind) {
+      case ChatFieldKind.date:
+        return SizedBox(
+          width: 200,
+          child: chooser(c.text, Icons.calendar_today_outlined, onTap: () async {
+            final first = item.firstDate ?? DateTime(1900);
+            final last = item.lastDate ?? DateTime(2100, 12, 31);
+            var initial = parseChatDate(c.text) ?? DateTime.now();
+            if (initial.isBefore(first)) initial = first;
+            if (initial.isAfter(last)) initial = last;
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: initial,
+              firstDate: first,
+              lastDate: last,
+            );
+            if (picked != null && mounted) c.text = formatChatDate(picked);
+          }),
+        );
+      case ChatFieldKind.time:
+        return SizedBox(
+          width: 200,
+          child: chooser(c.text, Icons.schedule, onTap: () async {
+            final picked = await showTimePicker(
+              context: context,
+              initialTime: parseChatTime(c.text) ?? TimeOfDay.now(),
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+                child: child!,
+              ),
+            );
+            if (picked != null && mounted) c.text = formatChatTime(picked);
+          }),
+        );
+      case ChatFieldKind.select:
+        final label = item.options.where((o) => o.value == c.text).map((o) => o.label).firstOrNull ?? '';
+        return SizedBox(
+          width: 200,
+          child: PopupMenuButton<String>(
+            tooltip: '',
+            enabled: item.options.isNotEmpty,
+            onSelected: (v) => c.text = v,
+            itemBuilder: (_) => [
+              for (final o in item.options) PopupMenuItem(value: o.value, child: Text(o.label, style: text)),
+            ],
+            child: chooser(label, Icons.arrow_drop_down),
+          ),
+        );
+      case ChatFieldKind.range:
+        final v = (double.tryParse(c.text) ?? item.min).clamp(item.min, item.max).toDouble();
+        return SizedBox(
+          width: 220,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: Text(hint, style: text, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  Text(c.text, style: text),
+                ],
+              ),
+              Slider(
+                key: Key('chat-field-${item.name}'),
+                value: v,
+                min: item.min,
+                max: item.max,
+                divisions: rangeDivisions(item),
+                onChanged: (x) => c.text = snapRange(x, item),
+              ),
+            ],
+          ),
+        );
+      case ChatFieldKind.checkbox:
+        final on = c.text == item.on;
+        return InkWell(
+          onTap: () => c.text = on ? item.off : item.on,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 280),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Checkbox(
+                  key: Key('chat-field-${item.name}'),
+                  value: on,
+                  onChanged: (v) => c.text = v == true ? item.on : item.off,
+                ),
+                Flexible(child: Text(hint.isEmpty ? item.name : hint, style: text)),
+              ],
+            ),
+          ),
+        );
+      case ChatFieldKind.text:
+        return SizedBox(
+          width: 200,
+          child: Focus(
+            canRequestFocus: false,
+            skipTraversal: true,
+            onFocusChange: (f) => widget.onFieldFocus?.call(c, f),
+            child: TextField(
+              key: Key('chat-field-${item.name}'),
+              controller: c,
+              keyboardType: widget.systemKeyboard ? null : TextInputType.none,
+              style: text,
+              maxLength: keyboardMaxFieldChars,
+              maxLengthEnforcement: MaxLengthEnforcement.enforced,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(
+                isDense: true,
+                counterText: '',
+                hintText: hint,
+              ),
+            ),
+          ),
+        );
+    }
   }
 
   Widget _key(ChatKey key, Map<String, String> values, TextStyle text, int i) {

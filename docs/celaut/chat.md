@@ -99,6 +99,7 @@ if the text of the row is not in conflict with a newer row.
 | File limits | 2026-10-24 | The limits of revision 5 stay: 4 files of 4 MiB in one message, and `image/jpeg`, `image/png`, `audio/mpeg`, `audio/wav` (section 7) |
 | HTML widgets | 2026-10-24 | A service sends an HTML widget as a fenced block that starts with ```` ```html ```` in a `TextContent`. This stays a client feature that is not normative (section 5.4). `StructuredContent` with `text/html` is not used, because the answer of a model comes as a stream of text and a `StructuredContent` part cannot grow |
 | Keyboard block | 2026-10-29 | A service offers keys to the user as a fenced block that starts with ```` ```keyboard ````, in a `TextContent`, as the HTML block. A key has a `data-say`. A tap on a key puts the `data-say` in the input of the user. The client does not send it: the user sends it with Send, unless the key has `data-send`: then a tap sends it. The block can also have fields (`input`): a `{name}` in a `data-say` is the value that the user wrote in the field `name`. Nothing changes on the wire, and the service gets the text as a normal user message (section 5.5) |
+| Keyboard controls and keyboard of the app | 2026-10-29 | A field of a keyboard block can be a calendar (`type="date"`), a clock (`type="time"`), a slider (`type="range"`), a checkbox (`type="checkbox"`) or a list of options (`select`), as well as one line of text. The value of each one is text, and a `{name}` in a `data-say` is that text: the wire does not change. In chatui the form shows **under** the input (not above it), the chat does not open the keyboard of the system, and under the input it shows the form or, if there is none, a keyboard of the app. A setting (off by default) lets the user choose the keyboard of the system. A closed form opens again with a tap on its card (section 5.5) |
 | Attachments | 2026-10-22 | A message can have image files and audio files. The client shows the attach button only for the kinds that the service accepts. The files stay in memory only |
 | Recorded audio | 2026-10-24 | A client can record sound and send it as `audio/wav`. A service that accepts `audio` must accept `audio/wav` |
 | Version | 2026-10-14 | The tag has no version. The interface only grows with new optional fields (section 11) |
@@ -420,22 +421,54 @@ Format:
 | Rule | Value |
 |---|---|
 | Fence | A line "```` ```keyboard ````" opens the block, and a line "```` ``` ````" closes it, as the HTML block (section 5.4) |
-| Content | The same restricted HTML as the HTML block: allowed tags and attributes only, no script, no network, no `on*` attribute. `button` and `input` are allowed tags. `data-say`, `data-send`, `data-name` and `placeholder` are allowed attributes, and the only ones that have a meaning here |
+| Content | The same restricted HTML as the HTML block: allowed tags and attributes only, no script, no network, no `on*` attribute. `button`, `input`, `select` and `option` are allowed tags (`select` and `option` only in a keyboard block: the HTML block drops `select`). `data-say`, `data-send`, `data-name`, `placeholder`, `type`, `min`, `max`, `step`, `value`, `checked` and `data-off` are allowed attributes, and the only ones that have a meaning here |
 | Key | An element that has a `data-say` that is not empty. Its text is the label of the key. If it has no text, the label is the `data-say` |
-| Field | An `input` element that has a `data-name` is a field: the user writes a value in it, and the `placeholder` is its hint. A `data-name` has 1 to 32 characters of `A-Z`, `a-z`, `0-9`, `_` and `-`. An `input` with no valid `data-name`, a second field with the same name, and a field after the 8th are not shown. Only the `data-name` and the `placeholder` have a meaning: the client ignores `type`, `value` and all other attributes, and a field is always one line of text |
-| Placeholders | A `{name}` in a `data-say` is replaced by the value of the field `name`. The client does this when the key is tapped, in one pass, so a `{x}` inside a value stays as it is. A `{name}` that is not the name of a field stays as it is. A value has its white space (and line breaks) changed to one space, with none at the ends. It has at most 200 characters, and the field does not take more. The `placeholder` of a field has at most 80 characters, and the client cuts the rest |
-| Empty field | A key whose `data-say` uses a field that is empty cannot be tapped. A key that does not use the field can |
+| Field | An `input` or `select` element that has a `data-name` is a field: the user gives a value in it, and the `placeholder` is its hint (the label of a checkbox, and the name of a slider). A `data-name` has 1 to 32 characters of `A-Z`, `a-z`, `0-9`, `_` and `-`. An `input` or `select` with no valid `data-name`, a second field with the same name, and a field after the 8th are not shown. Its kind comes from the `type` of the `input`, or from `select`. A `type` that is not in the table of the kinds below (or no `type`) is a line of text, and the client ignores the other attributes of it |
+| Placeholders | A `{name}` in a `data-say` is replaced by the value of the field `name` (for every kind of field: the value is always text). The client does this when the key is tapped, in one pass, so a `{x}` inside a value stays as it is. A `{name}` that is not the name of a field stays as it is. A value has its white space (and line breaks) changed to one space, with none at the ends. It has at most 200 characters, and the field does not take more. The `placeholder` of a field has at most 80 characters, and the client cuts the rest |
+| Empty field | A key whose `data-say` uses a field that is empty cannot be tapped. A key that does not use the field can. A text, a date, a time and a select are empty until the user gives a value (or until the service gives a `value`). A slider and a checkbox always have a value, so they never block a key |
 | Layout | A block element (`div`, `p`, `li`, `tr`, a heading) starts a new row. Text that is not in a key is shown as text between the keys |
 | Tap | The client puts the `data-say` (with the values of the fields in it) in the input of the user. If the input is not empty, the client adds it after the text, with a space between them if the text does not end in a space or a line break. A key must not replace what the user has written |
 | Send | A key without `data-send` must not send the message: the user changes the text, if the user wants to, and sends it. The service gets it as a user message |
 | Send at once | A key that also has the attribute `data-send` (with no value, or any value) sends its `data-say` (with the values of the fields in it) as a user message when it is tapped. The client sends only the `data-say`: it does not send the text that is in the input, or the files that wait, and it does not change them. The keyboard is then inactive. The service decides which keys have `data-send` |
-| Limits | One block has at most 8000 characters. A message has at most 2 keyboard blocks. A block has at most 64 keys and 8 fields. A `data-say` has at most 500 characters, before the fields are put in it. What is above a limit is shown as text or as code, never cut. A key whose `data-say` is too long is shown as text |
+| Limits | One block has at most 8000 characters. A message has at most 2 keyboard blocks. A block has at most 64 keys and 8 fields (of any kind). A `select` has at most 32 options. A `data-say` has at most 500 characters, before the fields are put in it. What is above a limit is shown as text or as code, never cut. A key whose `data-say` is too long is shown as text |
 | Open block | A block that is not closed yet, in an open message, is not shown as keys until the fence closes |
 | Which keyboard is active | The keyboard of the last block of the last message, if the service made that message and it is complete. A message of the user after it, or a new message of the service, makes it inactive |
 
-In chatui, the keys show above the input of the conversation. The message itself shows a
-small card in place of the block, so the keys are not twice on the screen. The user can close
-the keyboard. If the HTML widgets are off, the block is shown as code.
+The kinds of field. The client gives the value as text, and it is at most 200 characters:
+
+| `type` / element | The user | Attributes that have a meaning | The value |
+|---|---|---|---|
+| (none), `text`, or any other `type` | Writes one line of text | `placeholder` | What the user wrote, with the white space changed to one space |
+| `date` | Chooses a day in a calendar | `min` and `max` (days, `YYYY-MM-DD`), `value` (the day at the start) | `YYYY-MM-DD`. A `min`, a `max` or a `value` that is not a real day is ignored. If `min` is after `max`, both are ignored. With no `min` or `max`, the calendar goes from 1900 to 2100 |
+| `time` | Chooses a time in a clock of 24 hours | `value` (the time at the start) | `HH:MM`. A `value` that is not `00:00` to `23:59` is ignored |
+| `range` | Moves a slider | `min`, `max`, `step`, `value` | A number inside `min` and `max`, on a step of `step` from `min`, with the decimals of the `step` and of `min` (at most 6). `min` is 0, `max` is 100 and `step` is 1 if they are missing, not a finite number, or if `max` is not more than `min` (then both are the defaults) or `step` is not more than 0. `value` is the start (`min` if it is missing). A slider with more than 1 000 steps moves with no steps, and the value is rounded to the step |
+| `checkbox` | Turns a box on and off | `value` (what the value is when it is on, `yes` if it is missing or empty), `data-off` (what it is when it is off, `no` if it is missing or empty), `checked` (it is on at the start) | The `value` or the `data-off` |
+| `select` | Chooses one option from a list | `option` elements: the `value` of an option is the value of the field (the text of the option if it has no `value`), and its text is its label (the `value` if it has no text). The `placeholder` is the hint | The `value` of the chosen option. An option with an empty value or one of more than 200 characters, and an option with a `value` that an earlier one has, are lost. The label has at most 80 characters, and the client cuts the rest. An `option` can have no closing tag |
+
+A service that wants a kind that a client does not know can write a plain `input` with a
+`placeholder` that says the format (for example `YYYY-MM-DD`), or keys that give the values.
+A client that does not know a `type` shows a line of text, and a `{name}` is still replaced.
+
+In chatui, the form (the keys and the fields) shows **under** the input of the conversation,
+never above it. The message itself shows a small card in place of the block, so the keys are
+not twice on the screen. The user can close the form with the button of the form. A tap on
+the card of the last message opens it again, if the user closed it. The form is also closed
+when a key with `data-send` sends. If the HTML widgets are off, the block is shown as code.
+
+Keyboard of the text. chatui does not open the keyboard of the system, so the form can always
+be under the input. Under the input it shows:
+
+| Case | What shows under the input |
+|---|---|
+| There is a form | The form. The fields of text type with the keyboard of the app, which shows under the form while one of them has the focus. A calendar, a clock, a slider, a checkbox and a list of options need no keyboard |
+| There is no form | The keyboard of the app: letters (with `ñ`), numbers and symbols, shift, Backspace, space and a new line. It types in the input of the conversation |
+| The user records audio | Nothing |
+
+The user can choose the keyboard of the system in the settings of the chat (**Use the system
+keyboard**, a setting for the whole app, off by default). Then the input uses the keyboard of
+the system, and the keyboard of the app does not show, except that while there is a form the
+input does not open the keyboard of the system: the form is under the input, and the fields of
+text of the form use the keyboard of the system.
 
 The value of a field is text that the user wrote, and it goes into a message as it is. A service
 must not trust it: it is user input, as any other message. A field does not make a request, and the
@@ -1441,3 +1474,4 @@ more than 30 seconds. The service must follow these rules:
 | 6 (round 4) | 2026-10-24 | More clarifications of revision 6. A later `file` of an upload is found while the chunks are read, after the checks of size, type and storage. A `type` that is set and empty is an unknown type. A SHA3-256 hash with a `value` that is not 32 bytes is `bad_request`. The queue limit of a stream is at least 1 000 events. The cases of a failing first event of `Connect`, and the client behavior after each (also after `busy` and after a `ProtocolError` with no `event_id`). A client does not call `DownloadFile` for a `FileReference` with no SHA3-256 hash. `error` is 1 to 1 024 bytes, and a client can cut it for display. Test 29 is valid for a service that never uses `PENDING`. New tests 27j, 27k, 27l, 48b, 55e and 55f; changes to tests 29 and 55c |
 | 6 (round 5) | 2026-10-24 | `Hash.type` is required: `chat.proto` has `bytes type = 1;` (it was `optional`, and the field number is the same). The `type` is explicit in each `Hash` of each call. The rule "reuse the last `type` of the stream" is gone. An empty `type` is the same as a missing `type`: `bad_request` in each call that takes a `Hash`, `QueryFiles` too. A `type` that is not empty and not known is an unknown algorithm. A SHA3-256 hash with a `value` that is not 32 bytes is `bad_request` in `QueryFiles` too. Test 48b is removed (its number stays). Tests 48, 49, 55b and 71 are changed, and test 49a is new |
 | 6 (round 6) | 2026-10-29 | New section 5.5 and a line in the decisions table: the keyboard block (```` ```keyboard ````). It is a client feature, as the HTML block, and the wire does not change. Keys can send at once (`data-send`), and the block can have fields (`input` with `data-name`) that a `{name}` in a `data-say` uses |
+| 6 (round 7) | 2026-10-29 | Section 5.5: the fields of a keyboard block can be of the types `date`, `time`, `range`, `checkbox` and `select`, with new attributes (`type`, `min`, `max`, `step`, `value`, `checked`, `data-off`, and the `option` element). New limits: 32 options in a `select`, 80 characters in the label of an option. Where chatui shows the form, the keyboard of the app, the setting of the keyboard of the system, and how to open a closed form. The wire does not change |

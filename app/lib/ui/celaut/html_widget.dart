@@ -58,6 +58,10 @@ const _dropWithContent = {
 /// The attributes that the parser keeps. All other attributes (all `on*` ones too) are lost.
 const _keptAttrs = {'style', 'href', 'src', 'alt', 'colspan', 'data-say', 'data-send', 'data-name', 'placeholder'};
 
+/// The attributes that the parser also keeps for a keyboard block (`forms`): they describe the
+/// controls (`type`, `min`, `max`, `step`, `value`, `checked`, `data-off`).
+const _formAttrs = {'type', 'min', 'max', 'step', 'value', 'checked', 'data-off'};
+
 bool _isNameChar(int c) =>
     (c >= 0x61 && c <= 0x7a) || (c >= 0x41 && c <= 0x5a) || (c >= 0x30 && c <= 0x39) || c == 0x2d;
 
@@ -105,8 +109,9 @@ String _decodeEntities(String s) {
 /// Parses [html] into a tree that has only allowed elements and attributes. It never
 /// throws, and its work and its result are bounded by [htmlMaxInputChars], [htmlMaxNodes]
 /// and [htmlMaxDepth]. Unknown elements are replaced by their content; scripts, styles,
-/// frames and the like are dropped with their content.
-List<HtmlNode> parseChatHtml(String html) {
+/// frames and the like are dropped with their content. With [forms] (a keyboard block) it also
+/// keeps `select` and `option`, and the attributes of the controls ([_formAttrs]).
+List<HtmlNode> parseChatHtml(String html, {bool forms = false}) {
   final src = html.length > htmlMaxInputChars ? html.substring(0, htmlMaxInputChars) : html;
   final root = HtmlNode.element('#root');
   // The open elements. An element that the parser replaces by its content is not here.
@@ -205,7 +210,7 @@ List<HtmlNode> parseChatHtml(String html) {
           value = src.substring(vStart, p);
         }
       }
-      if (++count <= 24 && _keptAttrs.contains(aName) && !aName.startsWith('on')) {
+      if (++count <= 24 && (_keptAttrs.contains(aName) || (forms && _formAttrs.contains(aName))) && !aName.startsWith('on')) {
         attrs[aName] = _decodeEntities(value);
       }
     }
@@ -220,7 +225,8 @@ List<HtmlNode> parseChatHtml(String html) {
       }
       continue;
     }
-    if (_dropWithContent.contains(name)) {
+    final formTag = forms && (name == 'select' || name == 'option');
+    if (_dropWithContent.contains(name) && !formTag) {
       if (selfClose) continue;
       final end = _indexOfCloseTag(src, name, i);
       if (end < 0) {
@@ -231,7 +237,7 @@ List<HtmlNode> parseChatHtml(String html) {
       }
       continue;
     }
-    if (!_blockTags.contains(name) && !_inlineTags.contains(name)) continue;
+    if (!_blockTags.contains(name) && !_inlineTags.contains(name) && !formTag) continue;
     if (stack.length > htmlMaxDepth && !_voidTags.contains(name)) continue;
     nodes++;
     final el = HtmlNode.element(name, attrs);
