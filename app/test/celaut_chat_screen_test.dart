@@ -2019,4 +2019,45 @@ void main() {
       expect(chat.awaitingAnswer, isFalse);
     });
   });
+
+  group('the keyboard of the system and the end of the list', () {
+    List<ChatMessage> long() => [
+          for (var i = 0; i < 40; i++)
+            ChatMessage(seq: i, role: i.isEven ? 'user' : 'assistant', text: 'message $i'),
+        ];
+
+    /// The keyboard of the system opens: the window gets an inset at its foot.
+    Future<void> openKeyboard(WidgetTester tester, double height) async {
+      tester.view.viewInsets = FakeViewPadding(bottom: height * tester.view.devicePixelRatio);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the input stays above the keyboard, and the last message stays in view', (
+      tester,
+    ) async {
+      chat = _FakeChat(history: long());
+      await open(tester);
+      await tester.tap(find.byKey(const Key('chat-input')));
+      await openKeyboard(tester, 300);
+      final screen = tester.view.physicalSize.height / tester.view.devicePixelRatio;
+      final input = tester.getRect(find.byKey(const Key('chat-input-bar')));
+      expect(input.bottom, lessThanOrEqualTo(screen - 300));
+      final c = tester.widget<ListView>(find.byKey(const Key('chat-messages'))).controller!;
+      expect(c.position.pixels, c.position.maxScrollExtent);
+      expect(tester.getRect(find.text('message 39')).bottom, lessThanOrEqualTo(input.top));
+    });
+
+    testWidgets('a list that the user scrolled up stays where it is', (tester) async {
+      chat = _FakeChat(history: long());
+      await open(tester);
+      await tester.drag(find.byKey(const Key('chat-messages')), const Offset(0, 400));
+      await tester.pumpAndSettle();
+      final c = tester.widget<ListView>(find.byKey(const Key('chat-messages'))).controller!;
+      final before = c.position.pixels;
+      expect(before, lessThan(c.position.maxScrollExtent - 80));
+      await openKeyboard(tester, 300);
+      expect(c.position.pixels, before);
+    });
+  });
 }
