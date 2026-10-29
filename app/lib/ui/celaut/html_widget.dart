@@ -59,8 +59,8 @@ const _dropWithContent = {
 const _keptAttrs = {'style', 'href', 'src', 'alt', 'colspan', 'data-say', 'data-send', 'data-name', 'placeholder'};
 
 /// The attributes that the parser also keeps for a keyboard block (`forms`): they describe the
-/// controls (`type`, `min`, `max`, `step`, `value`, `checked`, `data-off`, `multiple`, `selected`, `data-step`).
-const _formAttrs = {'type', 'min', 'max', 'step', 'value', 'checked', 'data-off', 'multiple', 'selected', 'data-step'};
+/// controls (`type`, `min`, `max`, `step`, `value`, `checked`, `data-off`, `multiple`, `selected`).
+const _formAttrs = {'type', 'min', 'max', 'step', 'value', 'checked', 'data-off', 'multiple', 'selected'};
 
 bool _isNameChar(int c) =>
     (c >= 0x61 && c <= 0x7a) || (c >= 0x41 && c <= 0x5a) || (c >= 0x30 && c <= 0x39) || c == 0x2d;
