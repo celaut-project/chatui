@@ -5696,7 +5696,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String chatsStartedOther(String node) {
-    return 'The service started on $node. It has no conversation: find it in Compute, under Other instances.';
+    return 'The service started on $node. It has no conversation: find it in Compute, under Services, in the page of the service.';
   }
 
   @override

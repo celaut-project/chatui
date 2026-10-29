@@ -4235,7 +4235,7 @@
     }
   },
   "chatsDeleteBody": "The instance is stopped. Delete takes it out of the app, with its token.",
-  "chatsStartedOther": "The service started on {node}. It has no conversation: find it in Compute, under Other instances.",
+  "chatsStartedOther": "The service started on {node}. It has no conversation: find it in Compute, under Services, in the page of the service.",
   "@chatsStartedOther": {
     "placeholders": {
       "node": {

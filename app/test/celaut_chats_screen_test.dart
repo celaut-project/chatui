@@ -845,7 +845,9 @@ void main() {
       expect(find.text('the wallet'), findsOneWidget);
       expect(find.byKey(const Key('place-deposit')), findsOneWidget);
       await show(tester, HomeTab.compute);
-      expect(find.byKey(const Key('compute-home-run')), findsOneWidget);
+      expect(find.byKey(const Key('compute-home-nodes')), findsOneWidget);
+      expect(find.byKey(const Key('compute-home-run')), findsNothing);
+      expect(find.byKey(const Key('place-otherInstances')), findsNothing);
       expect(find.byKey(const Key('compute-home-settings')), findsNothing);
       await show(tester, HomeTab.settings);
       expect(find.byKey(const Key('settings-tor')), findsOneWidget);
@@ -869,7 +871,6 @@ void main() {
       (HomeTab.wallet, HomePlace.deposit),
       (HomeTab.compute, HomePlace.nodes),
       (HomeTab.compute, HomePlace.services),
-      (HomeTab.compute, HomePlace.otherInstances),
     ]) {
       testWidgets('${place.name} opens from ${tab.name} over the bar, and back is the tab', (
         tester,
@@ -953,8 +954,8 @@ void main() {
       expect(find.text('Billetera'), findsOneWidget);
       expect(find.text('Cómputo'), findsOneWidget);
       await show(tester, HomeTab.compute);
-      await tester.ensureVisible(find.byKey(const Key('place-otherInstances')));
-      expect(find.text('Otras instancias'), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const Key('place-services')));
+      expect(find.text(appL10n.chatsServicesTitle), findsOneWidget);
     });
   });
 
@@ -1002,7 +1003,7 @@ void main() {
     });
   });
 
-  group('other instances', () {
+  group('instances without a chat slot (InstanceList with chats: false)', () {
     testWidgets('they list the instances without a chat slot, and a tap opens the info',
         (tester) async {
       node.db = [_instance('plain', chat: false, name: 'Solver'), _instance('chat')];
@@ -1010,8 +1011,8 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: argusTheme(watchful: false),
-          home: OtherInstancesScreen(
-            list: InstanceList(
+          home: Scaffold(
+            body: InstanceList(
               chats: false,
               notes: notes,
               load: node.load,
@@ -1096,7 +1097,7 @@ void main() {
       expect(find.byKey(const Key('chats-row-b')), findsNothing);
     });
 
-    testWidgets('Other instances hides them too', (tester) async {
+    testWidgets('the list of them hides the stopped ones too', (tester) async {
       node.db = [
         _instance('plain', chat: false, startedAt: 300),
         _instance('plain-old', chat: false, stoppedAt: 400),
@@ -1105,8 +1106,8 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: argusTheme(watchful: false),
-          home: OtherInstancesScreen(
-            list: InstanceList(
+          home: Scaffold(
+            body: InstanceList(
               chats: false,
               notes: notes,
               load: node.load,

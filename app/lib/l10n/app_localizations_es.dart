@@ -5767,7 +5767,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String chatsStartedOther(String node) {
-    return 'El servicio se inició en $node. No tiene conversación: búscalo en Cómputo, en Otras instancias.';
+    return 'El servicio se inició en $node. No tiene conversación: búscalo en Cómputo, en Servicios, en la página del servicio.';
   }
 
   @override

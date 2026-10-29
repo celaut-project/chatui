@@ -7,7 +7,6 @@ import '../../celaut/celaut_format.dart';
 import '../../celaut/celaut_strings.dart';
 import '../../celaut/host_port.dart';
 import '../../celaut/overview_cache.dart';
-import '../../celaut/payers.dart';
 import '../../celaut/wallet_money.dart';
 import '../../format.dart';
 import '../../l10n/l10n.dart';
@@ -15,20 +14,19 @@ import '../../theme/argus_theme.dart';
 import '../home/home_scene.dart';
 import '../home/home_style.dart';
 import 'client_unknown_dialog.dart';
-import 'run_service_screen.dart';
 
 /// The compute view (`docs/celaut/ui.md`, section 2), in the look of the Celaut landing
 /// page: the Compute tab of the home screen (`docs/celaut/ui-chat-first.md`). It shows
-/// only what the user acts on, in this order:
+/// only what the user acts on:
 ///
-/// 1. the running instances, if there are some: they cost money now, and can be stopped;
-/// 2. the button that opens "Run a service";
-/// 3. one card of state: the nodes in one line (how many are ready, the compute that they
+/// 1. one card of state: the nodes in one line (how many are ready, the compute that they
 ///    offer), the credit on the nodes, and the ERG of the full wallets. Each line opens
 ///    its detail: the Nodes screen, or the wallets list. A node that forgot the client of
-///    the app shows its action here, because the user must choose.
+///    the app shows its action here, because the user must choose;
+/// 2. under it, the pages of the tab (Nodes, Services).
 ///
-/// The detail of each node (availability, reasons, credit) is on the Nodes screen. The
+/// The instances are in the conversations (Chats tab): the page of an instance has its
+/// Stop. The detail of each node (availability, reasons, credit) is on the Nodes screen. The
 /// screen shows the last overview at once when it opens again, and asks the nodes in the
 /// background.
 class ComputeHomeScreen extends StatefulWidget {
@@ -39,21 +37,14 @@ class ComputeHomeScreen extends StatefulWidget {
     required this.onWallets,
     this.onNodes,
     this.onSettings,
-    this.wallets = const AppFullWallets(),
     this.load,
-    this.stop,
     this.newClient,
     this.refreshPrice,
-    this.runScreen,
     this.sections = const [],
   });
 
-  /// The rows under the state: the pages of the Compute tab (Nodes, Services, Other
-  /// instances).
+  /// The rows under the state: the pages of the Compute tab (Nodes, Services).
   final List<Widget> sections;
-
-  /// The screen of "Run a service". Tests give their own.
-  final WidgetBuilder? runScreen;
 
   /// Ask the oracle pool price again (it is cached for some minutes).
   final Future<void> Function()? refreshPrice;
@@ -71,14 +62,8 @@ class ComputeHomeScreen extends StatefulWidget {
   final VoidCallback? onNodes;
   final VoidCallback? onSettings;
 
-  /// The full wallets, to open one before a stop. Tests give their own.
-  final FullWallets wallets;
-
   /// The data of the overview. Tests give their own.
   final Future<ComputeOverviewView> Function()? load;
-
-  /// Stop an instance. Tests give their own.
-  final Future<StopView> Function(String instanceId)? stop;
 
   /// Make a new client on a node that forgot the client id. Tests give their own.
   final Future<NewClientView> Function(NodeAddress node)? newClient;
@@ -91,8 +76,6 @@ class ComputeHomeScreenState extends State<ComputeHomeScreen> {
   /// The last overview: the one of the last open of this screen at first.
   ComputeOverviewView? _data = overviewCache.value;
   bool _loading = false;
-  String? _stopping;
-  String? _note;
   CelautError? _error;
 
   /// A failure that is not a Celaut error (for example, the bridge is not ready).
@@ -123,27 +106,6 @@ class ComputeHomeScreenState extends State<ComputeHomeScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  Future<void> _stop(RunningInstanceView i) async {
-    if (!await ensureOpenFullWallet(context, widget.wallets) || !mounted) return;
-    setState(() {
-      _stopping = i.instanceId;
-      _note = null;
-      _error = null;
-    });
-    try {
-      final stop = widget.stop ?? (id) => celautStopService(instanceId: id);
-      final done = await stop(i.instanceId);
-      if (mounted) {
-        setState(() => _note = context.l10n.celautHomeStopped(muOrUnknown(done.refundMu)));
-      }
-    } on CelautError catch (e) {
-      if (mounted) setState(() => _error = e);
-    } finally {
-      if (mounted) setState(() => _stopping = null);
-    }
-    await refresh();
   }
 
   Future<void> _clientUnknown(NodeComputeView n) async {
@@ -242,22 +204,7 @@ class ComputeHomeScreenState extends State<ComputeHomeScreen> {
                   style: t.secondary.copyWith(color: rustFor(context)),
                 ),
               ),
-            if (_note != null)
-              _Pad(child: Text(_note!, key: const Key('compute-home-note'), style: t.secondary)),
-            ..._instances(context, data),
             const SizedBox(height: 16),
-            _Pad(
-              child: FilledButton.icon(
-                key: const Key('compute-home-run'),
-                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-                onPressed: _openRun,
-                icon: const Icon(Icons.play_arrow_rounded),
-                label: Text(l.celautRunTitle),
-              ),
-            ),
-            const SizedBox(height: 28),
-            const HomeRule(),
-            const SizedBox(height: 12),
             ..._state(context, data),
             if (widget.sections.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -278,19 +225,6 @@ class ComputeHomeScreenState extends State<ComputeHomeScreen> {
         lightRadius: 80,
         height: top + 460,
         child: scaffold,
-      ),
-    );
-  }
-
-  Future<void> _openRun() async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: widget.runScreen ??
-            (_) => RunServiceScreen(
-              wallets: widget.wallets,
-              newClient: widget.newClient,
-              onChanged: refresh,
-            ),
       ),
     );
   }
@@ -397,76 +331,6 @@ class ComputeHomeScreenState extends State<ComputeHomeScreen> {
         value: widget.money.full.text,
         detail: usdTextOf(widget.money.full.exactNano, usd),
       ),
-    ];
-  }
-
-  /// 3. The running instances.
-  List<Widget> _instances(BuildContext context, ComputeOverviewView? d) {
-    final l = context.l10n;
-    final t = HomeText.of(context);
-    final gate = widget.money.gate;
-    final instances = d?.instances ?? const <RunningInstanceView>[];
-    if (instances.isEmpty) return const [];
-    return [
-      const SizedBox(height: 8),
-      _Pad(child: Text(l.celautHomeInstancesTitle.toUpperCase(), style: t.label)),
-      const SizedBox(height: 6),
-      if (gate == FullWalletGate.none)
-        _Pad(
-          child: Text(
-            l.celautNoFullWallet,
-            key: const Key('compute-home-no-full-wallet'),
-            style: t.secondary.copyWith(color: rustFor(context)),
-          ),
-        ),
-      if (gate == FullWalletGate.locked)
-        _Pad(
-          child: Text(
-            l.celautOpenFullWalletNeeded,
-            key: const Key('compute-home-wallet-locked'),
-            style: t.secondary.copyWith(color: rustFor(context)),
-          ),
-        ),
-      for (final i in instances)
-        _Pad(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              key: Key('compute-home-instance-${i.instanceId}'),
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${shorten(i.serviceId, head: 8, tail: 6)} · '
-                        '${shorten(i.peerId, head: 8, tail: 6)}',
-                        style: t.primary,
-                      ),
-                      Text(
-                        l.celautHomeCostSoFar(
-                          muOrUnknown(i.costSoFarMu),
-                          ergTextOrUnknown(i.costSoFarNanoErg),
-                        ),
-                        key: Key('compute-home-cost-${i.instanceId}'),
-                        style: t.secondary,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                FilledButton.tonal(
-                  key: Key('compute-home-stop-${i.instanceId}'),
-                  style: FilledButton.styleFrom(minimumSize: const Size(72, 40)),
-                  onPressed: gate == FullWalletGate.none || _stopping != null
-                      ? null
-                      : () => _stop(i),
-                  child: Text(l.celautHomeStop),
-                ),
-              ],
-            ),
-          ),
-        ),
     ];
   }
 }

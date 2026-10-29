@@ -1551,7 +1551,7 @@
     }
   },
   "chatsDeleteBody": "La instancia está detenida. Eliminar la quita de la app, con su token.",
-  "chatsStartedOther": "El servicio se inició en {node}. No tiene conversación: búscalo en Cómputo, en Otras instancias.",
+  "chatsStartedOther": "El servicio se inició en {node}. No tiene conversación: búscalo en Cómputo, en Servicios, en la página del servicio.",
   "@chatsStartedOther": {
     "placeholders": {
       "node": {

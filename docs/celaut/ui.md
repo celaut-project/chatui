@@ -121,8 +121,8 @@ balancer would use with its start cost. Run needs the wallet open.
   asked, unless that would leave no node. A node where the credit of the app is less than
   the price is not asked to start.
 - If the service has a chat slot, the app goes back to the list of conversations and opens
-  the conversation. If not, a message shows and the instance appears in the Compute tab,
-  with its running instances and under "Other instances".
+  the conversation. If not, a message shows, and the instance is in the page of its service
+  (Compute tab, Services).
 - If no node starts it, a sheet says why for each node: the reason and what to do (the text
   of the error kind), the numbers for a credit problem with a button to the deposit screen,
   "left out" for the nodes that were not asked, and the original text of the node under
