@@ -279,6 +279,9 @@ class _ChatScreenState extends State<ChatScreen>
     WidgetsBinding.instance.addObserver(this);
     _revealTicker = createTicker(_onRevealTick);
     _scroll.addListener(_updatePinned);
+    // The text that the user did not send the last time is in the input again.
+    _input.text = _notes.draft(_id);
+    _input.addListener(_keepDraft);
     _chat.addListener(_onChat);
     unawaited(_keepAlive.start());
     // The screen reads the chat now: a watch that a former screen left stops.
@@ -313,6 +316,8 @@ class _ChatScreenState extends State<ChatScreen>
     await _refreshCost();
     _scrollToEnd();
   }
+
+  void _keepDraft() => _notes.setDraft(_id, _input.text);
 
   /// Use the messages that a read gave. [read] is true if the read worked: the first one
   /// that works gives the history, which shows at once.
@@ -923,6 +928,7 @@ class _ChatScreenState extends State<ChatScreen>
     }
     _ticker?.cancel();
     _poll?.cancel();
+    _input.removeListener(_keepDraft);
     _input.dispose();
     _inputFocus.dispose();
     _scroll.dispose();

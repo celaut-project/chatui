@@ -43,13 +43,31 @@ String messagePreview(ChatMessage message, AppLocalizations l) {
 }
 
 /// What the list of conversations knows in memory, for this run of the app only
-/// (`docs/celaut/ui-chat-first.md`): the last message of each conversation, and the
-/// instances that start. Nothing here goes to the Celaut database: the history of a
+/// (`docs/celaut/ui-chat-first.md`): the last message of each conversation, the text
+/// that the user did not send yet, and the instances that start. Nothing here goes to the
+/// Celaut database: the history of a
 /// conversation stays with the service (`docs/celaut/chat.md`). The database keeps
 /// the instances, stopped or not, until the user deletes them.
 class ConversationNotes extends ChangeNotifier {
   final Map<String, ChatMessage> _last = {};
   final Set<String> _starting = {};
+  final Map<String, String> _drafts = {};
+
+  /// The text that the user wrote in the input of the conversation and did not send, or
+  /// an empty string. It stays when the chat closes (back, or the lock of the app in the
+  /// background), so the user does not lose it. It stays in memory only: it is not in the
+  /// database, and it is gone when the app stops.
+  String draft(String instanceId) => _drafts[instanceId] ?? '';
+
+  /// Keep [text] as the draft of the conversation. An empty text removes it. The lists do
+  /// not change for a draft, so this does not notify them.
+  void setDraft(String instanceId, String text) {
+    if (text.isEmpty) {
+      _drafts.remove(instanceId);
+    } else {
+      _drafts[instanceId] = text;
+    }
+  }
 
   /// The last message of the conversation, if the app saw one in this run.
   ChatMessage? lastMessage(String instanceId) => _last[instanceId];
@@ -84,11 +102,14 @@ class ConversationNotes extends ChangeNotifier {
   /// The instance stopped: the lists read the database again.
   void stopped(String instanceId) {
     _starting.remove(instanceId);
+    // A stopped instance takes no message.
+    _drafts.remove(instanceId);
     notifyListeners();
   }
 
   /// Forget what the list knows of a deleted instance.
   void remove(String instanceId) {
+    _drafts.remove(instanceId);
     final last = _last.remove(instanceId) != null;
     final starting = _starting.remove(instanceId);
     if (last || starting) notifyListeners();
