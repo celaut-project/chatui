@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/argus_theme.dart';
 
 /// Chat display preferences. App-wide values (text size and font, pinned
-/// height, HTML widgets) and per-instance values (mute, background).
+/// height, HTML widgets, keyboard) and per-instance values (mute, background).
 /// Stored in SharedPreferences. A failed read or write keeps the value in
 /// memory only.
 class ChatPrefs extends ChangeNotifier {
@@ -13,6 +13,7 @@ class ChatPrefs extends ChangeNotifier {
   static const _familyKey = 'chat_font_family';
   static const _pinnedKey = 'chat_pinned_max_fraction';
   static const _htmlKey = 'chat_html_widgets';
+  static const _systemKeyboardKey = 'chat_system_keyboard';
   static const _mutedKey = 'chat_muted_instances';
   static const _bgPrefix = 'chat_background_';
 
@@ -28,6 +29,9 @@ class ChatPrefs extends ChangeNotifier {
   String fontFamily = 'system';
   double pinnedMaxFraction = defaultPinnedMaxFraction;
   bool htmlWidgets = true;
+
+  /// The chat types with the keyboard of the system. Off: with the keyboard of the app.
+  bool systemKeyboard = false;
   final Set<String> _muted = {};
   final Map<String, String> _backgrounds = {};
 
@@ -55,6 +59,7 @@ class ChatPrefs extends ChangeNotifier {
           .clamp(minPinnedMaxFraction, maxPinnedMaxFraction)
           .toDouble();
       htmlWidgets = p.getBool(_htmlKey) ?? true;
+      systemKeyboard = p.getBool(_systemKeyboardKey) ?? false;
       _muted
         ..clear()
         ..addAll(p.getStringList(_mutedKey) ?? const []);
@@ -101,6 +106,12 @@ class ChatPrefs extends ChangeNotifier {
     htmlWidgets = v;
     notifyListeners();
     await _save((p) => p.setBool(_htmlKey, v));
+  }
+
+  Future<void> setSystemKeyboard(bool v) async {
+    systemKeyboard = v;
+    notifyListeners();
+    await _save((p) => p.setBool(_systemKeyboardKey, v));
   }
 
   bool isMuted(String instanceId) => _muted.contains(instanceId);

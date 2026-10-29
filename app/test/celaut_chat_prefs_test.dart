@@ -16,12 +16,14 @@ void main() {
     expect(p.fontSize, 17);
     expect(p.pinnedMaxFraction, 0.25);
     expect(p.htmlWidgets, isTrue);
+    expect(p.systemKeyboard, isFalse);
     expect(p.background('a'), 'none');
     await p.setFontSize(21);
     await p.setPinnedMaxFraction(0.9);
     await p.setMuted('a', true);
     await p.setBackground('a', 'dawn');
     await p.setHtmlWidgets(false);
+    await p.setSystemKeyboard(true);
     final q = ChatPrefs();
     await q.load();
     expect(q.fontSize, 21);
@@ -30,6 +32,7 @@ void main() {
     expect(q.isMuted('b'), isFalse);
     expect(q.background('a'), 'dawn');
     expect(q.htmlWidgets, isFalse);
+    expect(q.systemKeyboard, isTrue);
     await q.setBackground('a', 'none');
     expect(q.background('a'), 'none');
   });
@@ -60,6 +63,9 @@ void main() {
     await tester.tap(find.byKey(const Key('chat-settings-html')));
     await tester.pumpAndSettle();
     expect(chatPrefs.htmlWidgets, isFalse);
+    await tester.tap(find.byKey(const Key('chat-settings-system-keyboard')));
+    await tester.pumpAndSettle();
+    expect(chatPrefs.systemKeyboard, isTrue);
     await tester.tap(find.text('Serif'));
     await tester.pumpAndSettle();
     expect(chatPrefs.fontFamily, 'serif');

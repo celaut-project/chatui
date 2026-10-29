@@ -98,6 +98,23 @@ class ChatSettingsPage extends StatelessWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 24),
+            SettingsGroup(
+              title: context.l10n.chatSettingsKeyboardGroup,
+              scope: context.l10n.settingsScopeAppWide,
+              children: [
+                SettingsRow(
+                  icon: Icons.keyboard_outlined,
+                  title: context.l10n.chatSettingsSystemKeyboard,
+                  subtitle: context.l10n.chatSettingsSystemKeyboardSubtitle,
+                  trailing: Switch(
+                    key: const Key('chat-settings-system-keyboard'),
+                    value: chatPrefs.systemKeyboard,
+                    onChanged: chatPrefs.setSystemKeyboard,
+                  ),
+                ),
+              ],
+            ),
           ],
         );
       },

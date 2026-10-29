@@ -476,6 +476,42 @@ class AppLocalizationsEn extends AppLocalizations {
       'Show simple HTML from the assistant as widgets. If off, it shows as code. No scripts and no network.';
 
   @override
+  String get chatSettingsKeyboardGroup =>
+      'Keyboard';
+
+  @override
+  String get chatSettingsSystemKeyboard =>
+      'Use the system keyboard';
+
+  @override
+  String get chatSettingsSystemKeyboardSubtitle =>
+      'If off, the chat types with the keyboard of the app, under the input. If on, the system keyboard shows, except while a form is open.';
+
+  @override
+  String get chatVkBackspace =>
+      'Delete';
+
+  @override
+  String get chatVkShift =>
+      'Capital letter';
+
+  @override
+  String get chatVkSymbols =>
+      'Numbers and symbols';
+
+  @override
+  String get chatVkLetters =>
+      'Letters';
+
+  @override
+  String get chatVkSpace =>
+      'Space';
+
+  @override
+  String get chatVkEnter =>
+      'New line';
+
+  @override
   String get chatBgNone => 'None';
 
   @override

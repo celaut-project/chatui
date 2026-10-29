@@ -477,6 +477,42 @@ class AppLocalizationsEs extends AppLocalizations {
       'Muestra el HTML simple del asistente como widgets. Si está apagado, se ve como código. Sin scripts ni red.';
 
   @override
+  String get chatSettingsKeyboardGroup =>
+      'Teclado';
+
+  @override
+  String get chatSettingsSystemKeyboard =>
+      'Usar el teclado del sistema';
+
+  @override
+  String get chatSettingsSystemKeyboardSubtitle =>
+      'Si está apagado, el chat escribe con el teclado de la app, debajo del input. Si está encendido, se muestra el del sistema, salvo mientras hay un formulario.';
+
+  @override
+  String get chatVkBackspace =>
+      'Borrar';
+
+  @override
+  String get chatVkShift =>
+      'Mayúscula';
+
+  @override
+  String get chatVkSymbols =>
+      'Números y símbolos';
+
+  @override
+  String get chatVkLetters =>
+      'Letras';
+
+  @override
+  String get chatVkSpace =>
+      'Espacio';
+
+  @override
+  String get chatVkEnter =>
+      'Nueva línea';
+
+  @override
   String get chatBgNone => 'Ninguno';
 
   @override

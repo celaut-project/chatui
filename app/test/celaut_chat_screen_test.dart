@@ -412,6 +412,9 @@ void main() {
   }
 
   setUp(() {
+    // The old tests type with the keyboard of the system. The group "keyboard under the
+    // input" checks the default, the keyboard of the app.
+    chatPrefs.systemKeyboard = true;
     chat = _FakeChat();
     pick = (_) async => const [];
     pickedKinds = null;
@@ -1378,6 +1381,78 @@ void main() {
       expect(find.byKey(const Key('chat-html')), findsNothing);
       expect(find.byKey(const Key('chat-code')), findsOneWidget);
       expect(find.text('html'), findsOneWidget);
+    });
+  });
+
+  group('keyboard under the input', () {
+    const form = ChatMessage(
+      seq: 1,
+      role: 'assistant',
+      text: 'Pick\n```keyboard\n<input data-name="n" placeholder="Name"><button data-say="Hi {n}">Go</button>\n```',
+      replyTo: 0,
+    );
+
+    setUp(() => chatPrefs.systemKeyboard = false);
+    tearDown(() => chatPrefs.systemKeyboard = true);
+
+    testWidgets('the keyboard of the app shows under the input, and types in it', (tester) async {
+      await open(tester);
+      final keyboard = find.byKey(const Key('chat-virtual-keyboard'));
+      expect(keyboard, findsOneWidget);
+      expect(tester.getTopLeft(keyboard).dy, greaterThan(tester.getBottomLeft(find.byKey(const Key('chat-input'))).dy));
+      expect(tester.widget<TextField>(find.byKey(const Key('chat-input'))).keyboardType, TextInputType.none);
+      await tester.tap(find.byKey(const Key('vk-char-h')));
+      await tester.tap(find.byKey(const Key('vk-char-i')));
+      await tester.pump();
+      expect(tester.widget<TextField>(find.byKey(const Key('chat-input'))).controller!.text, 'hi');
+    });
+
+    testWidgets('a form shows under the input, instead of the keyboard of the app', (tester) async {
+      chat = _FakeChat(history: [const ChatMessage(seq: 0, role: 'user', text: 'hi'), form]);
+      await open(tester);
+      final dock = find.byKey(const Key('chat-keyboard-dock'));
+      expect(dock, findsOneWidget);
+      expect(find.byKey(const Key('chat-virtual-keyboard')), findsNothing);
+      expect(tester.getTopLeft(dock).dy, greaterThan(tester.getBottomLeft(find.byKey(const Key('chat-input'))).dy));
+    });
+
+    testWidgets('a field of the form types with the keyboard of the app', (tester) async {
+      chat = _FakeChat(history: [const ChatMessage(seq: 0, role: 'user', text: 'hi'), form]);
+      await open(tester);
+      await tester.tap(find.byKey(const Key('chat-field-n')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-virtual-keyboard-form')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('vk-char-a')));
+      await tester.pump();
+      expect(tester.widget<TextField>(find.byKey(const Key('chat-field-n'))).controller!.text, 'a');
+    });
+
+    testWidgets('closing the form brings the keyboard back, and a tap on the card opens the form', (tester) async {
+      chat = _FakeChat(history: [const ChatMessage(seq: 0, role: 'user', text: 'hi'), form]);
+      await open(tester);
+      await tester.tap(find.byKey(const Key('chat-keyboard-close')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-keyboard-dock')), findsNothing);
+      expect(find.byKey(const Key('chat-virtual-keyboard')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('chat-keyboard-reopen')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-keyboard-dock')), findsOneWidget);
+      expect(find.byKey(const Key('chat-virtual-keyboard')), findsNothing);
+    });
+
+    testWidgets('with the keyboard of the system on, the input uses it, but not under a form', (tester) async {
+      chatPrefs.systemKeyboard = true;
+      await open(tester);
+      expect(find.byKey(const Key('chat-virtual-keyboard')), findsNothing);
+      expect(tester.widget<TextField>(find.byKey(const Key('chat-input'))).keyboardType, TextInputType.multiline);
+    });
+
+    testWidgets('with the keyboard of the system on, a form turns it off for the input', (tester) async {
+      chatPrefs.systemKeyboard = true;
+      chat = _FakeChat(history: [const ChatMessage(seq: 0, role: 'user', text: 'hi'), form]);
+      await open(tester);
+      expect(find.byKey(const Key('chat-keyboard-dock')), findsOneWidget);
+      expect(tester.widget<TextField>(find.byKey(const Key('chat-input'))).keyboardType, TextInputType.none);
     });
   });
 
