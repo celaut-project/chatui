@@ -303,6 +303,21 @@ class _RecordingWatcher extends ChatDoneWatcher {
   void release(String instanceId) => released.add(instanceId);
 }
 
+/// The text of a [Text], also when it is [Text.rich] (the Markdown of a message).
+String plain(Text t) => t.data ?? t.textSpan!.toPlainText();
+
+/// The style of the span that has exactly [text], looked up in the rich text of the tree.
+TextStyle? spanStyle(WidgetTester tester, String text) {
+  TextStyle? found;
+  for (final r in tester.widgetList<RichText>(find.byType(RichText))) {
+    r.text.visitChildren((s) {
+      if (s is TextSpan && s.text == text) found = s.style;
+      return true;
+    });
+  }
+  return found;
+}
+
 void main() {
   late _FakeChat chat;
   late List<String> stops;
@@ -1176,10 +1191,10 @@ void main() {
       final old = chatPrefs.fontSize;
       unawaited(chatPrefs.setFontSize(22));
       await open(tester);
-      expect(tester.widget<Text>(find.text('big')).style?.fontSize, 22);
+      expect(spanStyle(tester, 'big')?.fontSize, 22);
       unawaited(chatPrefs.setFontSize(14));
       await tester.pump();
-      expect(tester.widget<Text>(find.text('big')).style?.fontSize, 14);
+      expect(spanStyle(tester, 'big')?.fontSize, 14);
       unawaited(chatPrefs.setFontSize(old));
     });
 
@@ -1216,15 +1231,15 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 16));
       await tester.pump(const Duration(milliseconds: 100));
-      final partial = tester.widget<Text>(find.textContaining('Hello').last).data!;
+      final partial = plain(tester.widget<Text>(find.textContaining('Hello').last));
       expect(partial.length, lessThan('Hello ${'world ' * 20}'.length));
       expect(partial.startsWith('Hello'), isTrue);
       expect(ticks, greaterThan(0));
       await tester.pump(const Duration(seconds: 3));
       await tester.pump(const Duration(seconds: 3));
       expect(
-        tester.widget<Text>(find.textContaining('Hello').last).data,
-        'Hello ${'world ' * 20}',
+        plain(tester.widget<Text>(find.textContaining('Hello').last)),
+        'Hello ${'world ' * 20}'.trimRight(),
       );
     });
 
@@ -1361,7 +1376,8 @@ void main() {
       addTearDown(() => chatPrefs.setHtmlWidgets(true));
       await open(tester);
       expect(find.byKey(const Key('chat-html')), findsNothing);
-      expect(find.textContaining('```html', findRichText: true), findsOneWidget);
+      expect(find.byKey(const Key('chat-code')), findsOneWidget);
+      expect(find.text('html'), findsOneWidget);
     });
   });
 
@@ -1574,7 +1590,7 @@ void main() {
     String? banner(WidgetTester tester) {
       final f = find.descendant(of: find.byKey(const Key('chat-pinned')), matching: find.byType(Text));
       if (f.evaluate().isEmpty) return null;
-      final text = tester.widget<Text>(f.first).data!;
+      final text = plain(tester.widget<Text>(f.first));
       return text.split(' ').first;
     }
 
@@ -1644,7 +1660,7 @@ void main() {
     String? banner(WidgetTester tester) {
       final f = find.descendant(of: find.byKey(const Key('chat-pinned')), matching: find.byType(Text));
       if (f.evaluate().isEmpty) return null;
-      return tester.widget<Text>(f.first).data!.split(' ').first;
+      return plain(tester.widget<Text>(f.first)).split(' ').first;
     }
 
     /// A long press on the bubble, next to its text, opens the menu of the message.

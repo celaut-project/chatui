@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:argus_wallet/celaut/chat_segments.dart';
 import 'package:argus_wallet/ui/celaut/html_widget.dart';
+import 'package:argus_wallet/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -35,9 +36,36 @@ void main() {
       ]);
     });
 
-    test('other fences are text', () {
-      const t = '```dart\nvar a;\n```';
+    test('other fences are code, with the language', () {
+      expect(splitHtmlBlocks('a\n```Dart\nvar a;\n```\nb'), [
+        const ChatSegment(ChatSegmentKind.text, 'a\n'),
+        const ChatSegment(ChatSegmentKind.code, 'var a;', 'dart'),
+        const ChatSegment(ChatSegmentKind.text, 'b'),
+      ]);
+      expect(splitHtmlBlocks('```\nx\n```').single, const ChatSegment(ChatSegmentKind.code, 'x'));
+    });
+
+    test('an html fence inside code stays code', () {
+      expect(splitHtmlBlocks('```python\n# ```html\nx\n```').single.kind, ChatSegmentKind.code);
+    });
+
+    test('with html off, an html fence is code', () {
+      expect(splitHtmlBlocks('```html\n<p>a\n```', html: false).single,
+          const ChatSegment(ChatSegmentKind.code, '<p>a', 'html'));
+    });
+
+    test('an open code block is pending while streaming and text otherwise', () {
+      const t = 'a\n```rust\nfn main() {';
+      expect(splitHtmlBlocks(t, streaming: true), [
+        const ChatSegment(ChatSegmentKind.text, 'a\n'),
+        const ChatSegment(ChatSegmentKind.pendingCode, 'fn main() {', 'rust'),
+      ]);
       expect(splitHtmlBlocks(t), [const ChatSegment(ChatSegmentKind.text, t)]);
+    });
+
+    test('a code block over the limit stays text and its closing fence opens nothing', () {
+      final t = '```c\n${'x' * (maxCodeBlockChars + 1)}\n```\nafter';
+      expect(splitHtmlBlocks(t, streaming: true), [ChatSegment(ChatSegmentKind.text, t)]);
     });
 
     test('an open block is pending while streaming and text otherwise', () {
@@ -49,8 +77,9 @@ void main() {
       expect(splitHtmlBlocks(t), [const ChatSegment(ChatSegmentKind.text, t)]);
     });
 
-    test('a partial opening fence is plain text', () {
-      expect(splitHtmlBlocks('x\n```ht', streaming: true).single.kind, ChatSegmentKind.text);
+    test('a partial opening fence is an open block with a short language', () {
+      expect(splitHtmlBlocks('x\n```ht', streaming: true).last, const ChatSegment(ChatSegmentKind.pendingCode, '', 'ht'));
+      expect(splitHtmlBlocks('x\n```ht').single.kind, ChatSegmentKind.text);
     });
 
     test('two blocks and CRLF', () {
@@ -176,6 +205,40 @@ void main() {
       await pump(t, '<script>alert(1)</script><img src="http://evil/x.png"><img src="javascript:x"><iframe src=x></iframe>');
       expect(find.byType(Image), findsNothing);
       expect(find.textContaining('alert', findRichText: true), findsNothing);
+    });
+
+    testWidgets('the pending card has the frame and a loading mark', (t) async {
+      await t.pumpWidget(const MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(body: ChatHtmlPendingCard()),
+      ));
+      expect(find.byKey(const Key('chat-html-pending')), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    });
+
+    testWidgets('the code block shows the language and the code', (t) async {
+      await t.pumpWidget(const MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(body: ChatCodeBlock(code: 'var a;', lang: 'dart', pending: true)),
+      ));
+      expect(find.text('dart'), findsOneWidget);
+      expect(find.text('var a;', findRichText: true), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byKey(const Key('chat-code-copy')), findsOneWidget);
+    });
+
+    testWidgets('the Markdown shows with no symbols, and links and images make nothing', (t) async {
+      await t.pumpWidget(const MaterialApp(
+        home: Scaffold(body: ChatMarkdown(data: '**bold** and *it*\n\n- one\n\n[go](https://x.test) ![pic](https://x.test/a.png)')),
+      ));
+      final text = t.widgetList<RichText>(find.byType(RichText)).map((r) => r.text.toPlainText()).join('|');
+      expect(text, contains('bold and it'));
+      expect(text, isNot(contains('**')));
+      expect(text, contains('go'));
+      expect(text, contains('pic'));
+      expect(find.byType(Image), findsNothing);
     });
 
     testWidgets('empty input renders no widget', (t) async {

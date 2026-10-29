@@ -1632,6 +1632,7 @@ class _Bubble extends StatelessWidget {
                   style: textStyle.copyWith(color: color),
                   // Only the text of the service has HTML blocks: the user writes plain text.
                   html: html && !mine,
+                  markdown: !mine,
                   streaming: message.isOpen,
                   // Not selectable: a long press opens the menu, which can select the text.
                   selectable: false,
@@ -1703,9 +1704,10 @@ class _LayoutDelegate extends SliverChildBuilderDelegate {
   void didFinishLayout(int firstIndex, int lastIndex) => onLayout(firstIndex);
 }
 
-/// The text of a message. With [html] on, the fenced blocks "```html" show as widgets
-/// ([ChatHtmlWidget]) and the rest as text. A block that is still open while the message
-/// grows shows as code, until its closing fence comes. With [html] off, all shows as text.
+/// The text of a message. The fenced blocks show as cards: "```html" as a widget
+/// ([ChatHtmlWidget]) if [html] is on, any other as code ([ChatCodeBlock]); the rest shows
+/// as text. A block that is still open while the message grows shows as a card until its
+/// closing fence comes: with a loading mark for HTML, with the code so far for code.
 class _MessageText extends StatelessWidget {
   const _MessageText({
     required this.text,
@@ -1713,42 +1715,55 @@ class _MessageText extends StatelessWidget {
     required this.html,
     required this.streaming,
     required this.selectable,
+    this.markdown = true,
   });
 
   final String text;
   final TextStyle style;
   final bool html;
+
+  /// The text shows its Markdown (bold, lists, headings...) and not its symbols. The text
+  /// of the user is plain, so it has it off.
+  final bool markdown;
   final bool streaming;
 
   /// The text can be selected. The pinned banner has it off: a tap there opens it.
   /// Pin and unpin are in the menu of the bubble (a long press).
   final bool selectable;
 
-  Widget _text(String t, TextStyle s) => selectable
-      ? SelectableText(t, style: s)
-      : Text(t, style: s);
+  Widget _text(BuildContext context, String t, TextStyle s) {
+    if (markdown) return ChatMarkdown(data: t, style: s, selectable: selectable);
+    return selectable ? SelectableText(t, style: s) : Text(t, style: s);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final parts = html ? splitHtmlBlocks(text, streaming: streaming) : const <ChatSegment>[];
-    if (parts.every((p) => p.kind == ChatSegmentKind.text)) return _text(text, style);
+    final parts = splitHtmlBlocks(text, streaming: streaming, html: html);
+    if (parts.every((p) => p.kind == ChatSegmentKind.text)) return _text(context, text, style);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         for (final part in parts)
           switch (part.kind) {
-            ChatSegmentKind.text => _text(part.text, style),
+            ChatSegmentKind.text => _text(context, part.text, style),
             ChatSegmentKind.html => Padding(
                 key: const Key('chat-html'),
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: ChatHtmlWidget(html: part.text, style: style),
               ),
-            ChatSegmentKind.pendingHtml => _text(
-                part.text,
-                style.copyWith(
-                  fontFamily: 'monospace',
-                  fontSize: (style.fontSize ?? 17) - 2,
+            ChatSegmentKind.pendingHtml => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 4),
+                child: ChatHtmlPendingCard(),
+              ),
+            ChatSegmentKind.code || ChatSegmentKind.pendingCode => Padding(
+                key: const Key('chat-code'),
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: ChatCodeBlock(
+                  code: part.text,
+                  lang: part.lang,
+                  pending: part.kind == ChatSegmentKind.pendingCode,
+                  style: style,
                 ),
               ),
           },
@@ -1818,6 +1833,7 @@ class _PinnedBanner extends StatelessWidget {
                 text: shownText,
                 style: style,
                 html: html,
+                markdown: !message.fromUser,
                 streaming: message.isOpen,
                 selectable: false,
               ),
