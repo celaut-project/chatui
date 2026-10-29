@@ -50,16 +50,37 @@ enum ChatFieldKind {
   /// A box that is on or off (`type="checkbox"`). The value is its `value`, or its `data-off`.
   checkbox,
 
-  /// One of some options (`select`). The value is the `value` of the option.
+  /// One of some options (`select`). The value is the `value` of the option. With `multiple`,
+  /// some of them: the values in the order of the options, with ", " between them.
   select,
 }
 
 /// An option of a `select`: [value] is what goes in the message, [label] is what the user reads.
 class ChatOption {
-  const ChatOption(this.value, this.label);
+  const ChatOption(this.value, this.label, {this.selected = false});
 
   final String value;
   final String label;
+
+  /// The option is chosen at the start (the `selected` attribute).
+  final bool selected;
+}
+
+/// The separator of the values of a `select` that has `multiple`.
+const String keyboardMultipleSeparator = ', ';
+
+/// The longest start of [values] that, joined with [keyboardMultipleSeparator], has at most
+/// [keyboardMaxFieldChars] characters. A value is never cut in half.
+List<String> fitChosen(Iterable<String> values) {
+  final out = <String>[];
+  var length = 0;
+  for (final v in values) {
+    final next = length + (out.isEmpty ? 0 : keyboardMultipleSeparator.length) + v.length;
+    if (next > keyboardMaxFieldChars) break;
+    out.add(v);
+    length = next;
+  }
+  return out;
 }
 
 /// A field of a keyboard block: an `input` or a `select` element that has a valid `data-name`.
@@ -78,6 +99,8 @@ class ChatKeyField {
     this.firstDate,
     this.lastDate,
     this.initial = '',
+    this.multiple = false,
+    this.chosen = const [],
     this.on = 'yes',
     this.off = 'no',
   });
@@ -98,6 +121,11 @@ class ChatKeyField {
 
   /// The value of the field before the user does anything. Empty for a field that waits.
   final String initial;
+
+  /// A `select` with `multiple`, and the values that are chosen at the start (they are in
+  /// [initial] too, joined).
+  final bool multiple;
+  final List<String> chosen;
 
   /// The value of a checkbox that is on, and the one of a checkbox that is off.
   final String on, off;
@@ -173,6 +201,7 @@ List<ChatOption> _optionsOf(List<HtmlNode> nodes, [List<ChatOption>? out]) {
         options.add(ChatOption(
           value,
           label.length > keyboardMaxOptionChars ? label.substring(0, keyboardMaxOptionChars) : label,
+          selected: n.attrs.containsKey('selected'),
         ));
       }
     }
@@ -186,7 +215,19 @@ ChatKeyField _fieldOf(HtmlNode n, String name) {
   final hint = (n.attrs['placeholder'] ?? '').replaceAll(_spaces, ' ').trim();
   final placeholder = hint.length > keyboardMaxPlaceholderChars ? hint.substring(0, keyboardMaxPlaceholderChars) : hint;
   if (n.tag == 'select') {
-    return ChatKeyField(name, placeholder, kind: ChatFieldKind.select, options: _optionsOf(n.children));
+    final options = _optionsOf(n.children);
+    final multiple = n.attrs.containsKey('multiple');
+    final start = options.where((o) => o.selected).map((o) => o.value);
+    final chosen = multiple ? fitChosen(start) : start.take(1).toList();
+    return ChatKeyField(
+      name,
+      placeholder,
+      kind: ChatFieldKind.select,
+      options: options,
+      multiple: multiple,
+      chosen: chosen,
+      initial: chosen.join(keyboardMultipleSeparator),
+    );
   }
   String attr(String k) => (n.attrs[k] ?? '').replaceAll(_spaces, ' ').trim();
   switch (attr('type').toLowerCase()) {
@@ -355,6 +396,9 @@ class ChatKeyboard extends StatefulWidget {
 class _ChatKeyboardState extends State<ChatKeyboard> {
   final Map<String, TextEditingController> _fields = {};
 
+  /// The values that are chosen in a `select` with `multiple`, by name of the field.
+  final Map<String, List<String>> _chosen = {};
+
   TextEditingController _field(ChatKeyField f) => _fields.putIfAbsent(f.name, () {
         final c = TextEditingController(text: f.initial);
         // A key can need the field, so the keys follow what the user writes.
@@ -367,6 +411,7 @@ class _ChatKeyboardState extends State<ChatKeyboard> {
       c.dispose();
     }
     _fields.clear();
+    _chosen.clear();
   }
 
   @override
@@ -478,6 +523,21 @@ class _ChatKeyboardState extends State<ChatKeyboard> {
             if (picked != null && mounted) c.text = formatChatTime(picked);
           }),
         );
+      case ChatFieldKind.select when item.multiple:
+        final chosen = _chosen.putIfAbsent(item.name, () => [...item.chosen]);
+        final labels = [
+          for (final o in item.options)
+            if (chosen.contains(o.value)) o.label,
+        ];
+        return SizedBox(
+          width: 200,
+          child: chooser(labels.join(keyboardMultipleSeparator), Icons.checklist, onTap: () async {
+            final picked = await _pickMany(item, chosen, text);
+            if (picked == null || !mounted) return;
+            _chosen[item.name] = picked;
+            c.text = picked.join(keyboardMultipleSeparator);
+          }),
+        );
       case ChatFieldKind.select:
         final label = item.options.where((o) => o.value == c.text).map((o) => o.label).firstOrNull ?? '';
         return SizedBox(
@@ -560,6 +620,55 @@ class _ChatKeyboardState extends State<ChatKeyboard> {
           ),
         );
     }
+  }
+
+  /// The dialog of a `select` with `multiple`: a box for each option. It gives the chosen
+  /// values in the order of the options, or null if the user cancels. A box that would make
+  /// the value longer than [keyboardMaxFieldChars] characters does not turn on.
+  Future<List<String>?> _pickMany(ChatKeyField item, List<String> chosen, TextStyle text) {
+    var now = [...chosen];
+    return showDialog<List<String>>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: item.placeholder.isEmpty ? null : Text(item.placeholder),
+          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView(
+              key: const Key('chat-multiple-options'),
+              shrinkWrap: true,
+              children: [
+                for (final o in item.options)
+                  CheckboxListTile(
+                    dense: true,
+                    value: now.contains(o.value),
+                    title: Text(o.label, style: text),
+                    onChanged: (on) {
+                      final next = [
+                        for (final p in item.options)
+                          if (p.value == o.value ? on == true : now.contains(p.value)) p.value,
+                      ];
+                      if (on == true && fitChosen(next).length != next.length) return;
+                      setLocal(() => now = next);
+                    },
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, now),
+              child: Text(MaterialLocalizations.of(context).okButtonLabel),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _key(ChatKey key, Map<String, String> values, TextStyle text, int i) {
