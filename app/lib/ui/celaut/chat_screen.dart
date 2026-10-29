@@ -22,6 +22,7 @@ import '../../celaut/payers.dart';
 import '../../celaut/pinned_position.dart';
 import '../../celaut/typewriter.dart';
 import '../../l10n/l10n.dart';
+import '../../theme/argus_theme.dart';
 import 'chat_floating.dart';
 import 'html_widget.dart';
 import 'instance_actions.dart';
@@ -1080,7 +1081,7 @@ class _ChatScreenState extends State<ChatScreen>
                           child: Text(
                             error,
                             key: const Key('chat-error'),
-                            style: TextStyle(color: scheme.error),
+                            style: TextStyle(color: rustFor(context)),
                           ),
                         ),
                       ),
@@ -1141,7 +1142,7 @@ class _ChatScreenState extends State<ChatScreen>
                           Icon(
                             Icons.fiber_manual_record,
                             size: 14,
-                            color: scheme.error,
+                            color: rustFor(context),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -1816,7 +1817,7 @@ class _Bubble extends StatelessWidget {
                     key: Key('chat-${message.isFailed ? 'failed' : 'cancelled'}-${message.seq}'),
                     style: Theme.of(
                       context,
-                    ).textTheme.labelSmall?.copyWith(color: scheme.error),
+                    ).textTheme.labelSmall?.copyWith(color: rustFor(context)),
                   ),
                 ),
               if (message.isFailed && message.error != null)
@@ -1827,7 +1828,7 @@ class _Bubble extends StatelessWidget {
                     key: Key('chat-error-${message.seq}'),
                     style: Theme.of(
                       context,
-                    ).textTheme.labelSmall?.copyWith(color: scheme.error),
+                    ).textTheme.labelSmall?.copyWith(color: rustFor(context)),
                   ),
                 ),
               if (message.createdAt > 0)
@@ -1837,7 +1838,9 @@ class _Bubble extends StatelessWidget {
                     _messageTime(context, message.createdAt),
                     key: Key('chat-time-${message.seq}'),
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
+                          // In a bubble, the colour of the text of the bubble: the colour of
+                          // the page was 1.8:1 on the bubble of the dark theme.
+                          color: mine ? color : scheme.onSurfaceVariant,
                           fontSize: 11,
                         ),
                   ),
