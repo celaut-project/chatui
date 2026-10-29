@@ -2109,5 +2109,35 @@ void main() {
       expect(field.keyboardType, TextInputType.multiline);
       expect(field.textCapitalization, TextCapitalization.sentences);
     });
+
+    testWidgets('the text that was not sent is there again when the chat opens again', (
+      tester,
+    ) async {
+      await open(tester);
+      await tester.enterText(find.byKey(const Key('chat-input')), 'half a thought');
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(closed, isTrue);
+      expect(notes.draft(_echo.instanceId), 'half a thought');
+      await tester.tap(find.byKey(const Key('open')));
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(find.byKey(const Key('chat-input'))).controller!.text,
+          'half a thought');
+      // The send takes the draft away.
+      await tester.tap(find.byKey(const Key('chat-send')));
+      await tester.pumpAndSettle();
+      expect(chat.sent, ['half a thought']);
+      expect(notes.draft(_echo.instanceId), isEmpty);
+    });
+
+    testWidgets('a stopped or deleted instance has no draft', (tester) async {
+      final notes = ConversationNotes()
+        ..setDraft('a', 'x')
+        ..setDraft('b', 'y');
+      notes.stopped('a');
+      notes.remove('b');
+      expect(notes.draft('a'), isEmpty);
+      expect(notes.draft('b'), isEmpty);
+    });
   });
 }
