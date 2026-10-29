@@ -860,6 +860,12 @@ abstract class AppLocalizations {
   /// **'Widgets'**
   String get chatSettingsWidgetsGroup;
 
+  /// No description provided for @chatHtmlLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Making the widget…'**
+  String get chatHtmlLoading;
+
   /// No description provided for @chatSettingsHtmlWidgets.
   ///
   /// In en, this message translates to:

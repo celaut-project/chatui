@@ -460,6 +460,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatSettingsWidgetsGroup => 'Widgets';
 
   @override
+  String get chatHtmlLoading => 'Making the widget…';
+
+  @override
   String get chatSettingsHtmlWidgets => 'HTML widgets';
 
   @override

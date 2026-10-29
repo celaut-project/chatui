@@ -1,7 +1,9 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import '../../l10n/l10n.dart';
 
 /// The most characters of HTML that the parser reads. It ignores the rest.
 const int htmlMaxInputChars = 20000;
@@ -337,6 +339,161 @@ class ChatHtmlWidget extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: children),
+    );
+  }
+}
+
+/// The card of an HTML block that is still coming in the stream: the frame of
+/// [ChatHtmlWidget] with a loading mark, and no HTML of the block.
+class ChatHtmlPendingCard extends StatelessWidget {
+  const ChatHtmlPendingCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const Key('chat-html-pending'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+          const SizedBox(width: 12),
+          Text(
+            context.l10n.chatHtmlLoading,
+            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The Markdown of a chat message as widgets. A link shows as a link but does not open,
+/// and an image shows as its alt text: the text of a message makes no request and opens
+/// nothing, as the HTML widgets.
+class ChatMarkdown extends StatelessWidget {
+  const ChatMarkdown({super.key, required this.data, this.style, this.selectable = false});
+
+  final String data;
+
+  /// The base text style of the chat.
+  final TextStyle? style;
+  final bool selectable;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final base = theme.textTheme.bodyMedium!.merge(style);
+    final size = base.fontSize ?? 15;
+    TextStyle heading(double k) => base.copyWith(fontSize: size * k, fontWeight: FontWeight.w700, height: 1.3);
+    final mono = base.copyWith(
+      fontFamily: 'monospace',
+      fontSize: size - 2,
+      backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+    );
+    final sheet = MarkdownStyleSheet.fromTheme(theme).copyWith(
+      p: base,
+      a: base.copyWith(color: theme.colorScheme.primary, decoration: TextDecoration.underline),
+      strong: base.copyWith(fontWeight: FontWeight.w700),
+      em: base.copyWith(fontStyle: FontStyle.italic),
+      del: base.copyWith(decoration: TextDecoration.lineThrough),
+      h1: heading(1.5),
+      h2: heading(1.35),
+      h3: heading(1.2),
+      h4: heading(1.1),
+      h5: heading(1.0),
+      h6: heading(1.0),
+      listBullet: base,
+      tableBody: base,
+      tableHead: base.copyWith(fontWeight: FontWeight.w700),
+      blockquote: base.copyWith(color: theme.colorScheme.onSurfaceVariant),
+      code: mono,
+      codeblockDecoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      blockquoteDecoration: BoxDecoration(
+        border: Border(left: BorderSide(color: theme.colorScheme.outlineVariant, width: 3)),
+      ),
+    );
+    return MarkdownBody(
+      data: data,
+      styleSheet: sheet,
+      selectable: selectable,
+      shrinkWrap: true,
+      imageBuilder: (uri, title, alt) => Text(alt ?? '', style: base),
+    );
+  }
+}
+
+/// A fenced code block of a chat message: a card with the language, a copy button and the
+/// code in monospace, which scrolls sideways (the lines are not wrapped). While [pending]
+/// the closing fence has not come yet, and the card shows a loading mark.
+class ChatCodeBlock extends StatelessWidget {
+  const ChatCodeBlock({super.key, required this.code, this.lang = '', this.pending = false, this.style});
+
+  final String code;
+  final String lang;
+  final bool pending;
+
+  /// The base text style of the chat. The code is two points smaller, in monospace.
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final base = theme.textTheme.bodyMedium!.merge(style);
+    final mono = base.copyWith(fontFamily: 'monospace', fontSize: (base.fontSize ?? 15) - 2, color: scheme.onSurface);
+    final muted = theme.textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant);
+    return Container(
+      key: const Key('chat-code-card'),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 14, right: 4),
+            child: Row(
+              children: [
+                Expanded(child: Text(lang, key: const Key('chat-code-lang'), style: muted)),
+                if (pending)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 10),
+                    child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                  ),
+                IconButton(
+                  key: const Key('chat-code-copy'),
+                  tooltip: context.l10n.commonCopy,
+                  visualDensity: VisualDensity.compact,
+                  iconSize: 18,
+                  icon: const Icon(Icons.copy_rounded),
+                  onPressed: () => Clipboard.setData(ClipboardData(text: code)),
+                ),
+              ],
+            ),
+          ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            child: SelectableText(code, style: mono),
+          ),
+        ],
+      ),
     );
   }
 }
