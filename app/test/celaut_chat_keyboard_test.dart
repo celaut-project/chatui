@@ -2,6 +2,7 @@ import 'package:argus_wallet/celaut/chat_segments.dart';
 import 'package:argus_wallet/l10n/app_localizations.dart';
 import 'package:argus_wallet/ui/celaut/html_widget.dart';
 import 'package:argus_wallet/ui/celaut/keyboard_widget.dart';
+import 'package:argus_wallet/ui/celaut/wheel_options.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -236,6 +237,13 @@ void main() {
       expect(fitChosen([]), isEmpty);
     });
 
+    test('packChipRows puts chips side by side while they fit', () {
+      expect(packChipRows([50, 50, 50], 200), [[0, 1, 2]]);
+      expect(packChipRows([90, 90, 90], 200), [[0, 1], [2]]);
+      expect(packChipRows([300, 50], 200), [[0], [1]]);
+      expect(packChipRows([], 200), isEmpty);
+    });
+
     test('the controls count as fields: same name and the limit of 8', () {
       expect(keyboardRows('<input type="date" data-name="a"><select data-name="a"></select>').single.length, 1);
       final html = List.generate(keyboardMaxFields + 2, (i) => '<input type="range" data-name="f$i">').join();
@@ -284,12 +292,14 @@ void main() {
           '<button data-say="Take {s}">Go</button>', said);
       await t.tap(find.byType(ActionChip), warnIfMissed: false);
       expect(said, isEmpty);
-      await t.tap(find.byKey(const Key('chat-field-s')));
-      await t.pumpAndSettle();
-      await t.tap(find.text('Beta').last);
-      await t.pumpAndSettle();
+      await t.tap(find.text('Beta'));
+      await t.pump();
       await t.tap(find.byType(ActionChip));
       expect(said, ['Take b']);
+      await t.tap(find.text('Alpha'));
+      await t.pump();
+      await t.tap(find.byType(ActionChip));
+      expect(said.last, 'Take a');
     });
 
     testWidgets('a select with multiple gives the chosen values in the order of the options', (t) async {
@@ -298,35 +308,41 @@ void main() {
           '<button data-say="Take {s}">Go</button>', said);
       await t.tap(find.byType(ActionChip), warnIfMissed: false);
       expect(said, isEmpty);
-      await t.tap(find.byKey(const Key('chat-field-s')));
-      await t.pumpAndSettle();
       await t.tap(find.text('Gamma'));
       await t.tap(find.text('Alpha'));
-      await t.tap(find.text('OK'));
-      await t.pumpAndSettle();
+      await t.pump();
       await t.tap(find.byType(ActionChip));
       expect(said, ['Take a, c']);
-      expect(find.text('Alpha, Gamma'), findsOneWidget);
     });
 
-    testWidgets('cancel keeps what was chosen, and a box can be turned off', (t) async {
+    testWidgets('a box of a select with multiple turns off with a second tap, and an empty one waits', (t) async {
       final said = <String>[];
       await pump(t, '<select multiple data-name="s"><option selected>A</option><option>B</option></select>'
           '<button data-say="Take {s}">Go</button>', said);
-      await t.tap(find.byKey(const Key('chat-field-s')));
-      await t.pumpAndSettle();
-      await t.tap(find.text('B'));
-      await t.tap(find.text('Cancel'));
-      await t.pumpAndSettle();
       await t.tap(find.byType(ActionChip));
       expect(said, ['Take A']);
-      await t.tap(find.byKey(const Key('chat-field-s')));
-      await t.pumpAndSettle();
       await t.tap(find.text('A'));
-      await t.tap(find.text('OK'));
-      await t.pumpAndSettle();
+      await t.pump();
       await t.tap(find.byType(ActionChip), warnIfMissed: false);
       expect(said, ['Take A']);
+    });
+
+    testWidgets('the options are side by side while they fit, and the wheel is there', (t) async {
+      await pump(t, '<select data-name="s"><option>One</option><option>Two</option><option>Three</option></select>', []);
+      expect(find.byKey(const Key('chat-wheel')), findsOneWidget);
+      final one = t.getTopLeft(find.byKey(const Key('chat-option-0')));
+      final two = t.getTopLeft(find.byKey(const Key('chat-option-1')));
+      expect(two.dy, one.dy);
+      expect(two.dx, greaterThan(one.dx));
+    });
+
+    testWidgets('options that do not fit go to more rows, and only three rows show', (t) async {
+      t.view.physicalSize = const Size(300, 800);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.reset);
+      final options = List.generate(12, (i) => '<option>Option number $i</option>').join();
+      await pump(t, '<select data-name="s">$options</select>', []);
+      expect(t.getSize(find.byKey(const Key('chat-wheel'))).height, ChatWheelOptions.rowExtent * ChatWheelOptions.visibleRows);
     });
 
     testWidgets('a date waits for a day from the calendar', (t) async {

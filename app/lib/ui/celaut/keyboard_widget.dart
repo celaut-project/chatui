@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../l10n/l10n.dart';
 import 'html_widget.dart';
+import 'wheel_options.dart';
 
 /// The most keys that one keyboard block shows. An element after this shows as text.
 const int keyboardMaxKeys = 64;
@@ -439,40 +440,46 @@ class _ChatKeyboardState extends State<ChatKeyboard> {
           if (item is ChatKeyField) item.name: _field(item).text,
     };
     var index = 0;
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: widget.maxHeight),
-      child: SingleChildScrollView(
-        key: const Key('chat-keyboard'),
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final row in rows)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 3),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    for (final item in row)
-                      if (item is ChatKey)
-                        _key(item, values, text, index++)
-                      else if (item is ChatKeyField)
-                        _fieldWidget(item, text)
-                      else
-                        Text(item as String, style: text),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
+    // The width that a field can have: the width of the form, less its padding.
+    return LayoutBuilder(
+      builder: (context, box) {
+        final maxWidth = (box.maxWidth.isFinite ? box.maxWidth : 320.0) - 24;
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: widget.maxHeight),
+          child: SingleChildScrollView(
+            key: const Key('chat-keyboard'),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final row in rows)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        for (final item in row)
+                          if (item is ChatKey)
+                            _key(item, values, text, index++)
+                          else if (item is ChatKeyField)
+                            _fieldWidget(item, text, maxWidth)
+                          else
+                            Text(item as String, style: text),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _fieldWidget(ChatKeyField item, TextStyle text) {
+  Widget _fieldWidget(ChatKeyField item, TextStyle text, double maxWidth) {
     final c = _field(item);
     final hint = item.placeholder;
     // A field that waits shows its hint; one with a value shows the value.
@@ -523,33 +530,42 @@ class _ChatKeyboardState extends State<ChatKeyboard> {
             if (picked != null && mounted) c.text = formatChatTime(picked);
           }),
         );
-      case ChatFieldKind.select when item.multiple:
-        final chosen = _chosen.putIfAbsent(item.name, () => [...item.chosen]);
-        final labels = [
-          for (final o in item.options)
-            if (chosen.contains(o.value)) o.label,
-        ];
-        return SizedBox(
-          width: 200,
-          child: chooser(labels.join(keyboardMultipleSeparator), Icons.checklist, onTap: () async {
-            final picked = await _pickMany(item, chosen, text);
-            if (picked == null || !mounted) return;
-            _chosen[item.name] = picked;
-            c.text = picked.join(keyboardMultipleSeparator);
-          }),
-        );
       case ChatFieldKind.select:
-        final label = item.options.where((o) => o.value == c.text).map((o) => o.label).firstOrNull ?? '';
+        final multiple = item.multiple;
+        final chosen = multiple ? _chosen.putIfAbsent(item.name, () => [...item.chosen]) : [c.text];
         return SizedBox(
-          width: 200,
-          child: PopupMenuButton<String>(
-            tooltip: '',
-            enabled: item.options.isNotEmpty,
-            onSelected: (v) => c.text = v,
-            itemBuilder: (_) => [
-              for (final o in item.options) PopupMenuItem(value: o.value, child: Text(o.label, style: text)),
+          width: maxWidth,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (hint.isNotEmpty)
+                Text(hint, style: text.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+              ChatWheelOptions(
+                key: Key('chat-field-${item.name}'),
+                labels: [for (final o in item.options) o.label],
+                selected: [for (final o in item.options) chosen.contains(o.value)],
+                multiple: multiple,
+                style: text,
+                onTap: (i) {
+                  final value = item.options[i].value;
+                  if (!multiple) {
+                    c.text = value;
+                    return;
+                  }
+                  // The values keep the order of the options. A box that would make the value
+                  // too long does not turn on.
+                  final on = !chosen.contains(value);
+                  final next = [
+                    for (final o in item.options)
+                      if (o.value == value ? on : chosen.contains(o.value)) o.value,
+                  ];
+                  if (on && fitChosen(next).length != next.length) return;
+                  _chosen[item.name] = next;
+                  c.text = next.join(keyboardMultipleSeparator);
+                },
+              ),
             ],
-            child: chooser(label, Icons.arrow_drop_down),
           ),
         );
       case ChatFieldKind.range:
@@ -620,55 +636,6 @@ class _ChatKeyboardState extends State<ChatKeyboard> {
           ),
         );
     }
-  }
-
-  /// The dialog of a `select` with `multiple`: a box for each option. It gives the chosen
-  /// values in the order of the options, or null if the user cancels. A box that would make
-  /// the value longer than [keyboardMaxFieldChars] characters does not turn on.
-  Future<List<String>?> _pickMany(ChatKeyField item, List<String> chosen, TextStyle text) {
-    var now = [...chosen];
-    return showDialog<List<String>>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setLocal) => AlertDialog(
-          title: item.placeholder.isEmpty ? null : Text(item.placeholder),
-          contentPadding: const EdgeInsets.symmetric(vertical: 12),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView(
-              key: const Key('chat-multiple-options'),
-              shrinkWrap: true,
-              children: [
-                for (final o in item.options)
-                  CheckboxListTile(
-                    dense: true,
-                    value: now.contains(o.value),
-                    title: Text(o.label, style: text),
-                    onChanged: (on) {
-                      final next = [
-                        for (final p in item.options)
-                          if (p.value == o.value ? on == true : now.contains(p.value)) p.value,
-                      ];
-                      if (on == true && fitChosen(next).length != next.length) return;
-                      setLocal(() => now = next);
-                    },
-                  ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, now),
-              child: Text(MaterialLocalizations.of(context).okButtonLabel),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _key(ChatKey key, Map<String, String> values, TextStyle text, int i) {
