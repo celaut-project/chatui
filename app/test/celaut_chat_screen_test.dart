@@ -442,6 +442,7 @@ void main() {
     chat.gate = Completer<void>();
     await open(tester);
     await tester.enterText(find.byKey(const Key('chat-input')), 'think hard');
+    await tester.pump();
     await tester.tap(find.byKey(const Key('chat-send')));
     await tester.pump();
     // The message is on screen before the service answers, and the field is free.
@@ -470,6 +471,7 @@ void main() {
     chat.failWith = const ChatException(ChatErrorKind.busy);
     await open(tester);
     await tester.enterText(find.byKey(const Key('chat-input')), 'first');
+    await tester.pump();
     await tester.tap(find.byKey(const Key('chat-send')));
     await tester.pump();
     await tester.enterText(find.byKey(const Key('chat-input')), 'second');
@@ -486,9 +488,11 @@ void main() {
     chat.gate = Completer<void>();
     await open(tester);
     await tester.enterText(find.byKey(const Key('chat-input')), 'first');
+    await tester.pump();
     await tester.tap(find.byKey(const Key('chat-send')));
     await tester.pump();
     await tester.enterText(find.byKey(const Key('chat-input')), 'second');
+    await tester.pump();
     await tester.tap(find.byKey(const Key('chat-send')));
     await tester.pump();
     expect(find.byKey(const Key('chat-flying')), findsNWidgets(2));
@@ -509,13 +513,16 @@ void main() {
     chat.holdAnswers = true;
     await open(tester);
     await tester.enterText(find.byKey(const Key('chat-input')), 'think hard');
+    await tester.pump();
     await tester.tap(find.byKey(const Key('chat-send')));
     await tester.pump();
     await tester.pump();
     expect(find.byKey(const Key('chat-flying')), findsNothing);
     expect(find.byKey(const Key('chat-bubble-1')), findsOneWidget);
     expect(find.byKey(const Key('chat-typing')), findsOneWidget);
-    // The send is not blocked: the user can write on.
+    // The send is not blocked: the user can write on, and send.
+    await tester.enterText(find.byKey(const Key('chat-input')), 'more');
+    await tester.pump();
     expect(tester.widget<IconButton>(find.byKey(const Key('chat-send'))).onPressed, isNotNull);
 
     // The screen reads the conversation every 2 seconds while it waits.
@@ -645,6 +652,7 @@ void main() {
     chat.failWith = const ChatException(ChatErrorKind.storageFull, reason: 'storage_full');
     await open(tester);
     await tester.enterText(find.byKey(const Key('chat-input')), 'Hello');
+    await tester.pump();
     await tester.tap(find.byKey(const Key('chat-send')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('chat-error')), findsOneWidget);
@@ -995,6 +1003,7 @@ void main() {
   testWidgets('send shows the message and the answer, and clears the field', (tester) async {
     await open(tester);
     await tester.enterText(find.byKey(const Key('chat-input')), 'Hello');
+    await tester.pump();
     await tester.tap(find.byKey(const Key('chat-send')));
     await tester.pumpAndSettle();
     expect(chat.sent, ['Hello']);
@@ -1010,6 +1019,7 @@ void main() {
     chat.failWith = const ChatException(ChatErrorKind.busy);
     await open(tester);
     await tester.enterText(find.byKey(const Key('chat-input')), 'Hello');
+    await tester.pump();
     await tester.tap(find.byKey(const Key('chat-send')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('chat-error')), findsOneWidget);
@@ -2058,6 +2068,46 @@ void main() {
       expect(before, lessThan(c.position.maxScrollExtent - 80));
       await openKeyboard(tester, 300);
       expect(c.position.pixels, before);
+    });
+  });
+
+  group('the input', () {
+    IconButton send(WidgetTester tester) => tester.widget<IconButton>(find.byKey(const Key('chat-send')));
+
+    testWidgets('Send is off while there is nothing to send', (tester) async {
+      await open(tester);
+      expect(send(tester).onPressed, isNull);
+      await tester.enterText(find.byKey(const Key('chat-input')), '  \n ');
+      await tester.pump();
+      expect(send(tester).onPressed, isNull);
+      await tester.enterText(find.byKey(const Key('chat-input')), 'hi');
+      await tester.pump();
+      expect(send(tester).onPressed, isNotNull);
+      await tester.tap(find.byKey(const Key('chat-send')));
+      await tester.pumpAndSettle();
+      expect(chat.sent, ['hi']);
+      // The input is empty again after the send.
+      expect(send(tester).onPressed, isNull);
+    });
+
+    testWidgets('a file alone can be sent', (tester) async {
+      chat.kinds = {'image'};
+      pick = (_) async => [OutgoingAttachment(mime: 'image/png', bytes: Uint8List.fromList(png), name: 'a.png')];
+      await open(tester);
+      expect(send(tester).onPressed, isNull);
+      await tester.tap(find.byKey(const Key('chat-attach')));
+      await tester.pumpAndSettle();
+      expect(send(tester).onPressed, isNotNull);
+    });
+
+    testWidgets('Enter makes a new line, and a sentence starts with a capital letter', (
+      tester,
+    ) async {
+      await open(tester);
+      final field = tester.widget<TextField>(find.byKey(const Key('chat-input')));
+      expect(field.textInputAction, TextInputAction.newline);
+      expect(field.keyboardType, TextInputType.multiline);
+      expect(field.textCapitalization, TextCapitalization.sentences);
     });
   });
 }
