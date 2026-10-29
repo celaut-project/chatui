@@ -4590,6 +4590,7 @@
     }
   },
   "celautPkgMissing": "The file is gone. Import it again.",
+  "celautPkgRedownload": "Download the file again and try once more: a browser sometimes saves it damaged.",
   "celautSendFromLibrary": "Send your loaded file to {to}",
   "@celautSendFromLibrary": {
     "placeholders": {

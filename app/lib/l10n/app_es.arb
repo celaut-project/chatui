@@ -1842,6 +1842,7 @@
     }
   },
   "celautPkgMissing": "El fichero ya no está. Impórtalo de nuevo.",
+  "celautPkgRedownload": "Vuelve a descargar el archivo y prueba otra vez: a veces el navegador lo descarga dañado.",
   "celautSendFromLibrary": "Envía tu fichero cargado a {to}",
   "@celautSendFromLibrary": {
     "placeholders": {
