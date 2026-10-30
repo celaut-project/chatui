@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../l10n/l10n.dart';
 
@@ -96,7 +95,10 @@ class _ChatVirtualKeyboardState extends State<ChatVirtualKeyboard> {
 
   Widget _char(String c) {
     final shown = _shift && !_symbols ? c.toUpperCase() : c;
-    return _key('char-$c', Text(shown, style: const TextStyle(fontSize: 18)), () => _type(shown));
+    // The case comes from the state at the tap, not from the last build: a second tap can
+    // come before the next frame, and Shift is for one letter only.
+    return _key('char-$c', Text(shown, style: const TextStyle(fontSize: 18)),
+        () => _type(_shift && !_symbols ? c.toUpperCase() : c));
   }
 
   @override
