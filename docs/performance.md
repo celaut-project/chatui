@@ -120,3 +120,38 @@ on the same host, one conversation running, a host load of 6 to 14.
 - **The rocket** (`launch_rocket`, new): 270 frames, 1 render pass a frame and one
   texture in the whole trace, raster 19.4 ms on average and 28 to 38 ms at worst. It costs
   what a plain page costs on SwiftShader.
+
+## 4. Web instances: slow or never loading (October 2026)
+
+Pages of web instances (the browser on `127.0.0.1:<port>`, one tunnel stream per TCP
+connection) loaded very slowly or not at all, most of all through Tor. The causes, and the
+fixes:
+
+1. **The dial limit was 10 s on every route** (`celaut-wire/src/channel.rs`,
+   `ConnectOptions::default`). A route through Tor needs a circuit, the TLS handshake and
+   the HTTP/2 setup: several round trips of 0.3 to 1 s. The first connection failed, and
+   the page with it. Now `default_connect_timeout()` gives 60 s on a SOCKS route and 10 s
+   on a direct one.
+2. **HTTP/2 windows of 64 KiB** (tonic default). One stream could carry 64 KiB per round
+   trip, about 128 KiB/s at an RTT of 0.5 s, and the 64 KiB window of the connection was
+   shared by all the streams, so the 6 or more connections of a browser stalled each other
+   (head-of-line blocking). Now 4 MiB per stream and 16 MiB per connection.
+3. **No HTTP/2 PING.** A connection that died with no FIN or RST (the phone changed from
+   Wi-Fi to mobile data, a circuit of Tor closed) stayed "open" until the TCP
+   retransmission timeout, minutes later, and every stream on it hung. Now a PING goes
+   every 30 s while a call is open, and a connection with no answer in 25 s is dropped;
+   tonic then dials again for the next stream. No PING goes on an idle connection.
+4. **A stream that failed to open closed the browser connection** (`celaut-client/src/
+   local_port.rs`). The first error (no connection, `Unavailable`) reset the page. Now the
+   relay opens the stream again, up to 3 times with a wait of 0.25, 0.5 and 0.75 s, and
+   sends again the bytes that it already sent (up to 1 MiB), as long as no byte came back.
+   A refusal of the node (token, balance, slot) is not retried.
+
+Not changed: the Dart `TunnelHttp` is only for the chat calls, and the web page opens in
+the system browser, so neither limits the page. `SOCKS_CHECK_TIMEOUT` (5 s) is for the
+local proxy, not for the circuit.
+
+Unverified here: the real effect through Tor (no Tor or node in the build host). To check:
+open a web instance on a node by an onion address and compare the time of the first
+paint, before and after. A node that closes a connection for PINGs every 30 s would show
+as `Unavailable` in `last_error`; then raise `KEEP_ALIVE_INTERVAL`.

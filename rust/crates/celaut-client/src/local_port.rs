@@ -14,6 +14,7 @@
 //!
 //! The receipts of each stream go to the [`ReceiptSink`] of the port, if it has one.
 
+use std::collections::VecDeque;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -22,6 +23,7 @@ use celaut_wire::tunnel::MAX_PAYLOAD;
 use celaut_wire::{ReceiptSink, Tunnel, TunnelOpener};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::mpsc;
 use tokio::task::{JoinHandle, JoinSet};
 
 #[derive(Debug, Default)]
@@ -41,7 +43,9 @@ struct Target {
 
 impl std::fmt::Debug for Target {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Target").field("slot", &self.slot).finish_non_exhaustive()
+        f.debug_struct("Target")
+            .field("slot", &self.slot)
+            .finish_non_exhaustive()
     }
 }
 
@@ -178,6 +182,26 @@ impl Drop for AbortOnDrop {
     }
 }
 
+/// How many times a stream that failed to open is opened again.
+const OPEN_RETRIES: u32 = 3;
+/// The most bytes kept to send again to a new stream. A request longer than this (an
+/// upload) is not sent again: its start is gone.
+const REPLAY_LIMIT: usize = 1 << 20;
+
+/// An error of the open of a stream that says nothing reached the service: no connection
+/// to the node (a broken link, a circuit of Tor that died), or a node that is
+/// unavailable. A refusal (wrong token, no balance) is not one: it would fail again.
+fn is_transient(error: &celaut_wire::WireError) -> bool {
+    use celaut_wire::WireError;
+    match error {
+        WireError::Connect(_) | WireError::Timeout => true,
+        WireError::Call(text) => {
+            text.starts_with("Unavailable") || text.starts_with("Unknown: transport")
+        }
+        _ => false,
+    }
+}
+
 async fn relay(socket: TcpStream, target: Arc<Target>, shared: Arc<Shared>) {
     let (mut reader, mut writer) = socket.into_split();
     let mut buffer = vec![0u8; MAX_PAYLOAD];
@@ -187,41 +211,110 @@ async fn relay(socket: TcpStream, target: Arc<Target>, shared: Arc<Shared>) {
         Ok(0) | Err(_) => return,
         Ok(n) => n,
     };
+    let first_chunk = buffer[..first].to_vec();
     shared.streams.fetch_add(1, Ordering::Relaxed);
     let Tunnel {
         to_service,
         mut from_service,
     } = target.open();
-    if to_service.send(buffer[..first].to_vec()).await.is_err() {
-        return;
-    }
+    let mut to_service = Some(to_service);
+
+    // The local reader feeds this channel, so that the loop below can open the stream
+    // again (a node that cannot be reached right now) and send what was read.
+    let (up_tx, mut up_rx) = mpsc::channel::<Vec<u8>>(4);
     // Aborted when the relay ends or is aborted (the port is dropped).
     let _up = AbortOnDrop(tokio::spawn(async move {
         loop {
             match reader.read(&mut buffer).await {
                 Ok(0) | Err(_) => break,
                 Ok(n) => {
-                    if to_service.send(buffer[..n].to_vec()).await.is_err() {
+                    if up_tx.send(buffer[..n].to_vec()).await.is_err() {
                         break;
                     }
                 }
             }
         }
-        // `to_service` is dropped here: the stream is half-closed.
+        // `up_tx` is dropped here: the end of the local data.
     }));
-    while let Some(item) = from_service.recv().await {
-        match item {
-            Ok(data) => {
-                if writer.write_all(&data).await.is_err() {
+
+    // What waits to go to the stream.
+    let mut queue: VecDeque<Vec<u8>> = VecDeque::new();
+    queue.push_back(first_chunk);
+    // What went since the stream opened, while no byte came back: to send again.
+    let mut replay: Vec<Vec<u8>> = Vec::new();
+    let mut replay_bytes = 0usize;
+    let mut replayable = true;
+    let mut local_ended = false;
+    let mut answered = false;
+    let mut retries = 0u32;
+
+    loop {
+        // The end of the local data half-closes the stream, once all has been sent.
+        if local_ended && queue.is_empty() {
+            to_service = None;
+        }
+        // A clone for the wait for room: the select must not borrow `to_service`.
+        let room = to_service.clone().filter(|_| !queue.is_empty());
+        let has_room = room.is_some();
+        tokio::select! {
+            chunk = up_rx.recv(), if !local_ended && queue.len() < 4 => match chunk {
+                Some(chunk) => queue.push_back(chunk),
+                None => local_ended = true,
+            },
+            permit = async {
+                match room {
+                    Some(room) => room.reserve_owned().await,
+                    None => std::future::pending().await,
+                }
+            }, if has_room => {
+                let Ok(permit) = permit else {
+                    // The stream is closed: its error, if any, comes from the other side.
+                    queue.clear();
+                    to_service = None;
+                    continue;
+                };
+                let chunk = queue.pop_front().unwrap_or_default();
+                if !answered {
+                    replay_bytes += chunk.len();
+                    if replay_bytes > REPLAY_LIMIT {
+                        replayable = false;
+                        replay.clear();
+                    } else {
+                        replay.push(chunk.clone());
+                    }
+                }
+                let _ = permit.send(chunk);
+            }
+            item = from_service.recv() => match item {
+                Some(Ok(data)) => {
+                    answered = true;
+                    replay.clear();
+                    if writer.write_all(&data).await.is_err() {
+                        break;
+                    }
+                }
+                Some(Err(e)) => {
+                    if !answered && replayable && retries < OPEN_RETRIES && is_transient(&e) {
+                        retries += 1;
+                        // A short wait, longer each time: the link may be coming back.
+                        tokio::time::sleep(std::time::Duration::from_millis(250 * u64::from(retries))).await;
+                        let tunnel = target.open();
+                        from_service = tunnel.from_service;
+                        to_service = Some(tunnel.to_service);
+                        // What was sent goes first, then what waited.
+                        let mut again: VecDeque<Vec<u8>> = std::mem::take(&mut replay).into();
+                        again.append(&mut queue);
+                        queue = again;
+                        replay_bytes = 0;
+                        continue;
+                    }
+                    if let Ok(mut last) = shared.last_error.lock() {
+                        *last = Some(e.to_string());
+                    }
                     break;
                 }
-            }
-            Err(e) => {
-                if let Ok(mut last) = shared.last_error.lock() {
-                    *last = Some(e.to_string());
-                }
-                break;
-            }
+                None => break,
+            },
         }
     }
     // The stream ended. The end of the relay stops the reading too, which closes the

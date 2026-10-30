@@ -56,6 +56,9 @@ struct FakeNode {
     opened: Mutex<Vec<(String, u16)>>,
     /// When set, every tunnel fails with this text, as a refusal of the node.
     refuse: Option<String>,
+    /// How many of the first opens fail with "cannot connect", as a node that cannot be
+    /// reached for a moment.
+    unreachable: AtomicUsize,
 }
 
 impl TunnelOpener for FakeNode {
@@ -70,7 +73,17 @@ impl TunnelOpener for FakeNode {
         let (from_tx, from_service) = mpsc::channel(16);
         let port = self.server_port;
         let refuse = self.refuse.clone();
+        let unreachable = self
+            .unreachable
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
+            .is_ok();
         tokio::spawn(async move {
+            if unreachable {
+                let _ = from_tx
+                    .send(Err(WireError::Connect("no route".to_string())))
+                    .await;
+                return;
+            }
             if let Some(text) = refuse {
                 let _ = from_tx.send(Err(WireError::Call(text))).await;
                 return;
@@ -107,6 +120,7 @@ async fn node(refuse: Option<&str>) -> Arc<FakeNode> {
         server_port: http_server().await,
         opened: Mutex::new(Vec::new()),
         refuse: refuse.map(str::to_string),
+        unreachable: AtomicUsize::new(0),
     })
 }
 
@@ -292,4 +306,45 @@ async fn a_new_opener_serves_the_next_connections_and_clears_the_error() {
     assert_eq!(local.last_error(), None);
     let mut again = connect(port).await;
     assert_eq!(get(&mut again, "/").await, "1 /");
+}
+
+#[tokio::test]
+async fn a_stream_that_cannot_reach_the_node_is_opened_again_with_the_same_bytes() {
+    let fake = node(None).await;
+    // The first two opens fail before any byte comes back.
+    fake.unreachable.store(2, Ordering::SeqCst);
+    let local = LocalPort::bind(fake.clone(), "tok".into(), 3030, None)
+        .await
+        .unwrap();
+    let mut socket = connect(local.port()).await;
+    // The browser sees no error: the request is sent again to the third stream.
+    let answer = tokio::time::timeout(Duration::from_secs(10), get(&mut socket, "/retry"))
+        .await
+        .expect("no answer after the retries");
+    assert_eq!(answer, "1 /retry");
+    assert_eq!(fake.opened.lock().unwrap().len(), 3);
+    assert_eq!(local.last_error(), None);
+    // The connection is still good for the next request.
+    assert_eq!(get(&mut socket, "/next").await, "1 /next");
+}
+
+#[tokio::test]
+async fn a_node_that_stays_unreachable_ends_the_connection_after_the_retries() {
+    let fake = node(None).await;
+    fake.unreachable.store(100, Ordering::SeqCst);
+    let local = LocalPort::bind(fake.clone(), "tok".into(), 3030, None)
+        .await
+        .unwrap();
+    let mut socket = TcpStream::connect(("127.0.0.1", local.port()))
+        .await
+        .unwrap();
+    socket.write_all(b"GET / HTTP/1.1\r\n\r\n").await.unwrap();
+    let mut all = Vec::new();
+    let _ = tokio::time::timeout(Duration::from_secs(10), socket.read_to_end(&mut all))
+        .await
+        .expect("the local connection was not closed");
+    assert!(all.is_empty());
+    // The first open and three retries.
+    assert_eq!(fake.opened.lock().unwrap().len(), 4);
+    assert!(local.last_error().unwrap().contains("no route"));
 }

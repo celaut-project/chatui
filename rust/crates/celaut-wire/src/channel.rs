@@ -32,10 +32,46 @@ impl Default for ConnectOptions {
     fn default() -> Self {
         ConnectOptions {
             expected_peer_id: None,
-            connect_timeout: Duration::from_secs(10),
+            connect_timeout: default_connect_timeout(),
             call_timeout: Duration::from_secs(30),
         }
     }
+}
+
+/// The limit for the dial: 10 s direct. Through a proxy (Tor) the circuit to the node, the
+/// TLS handshake and the HTTP/2 setup need several round trips of 0.3 to 1 s each, and
+/// the circuit can be new: 10 s killed most first connections, so it is 60 s.
+pub fn default_connect_timeout() -> Duration {
+    match celaut_net::route() {
+        celaut_net::Route::Socks(_) => Duration::from_secs(60),
+        _ => Duration::from_secs(10),
+    }
+}
+
+/// HTTP/2 flow-control window of each stream. The default (64 KiB) lets a stream carry
+/// at most 64 KiB per round trip: over Tor (RTT of 0.5 s) that is about 128 KiB/s, and
+/// the window of the connection (also 64 KiB) is shared by all the tunnel streams.
+const STREAM_WINDOW: u32 = 4 * 1024 * 1024;
+/// The window of the whole connection: room for several streams at once.
+const CONNECTION_WINDOW: u32 = 16 * 1024 * 1024;
+/// A PING while a call is open, so that a connection that died without a FIN or an RST
+/// (a mobile network that changed, a Tor circuit that closed) is found in tens of
+/// seconds, not after the minutes of the TCP retransmission timeout.
+const KEEP_ALIVE_INTERVAL: Duration = Duration::from_secs(30);
+/// How long a PING waits for its answer. A circuit of Tor can be slow, but a PING is a
+/// small frame that goes before the data.
+const KEEP_ALIVE_TIMEOUT: Duration = Duration::from_secs(25);
+
+/// The endpoint of a node: the HTTP/2 settings that every connection uses. The URI is not
+/// used to connect (the connector does it).
+fn endpoint() -> Endpoint {
+    Endpoint::from_static("http://celaut-node")
+        .initial_stream_window_size(STREAM_WINDOW)
+        .initial_connection_window_size(CONNECTION_WINDOW)
+        .http2_keep_alive_interval(KEEP_ALIVE_INTERVAL)
+        .keep_alive_timeout(KEEP_ALIVE_TIMEOUT)
+        .keep_alive_while_idle(false)
+        .tcp_nodelay(true)
 }
 
 /// The TLS client settings of a node: TLS 1.3, ALPN `h2`, no client certificate, the
@@ -217,8 +253,7 @@ impl Connection {
                     .map(TokioIo::new)
             }
         });
-        // The URI is not used to connect. The service above does it.
-        let endpoint = Endpoint::from_static("http://celaut-node");
+        let endpoint = endpoint();
         let result = tokio::time::timeout(
             options.connect_timeout,
             endpoint.connect_with_connector(service),
