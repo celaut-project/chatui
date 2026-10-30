@@ -7994,8 +7994,14 @@ abstract class AppLocalizations {
   /// No description provided for @celautDepositLimitLabel.
   ///
   /// In en, this message translates to:
-  /// **'Limit for this node in ERG (1 ERG at most)'**
+  /// **'Limit for this node in ERG'**
   String get celautDepositLimitLabel;
+
+  /// No description provided for @celautDepositLimitHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'1 ERG at most'**
+  String get celautDepositLimitHelper;
 
   /// No description provided for @celautDepositSetLimit.
   ///

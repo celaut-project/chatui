@@ -5105,8 +5105,10 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get celautDepositLimitLabel =>
-      'Límite para este nodo en ERG (1 ERG como máximo)';
+  String get celautDepositLimitLabel => 'Límite para este nodo en ERG';
+
+  @override
+  String get celautDepositLimitHelper => '1 ERG como máximo';
 
   @override
   String get celautDepositSetLimit => 'Fijar el límite';

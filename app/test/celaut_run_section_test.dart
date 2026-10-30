@@ -1241,6 +1241,31 @@ void main() {
       expect(envChosen!.map((c) => (c.name, c.text)), [('API_KEY', 'fast')]);
     });
 
+    testWidgets('Done on the keyboard uses the typed value, as its button', (tester) async {
+      await open(
+        tester,
+        askEnvironment: true,
+        inspect: (id, node) async => _info(env: declared, networks: egress),
+        envStore: store,
+        trustedNodes: () => {_best},
+      );
+      await run(tester);
+      await tester.tap(find.byKey(const Key('env-ask-type')));
+      await tester.pumpAndSettle();
+      final field = tester.widget<TextField>(find.byKey(const Key('env-typed')));
+      expect(field.textInputAction, TextInputAction.done);
+      await tester.enterText(find.byKey(const Key('env-typed')), 'fast');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('env-ask-skip')));
+      await tester.pumpAndSettle();
+      // The review comes before the start, as after the button.
+      expect(envChosen, isNull);
+      await tester.tap(find.byKey(const Key('env-run')));
+      await tester.pumpAndSettle();
+      expect(envChosen!.map((c) => (c.name, c.text)), [('API_KEY', 'fast')]);
+    });
+
     testWidgets('cancelling the question cancels the launch without a failure sheet', (tester) async {
       await open(tester, askEnvironment: true, inspect: (id, node) async => _info(env: declared), envStore: store);
       await run(tester);

@@ -284,6 +284,9 @@ class _EnvQuestionsScreenState extends State<EnvQuestionsScreen> {
             obscureText: _hidden,
             autocorrect: false,
             enableSuggestions: false,
+            // The action key of the keyboard does what "Use this value" does.
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _useTyped(),
             decoration: InputDecoration(
               labelText: l.celautEnvValue,
               errorText: _typedError,

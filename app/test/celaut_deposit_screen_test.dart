@@ -478,6 +478,40 @@ void main() {
       expect(tester.getSize(find.byKey(const Key('deposit-set-limit'))).width, lessThan(390));
     });
 
+    testWidgets('the keys of the keyboard: Go checks the node, Done sets the limit', (tester) async {
+      await pump(tester);
+      final node = tester.widget<TextField>(find.byKey(const Key('deposit-node')));
+      expect(node.keyboardType, TextInputType.url);
+      expect(node.textInputAction, TextInputAction.go);
+      await tester.enterText(find.byKey(const Key('deposit-node')), '127.0.0.1:18460');
+      await tester.testTextInput.receiveAction(TextInputAction.go);
+      await tester.pumpAndSettle();
+      expect(api.nodeCalls.length, 1);
+      // The keyboard closed, so the contract of the node shows.
+      expect(tester.testTextInput.isVisible, isFalse);
+
+      final amount = tester.widget<TextField>(find.byKey(const Key('deposit-amount')));
+      expect(amount.keyboardType, const TextInputType.numberWithOptions(decimal: true));
+      expect(amount.textInputAction, TextInputAction.done);
+      // Done in the amount only closes the keyboard: no deposit starts.
+      await tester.enterText(find.byKey(const Key('deposit-amount')), '0.01');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.text(DepositStrings.confirmTitle), findsNothing);
+
+      await tester.enterText(find.byKey(const Key('deposit-limit')), '0.02');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(api.limits.single, (peer: _peer, limit: BigInt.from(20000000)));
+    });
+
+    testWidgets('the label of the limit is not cut: the maximum is under the field', (tester) async {
+      await pump(tester);
+      await check(tester);
+      expect(find.text(DepositStrings.limitLabel), findsOneWidget);
+      expect(find.text(DepositStrings.limitHelper), findsOneWidget);
+    });
+
     testWidgets('a bad node address calls nothing', (tester) async {
       await pump(tester);
       await tester.enterText(find.byKey(const Key('deposit-node')), 'node.example');

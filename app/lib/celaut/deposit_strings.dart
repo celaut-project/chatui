@@ -26,6 +26,7 @@ class DepositStrings {
   static String usedValue(String used, String limit) =>
       appL10n.celautDepositUsedValue(used, limit);
   static String get limitLabel => appL10n.celautDepositLimitLabel;
+  static String get limitHelper => appL10n.celautDepositLimitHelper;
   static String get setLimit => appL10n.celautDepositSetLimit;
   static String get limitInvalid => appL10n.celautDepositLimitInvalid;
 
