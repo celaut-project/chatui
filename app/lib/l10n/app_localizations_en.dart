@@ -5887,16 +5887,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'The app asks the nodes, then starts the service on the best one.';
 
   @override
-  String get celautRunStepNodes =>
-      'Asking the nodes for a price';
+  String get celautRunStepNodes => 'Asking the nodes for a price';
 
   @override
-  String get celautRunStepReading =>
-      'Reading the service';
+  String get celautRunStepReading => 'Reading the service';
 
   @override
-  String get celautRunStepStarting =>
-      'Starting it on the best node';
+  String get celautRunStepStarting => 'Starting it on the best node';
 
   @override
   String celautRunStarted(String node, String cost) {

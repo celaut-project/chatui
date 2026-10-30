@@ -8,7 +8,7 @@ import 'celaut.dart';
 import 'celaut_env.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `address_of_key`, `check`, `configuration`, `cost_so_far`, `forget_if_broken_key`, `forget_if_broken`, `instance`, `key`, `n`, `new_client_session`, `open_session`, `quote_view`, `service_id`, `session_pinned`, `session_with`, `session`, `spent_since`, `start_configuration`, `state`, `stopped_instance`, `unknown_instance`
+// These functions are ignored because they are not marked as `pub`: `address_of_key`, `check`, `configuration`, `cost_so_far`, `forget_if_broken_key`, `forget_if_broken`, `instance`, `key`, `n`, `new_client_session`, `open_session`, `preferred_port`, `quote_view`, `service_id`, `session_pinned`, `session_with`, `session`, `spent_since`, `start_configuration`, `state`, `stopped_instance`, `unknown_instance`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `State`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
