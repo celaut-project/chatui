@@ -1479,7 +1479,9 @@ void main() {
       chat = _FakeChat(history: longChat());
       await open(tester);
       expect(find.byKey(const Key('chat-virtual-keyboard')), findsOneWidget);
-      await tester.drag(find.byKey(const Key('chat-messages')), const Offset(0, 200));
+      // The list runs under the input, so the drag starts above it.
+      final messages = tester.getRect(find.byKey(const Key('chat-messages')));
+      await tester.dragFrom(Offset(messages.center.dx, messages.center.dy - 150), const Offset(0, 200));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('chat-virtual-keyboard')), findsNothing);
       await tester.tap(find.byKey(const Key('chat-input')));
