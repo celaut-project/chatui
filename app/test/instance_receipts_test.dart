@@ -153,7 +153,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(_text(tester, 'info-receipts-checkpoints'), '1');
     checkpoints = 4;
-    await tester.fling(find.byType(ListView), const Offset(0, 400), 1000);
+    // The pull starts on the name, at the top, and goes far enough to arm the indicator in
+    // this window of 2400 px: 400 px did not, with the longer page of now.
+    await tester.fling(find.byKey(const Key('info-name')), const Offset(0, 800), 1000);
     await tester.pumpAndSettle();
     expect(_text(tester, 'info-receipts-checkpoints'), '4');
     checkpoints = 7;

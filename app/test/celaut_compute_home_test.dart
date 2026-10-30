@@ -154,8 +154,6 @@ void main() {
     return run;
   }
 
-  String text(WidgetTester tester, String key) => tester.widget<Text>(find.byKey(Key(key))).data!;
-
   String rowTexts(WidgetTester tester, String key) => tester
       .widgetList<Text>(find.descendant(of: find.byKey(Key(key)), matching: find.byType(Text)))
       .map((t) => t.data)
