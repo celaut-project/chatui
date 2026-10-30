@@ -740,28 +740,63 @@ pub fn celaut_forget_instance(instance_id: String) -> Result<(), CelautError> {
 /// the node charges (`TUNNEL_OPEN_MU`): keep HTTP connections alive.
 #[flutter_rust_bridge::frb]
 pub async fn celaut_open_tunnel(instance_id: String, slot: u16) -> Result<u16, CelautError> {
-    if let Some(port) = state()?.ports.get(&instance_id).and_then(|p| p.get(&slot)) {
-        return Ok(port.port());
-    }
     let (session, record) = instance(&instance_id).await?;
     if !record.slots.contains(&slot) {
         return Err(invalid("The instance has no such slot."));
     }
     let opener: Arc<dyn TunnelOpener> = Arc::new(session.transport().clone());
+    {
+        let mut s = state()?;
+        let ports = s.ports.entry(instance_id.clone()).or_default();
+        match ports.get(&slot) {
+            // The port stays, and so does its address in the browser. Its next streams
+            // use the current connection to the node: the one it had can be broken.
+            Some(port) if port.is_alive() => {
+                port.set_opener(opener);
+                return Ok(port.port());
+            }
+            // The task of the port ended: make a new one.
+            Some(_) => {
+                ports.remove(&slot);
+            }
+            None => {}
+        }
+    }
     let sink = super::celaut_receipts::sink(instance_id.clone());
-    let port = LocalPort::bind(opener, record.token.clone(), slot, Some(sink))
-        .await
-        .map_err(|e| CelautError {
-            kind: CelautErrorKind::Unreachable,
-            message: format!("cannot open a local port: {e}"),
-        })?;
+    let port = LocalPort::bind_preferred(
+        opener,
+        record.token.clone(),
+        slot,
+        Some(sink),
+        Some(preferred_port(&instance_id, slot)),
+    )
+    .await
+    .map_err(|e| CelautError {
+        kind: CelautErrorKind::Unreachable,
+        message: format!("cannot open a local port: {e}"),
+    })?;
     let mut s = state()?;
+    // A call that came in while this one bound its port wins: its port is kept.
     Ok(s.ports
         .entry(instance_id)
         .or_default()
         .entry(slot)
         .or_insert(port)
         .port())
+}
+
+/// The port that an instance slot asks for. It comes from the id of the instance and the
+/// slot, so it is the same in each start of the app, and a web page keeps its origin (its
+/// cookies and its local storage). It is under the range of the ports that the system
+/// gives to outgoing connections. If it is taken, the port is another one.
+fn preferred_port(instance_id: &str, slot: u16) -> u16 {
+    // FNV-1a: the same value on every run and every platform.
+    let mut h: u32 = 0x811c_9dc5;
+    for b in instance_id.bytes().chain(slot.to_be_bytes()) {
+        h ^= u32::from(b);
+        h = h.wrapping_mul(0x0100_0193);
+    }
+    10_000 + (h % 22_000) as u16
 }
 
 /// The state of an instance.
@@ -1058,6 +1093,17 @@ pub async fn celaut_stop_service(instance_id: String) -> Result<StopView, Celaut
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_preferred_port_is_stable_and_in_range() {
+        let a = preferred_port("instance-a", 80);
+        assert_eq!(a, preferred_port("instance-a", 80));
+        assert_ne!(a, preferred_port("instance-a", 8080));
+        assert_ne!(a, preferred_port("instance-b", 80));
+        for (id, slot) in [("", 0), ("x", 65535), ("instance-a", 80)] {
+            assert!((10_000..32_000).contains(&preferred_port(id, slot)));
+        }
+    }
+
     use super::*;
 
     #[tokio::test]

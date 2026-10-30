@@ -229,3 +229,67 @@ async fn dropping_the_port_closes_it() {
     assert!(n.map(|n| n == 0).unwrap_or(true));
     assert!(TcpStream::connect(("127.0.0.1", port)).await.is_err());
 }
+
+#[tokio::test]
+async fn a_connection_that_sends_nothing_opens_no_stream() {
+    let fake = node(None).await;
+    let local = LocalPort::bind(fake.clone(), "tok".into(), 3030, None)
+        .await
+        .unwrap();
+    // A spare connection, as a browser opens: it never sends and then closes.
+    let spare = TcpStream::connect(("127.0.0.1", local.port()))
+        .await
+        .unwrap();
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    drop(spare);
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert_eq!(local.streams_opened(), 0);
+    assert!(fake.opened.lock().unwrap().is_empty());
+    // A connection that sends opens one.
+    let mut socket = connect(local.port()).await;
+    assert_eq!(get(&mut socket, "/").await, "1 /");
+    assert_eq!(local.streams_opened(), 1);
+}
+
+#[tokio::test]
+async fn the_preferred_port_is_used_when_free_and_not_when_taken() {
+    let fake = node(None).await;
+    let first = LocalPort::bind(fake.clone(), "tok".into(), 3030, None)
+        .await
+        .unwrap();
+    let taken = first.port();
+    // The port is taken: another one is used.
+    let second = LocalPort::bind_preferred(fake.clone(), "tok".into(), 3030, None, Some(taken))
+        .await
+        .unwrap();
+    assert_ne!(second.port(), taken);
+    // Free again: the same port comes back.
+    drop(first);
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let third = LocalPort::bind_preferred(fake, "tok".into(), 3030, None, Some(taken))
+        .await
+        .unwrap();
+    assert_eq!(third.port(), taken);
+}
+
+#[tokio::test]
+async fn a_new_opener_serves_the_next_connections_and_clears_the_error() {
+    let refusing = node(Some("Unavailable: the node went away")).await;
+    let local = LocalPort::bind(refusing, "tok".into(), 3030, None)
+        .await
+        .unwrap();
+    let mut socket = TcpStream::connect(("127.0.0.1", local.port()))
+        .await
+        .unwrap();
+    socket.write_all(b"GET / HTTP/1.1\r\n\r\n").await.unwrap();
+    let mut all = Vec::new();
+    let _ = tokio::time::timeout(Duration::from_secs(5), socket.read_to_end(&mut all)).await;
+    assert!(local.last_error().is_some());
+    assert!(local.is_alive());
+
+    let port = local.port();
+    local.set_opener(node(None).await);
+    assert_eq!(local.last_error(), None);
+    let mut again = connect(port).await;
+    assert_eq!(get(&mut again, "/").await, "1 /");
+}
