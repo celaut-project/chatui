@@ -4314,6 +4314,9 @@
   "celautRunButton": "Run",
   "celautRunLaunching": "Launching {name}…",
   "celautRunLaunchingNote": "The app asks the nodes, then starts the service on the best one.",
+  "celautRunStepNodes": "Asking the nodes for a price",
+  "celautRunStepReading": "Reading the service",
+  "celautRunStepStarting": "Starting it on the best node",
   "@celautRunLaunching": {
     "placeholders": {
       "name": {

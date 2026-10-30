@@ -5960,6 +5960,18 @@ class AppLocalizationsEs extends AppLocalizations {
       'La app pregunta a los nodos y arranca el servicio en el mejor.';
 
   @override
+  String get celautRunStepNodes =>
+      'Preguntando el precio a los nodos';
+
+  @override
+  String get celautRunStepReading =>
+      'Leyendo el servicio';
+
+  @override
+  String get celautRunStepStarting =>
+      'Arrancándolo en el mejor nodo';
+
+  @override
   String celautRunStarted(String node, String cost) {
     return 'Iniciado en $node. Coste de inicio: $cost.';
   }

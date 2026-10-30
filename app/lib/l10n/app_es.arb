@@ -1623,6 +1623,9 @@
   "celautRunButton": "Ejecutar",
   "celautRunLaunching": "Lanzando {name}…",
   "celautRunLaunchingNote": "La app pregunta a los nodos y arranca el servicio en el mejor.",
+  "celautRunStepNodes": "Preguntando el precio a los nodos",
+  "celautRunStepReading": "Leyendo el servicio",
+  "celautRunStepStarting": "Arrancándolo en el mejor nodo",
   "celautRunStarted": "Iniciado en {node}. Coste de inicio: {cost}.",
   "@celautRunStarted": {
     "placeholders": {

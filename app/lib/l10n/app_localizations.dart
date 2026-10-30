@@ -9371,6 +9371,24 @@ abstract class AppLocalizations {
   /// **'The app asks the nodes, then starts the service on the best one.'**
   String get celautRunLaunchingNote;
 
+  /// No description provided for @celautRunStepNodes.
+  ///
+  /// In en, this message translates to:
+  /// **'Asking the nodes for a price'**
+  String get celautRunStepNodes;
+
+  /// No description provided for @celautRunStepReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading the service'**
+  String get celautRunStepReading;
+
+  /// No description provided for @celautRunStepStarting.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting it on the best node'**
+  String get celautRunStepStarting;
+
   /// No description provided for @celautRunStarted.
   ///
   /// In en, this message translates to:

@@ -563,6 +563,33 @@ void main() {
       expect(launched, hasLength(1));
     });
 
+    testWidgets('it lists the steps, and stays while the service is read', (tester) async {
+      final read = Completer<ServiceInfoView>();
+      await open(tester, askEnvironment: true, inspect: (id, node) => read.future);
+      await confirm(tester);
+      // The quotes are in: the app reads the service. The rocket stays, with its steps.
+      expect(find.byKey(const Key('launch-rocket')), findsOneWidget);
+      expect(find.byKey(const Key('launch-steps')), findsOneWidget);
+      expect(find.text(appL10n.celautRunStepNodes), findsOneWidget);
+      expect(find.text(appL10n.celautRunStepReading), findsOneWidget);
+      expect(find.text(appL10n.celautRunStepStarting), findsOneWidget);
+      // One step goes on (a spinner), one is done (a check), one waits.
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byIcon(Icons.check_circle), findsOneWidget);
+      expect(find.byIcon(Icons.circle_outlined), findsOneWidget);
+      // The service declares nothing: the start follows with no question, and the rocket
+      // went on to the last step.
+      read.complete(_info());
+      // A few frames: the start is instant here, and the lift-off takes 450 ms.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 20));
+      expect(find.byKey(const Key('env-step')), findsNothing);
+      expect(find.byIcon(Icons.check_circle), findsNWidgets(2));
+      expect(find.byIcon(Icons.circle_outlined), findsNothing);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('launch-rocket')), findsNothing);
+    });
+
     testWidgets('a failed launch takes it away before the sheet of the failure', (tester) async {
       launchGate = Completer<void>();
       launchError = const LaunchFailure(LaunchFailureKind.noQuotes);
