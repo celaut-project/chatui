@@ -148,6 +148,8 @@ class _DepositScreenState extends State<DepositScreen> {
       return;
     }
     final node = NodeAddress(host: parsed.value!.host, port: parsed.value!.port);
+    // The keyboard closes: it covered the contract of the node under the field.
+    FocusScope.of(context).unfocus();
     setState(() {
       _nodeError = null;
       _checking = true;
@@ -418,6 +420,11 @@ class _DepositScreenState extends State<DepositScreen> {
             controller: _nodeCtrl,
             autocorrect: false,
             enableSuggestions: false,
+            // As the address of a node on the Nodes screen: the keyboard for an address,
+            // and its action key checks the node.
+            keyboardType: TextInputType.url,
+            textInputAction: TextInputAction.go,
+            onSubmitted: (_) => _checking ? null : _check(),
             decoration: InputDecoration(
               labelText: DepositStrings.nodeLabel,
               hintText: DepositStrings.nodeHint,
@@ -503,15 +510,23 @@ class _DepositScreenState extends State<DepositScreen> {
             ),
             const SizedBox(height: 8),
             Row(
+              // The field has a line under it: the button stays level with the field.
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: TextField(
                     key: const Key('deposit-limit'),
                     controller: _limitCtrl,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => busy ? null : _setLimit(),
                     decoration: InputDecoration(
                       labelText: DepositStrings.limitLabel,
+                      // The maximum is under the field: in the label it was cut.
+                      helperText: DepositStrings.limitHelper,
+                      helperMaxLines: 2,
                       errorText: _limitError,
+                      errorMaxLines: 3,
                     ),
                   ),
                 ),
@@ -530,6 +545,8 @@ class _DepositScreenState extends State<DepositScreen> {
               key: const Key('deposit-amount'),
               controller: _amountCtrl,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              // Done only closes the keyboard: a deposit always needs a tap on its button.
+              textInputAction: TextInputAction.done,
               decoration: InputDecoration(
                 labelText: DepositStrings.amountLabel,
                 hintText: DepositStrings.amountHint,

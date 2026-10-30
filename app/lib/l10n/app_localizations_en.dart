@@ -5037,8 +5037,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get celautDepositLimitLabel =>
-      'Limit for this node in ERG (1 ERG at most)';
+  String get celautDepositLimitLabel => 'Limit for this node in ERG';
+
+  @override
+  String get celautDepositLimitHelper => '1 ERG at most';
 
   @override
   String get celautDepositSetLimit => 'Set the limit';

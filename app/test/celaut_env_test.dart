@@ -164,6 +164,23 @@ void main() {
       expect(find.byKey(const Key('env-empty')), findsOneWidget);
     });
 
+    testWidgets('the name has the focus, Next goes to the value, and Done saves', (tester) async {
+      final c = _Container();
+      await tester.pumpWidget(_app(EnvVariablesScreen(store: c.store)));
+      await tester.tap(find.byKey(const Key('env-add')));
+      await tester.pumpAndSettle();
+      final name = tester.widget<TextField>(find.byKey(const Key('env-name')));
+      expect(name.autofocus, isTrue);
+      expect(name.textInputAction, TextInputAction.next);
+      // A hidden value has one line, and its action key saves.
+      expect(tester.widget<TextField>(find.byKey(const Key('env-value'))).textInputAction, TextInputAction.done);
+      await tester.enterText(find.byKey(const Key('env-name')), 'API_KEY');
+      await tester.enterText(find.byKey(const Key('env-value')), 'sk-1');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(c.values, {'API_KEY': 'sk-1'});
+    });
+
     testWidgets('a bad name or value is refused with its reason and nothing is stored', (tester) async {
       final c = _Container();
       await tester.pumpWidget(_app(EnvVariablesScreen(store: c.store)));

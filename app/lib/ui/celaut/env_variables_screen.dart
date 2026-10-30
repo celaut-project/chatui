@@ -217,9 +217,12 @@ class _EnvEditDialogState extends State<_EnvEditDialog> {
               TextField(
                 key: const Key('env-name'),
                 controller: _nameCtrl,
+                autofocus: true,
                 autocorrect: false,
                 enableSuggestions: false,
                 textCapitalization: TextCapitalization.characters,
+                // The action key goes to the value.
+                textInputAction: TextInputAction.next,
                 decoration: InputDecoration(labelText: l.celautEnvName, errorText: _nameError, errorMaxLines: 3),
               ),
             const SizedBox(height: 8),
@@ -231,6 +234,10 @@ class _EnvEditDialogState extends State<_EnvEditDialog> {
               enableSuggestions: false,
               minLines: 1,
               maxLines: _hidden ? 1 : 4,
+              // A hidden value has one line: its action key saves. A shown value can have
+              // more lines, so Enter makes a new line there.
+              textInputAction: _hidden ? TextInputAction.done : TextInputAction.newline,
+              onSubmitted: (_) => _save(),
               decoration: InputDecoration(
                 labelText: l.celautEnvValue,
                 errorText: _valueError,

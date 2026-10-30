@@ -3833,7 +3833,8 @@
       }
     }
   },
-  "celautDepositLimitLabel": "Limit for this node in ERG (1 ERG at most)",
+  "celautDepositLimitLabel": "Limit for this node in ERG",
+  "celautDepositLimitHelper": "1 ERG at most",
   "celautDepositSetLimit": "Set the limit",
   "celautDepositLimitInvalid": "Enter a limit in ERG, from 0 to 1.",
   "celautDepositAmountLabel": "Amount in ERG",
