@@ -3,7 +3,9 @@
 //! Each TCP connection to the local port opens one `ServiceTunnel` stream and relays
 //! the bytes both ways. The node charges `TUNNEL_OPEN_MU` for each stream, so the
 //! caller keeps its connections alive (HTTP keep-alive) and does not open one per
-//! request.
+//! request. The stream opens with the first bytes of the connection, not with the
+//! connection: a browser opens spare connections that never send, and those cost
+//! nothing.
 //!
 //! The end of the data from the local connection half-closes the stream, and the end
 //! of the stream closes the local connection. An error of the stream (for example a
@@ -28,12 +30,39 @@ struct Shared {
     last_error: Mutex<Option<String>>,
 }
 
+/// What a connection needs to open its stream. The opener can be replaced while the port
+/// stays (see [`LocalPort::set_opener`]).
+struct Target {
+    opener: Mutex<Arc<dyn TunnelOpener>>,
+    token: String,
+    slot: u16,
+    receipts: Option<ReceiptSink>,
+}
+
+impl std::fmt::Debug for Target {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Target").field("slot", &self.slot).finish_non_exhaustive()
+    }
+}
+
+impl Target {
+    fn open(&self) -> Tunnel {
+        let opener = self
+            .opener
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        opener.open_tunnel(&self.token, self.slot, self.receipts.clone())
+    }
+}
+
 /// A local port for one slot of one instance. Dropping it closes the port and every
 /// connection on it.
 #[derive(Debug)]
 pub struct LocalPort {
     port: u16,
     shared: Arc<Shared>,
+    target: Arc<Target>,
     task: JoinHandle<()>,
 }
 
@@ -46,18 +75,56 @@ impl LocalPort {
         slot: u16,
         receipts: Option<ReceiptSink>,
     ) -> std::io::Result<LocalPort> {
-        let listener = TcpListener::bind(SocketAddr::from((Ipv4Addr::LOCALHOST, 0))).await?;
+        Self::bind_preferred(opener, token, slot, receipts, None).await
+    }
+
+    /// Like [`LocalPort::bind`], but tries `preferred` first, and takes a free port if
+    /// that one is taken. The same port each time keeps the origin of a web page (its
+    /// cookies and its local storage) from one start to the next.
+    pub async fn bind_preferred(
+        opener: Arc<dyn TunnelOpener>,
+        token: String,
+        slot: u16,
+        receipts: Option<ReceiptSink>,
+        preferred: Option<u16>,
+    ) -> std::io::Result<LocalPort> {
+        let listener = match preferred {
+            Some(p) => match TcpListener::bind(SocketAddr::from((Ipv4Addr::LOCALHOST, p))).await {
+                Ok(listener) => listener,
+                Err(_) => TcpListener::bind(SocketAddr::from((Ipv4Addr::LOCALHOST, 0))).await?,
+            },
+            None => TcpListener::bind(SocketAddr::from((Ipv4Addr::LOCALHOST, 0))).await?,
+        };
         let port = listener.local_addr()?.port();
         let shared = Arc::new(Shared::default());
-        let task = tokio::spawn(accept(
-            listener,
-            opener,
+        let target = Arc::new(Target {
+            opener: Mutex::new(opener),
             token,
             slot,
             receipts,
-            shared.clone(),
-        ));
-        Ok(LocalPort { port, shared, task })
+        });
+        let task = tokio::spawn(accept(listener, target.clone(), shared.clone()));
+        Ok(LocalPort {
+            port,
+            shared,
+            target,
+            task,
+        })
+    }
+
+    /// Open the next streams with `opener` (a new connection to the node, after the old
+    /// one broke). The connections that are open keep their streams. The last error is
+    /// cleared: it was of the old opener.
+    pub fn set_opener(&self, opener: Arc<dyn TunnelOpener>) {
+        *self.target.opener.lock().unwrap_or_else(|e| e.into_inner()) = opener;
+        if let Ok(mut last) = self.shared.last_error.lock() {
+            *last = None;
+        }
+    }
+
+    /// False if the task of the port ended, so that the port accepts nothing.
+    pub fn is_alive(&self) -> bool {
+        !self.task.is_finished()
     }
 
     /// The local port.
@@ -83,14 +150,7 @@ impl Drop for LocalPort {
     }
 }
 
-async fn accept(
-    listener: TcpListener,
-    opener: Arc<dyn TunnelOpener>,
-    token: String,
-    slot: u16,
-    receipts: Option<ReceiptSink>,
-    shared: Arc<Shared>,
-) {
+async fn accept(listener: TcpListener, target: Arc<Target>, shared: Arc<Shared>) {
     let mut connections = JoinSet::new();
     loop {
         tokio::select! {
@@ -101,9 +161,7 @@ async fn accept(
                     continue;
                 };
                 let _ = socket.set_nodelay(true);
-                shared.streams.fetch_add(1, Ordering::Relaxed);
-                let tunnel = opener.open_tunnel(&token, slot, receipts.clone());
-                connections.spawn(relay(socket, tunnel, shared.clone()));
+                connections.spawn(relay(socket, target.clone(), shared.clone()));
             }
             // Collect the ended connections, so that the set does not grow.
             Some(_) = connections.join_next(), if !connections.is_empty() => {}
@@ -120,15 +178,25 @@ impl Drop for AbortOnDrop {
     }
 }
 
-async fn relay(socket: TcpStream, tunnel: Tunnel, shared: Arc<Shared>) {
+async fn relay(socket: TcpStream, target: Arc<Target>, shared: Arc<Shared>) {
     let (mut reader, mut writer) = socket.into_split();
+    let mut buffer = vec![0u8; MAX_PAYLOAD];
+    // The stream opens (and the node charges it) when the first bytes come. A connection
+    // that closes before that never opens one.
+    let first = match reader.read(&mut buffer).await {
+        Ok(0) | Err(_) => return,
+        Ok(n) => n,
+    };
+    shared.streams.fetch_add(1, Ordering::Relaxed);
     let Tunnel {
         to_service,
         mut from_service,
-    } = tunnel;
+    } = target.open();
+    if to_service.send(buffer[..first].to_vec()).await.is_err() {
+        return;
+    }
     // Aborted when the relay ends or is aborted (the port is dropped).
     let _up = AbortOnDrop(tokio::spawn(async move {
-        let mut buffer = vec![0u8; MAX_PAYLOAD];
         loop {
             match reader.read(&mut buffer).await {
                 Ok(0) | Err(_) => break,
