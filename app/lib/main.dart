@@ -5,6 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'celaut/auto_top_up.dart';
 import 'celaut/background_work.dart';
+import 'celaut/chat_groups.dart';
 import 'celaut/chat_prefs.dart';
 import 'l10n/l10n.dart';
 import 'services/address_label_service.dart';
@@ -66,6 +67,7 @@ Future<void> main() async {
     spendPolicy.load().catchError((_) {}),
     previewSettings.load().catchError((_) {}),
     chatPrefs.load().catchError((_) {}),
+    chatGroups.load().catchError((_) {}),
   ]);
   networkController.priceRefresher = tokenPricer.refresh;
   runApp(const ArgusApp());

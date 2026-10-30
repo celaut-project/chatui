@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../celaut/chat_groups.dart';
 import '../../celaut/chat_prefs.dart';
 import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
@@ -19,7 +20,7 @@ class ChatSettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: chatPrefs,
+      listenable: Listenable.merge([chatPrefs, chatGroups]),
       builder: (context, _) {
         return SettingsPage(
           title: context.l10n.chatSettingsTitle,
@@ -111,6 +112,23 @@ class ChatSettingsPage extends StatelessWidget {
                     key: const Key('chat-settings-system-keyboard'),
                     value: chatPrefs.systemKeyboard,
                     onChanged: chatPrefs.setSystemKeyboard,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            SettingsGroup(
+              title: context.l10n.chatSettingsListGroup,
+              scope: context.l10n.settingsScopeAppWide,
+              children: [
+                SettingsRow(
+                  icon: Icons.folder_outlined,
+                  title: context.l10n.chatSettingsGroupedView,
+                  subtitle: context.l10n.chatSettingsGroupedViewSubtitle,
+                  trailing: Switch(
+                    key: const Key('chat-settings-grouped'),
+                    value: chatGroups.grouped,
+                    onChanged: chatGroups.setGrouped,
                   ),
                 ),
               ],

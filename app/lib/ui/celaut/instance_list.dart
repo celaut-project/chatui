@@ -8,6 +8,7 @@ import '../../celaut/auto_top_up.dart';
 import '../../celaut/celaut_format.dart';
 import '../../celaut/celaut_strings.dart';
 import '../../celaut/chat_client.dart';
+import '../../celaut/chat_groups.dart';
 import '../../celaut/chat_prefs.dart';
 import '../../celaut/conversations.dart';
 import '../../celaut/launcher.dart';
@@ -17,6 +18,7 @@ import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
 import '../home/home_style.dart';
 import 'chat_screen.dart';
+import 'group_widgets.dart';
 import 'instance_actions.dart';
 import 'instance_info_screen.dart';
 import 'open_web.dart';
@@ -83,7 +85,11 @@ class InstanceList extends StatefulWidget {
     this.bottomPadding = 0,
     this.filter,
     this.topUp,
+    this.groups,
   });
+
+  /// The groups of the conversations. Tests give their own.
+  final ChatGroups? groups;
 
   /// The automatic top-up, which sees each balance that the list reads. Tests give their
   /// own.
@@ -134,12 +140,14 @@ class InstanceListState extends State<InstanceList> {
   final Map<String, _Check> _checks = {};
   bool _failed = false;
   late final StoppedFilter _filter = widget.filter ?? stoppedFilter;
+  late final ChatGroups _groups = widget.groups ?? chatGroups;
 
   @override
   void initState() {
     super.initState();
     _notes.addListener(_onNotes);
     _filter.addListener(_onNotes);
+    _groups.addListener(_onNotes);
     unawaited(_filter.load());
     unawaited(refresh());
   }
@@ -148,6 +156,7 @@ class InstanceListState extends State<InstanceList> {
   void dispose() {
     _notes.removeListener(_onNotes);
     _filter.removeListener(_onNotes);
+    _groups.removeListener(_onNotes);
     super.dispose();
   }
 
@@ -345,6 +354,12 @@ class InstanceListState extends State<InstanceList> {
               title: Text(l.chatsRename),
               onTap: () => Navigator.pop(context, 'rename'),
             ),
+            ListTile(
+              key: const Key('chats-action-move'),
+              leading: const Icon(Icons.folder_outlined),
+              title: Text(l.chatsGroupsMove),
+              onTap: () => Navigator.pop(context, 'move'),
+            ),
             if (i.chatSlots.isNotEmpty)
               ListTile(
                 key: const Key('chats-action-mute'),
@@ -381,6 +396,8 @@ class InstanceListState extends State<InstanceList> {
       case 'rename':
         final renamed = await renameInstance(context, i, rename: widget.rename);
         if (renamed != null && mounted) await refresh();
+      case 'move':
+        await _moveToGroup(i);
       case 'mute':
         await chatPrefs.setMuted(i.instanceId, !chatPrefs.isMuted(i.instanceId));
         if (mounted) setState(() {});
@@ -400,8 +417,140 @@ class InstanceListState extends State<InstanceList> {
           forget: widget.forget,
           notes: _notes,
         );
-        if (deleted && mounted) await refresh();
+        if (deleted) {
+          await _groups.forget(i.instanceId);
+          if (mounted) await refresh();
+        }
     }
+  }
+
+  /// Ask for a group for [i]: one of the groups, none, or a new group.
+  Future<void> _moveToGroup(InstanceListView i) async {
+    final l = context.l10n;
+    final current = _groups.groupOf(i.instanceId);
+    final pick = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            key: const Key('chats-move-sheet'),
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final g in _groups.groups)
+                ListTile(
+                  key: Key('chats-move-to-${g.id}'),
+                  leading: Icon(g.id == current?.id ? Icons.folder : Icons.folder_outlined),
+                  title: Text(g.name),
+                  selected: g.id == current?.id,
+                  onTap: () => Navigator.pop(context, g.id),
+                ),
+              if (current != null)
+                ListTile(
+                  key: const Key('chats-move-none'),
+                  leading: const Icon(Icons.folder_off_outlined),
+                  title: Text(l.chatsGroupsNone),
+                  onTap: () => Navigator.pop(context, ''),
+                ),
+              ListTile(
+                key: const Key('chats-move-new'),
+                leading: const Icon(Icons.create_new_folder_outlined),
+                title: Text(l.chatsGroupsNew),
+                onTap: () => Navigator.pop(context, '+'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (pick == null || !mounted) return;
+    if (pick == '') {
+      await _groups.move(i.instanceId, null);
+    } else if (pick == '+') {
+      final made = await askGroupName(context, title: l.chatsGroupsNew);
+      if (made == null) return;
+      final g = await _groups.create(made);
+      if (g != null) await _groups.move(i.instanceId, g.id);
+    } else {
+      await _groups.move(i.instanceId, pick);
+    }
+  }
+
+  Future<void> _renameGroup(ChatGroup g) async {
+    final name = await askGroupName(context, title: context.l10n.chatsGroupsRename, initial: g.name);
+    if (name != null) await _groups.rename(g.id, name);
+  }
+
+  Future<void> _deleteGroup(ChatGroup g) async {
+    final l = context.l10n;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        key: const Key('group-delete-dialog'),
+        title: Text(l.chatsGroupsDeleteTitle(g.name)),
+        content: Text(l.chatsGroupsDeleteBody),
+        actions: [
+          TextButton(
+            key: const Key('group-delete-cancel'),
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l.commonCancel),
+          ),
+          FilledButton(
+            key: const Key('group-delete-ok'),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l.chatsGroupsDelete),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) await _groups.delete(g.id);
+  }
+
+  /// The rows of the instances in [shown], in the flat list or in groups. In groups: each
+  /// group with a header (tap to collapse, menu to rename or delete) and its rows, then
+  /// the conversations in no group.
+  List<Widget> _rowsOf(Iterable<InstanceListView> shown) {
+    Widget row(InstanceListView i) => _InstanceRow(
+          instance: i,
+          state: _stateOf(i),
+          costMu: _costOf(i.instanceId),
+          last: _notes.lastMessage(i.instanceId),
+          keepAlive: i.stoppedAt == null &&
+              (widget.topUp ?? autoTopUp).planOf(i.instanceId)?.keepAlive == true,
+          onTap: () => _tap(i, _stateOf(i)),
+          onLongPress: () => _actions(i, _stateOf(i)),
+        );
+    if (!_groups.grouped || _groups.groups.isEmpty) return [for (final i in shown) row(i)];
+    final l = context.l10n;
+    final out = <Widget>[];
+    for (final g in _groups.groups) {
+      final mine = [
+        for (final i in shown)
+          if (_groups.groupOf(i.instanceId)?.id == g.id) i,
+      ];
+      final collapsed = _groups.isCollapsed(g.id);
+      out.add(
+        GroupHeader(
+          group: g,
+          count: mine.length,
+          collapsed: collapsed,
+          onToggle: () => _groups.setCollapsed(g.id, !collapsed),
+          onRename: () => _renameGroup(g),
+          onDelete: () => _deleteGroup(g),
+        ),
+      );
+      if (!collapsed) out.addAll(mine.map(row));
+    }
+    final rest = [
+      for (final i in shown)
+        if (_groups.groupOf(i.instanceId) == null) i,
+    ];
+    if (rest.isNotEmpty) {
+      out.add(GroupHeader.plain(key: const Key('group-ungrouped'), title: l.chatsGroupsUngrouped));
+      out.addAll(rest.map(row));
+    }
+    return out;
   }
 
   /// The button that shows the [hidden] stopped instances, or hides the shown ones.
@@ -433,17 +582,7 @@ class InstanceListState extends State<InstanceList> {
     final shown = hide ? _instances.where((i) => i.stoppedAt == null) : _instances;
     final toggle = _filterButton(hide ? stopped : 0, hide ? 0 : stopped);
     final rows = <Widget>[
-      for (final i in shown)
-        _InstanceRow(
-          instance: i,
-          state: _stateOf(i),
-          costMu: _costOf(i.instanceId),
-          last: _notes.lastMessage(i.instanceId),
-          keepAlive: i.stoppedAt == null &&
-              (widget.topUp ?? autoTopUp).planOf(i.instanceId)?.keepAlive == true,
-          onTap: () => _tap(i, _stateOf(i)),
-          onLongPress: () => _actions(i, _stateOf(i)),
-        ),
+      ..._rowsOf(shown),
       if (toggle != null) Center(child: Padding(padding: const EdgeInsets.all(8), child: toggle)),
     ];
     return RefreshIndicator(

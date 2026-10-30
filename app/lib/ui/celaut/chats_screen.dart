@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../bridge/api/celaut_service.dart';
 import '../../celaut/auto_top_up.dart';
+import '../../celaut/chat_groups.dart';
 import '../../celaut/conversations.dart';
 import '../../celaut/launcher.dart';
 import '../../celaut/payers.dart';
@@ -11,6 +12,7 @@ import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
 import '../home/home_style.dart';
 import 'deposit_screen.dart';
+import 'group_widgets.dart';
 import 'instance_list.dart';
 import 'run_service_screen.dart';
 import 'run_service_section.dart' show StartedCall;
@@ -35,7 +37,11 @@ class ChatsScreen extends StatefulWidget {
     this.onConversation,
     this.topUp,
     this.openDeposit,
+    this.groups,
   });
+
+  /// The groups of the conversations. Tests give their own.
+  final ChatGroups? groups;
 
   /// The automatic top-up: a top-up that needs a deposit shows as a banner on the list.
   /// Tests give their own.
@@ -67,6 +73,7 @@ class ChatsScreen extends StatefulWidget {
 class ChatsScreenState extends State<ChatsScreen> {
   final _list = GlobalKey<InstanceListState>();
   late final ConversationNotes _notes = widget.notes ?? conversationNotes;
+  late final ChatGroups _groups = widget.groups ?? chatGroups;
 
   /// Read the list again (after a change on another screen).
   Future<void> refresh() async => _list.currentState?.refresh();
@@ -123,6 +130,37 @@ class ChatsScreenState extends State<ChatsScreen> {
     if (mounted) await refresh();
   }
 
+  Future<void> _newGroup() async {
+    final name = await askGroupName(context, title: context.l10n.chatsGroupsNew);
+    if (name != null) await _groups.create(name);
+  }
+
+  /// The menu of the list: show the groups or one flat list, and make a group.
+  Widget _groupsMenu() {
+    final l = context.l10n;
+    return ListenableBuilder(
+      listenable: _groups,
+      builder: (context, _) => PopupMenuButton<String>(
+        key: const Key('chats-groups-menu'),
+        tooltip: l.chatsGroupsMenu,
+        icon: const Icon(Icons.folder_open_outlined),
+        onSelected: (v) => v == 'view' ? _groups.setGrouped(!_groups.grouped) : _newGroup(),
+        itemBuilder: (_) => [
+          PopupMenuItem(
+            key: const Key('chats-groups-view'),
+            value: 'view',
+            child: Text(_groups.grouped ? l.chatsGroupsViewFlat : l.chatsGroupsViewGrouped),
+          ),
+          PopupMenuItem(
+            key: const Key('chats-groups-new'),
+            value: 'new',
+            child: Text(l.chatsGroupsNew),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
@@ -150,6 +188,7 @@ class ChatsScreenState extends State<ChatsScreen> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
+        actions: [_groupsMenu()],
         title: Semantics(
           header: true,
           label: CelautWordmark.name,
@@ -181,6 +220,7 @@ class ChatsScreenState extends State<ChatsScreen> {
                   empty: empty,
                   wallets: widget.wallets,
                   notes: _notes,
+                  groups: _groups,
                   bottomPadding: 88,
                 ),
           ),

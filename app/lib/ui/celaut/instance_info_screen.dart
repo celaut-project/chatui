@@ -5,6 +5,7 @@ import '../../bridge/api/celaut_service.dart';
 import '../../celaut/host_port.dart';
 import '../../celaut/celaut_format.dart';
 import '../../celaut/chat_backgrounds.dart';
+import '../../celaut/chat_groups.dart';
 import '../../celaut/chat_prefs.dart';
 import '../../celaut/conversations.dart';
 import '../../celaut/payers.dart';
@@ -224,6 +225,7 @@ class _InstanceInfoScreenState extends State<InstanceInfoScreen> {
       forget: widget.forget,
       notes: widget.notes,
     );
+    if (deleted) await chatGroups.forget(_instance.instanceId);
     // The caller reads the list again: the instance left it.
     if (deleted && mounted) Navigator.of(context).pop(true);
   }

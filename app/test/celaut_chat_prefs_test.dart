@@ -1,4 +1,5 @@
 import 'package:argus_wallet/celaut/chat_backgrounds.dart';
+import 'package:argus_wallet/celaut/chat_groups.dart';
 import 'package:argus_wallet/celaut/chat_prefs.dart';
 import 'package:argus_wallet/ui/settings/chat_settings_page.dart';
 import 'dart:ui';
@@ -69,5 +70,10 @@ void main() {
     await tester.tap(find.text('Serif'));
     await tester.pumpAndSettle();
     expect(chatPrefs.fontFamily, 'serif');
+    expect(chatGroups.grouped, isFalse);
+    await tester.tap(find.byKey(const Key('chat-settings-grouped')));
+    await tester.pumpAndSettle();
+    expect(chatGroups.grouped, isTrue);
+    await chatGroups.setGrouped(false);
   });
 }
