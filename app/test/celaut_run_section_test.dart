@@ -1419,5 +1419,25 @@ void main() {
       expect(find.byKey(const Key('service-info-chat-supported')), findsOneWidget);
       expect(launched, isEmpty);
     });
+
+    testWidgets('on a small phone, Cancel and Run share one row', (tester) async {
+      await open(tester, preview: _quote(), theme: argusTheme(watchful: false));
+      // 360 x 640 dp. (The glyphs of the test font are squares, wider than those of the
+      // app, so the larger text sizes are checked on a device.)
+      tester.view.physicalSize = const Size(360, 640);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('run-skill-skill-sat')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('skill-sheet-run')));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      final cancel = tester.getRect(find.byKey(const Key('run-confirm-cancel')));
+      final run = tester.getRect(find.byKey(const Key('run-confirm-ok')));
+      expect(run.center.dy, moreOrLessEquals(cancel.center.dy, epsilon: 1));
+      expect(run.left, greaterThan(cancel.right));
+      // The details are in the content, above the actions.
+      final content = find.descendant(of: find.byKey(const Key('run-confirm')), matching: find.byType(SingleChildScrollView));
+      expect(find.descendant(of: content, matching: find.byKey(const Key('run-confirm-details'))), findsOneWidget);
+    });
   });
 }

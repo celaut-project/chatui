@@ -53,7 +53,9 @@ class SettingsRow extends StatelessWidget {
                     Text(
                       subtitle!,
                       style: TextStyle(fontSize: 12.5, color: colors.muted),
-                      maxLines: 2,
+                      // Some subtitles explain a switch (the keyboard of the chat, the
+                      // widgets): two lines cut them on a phone of 412 dp.
+                      maxLines: 4,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],

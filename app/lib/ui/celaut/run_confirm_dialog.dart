@@ -259,23 +259,29 @@ class _RunConfirmDialogState extends State<_RunConfirmDialog> {
                 );
               },
             ),
+            // The details are a link of the content, not a third action: three actions
+            // took three rows on a small screen, and left one line for the content.
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton.icon(
+                key: const Key('run-confirm-details'),
+                onPressed: () async {
+                  QuoteView? best;
+                  try {
+                    best = await widget.quote;
+                  } catch (_) {
+                    // No quote: the details read the library file, or say that there is none.
+                  }
+                  widget.onDetails(best);
+                },
+                icon: const Icon(Icons.info_outline),
+                label: Text(l.celautRunConfirmDetails),
+              ),
+            ),
           ],
         ),
       ),
       actions: [
-        TextButton(
-          key: const Key('run-confirm-details'),
-          onPressed: () async {
-            QuoteView? best;
-            try {
-              best = await widget.quote;
-            } catch (_) {
-              // No quote: the details read the library file, or say that there is none.
-            }
-            widget.onDetails(best);
-          },
-          child: Text(l.celautRunConfirmDetails),
-        ),
         TextButton(
           key: const Key('run-confirm-cancel'),
           onPressed: () => Navigator.pop(context),
@@ -283,6 +289,9 @@ class _RunConfirmDialogState extends State<_RunConfirmDialog> {
         ),
         FilledButton(
           key: const Key('run-confirm-ok'),
+          // The theme gives a filled button the full width, which puts each action on a
+          // row of its own. Here Run is next to Cancel, as in a dialog of Material.
+          style: FilledButton.styleFrom(minimumSize: const Size(88, 48)),
           onPressed: _keepAlive
               ? (_limit == BigInt.zero ? null : () => Navigator.pop(context, RunChoice(keepAlive: true, budgetMu: _limit?.toString())))
               : (wrong ? null : () => Navigator.pop(context, RunChoice(minSurvival: survival))),
