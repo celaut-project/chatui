@@ -344,19 +344,27 @@ class _RunServiceSectionState extends State<RunServiceSection> {
   /// cannot read it (an error, or a service too large to read from a node), the user chooses:
   /// run it anyway, or cancel. Null cancels the launch.
   Future<List<EnvChoice>?> _inspectBeforeRun(String serviceId, QuotesView quotes) async {
-    // The questions show without the rocket, which comes back for the start.
-    _hideRocket();
+    // The rocket stays while the app reads the service: that takes a while, and the user
+    // must see that something goes on. A question hides it (the rocket is not over a
+    // question), and it comes back for the start.
+    if (mounted) _showRocket(serviceId, LaunchStep.readingService);
     final answer = await _askBeforeRun(serviceId, quotes);
-    if (answer != null && mounted) _showRocket(serviceId);
+    if (answer != null && mounted) _showRocket(serviceId, LaunchStep.starting);
     return answer;
   }
 
   /// The rocket of the launch, while the app asks the nodes or starts the service.
   LaunchRocket? _rocket;
 
-  void _showRocket(String serviceId) {
-    _rocket?.dismiss();
-    _rocket = LaunchRocket.show(context, name: _lastName ?? serviceId.substring(0, 8));
+  /// Show the rocket at [step]. If it shows already, it only goes to that step (it does
+  /// not start again).
+  void _showRocket(String serviceId, [LaunchStep step = LaunchStep.askingNodes]) {
+    final shown = _rocket;
+    if (shown != null && shown.isActive) {
+      shown.step.value = step;
+      return;
+    }
+    _rocket = LaunchRocket.show(context, name: _lastName ?? serviceId.substring(0, 8), step: step);
   }
 
   void _hideRocket() {
@@ -371,20 +379,24 @@ class _RunServiceSectionState extends State<RunServiceSection> {
       info = await (widget.inspect ?? readServiceInfo)(serviceId, quotes.quotes.first.address);
     } on CelautError {
       if (!mounted) return null;
+      _hideRocket();
       return await _confirmUnreadable(serviceId) ? const [] : null;
     }
     // The service was cut, or its interface was too large to decode: the app cannot tell if
     // Chatui supports it, which is not the same as "unsupported".
     if (info.truncated || info.chat == ChatSupportView.unknown) {
       if (!mounted) return null;
+      _hideRocket();
       return await _confirmUnreadable(serviceId, info: info) ? const [] : null;
     }
     if (info.chat == ChatSupportView.unsupported) {
       if (!mounted) return null;
+      _hideRocket();
       if (!await _confirmUnsupported(serviceId, info)) return null;
     }
     if (info.environment.isEmpty) return const [];
     if (!mounted) return null;
+    _hideRocket();
     return Navigator.of(context).push<List<EnvChoice>>(
       MaterialPageRoute(
         builder: (_) => EnvQuestionsScreen(

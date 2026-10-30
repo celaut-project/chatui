@@ -7,6 +7,9 @@ import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
 import '../home/home_style.dart';
 
+/// The steps of a launch, in order, as the card of the rocket shows them.
+enum LaunchStep { askingNodes, readingService, starting }
+
 /// The rocket of a launch (Josemi, 2026-10-23): a card over the screen while the app asks
 /// the nodes and starts the service. The rocket hovers on its flame; when the service
 /// starts, it lifts off and the card goes. With "remove animations" on in Android, the
@@ -15,28 +18,39 @@ import '../home/home_style.dart';
 /// It is drawn with a few paths ([RocketPainter]): no image, no blur, no shader, so it
 /// adds almost nothing to the raster work of a frame (`docs/performance.md`).
 class LaunchRocket {
-  LaunchRocket._(this._navigator, this._route, this._stage);
+  LaunchRocket._(this._navigator, this._route, this._stage, this.step);
 
   final NavigatorState _navigator;
   final Route<void> _route;
   final GlobalKey<RocketStageState> _stage;
 
+  /// The step that the card shows. Set it as the launch goes on.
+  final ValueNotifier<LaunchStep> step;
+
+  /// False once the card is gone.
+  bool get isActive => _route.isActive;
+
   /// Show the rocket over [context], for the launch of [name].
-  static LaunchRocket show(BuildContext context, {required String name}) {
+  static LaunchRocket show(
+    BuildContext context, {
+    required String name,
+    LaunchStep step = LaunchStep.askingNodes,
+  }) {
     final navigator = Navigator.of(context);
     final stage = GlobalKey<RocketStageState>();
+    final current = ValueNotifier<LaunchStep>(step);
     final route = RawDialogRoute<void>(
       barrierDismissible: false,
       barrierColor: Colors.black54,
       pageBuilder: (context, animation, secondary) => Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: _RocketCard(name: name, stage: stage),
+          child: _RocketCard(name: name, stage: stage, step: current),
         ),
       ),
     );
     unawaited(navigator.push(route));
-    return LaunchRocket._(navigator, route, stage);
+    return LaunchRocket._(navigator, route, stage, current);
   }
 
   /// The service started: the rocket lifts off, then the card goes.
@@ -53,10 +67,11 @@ class LaunchRocket {
 }
 
 class _RocketCard extends StatelessWidget {
-  const _RocketCard({required this.name, required this.stage});
+  const _RocketCard({required this.name, required this.stage, required this.step});
 
   final String name;
   final GlobalKey<RocketStageState> stage;
+  final ValueListenable<LaunchStep> step;
 
   @override
   Widget build(BuildContext context) {
@@ -78,14 +93,87 @@ class _RocketCard extends StatelessWidget {
               style: t.title,
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 4),
-            Text(
-              l.celautRunLaunchingNote,
-              style: t.secondary,
-              textAlign: TextAlign.center,
+            const SizedBox(height: 14),
+            ValueListenableBuilder<LaunchStep>(
+              valueListenable: step,
+              builder: (context, current, _) => Column(
+                key: const Key('launch-steps'),
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _StepRow(
+                    label: l.celautRunStepNodes,
+                    state: _stateOf(LaunchStep.askingNodes, current),
+                  ),
+                  _StepRow(
+                    label: l.celautRunStepReading,
+                    state: _stateOf(LaunchStep.readingService, current),
+                  ),
+                  _StepRow(
+                    label: l.celautRunStepStarting,
+                    state: _stateOf(LaunchStep.starting, current),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+enum _StepState { done, current, waiting }
+
+_StepState _stateOf(LaunchStep row, LaunchStep current) => row.index < current.index
+    ? _StepState.done
+    : row == current
+        ? _StepState.current
+        : _StepState.waiting;
+
+/// One line of the steps of the launch: a check when it is done, a small spinner while it
+/// goes on, and a dim circle while it waits.
+class _StepRow extends StatelessWidget {
+  const _StepRow({required this.label, required this.state});
+
+  final String label;
+  final _StepState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = HomeText.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final Widget icon = switch (state) {
+      _StepState.done => Icon(Icons.check_circle, size: 18, color: accentOf(context)),
+      // Still under "remove animations": a spinner that does not turn is a ring.
+      _StepState.current => SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            value: MediaQuery.disableAnimationsOf(context) ? 0.75 : null,
+          ),
+        ),
+      _StepState.waiting => Icon(Icons.circle_outlined, size: 18, color: scheme.outline),
+    };
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          icon,
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              label,
+              style: state == _StepState.current
+                  ? t.secondary.copyWith(fontWeight: FontWeight.w600, color: scheme.onSurface)
+                  : t.secondary.copyWith(
+                      color: state == _StepState.waiting ? scheme.outline : null,
+                    ),
+            ),
+          ),
+        ],
       ),
     );
   }
