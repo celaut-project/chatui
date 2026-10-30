@@ -72,7 +72,7 @@ class _ChatVirtualKeyboardState extends State<ChatVirtualKeyboard> {
     return Expanded(
       flex: (flex * 10).round(),
       child: Padding(
-        padding: const EdgeInsets.all(2),
+        padding: const EdgeInsets.all(3),
         child: Semantics(
           button: true,
           label: label,
@@ -85,7 +85,7 @@ class _ChatVirtualKeyboardState extends State<ChatVirtualKeyboard> {
               canRequestFocus: false,
               borderRadius: BorderRadius.circular(8),
               onTap: onTap,
-              child: SizedBox(height: 42, child: Center(child: child)),
+              child: SizedBox(height: 58, child: Center(child: child)),
             ),
           ),
         ),
@@ -97,7 +97,7 @@ class _ChatVirtualKeyboardState extends State<ChatVirtualKeyboard> {
     final shown = _shift && !_symbols ? c.toUpperCase() : c;
     // The case comes from the state at the tap, not from the last build: a second tap can
     // come before the next frame, and Shift is for one letter only.
-    return _key('char-$c', Text(shown, style: const TextStyle(fontSize: 18)),
+    return _key('char-$c', Text(shown, style: const TextStyle(fontSize: 24)),
         () => _type(_shift && !_symbols ? c.toUpperCase() : c));
   }
 
@@ -119,21 +119,21 @@ class _ChatVirtualKeyboardState extends State<ChatVirtualKeyboard> {
               if (_symbols)
                 const Spacer(flex: 15)
               else
-                _key('shift', const Icon(Icons.arrow_upward), () => setState(() => _shift = !_shift),
+                _key('shift', const Icon(Icons.arrow_upward, size: 26), () => setState(() => _shift = !_shift),
                     flex: 1.5, label: l10n.chatVkShift, on: _shift),
               for (final c in rows[2].characters) _char(c),
-              _key('backspace', const Icon(Icons.backspace_outlined), () => _apply(deleteBackward(widget.controller.value)),
+              _key('backspace', const Icon(Icons.backspace_outlined, size: 26), () => _apply(deleteBackward(widget.controller.value)),
                   flex: 1.5, label: l10n.chatVkBackspace),
             ],
           ),
           Row(
             children: [
-              _key('symbols', Text(_symbols ? 'ABC' : '?123'), () => setState(() => _symbols = !_symbols),
+              _key('symbols', Text(_symbols ? 'ABC' : '?123', style: const TextStyle(fontSize: 18)), () => setState(() => _symbols = !_symbols),
                   flex: 1.5, label: _symbols ? l10n.chatVkLetters : l10n.chatVkSymbols),
-              _key('char-,', const Text(',', style: TextStyle(fontSize: 18)), () => _type(',')),
+              _key('char-,', const Text(',', style: TextStyle(fontSize: 24)), () => _type(',')),
               _key('space', const SizedBox.shrink(), () => _type(' '), flex: 5, label: l10n.chatVkSpace),
-              _key('char-.', const Text('.', style: TextStyle(fontSize: 18)), () => _type('.')),
-              _key('enter', const Icon(Icons.keyboard_return), () => _type('\n'), flex: 1.5, label: l10n.chatVkEnter),
+              _key('char-.', const Text('.', style: TextStyle(fontSize: 24)), () => _type('.')),
+              _key('enter', const Icon(Icons.keyboard_return, size: 26), () => _type('\n'), flex: 1.5, label: l10n.chatVkEnter),
             ],
           ),
         ],
