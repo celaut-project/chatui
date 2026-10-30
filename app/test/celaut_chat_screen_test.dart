@@ -16,6 +16,7 @@ import 'package:argus_wallet/celaut/payers.dart';
 import 'package:argus_wallet/l10n/l10n.dart';
 import 'package:argus_wallet/theme/argus_theme.dart';
 import 'package:argus_wallet/ui/celaut/chat_screen.dart';
+import 'package:argus_wallet/ui/celaut/instance_info_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -398,6 +399,17 @@ void main() {
     } else {
       await tester.pumpAndSettle();
     }
+  }
+
+  /// The info page is a lazy list, and Stop is after the section of the time: the list
+  /// builds it only when it comes near the screen.
+  Future<void> scrollToStop(WidgetTester tester) async {
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('info-stop')),
+      200,
+      scrollable: find.descendant(of: find.byType(InstanceInfoScreen), matching: find.byType(Scrollable)).first,
+    );
+    await tester.pumpAndSettle();
   }
 
   /// ⋮, then Stop, then the confirmation.
@@ -910,6 +922,7 @@ void main() {
         appL10n.chatsInfoChatSlot);
     expect(tester.widget<SelectableText>(find.byKey(const Key('info-cost'))).data, '100 MU');
     expect(find.byKey(const Key('info-started')), findsOneWidget);
+    await scrollToStop(tester);
     expect(find.byKey(const Key('info-stop')), findsOneWidget);
     // Back from the info page: the conversation is still there.
     await tester.pageBack();
@@ -932,8 +945,7 @@ void main() {
     await open(tester);
     await tester.tap(find.byKey(const Key('chat-title')));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.byKey(const Key('info-stop')));
-    await tester.pumpAndSettle();
+    await scrollToStop(tester);
     await tester.tap(find.byKey(const Key('info-stop')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('stop-ok')));

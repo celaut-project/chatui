@@ -222,12 +222,17 @@ void main() {
 
     test('a select with multiple starts with its selected options, joined', () {
       final f = field('<select multiple data-name="s"><option selected>A</option><option>B</option><option selected>C</option></select>');
-      expect((f.multiple, f.chosen, f.initial), (true, ['A', 'C'], 'A, C'));
+      // A record with a list is equal only to the same list, so each part is checked.
+      expect(f.multiple, isTrue);
+      expect(f.chosen, ['A', 'C']);
+      expect(f.initial, 'A, C');
     });
 
     test('a select without multiple keeps only the first selected option', () {
       final f = field('<select data-name="s"><option selected>A</option><option selected>B</option></select>');
-      expect((f.multiple, f.chosen, f.initial), (false, ['A'], 'A'));
+      expect(f.multiple, isFalse);
+      expect(f.chosen, ['A']);
+      expect(f.initial, 'A');
     });
 
     test('fitChosen stops before the value that does not fit, and never cuts one', () {

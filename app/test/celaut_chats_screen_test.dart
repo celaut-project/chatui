@@ -16,7 +16,6 @@ import 'package:argus_wallet/celaut/stopped_filter.dart';
 import 'package:argus_wallet/celaut/wallet_money.dart';
 import 'package:argus_wallet/l10n/l10n.dart';
 import 'package:argus_wallet/theme/argus_theme.dart';
-import 'package:argus_wallet/ui/celaut/chats_screen.dart';
 import 'package:argus_wallet/ui/celaut/home_tabs.dart';
 import 'package:argus_wallet/ui/celaut/instance_list.dart';
 import 'package:argus_wallet/ui/celaut/run_service_screen.dart';
