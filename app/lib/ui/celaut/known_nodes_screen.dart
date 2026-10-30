@@ -30,6 +30,10 @@ abstract class KnownNodes {
   /// Mark a node as fully trusted, or not (`docs/celaut/env-variables.md`, section 3.2).
   void setTrusted(String peerId, bool trusted);
 
+  /// Give a node a reputation from 0 to 100 (50 is neutral). The balancer weighs it in the
+  /// order of the quotes (`docs/celaut/balancer.md`). Full trust counts as 100.
+  void setPriority(String peerId, int priority);
+
   /// Connect from the bytes of a peer invitation (`docs/celaut/invite.md`).
   Future<InviteConnectView> connectInvite(Uint8List invite);
 }
@@ -50,6 +54,9 @@ class AppKnownNodes implements KnownNodes {
   void setTrusted(String peerId, bool trusted) => celautSetNodeTrusted(peerId: peerId, trusted: trusted);
 
   @override
+  void setPriority(String peerId, int priority) => celautSetNodePriority(peerId: peerId, priority: priority);
+
+  @override
   Future<InviteConnectView> connectInvite(Uint8List invite) => celautConnectInvite(invite: invite);
 }
 
@@ -60,7 +67,9 @@ class AppKnownNodes implements KnownNodes {
 ///
 /// The switch "Fully trusted" of a card marks a node of the user, or of family, friends or
 /// the company: a launch with sensitive environment variables warns of the other nodes
-/// (`docs/celaut/env-variables.md`, section 3.2).
+/// (`docs/celaut/env-variables.md`, section 3.2). It also gives the node the highest
+/// priority. The slider "Priority" gives each node a reputation from 0 to 100 that the
+/// balancer weighs with the price; it is disabled, at 100, while the node is fully trusted.
 class KnownNodesScreen extends StatefulWidget {
   const KnownNodesScreen({
     super.key,
@@ -316,6 +325,23 @@ class _KnownNodesScreenState extends State<KnownNodesScreen> {
     }
   }
 
+  /// The priority that the user is dragging to, by node. It is saved when the drag ends,
+  /// not at every step: a write of the database is an encrypted file.
+  final _draft = <String, int>{};
+
+  void _setPriority(KnownNodeView n, int priority) {
+    try {
+      widget.nodes.setPriority(n.peerId, priority);
+      setState(() {
+        _draft.remove(n.peerId);
+        _list = widget.nodes.list();
+        _error = null;
+      });
+    } on CelautError catch (e) {
+      setState(() => _error = e);
+    }
+  }
+
   void _remove(KnownNodeView n) {
     try {
       widget.nodes.remove(n.peerId);
@@ -430,6 +456,22 @@ class _KnownNodesScreenState extends State<KnownNodesScreen> {
                         title: Text(l.celautNodesTrusted),
                         subtitle: Text(l.celautNodesTrustedHint, style: TextStyle(fontSize: 12, color: muted)),
                       ),
+                      Text(
+                        n.trusted ? l.celautNodesPriorityFullTrust : l.celautNodesPriority(_draft[n.peerId] ?? n.priority),
+                        style: TextStyle(fontSize: 12.5, color: muted),
+                      ),
+                      Slider(
+                        key: Key('nodes-priority-${n.peerId}'),
+                        min: 0,
+                        max: 100,
+                        divisions: 100,
+                        // A node of full trust shows 100 and cannot be moved.
+                        value: (n.trusted ? 100 : _draft[n.peerId] ?? n.priority).clamp(0, 100).toDouble(),
+                        label: '${_draft[n.peerId] ?? n.priority}',
+                        onChanged: n.trusted ? null : (v) => setState(() => _draft[n.peerId] = v.round()),
+                        onChangeEnd: n.trusted ? null : (v) => _setPriority(n, v.round()),
+                      ),
+                      Text(l.celautNodesPriorityHint, style: TextStyle(fontSize: 12, color: muted)),
                       if (_computed(n.peerId)?.clientUnknown ?? false) ...[
                         Text(
                           CelautStrings.errorText(CelautErrorKind.clientUnknown),

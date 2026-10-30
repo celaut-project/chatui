@@ -121,3 +121,18 @@ charges `init_maintenance_cost` once each `maintenance_seconds_loop`. So for a t
 
 The app keeps the last time that the user typed (`celaut_min_survival_minutes_v1`). It must
 be from 1 minute to 30 days.
+
+## Priority of the user (node reputation)
+
+The user can give each node a reputation, a whole number from 0 to 100
+(`celaut_balancer::PRIORITY_MIN` and `PRIORITY_MAX`). 50 is neutral and a node that was
+never rated has it (a database of version 1 migrates to 50). The score adds
+`PRIORITY_WEIGHT (2.0) * (p - 50) / 50`, so it goes from -2 to +2: at 100, a node can win
+against one that is up to `e^2` (about 7.4) times cheaper, but not against any price, and a
+free offer still comes first.
+
+"Fully trusted" (`NodeRecord::trusted`) means the maximum: its effective priority is 100
+whatever number is saved, and the number comes back when the mark is taken off. The app
+reads `CelautData::standings()` and gives it to `celaut_client::quotes_with`. FFI:
+`celaut_set_node_priority(peer_id, priority)`; `KnownNodeView.priority` is the effective
+value and `set_priority` the saved number.

@@ -311,14 +311,19 @@ pub async fn celaut_compute_overview() -> Result<ComputeOverviewView, CelautErro
     let mut instances = Vec::new();
     // A stopped instance stays in the database until the user deletes it; it costs
     // nothing and is not shown here.
-    for (instance_id, record) in data.instances.iter().filter(|(_, r)| r.stopped_at.is_none()) {
+    for (instance_id, record) in data
+        .instances
+        .iter()
+        .filter(|(_, r)| r.stopped_at.is_none())
+    {
         let found = reached
             .iter()
             .find(|(p, _)| *p == record.peer_id)
             .and_then(|(_, r)| r.session.clone());
         let balance = match &found {
             Some(s) => {
-                match tokio::time::timeout(node_timeout(), s.instance_balance(&record.token)).await {
+                match tokio::time::timeout(node_timeout(), s.instance_balance(&record.token)).await
+                {
                     Ok(Ok(b)) => Some(b),
                     _ => None,
                 }
@@ -376,6 +381,11 @@ pub struct KnownNodeView {
     /// True if the user marked the node as fully trusted (`docs/celaut/env-variables.md`,
     /// section 3.2).
     pub trusted: bool,
+    /// The reputation that the balancer uses for the node, from 0 to 100 (50 is neutral).
+    /// It is 100 for a node of full trust, whatever the number that the user set.
+    pub priority: u8,
+    /// The number that the user set, kept while the node is of full trust.
+    pub set_priority: u8,
 }
 
 fn known_node(data: &celaut_client::CelautData, peer_id: &str) -> Option<KnownNodeView> {
@@ -385,6 +395,8 @@ fn known_node(data: &celaut_client::CelautData, peer_id: &str) -> Option<KnownNo
         addresses: node.addresses.clone(),
         deposited_nano_erg: data.deposited_nano_erg(peer_id),
         trusted: node.trusted,
+        priority: node.effective_priority(),
+        set_priority: node.priority.min(celaut_balancer::PRIORITY_MAX),
     })
 }
 
@@ -447,6 +459,26 @@ pub fn celaut_set_node_trusted(peer_id: String, trusted: bool) -> Result<(), Cel
     db().update(|d| match d.nodes.get_mut(&peer_id) {
         Some(node) => {
             node.trusted = trusted;
+            Ok(())
+        }
+        None => Err(invalid("This node is not in the node list.")),
+    })
+    .map_err(storage_error)?
+}
+
+/// Give the node `peer_id` the reputation `priority`, from 0 to 100 (50 is neutral). The
+/// balancer adds it to the score of the quotes of the node, so a node of higher priority
+/// can win over a somewhat cheaper one. A number above 100 is an error. A node of full
+/// trust ([`celaut_set_node_trusted`]) counts as 100 whatever this number is.
+#[flutter_rust_bridge::frb(sync)]
+pub fn celaut_set_node_priority(peer_id: String, priority: u8) -> Result<(), CelautError> {
+    if priority > celaut_balancer::PRIORITY_MAX {
+        return Err(invalid("The priority is a number from 0 to 100."));
+    }
+    let peer_id = peer_id.trim().to_ascii_lowercase();
+    db().update(|d| match d.nodes.get_mut(&peer_id) {
+        Some(node) => {
+            node.priority = priority;
             Ok(())
         }
         None => Err(invalid("This node is not in the node list.")),
@@ -538,6 +570,39 @@ mod tests {
         celaut_set_node_trusted(peer.clone(), false).unwrap();
         assert!(!find().trusted);
         assert!(celaut_set_node_trusted("00".repeat(32), true).is_err());
+    }
+
+    #[test]
+    fn a_node_priority_is_bounded_and_full_trust_is_the_maximum() {
+        let peer = "ef56".repeat(16);
+        db().update(|d| {
+            d.nodes.insert(
+                peer.clone(),
+                NodeRecord {
+                    client_id: "c-prio".into(),
+                    addresses: vec!["prio.example:1".into()],
+                    ..Default::default()
+                },
+            );
+        })
+        .unwrap();
+        let find = || {
+            celaut_known_nodes()
+                .into_iter()
+                .find(|n| n.peer_id == peer)
+                .unwrap()
+        };
+        assert_eq!(find().priority, 50);
+        celaut_set_node_priority(peer.to_uppercase(), 20).unwrap();
+        assert_eq!((find().priority, find().set_priority), (20, 20));
+        assert!(celaut_set_node_priority(peer.clone(), 101).is_err());
+        assert_eq!(find().priority, 20);
+        celaut_set_node_trusted(peer.clone(), true).unwrap();
+        assert_eq!((find().priority, find().set_priority), (100, 20));
+        assert_eq!(db().read(|d| d.standings()[&peer].priority), 100);
+        celaut_set_node_trusted(peer.clone(), false).unwrap();
+        assert_eq!(find().priority, 20);
+        assert!(celaut_set_node_priority("00".repeat(32), 5).is_err());
     }
 
     #[tokio::test]

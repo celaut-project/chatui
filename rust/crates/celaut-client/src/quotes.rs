@@ -1,5 +1,6 @@
 //! The quotes of several nodes for one service, best first (`docs/celaut/balancer.md`).
 
+use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -73,6 +74,28 @@ pub async fn quotes_for<T: Transport>(
     cache: &Mutex<QuoteCache>,
     ask: Option<&ServiceAsk>,
 ) -> Quotes {
+    quotes_with(
+        sessions,
+        service_id,
+        configuration,
+        cache,
+        ask,
+        &HashMap::new(),
+    )
+    .await
+}
+
+/// [`quotes_for`], with what the client knows about each node, by peer_id: the priority
+/// (reputation) that the user gave it weighs in the score, so a node of higher priority
+/// can win over a somewhat cheaper one. A node that is not in `standings` is neutral.
+pub async fn quotes_with<T: Transport>(
+    sessions: &[&NodeSession<T>],
+    service_id: [u8; 32],
+    configuration: &Configuration,
+    cache: &Mutex<QuoteCache>,
+    ask: Option<&ServiceAsk>,
+    standings: &HashMap<String, Standing>,
+) -> Quotes {
     let mut skipped = Vec::new();
     let mut to_ask = Vec::new();
     for session in sessions {
@@ -131,7 +154,10 @@ pub async fn quotes_for<T: Transport>(
                     peer_id: session.peer_id().to_string(),
                     quote,
                     mu_per_nano_erg: session.mu_per_nano_erg(),
-                    standing: Standing::default(),
+                    standing: standings
+                        .get(session.peer_id())
+                        .copied()
+                        .unwrap_or_default(),
                 }),
             },
             Err(error) => failures.push(QuoteFailure {

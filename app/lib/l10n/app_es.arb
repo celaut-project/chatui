@@ -2095,6 +2095,16 @@
   "celautEnvRunAnyway": "Enviar los valores y ejecutar",
   "celautNodesTrusted": "De plena confianza",
   "celautNodesTrustedHint": "Tu nodo, o un nodo de tu familia, tus amigos o tu empresa. La app no avisa antes de dar a este nodo tus valores sensibles.",
+  "celautNodesPriority": "Prioridad: {value} de 100",
+  "@celautNodesPriority": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "celautNodesPriorityFullTrust": "Prioridad: 100 de 100 (plena confianza)",
+  "celautNodesPriorityHint": "Tu reputación para este nodo, de 0 a 100 (50 es neutral). Al comparar precios, un número más alto favorece a este nodo. La plena confianza siempre es 100.",
   "celautRunModeTime": "Por tiempo",
   "celautRunModeKeep": "Hasta que la detenga",
   "celautRunButtonKeep": "Ejecutar sin límite de tiempo",
@@ -2128,5 +2138,27 @@
   "celautKeepNeedBudget": "Una instancia en {node} llegó al tope de gasto que pusiste. Se detendrá cuando se le acabe el saldo. Apaga y vuelve a encender «mantenerla en marcha» en su página de información para poner otro tope.",
   "celautTopUpRow": "Cuándo añadir tiempo a las instancias que mantienes en marcha",
   "celautTopUpIntro": "Para las instancias que mantienes en marcha hasta que las detengas (se elige al ejecutarlas, o en su página de información). La app añade tiempo con tu crédito en su nodo; nunca hace un depósito por sí sola.",
-  "celautTopUpSaved": "Guardado."
+  "celautTopUpSaved": "Guardado.",
+  "chatsGroupsMenu": "Grupos",
+  "chatsGroupsViewGrouped": "Mostrar en grupos",
+  "chatsGroupsViewFlat": "Mostrar como una lista",
+  "chatsGroupsNew": "Nuevo grupo",
+  "chatsGroupsNameLabel": "Nombre del grupo",
+  "chatsGroupsRename": "Cambiar nombre del grupo",
+  "chatsGroupsDelete": "Eliminar grupo",
+  "chatsGroupsDeleteTitle": "¿Eliminar el grupo {name}?",
+  "@chatsGroupsDeleteTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsGroupsDeleteBody": "Las conversaciones del grupo no se eliminan: vuelven a la lista sin grupo.",
+  "chatsGroupsMove": "Mover a un grupo",
+  "chatsGroupsNone": "Quitar de su grupo",
+  "chatsGroupsUngrouped": "Sin grupo",
+  "chatSettingsListGroup": "Lista de chats",
+  "chatSettingsGroupedView": "Organizar en grupos",
+  "chatSettingsGroupedViewSubtitle": "Desactivado: una lista plana. Activado: grupos plegables. Mantén pulsada una conversación para moverla a un grupo."
 }

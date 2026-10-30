@@ -310,7 +310,7 @@ void main() {
         peerId: _cheap,
         addresses: ['127.0.0.1:18460', 'old.example:1'],
         depositedNanoErg: BigInt.zero,
-        trusted: false,
+        trusted: false, priority: 50, setPriority: 50,
       ),
     ];
     await pump(tester);

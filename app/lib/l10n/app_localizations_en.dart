@@ -6608,6 +6608,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your node, or a node of family, friends or your company. The app does not warn before it gives this node your sensitive values.';
 
   @override
+  String celautNodesPriority(int value) {
+    return 'Priority: $value of 100';
+  }
+
+  @override
+  String get celautNodesPriorityFullTrust => 'Priority: 100 of 100 (full trust)';
+
+  @override
+  String get celautNodesPriorityHint =>
+      'Your reputation for this node, from 0 to 100 (50 is neutral). When the app compares prices, a higher number favors this node. Full trust is always 100.';
+
+  @override
   String get celautRunModeTime => 'For a time';
 
   @override
@@ -6734,4 +6746,51 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get celautTopUpSaved => 'Saved.';
+
+  @override
+  String get chatsGroupsMenu => 'Groups';
+
+  @override
+  String get chatsGroupsViewGrouped => 'Show in groups';
+
+  @override
+  String get chatsGroupsViewFlat => 'Show as one list';
+
+  @override
+  String get chatsGroupsNew => 'New group';
+
+  @override
+  String get chatsGroupsNameLabel => 'Group name';
+
+  @override
+  String get chatsGroupsRename => 'Rename group';
+
+  @override
+  String get chatsGroupsDelete => 'Delete group';
+
+  @override
+  String chatsGroupsDeleteTitle(String name) {
+    return 'Delete group $name?';
+  }
+
+  @override
+  String get chatsGroupsDeleteBody => 'The conversations in it are not deleted: they go back to the list with no group.';
+
+  @override
+  String get chatsGroupsMove => 'Move to a group';
+
+  @override
+  String get chatsGroupsNone => 'Remove from its group';
+
+  @override
+  String get chatsGroupsUngrouped => 'No group';
+
+  @override
+  String get chatSettingsListGroup => 'Chat list';
+
+  @override
+  String get chatSettingsGroupedView => 'Organize in groups';
+
+  @override
+  String get chatSettingsGroupedViewSubtitle => 'Off: one flat list. On: collapsible groups. Long-press a conversation to move it to a group.';
 }

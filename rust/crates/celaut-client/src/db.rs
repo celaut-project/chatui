@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use crate::store::{keep_newer, PeerStore, Seen, StoreError};
 
 /// The version of the content.
-pub const DB_VERSION: u32 = 1;
+pub const DB_VERSION: u32 = 2;
 
 /// The length of the key, in bytes.
 pub const KEY_LEN: usize = 32;
@@ -77,6 +77,16 @@ pub struct NodeRecord {
     /// earlier version is not trusted.
     #[serde(default)]
     pub trusted: bool,
+    /// The reputation that the user gives to the node, from 0 to 100 (`docs/celaut/
+    /// balancer.md`). The balancer adds it to the score of the node's quote. 50 is
+    /// neutral. A node of an earlier version (database version 1) has 50. See
+    /// [`NodeRecord::effective_priority`] for the full trust.
+    #[serde(default = "neutral_priority")]
+    pub priority: u8,
+}
+
+fn neutral_priority() -> u8 {
+    celaut_balancer::PRIORITY_NEUTRAL
 }
 
 fn listed_by_default() -> bool {
@@ -96,11 +106,22 @@ impl Default for NodeRecord {
             earlier_client_ids: Vec::new(),
             health: crate::health::Health::default(),
             trusted: false,
+            priority: neutral_priority(),
         }
     }
 }
 
 impl NodeRecord {
+    /// The priority that the balancer uses: the maximum for a node of full trust
+    /// ([`NodeRecord::trusted`]), else [`NodeRecord::priority`] limited to the maximum.
+    pub fn effective_priority(&self) -> u8 {
+        if self.trusted {
+            celaut_balancer::PRIORITY_MAX
+        } else {
+            self.priority.min(celaut_balancer::PRIORITY_MAX)
+        }
+    }
+
     /// A record for a new client: nothing paid yet, and the free credit of the node if
     /// the app could read it.
     pub fn new_client(client_id: String, free_credit_mu: Option<u128>) -> Self {
@@ -413,6 +434,21 @@ impl CelautData {
                 node.paid_mu = Some(paid.to_string());
             }
         }
+    }
+
+    /// What the balancer knows about each node of the database, by peer_id: for now the
+    /// priority of the user ([`NodeRecord::effective_priority`]).
+    pub fn standings(&self) -> std::collections::HashMap<String, celaut_balancer::Standing> {
+        self.nodes
+            .iter()
+            .map(|(peer_id, n)| {
+                let standing = celaut_balancer::Standing {
+                    priority: n.effective_priority(),
+                    ..Default::default()
+                };
+                (peer_id.clone(), standing)
+            })
+            .collect()
     }
 
     /// The peer_ids of the nodes in the node list of the user.
@@ -864,6 +900,45 @@ mod tests {
         // A change of the value keeps the mark that the caller gives.
         data.set_env("MODE", "slow", true, 2).unwrap();
         assert!(data.env_variables["MODE"].sensitive);
+    }
+
+    #[test]
+    fn an_old_node_has_neutral_priority_and_full_trust_is_the_maximum() {
+        let old: CelautData =
+            serde_json::from_str(r#"{"version": 1, "nodes": {"aa": {"client_id": "c1"}}}"#)
+                .unwrap();
+        assert_eq!(old.nodes["aa"].priority, celaut_balancer::PRIORITY_NEUTRAL);
+        assert_eq!(old.nodes["aa"].effective_priority(), 50);
+        let mut data = CelautData::default();
+        data.nodes.insert(
+            "bb".into(),
+            NodeRecord {
+                priority: 20,
+                ..Default::default()
+            },
+        );
+        data.nodes.insert(
+            "cc".into(),
+            NodeRecord {
+                priority: 20,
+                trusted: true,
+                ..Default::default()
+            },
+        );
+        data.nodes.insert(
+            "dd".into(),
+            NodeRecord {
+                priority: 250,
+                ..Default::default()
+            },
+        );
+        let back: CelautData =
+            serde_json::from_str(&serde_json::to_string(&data).unwrap()).unwrap();
+        assert_eq!(back.nodes["bb"].priority, 20);
+        let standings = back.standings();
+        assert_eq!(standings["bb"].priority, 20);
+        assert_eq!(standings["cc"].priority, celaut_balancer::PRIORITY_MAX);
+        assert_eq!(standings["dd"].priority, celaut_balancer::PRIORITY_MAX);
     }
 
     #[test]

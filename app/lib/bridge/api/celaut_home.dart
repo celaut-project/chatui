@@ -44,6 +44,16 @@ void celautSetNodeTrusted({required String peerId, required bool trusted}) =>
       trusted: trusted,
     );
 
+/// Set the reputation of the node `peer_id`, from 0 to 100 (50 is neutral). The balancer adds
+/// it to the score of the quotes of the node, so a node of higher priority can win over a
+/// somewhat cheaper one. A number above 100 is an error. A node of full
+/// trust ([`celaut_set_node_trusted`]) counts as 100 whatever this number is.
+void celautSetNodePriority({required String peerId, required int priority}) =>
+    RustLib.instance.api.crateApiCelautHomeCelautSetNodePriority(
+      peerId: peerId,
+      priority: priority,
+    );
+
 /// [`CoresTotalView`] for a number of bytes.
 class BytesTotalView {
   final PlatformInt64? total;
@@ -191,11 +201,20 @@ class KnownNodeView {
   /// section 3.2).
   final bool trusted;
 
+  /// The reputation that the balancer uses for the node, from 0 to 100 (50 is neutral).
+  /// It is 100 for a node of full trust, whatever the number that the user set.
+  final int priority;
+
+  /// The number that the user set, kept while the node is of full trust.
+  final int setPriority;
+
   const KnownNodeView({
     required this.peerId,
     required this.addresses,
     required this.depositedNanoErg,
     required this.trusted,
+    required this.priority,
+    required this.setPriority,
   });
 
   @override
@@ -203,7 +222,9 @@ class KnownNodeView {
       peerId.hashCode ^
       addresses.hashCode ^
       depositedNanoErg.hashCode ^
-      trusted.hashCode;
+      trusted.hashCode ^
+      priority.hashCode ^
+      setPriority.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -213,7 +234,9 @@ class KnownNodeView {
           peerId == other.peerId &&
           addresses == other.addresses &&
           depositedNanoErg == other.depositedNanoErg &&
-          trusted == other.trusted;
+          trusted == other.trusted &&
+          priority == other.priority &&
+          setPriority == other.setPriority;
 }
 
 /// [`CoresTotalView`] for nanoERG, as text.

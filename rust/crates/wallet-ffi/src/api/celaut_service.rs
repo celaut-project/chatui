@@ -17,7 +17,7 @@ use celaut_balancer::QuoteCache;
 use celaut_client::db::{InstancePricing, InstanceRecord, KeepAlive, NodeRecord, QuoteRecord};
 use celaut_client::receipts::{check_start, InstanceReceipts, StoredReceipt};
 use celaut_client::session::parse_service_id;
-use celaut_client::{new_client_id, quotes, ClientError, LocalPort, NodeSession};
+use celaut_client::{new_client_id, quotes_with, ClientError, LocalPort, NodeSession};
 use celaut_proto::celaut::{Amount, Configuration, EstimatedCost};
 use celaut_wire::{ConnectOptions, Connection, TunnelOpener, WireError};
 use once_cell::sync::Lazy;
@@ -395,7 +395,9 @@ pub async fn celaut_quote_service(
         }
     }
     let sessions: Vec<&NodeSession<Connection>> = open.iter().map(|(_, s)| s.as_ref()).collect();
-    let answer = quotes(&sessions, id, &configuration, &QUOTES).await;
+    // The priority that the user gave to each node weighs in the order.
+    let standings = db().read(|d| d.standings());
+    let answer = quotes_with(&sessions, id, &configuration, &QUOTES, None, &standings).await;
     let address_of = |peer_id: &str| {
         open.iter()
             .find(|(_, s)| s.peer_id() == peer_id)

@@ -10547,6 +10547,24 @@ abstract class AppLocalizations {
   /// **'Your node, or a node of family, friends or your company. The app does not warn before it gives this node your sensitive values.'**
   String get celautNodesTrustedHint;
 
+  /// No description provided for @celautNodesPriority.
+  ///
+  /// In en, this message translates to:
+  /// **'Priority: {value} of 100'**
+  String celautNodesPriority(int value);
+
+  /// No description provided for @celautNodesPriorityFullTrust.
+  ///
+  /// In en, this message translates to:
+  /// **'Priority: 100 of 100 (full trust)'**
+  String get celautNodesPriorityFullTrust;
+
+  /// No description provided for @celautNodesPriorityHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your reputation for this node, from 0 to 100 (50 is neutral). When the app compares prices, a higher number favors this node. Full trust is always 100.'**
+  String get celautNodesPriorityHint;
+
   /// No description provided for @celautRunModeTime.
   ///
   /// In en, this message translates to:
@@ -10750,6 +10768,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Saved.'**
   String get celautTopUpSaved;
+
+  /// No description provided for @chatsGroupsMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Groups'**
+  String get chatsGroupsMenu;
+
+  /// No description provided for @chatsGroupsViewGrouped.
+  ///
+  /// In en, this message translates to:
+  /// **'Show in groups'**
+  String get chatsGroupsViewGrouped;
+
+  /// No description provided for @chatsGroupsViewFlat.
+  ///
+  /// In en, this message translates to:
+  /// **'Show as one list'**
+  String get chatsGroupsViewFlat;
+
+  /// No description provided for @chatsGroupsNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New group'**
+  String get chatsGroupsNew;
+
+  /// No description provided for @chatsGroupsNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Group name'**
+  String get chatsGroupsNameLabel;
+
+  /// No description provided for @chatsGroupsRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename group'**
+  String get chatsGroupsRename;
+
+  /// No description provided for @chatsGroupsDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete group'**
+  String get chatsGroupsDelete;
+
+  /// No description provided for @chatsGroupsDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete group {name}?'**
+  String chatsGroupsDeleteTitle(String name);
+
+  /// No description provided for @chatsGroupsDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The conversations in it are not deleted: they go back to the list with no group.'**
+  String get chatsGroupsDeleteBody;
+
+  /// No description provided for @chatsGroupsMove.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to a group'**
+  String get chatsGroupsMove;
+
+  /// No description provided for @chatsGroupsNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from its group'**
+  String get chatsGroupsNone;
+
+  /// No description provided for @chatsGroupsUngrouped.
+  ///
+  /// In en, this message translates to:
+  /// **'No group'**
+  String get chatsGroupsUngrouped;
+
+  /// No description provided for @chatSettingsListGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat list'**
+  String get chatSettingsListGroup;
+
+  /// No description provided for @chatSettingsGroupedView.
+  ///
+  /// In en, this message translates to:
+  /// **'Organize in groups'**
+  String get chatSettingsGroupedView;
+
+  /// No description provided for @chatSettingsGroupedViewSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Off: one flat list. On: collapsible groups. Long-press a conversation to move it to a group.'**
+  String get chatSettingsGroupedViewSubtitle;
 }
 
 class _AppLocalizationsDelegate

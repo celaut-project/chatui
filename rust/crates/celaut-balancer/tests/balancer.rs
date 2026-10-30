@@ -84,6 +84,7 @@ fn score_is_minus_ln_cost_plus_the_standing() {
         reputation: -50.0,
         onchain: 1.0,
         donation: 1.0,
+        ..Default::default()
     };
     assert!((score(1.0, all) - (-1.0 + 0.3 + 0.3)).abs() < 1e-12);
 }
@@ -208,4 +209,81 @@ fn the_cache_has_a_size_limit() {
     assert!(cache
         .get(&key(&(QUOTE_CACHE_SIZE + 4).to_string()), t0)
         .is_some());
+}
+
+fn with_priority(peer: &str, cost: &str, priority: u8) -> Candidate {
+    Candidate {
+        standing: Standing {
+            priority,
+            ..Default::default()
+        },
+        ..candidate(peer, flat(cost), Some(1))
+    }
+}
+
+#[test]
+fn priority_factor_runs_from_minus_one_to_one() {
+    assert_eq!(priority_factor(PRIORITY_MIN), -1.0);
+    assert_eq!(priority_factor(PRIORITY_NEUTRAL), 0.0);
+    assert_eq!(priority_factor(PRIORITY_MAX), 1.0);
+    // More than the maximum counts as the maximum.
+    assert_eq!(priority_factor(255), 1.0);
+}
+
+#[test]
+fn neutral_priority_changes_nothing() {
+    let e = std::f64::consts::E;
+    assert_eq!(Standing::default().priority, PRIORITY_NEUTRAL);
+    assert!((score(e, Standing::default()) + 1.0).abs() < 1e-12);
+}
+
+#[test]
+fn priority_adds_its_weight_to_the_score() {
+    let at = |priority| {
+        score(
+            1.0,
+            Standing {
+                priority,
+                ..Default::default()
+            },
+        )
+    };
+    assert!((at(PRIORITY_MAX) - PRIORITY_WEIGHT).abs() < 1e-12);
+    assert!((at(PRIORITY_MIN) + PRIORITY_WEIGHT).abs() < 1e-12);
+    assert!(at(75) > at(50) && at(50) > at(25));
+}
+
+#[test]
+fn a_higher_priority_wins_at_the_same_price() {
+    let ranked = rank(vec![
+        with_priority("low", "1000", 10),
+        with_priority("neutral", "1000", PRIORITY_NEUTRAL),
+        with_priority("full", "1000", PRIORITY_MAX),
+    ]);
+    assert_eq!(order(&ranked), ["full", "neutral", "low"]);
+}
+
+#[test]
+fn priority_can_beat_a_moderately_lower_price_but_not_any_price() {
+    // Full trust at 5 times the price still wins (5 < e^2).
+    let ranked = rank(vec![
+        with_priority("cheap", "1000", PRIORITY_NEUTRAL),
+        with_priority("trusted", "5000", PRIORITY_MAX),
+    ]);
+    assert_eq!(order(&ranked), ["trusted", "cheap"]);
+    // At 100 times the price it does not: the price still counts.
+    let ranked = rank(vec![
+        with_priority("cheap", "1000", PRIORITY_NEUTRAL),
+        with_priority("trusted", "100000", PRIORITY_MAX),
+    ]);
+    assert_eq!(order(&ranked), ["cheap", "trusted"]);
+}
+
+#[test]
+fn a_free_offer_still_comes_first() {
+    let ranked = rank(vec![
+        with_priority("full", "1000", PRIORITY_MAX),
+        with_priority("free", "0", PRIORITY_MIN),
+    ]);
+    assert_eq!(order(&ranked), ["free", "full"]);
 }

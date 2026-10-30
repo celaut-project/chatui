@@ -421,7 +421,7 @@ class _Nodes implements KnownNodes {
   @override
   List<KnownNodeView> list() => [
     for (final p in peers)
-      KnownNodeView(peerId: p, addresses: ['$p.example:1'], depositedNanoErg: BigInt.zero, trusted: false),
+      KnownNodeView(peerId: p, addresses: ['$p.example:1'], depositedNanoErg: BigInt.zero, trusted: false, priority: 50, setPriority: 50),
   ];
 
   @override
@@ -432,6 +432,9 @@ class _Nodes implements KnownNodes {
 
   @override
   void setTrusted(String peerId, bool trusted) {}
+
+  @override
+  void setPriority(String peerId, int priority) {}
 
   @override
   Future<InviteConnectView> connectInvite(Uint8List invite) => throw UnimplementedError();

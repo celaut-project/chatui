@@ -17,8 +17,12 @@
 //!   needs the resources of the service ([`ServiceAsk`]), which the client does not
 //!   have from a hash alone.
 //!
-//! Not in this crate yet: the event log of local reputation. Until then the reputation
-//! terms are 0.
+//! - [`Standing::priority`]: the reputation that the user gives to a node, a whole number
+//!   from [`PRIORITY_MIN`] to [`PRIORITY_MAX`]. [`PRIORITY_NEUTRAL`] adds nothing; the
+//!   maximum is "full trust" and adds the most. It weighs in [`score`] with
+//!   [`PRIORITY_WEIGHT`], in addition to the price and the other terms.
+//!
+//! Not in this crate yet: the event log of local reputation. Until then that term is 0.
 //!
 //! Input from a peer must never make this crate panic.
 #![forbid(unsafe_code)]
@@ -46,6 +50,16 @@ pub const REPUTATION_HALF_CREDIT: f64 = 50.0;
 pub const ONCHAIN_WEIGHT: f64 = 0.3;
 /// The weight of the donations.
 pub const DONATION_WEIGHT: f64 = 0.3;
+
+/// The least priority (reputation) that the user can give to a node.
+pub const PRIORITY_MIN: u8 = 0;
+/// The most priority that the user can give to a node. A node of full trust has it.
+pub const PRIORITY_MAX: u8 = 100;
+/// The priority of a node that the user did not rate: it adds nothing to the score.
+pub const PRIORITY_NEUTRAL: u8 = 50;
+/// The weight of the priority of the user. At the maximum it is worth a price `e^2` times
+/// (about 7.4) lower than that of a node of neutral priority.
+pub const PRIORITY_WEIGHT: f64 = 2.0;
 
 const HOUR_SECONDS: f64 = 3600.0;
 
@@ -148,8 +162,16 @@ pub fn reputation_factor(reputation: f64, half_credit: f64) -> f64 {
     reputation / (reputation.abs() + half)
 }
 
-/// What the client knows about a node besides its price. All 0 for now.
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
+/// The priority term: from -1 at [`PRIORITY_MIN`] to 0 at [`PRIORITY_NEUTRAL`] and 1 at
+/// [`PRIORITY_MAX`]. A value above the maximum counts as the maximum.
+pub fn priority_factor(priority: u8) -> f64 {
+    let p = f64::from(priority.min(PRIORITY_MAX));
+    let half = f64::from(PRIORITY_MAX - PRIORITY_NEUTRAL);
+    (p - f64::from(PRIORITY_NEUTRAL)) / half
+}
+
+/// What the client knows about a node besides its price. All neutral by default.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Standing {
     /// Local reputation, from the events of this client.
     pub reputation: f64,
@@ -157,9 +179,24 @@ pub struct Standing {
     pub onchain: f64,
     /// Donation bonus, already in [0, 1).
     pub donation: f64,
+    /// The reputation that the user gave to the node, from [`PRIORITY_MIN`] to
+    /// [`PRIORITY_MAX`]. [`PRIORITY_MAX`] is full trust.
+    pub priority: u8,
 }
 
-/// `-ln(cost) + W_r * f(r, H_r) + W_o * o + W_d * d`. A cost of 0 or less is `+inf`
+impl Default for Standing {
+    fn default() -> Self {
+        Standing {
+            reputation: 0.0,
+            onchain: 0.0,
+            donation: 0.0,
+            priority: PRIORITY_NEUTRAL,
+        }
+    }
+}
+
+/// `-ln(cost) + W_r * f(r, H_r) + W_o * o + W_d * d + W_p * p`, where `p` is the
+/// [`priority_factor`] of the node. A cost of 0 or less is `+inf`
 /// (a free offer is the best one). Higher is better.
 pub fn score(cost: f64, standing: Standing) -> f64 {
     if cost <= 0.0 {
@@ -169,6 +206,7 @@ pub fn score(cost: f64, standing: Standing) -> f64 {
         + REPUTATION_WEIGHT * reputation_factor(standing.reputation, REPUTATION_HALF_CREDIT)
         + ONCHAIN_WEIGHT * standing.onchain
         + DONATION_WEIGHT * standing.donation
+        + PRIORITY_WEIGHT * priority_factor(standing.priority)
 }
 
 /// One quote of one node.

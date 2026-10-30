@@ -296,6 +296,11 @@ abstract class RustLibApi extends BaseApi {
     required bool trusted,
   });
 
+  void crateApiCelautHomeCelautSetNodePriority({
+    required String peerId,
+    required int priority,
+  });
+
   Future<List<SkillServiceView>> crateApiCelautCatalogCelautSkillServices({
     required String skillBoxId,
   });
@@ -2103,6 +2108,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "celaut_set_node_trusted",
         argNames: ["peerId", "trusted"],
+      );
+
+  @override
+  void crateApiCelautHomeCelautSetNodePriority({
+    required String peerId,
+    required int priority,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(peerId, serializer);
+          sse_encode_u_8(priority, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 100)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_celaut_error,
+        ),
+        constMeta: kCrateApiCelautHomeCelautSetNodePriorityConstMeta,
+        argValues: [peerId, priority],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCelautHomeCelautSetNodePriorityConstMeta =>
+      const TaskConstMeta(
+        debugName: "celaut_set_node_priority",
+        argNames: ["peerId", "priority"],
       );
 
   @override
@@ -4434,13 +4469,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   KnownNodeView dco_decode_known_node_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return KnownNodeView(
       peerId: dco_decode_String(arr[0]),
       addresses: dco_decode_list_String(arr[1]),
       depositedNanoErg: dco_decode_u_64(arr[2]),
       trusted: dco_decode_bool(arr[3]),
+      priority: dco_decode_u_8(arr[4]),
+      setPriority: dco_decode_u_8(arr[5]),
     );
   }
 
@@ -5723,11 +5760,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_addresses = sse_decode_list_String(deserializer);
     var var_depositedNanoErg = sse_decode_u_64(deserializer);
     var var_trusted = sse_decode_bool(deserializer);
+    var var_priority = sse_decode_u_8(deserializer);
+    var var_setPriority = sse_decode_u_8(deserializer);
     return KnownNodeView(
       peerId: var_peerId,
       addresses: var_addresses,
       depositedNanoErg: var_depositedNanoErg,
       trusted: var_trusted,
+      priority: var_priority,
+      setPriority: var_setPriority,
     );
   }
 
@@ -7248,6 +7289,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_String(self.addresses, serializer);
     sse_encode_u_64(self.depositedNanoErg, serializer);
     sse_encode_bool(self.trusted, serializer);
+    sse_encode_u_8(self.priority, serializer);
+    sse_encode_u_8(self.setPriority, serializer);
   }
 
   @protected

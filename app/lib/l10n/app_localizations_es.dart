@@ -6684,6 +6684,18 @@ class AppLocalizationsEs extends AppLocalizations {
       'Tu nodo, o un nodo de tu familia, tus amigos o tu empresa. La app no avisa antes de dar a este nodo tus valores sensibles.';
 
   @override
+  String celautNodesPriority(int value) {
+    return 'Prioridad: $value de 100';
+  }
+
+  @override
+  String get celautNodesPriorityFullTrust => 'Prioridad: 100 de 100 (plena confianza)';
+
+  @override
+  String get celautNodesPriorityHint =>
+      'Tu reputación para este nodo, de 0 a 100 (50 es neutral). Al comparar precios, un número más alto favorece a este nodo. La plena confianza siempre es 100.';
+
+  @override
   String get celautRunModeTime => 'Por tiempo';
 
   @override
@@ -6810,4 +6822,51 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get celautTopUpSaved => 'Guardado.';
+
+  @override
+  String get chatsGroupsMenu => 'Grupos';
+
+  @override
+  String get chatsGroupsViewGrouped => 'Mostrar en grupos';
+
+  @override
+  String get chatsGroupsViewFlat => 'Mostrar como una lista';
+
+  @override
+  String get chatsGroupsNew => 'Nuevo grupo';
+
+  @override
+  String get chatsGroupsNameLabel => 'Nombre del grupo';
+
+  @override
+  String get chatsGroupsRename => 'Cambiar nombre del grupo';
+
+  @override
+  String get chatsGroupsDelete => 'Eliminar grupo';
+
+  @override
+  String chatsGroupsDeleteTitle(String name) {
+    return '¿Eliminar el grupo $name?';
+  }
+
+  @override
+  String get chatsGroupsDeleteBody => 'Las conversaciones del grupo no se eliminan: vuelven a la lista sin grupo.';
+
+  @override
+  String get chatsGroupsMove => 'Mover a un grupo';
+
+  @override
+  String get chatsGroupsNone => 'Quitar de su grupo';
+
+  @override
+  String get chatsGroupsUngrouped => 'Sin grupo';
+
+  @override
+  String get chatSettingsListGroup => 'Lista de chats';
+
+  @override
+  String get chatSettingsGroupedView => 'Organizar en grupos';
+
+  @override
+  String get chatSettingsGroupedViewSubtitle => 'Desactivado: una lista plana. Activado: grupos plegables. Mantén pulsada una conversación para moverla a un grupo.';
 }

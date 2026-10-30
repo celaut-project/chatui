@@ -4833,6 +4833,16 @@
   "celautEnvRunAnyway": "Send the values and run",
   "celautNodesTrusted": "Fully trusted",
   "celautNodesTrustedHint": "Your node, or a node of family, friends or your company. The app does not warn before it gives this node your sensitive values.",
+  "celautNodesPriority": "Priority: {value} of 100",
+  "@celautNodesPriority": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "celautNodesPriorityFullTrust": "Priority: 100 of 100 (full trust)",
+  "celautNodesPriorityHint": "Your reputation for this node, from 0 to 100 (50 is neutral). When the app compares prices, a higher number favors this node. Full trust is always 100.",
   "celautRunModeTime": "For a time",
   "celautRunModeKeep": "Until I stop it",
   "celautRunButtonKeep": "Run until stopped",
@@ -4961,5 +4971,27 @@
   },
   "celautTopUpRow": "When to add time to the instances that you keep running",
   "celautTopUpIntro": "For the instances that you keep running until you stop them (set it when you run one, or on its info page). The app adds time from your credit on their node; it never makes a deposit by itself.",
-  "celautTopUpSaved": "Saved."
+  "celautTopUpSaved": "Saved.",
+  "chatsGroupsMenu": "Groups",
+  "chatsGroupsViewGrouped": "Show in groups",
+  "chatsGroupsViewFlat": "Show as one list",
+  "chatsGroupsNew": "New group",
+  "chatsGroupsNameLabel": "Group name",
+  "chatsGroupsRename": "Rename group",
+  "chatsGroupsDelete": "Delete group",
+  "chatsGroupsDeleteTitle": "Delete group {name}?",
+  "@chatsGroupsDeleteTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsGroupsDeleteBody": "The conversations in it are not deleted: they go back to the list with no group.",
+  "chatsGroupsMove": "Move to a group",
+  "chatsGroupsNone": "Remove from its group",
+  "chatsGroupsUngrouped": "No group",
+  "chatSettingsListGroup": "Chat list",
+  "chatSettingsGroupedView": "Organize in groups",
+  "chatSettingsGroupedViewSubtitle": "Off: one flat list. On: collapsible groups. Long-press a conversation to move it to a group."
 }

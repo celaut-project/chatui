@@ -34,6 +34,12 @@ class _Db implements KnownNodes {
   @override
   void setTrusted(String peerId, bool value) => value ? trusted.add(peerId) : trusted.remove(peerId);
 
+  /// The priority (reputation) that the user set, by node. A node with none has 50.
+  final priorities = <String, int>{};
+
+  @override
+  void setPriority(String peerId, int priority) => priorities[peerId] = priority;
+
   /// The answers of `connectInvite`, in order, and the bytes that it was given.
   final invites = <InviteConnectView>[];
   final invited = <Uint8List>[];
@@ -59,6 +65,9 @@ class _Db implements KnownNodes {
     addresses: records[peer]!.addresses,
     depositedNanoErg: BigInt.from(records[peer]!.deposited),
     trusted: trusted.contains(peer),
+    // A node of full trust counts as 100 for the balancer, as the Rust side says.
+    priority: trusted.contains(peer) ? 100 : priorities[peer] ?? 50,
+    setPriority: priorities[peer] ?? 50,
   );
 
   @override
@@ -184,6 +193,29 @@ void main() {
     await tester.pumpAndSettle();
     expect(db.trusted, isEmpty);
     expect(tester.widget<SwitchListTile>(mark).value, isFalse);
+  });
+
+  testWidgets('the priority of a node is a slider that starts at neutral, and full trust makes it 100', (tester) async {
+    final db = await pump(tester);
+    final slider = find.byKey(Key('nodes-priority-$_a'));
+    expect(tester.widget<Slider>(slider).value, 50);
+    expect(find.text(appL10n.celautNodesPriority(50)), findsOneWidget);
+    // Drag to the right end: the slider gives its maximum, 100.
+    await tester.drag(slider, const Offset(800, 0));
+    await tester.pumpAndSettle();
+    expect(db.priorities[_a], 100);
+    expect(find.text(appL10n.celautNodesPriority(100)), findsOneWidget);
+    db.priorities[_a] = 30;
+    // Full trust: the slider shows 100 and cannot be moved; taking it back returns to 30.
+    await tester.tap(find.byKey(Key('nodes-trusted-$_a')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Slider>(slider).value, 100);
+    expect(tester.widget<Slider>(slider).onChanged, isNull);
+    expect(find.text(appL10n.celautNodesPriorityFullTrust), findsOneWidget);
+    await tester.tap(find.byKey(Key('nodes-trusted-$_a')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Slider>(slider).value, 30);
+    expect(tester.widget<Slider>(slider).onChanged, isNotNull);
   });
 
   testWidgets('add a node by a QR code: the same check as a typed address', (tester) async {
@@ -347,7 +379,7 @@ void main() {
     Uint8List invite([int fill = 0xbb]) => Uint8List.fromList([0x0a, 0x20, ...List.filled(32, fill), 0x12, 0x00]);
 
     KnownNodeView nodeB(String address) =>
-        KnownNodeView(peerId: _b, addresses: [address], depositedNanoErg: BigInt.zero, trusted: false);
+        KnownNodeView(peerId: _b, addresses: [address], depositedNanoErg: BigInt.zero, trusted: false, priority: 50, setPriority: 50);
 
     InviteAttemptView attempt(
       String address,

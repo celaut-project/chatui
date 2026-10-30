@@ -1774,6 +1774,38 @@ fn wire__crate__api__celaut_network__celaut_set_network_impl(
         },
     )
 }
+fn wire__crate__api__celaut_home__celaut_set_node_priority_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "celaut_set_node_priority",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_peer_id = <String>::sse_decode(&mut deserializer);
+            let api_priority = <u8>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, crate::api::celaut::CelautError>((move || {
+                let output_ok =
+                    crate::api::celaut_home::celaut_set_node_priority(api_peer_id, api_priority)?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__celaut_home__celaut_set_node_trusted_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -4280,11 +4312,15 @@ impl SseDecode for crate::api::celaut_home::KnownNodeView {
         let mut var_addresses = <Vec<String>>::sse_decode(deserializer);
         let mut var_depositedNanoErg = <u64>::sse_decode(deserializer);
         let mut var_trusted = <bool>::sse_decode(deserializer);
+        let mut var_priority = <u8>::sse_decode(deserializer);
+        let mut var_setPriority = <u8>::sse_decode(deserializer);
         return crate::api::celaut_home::KnownNodeView {
             peer_id: var_peerId,
             addresses: var_addresses,
             deposited_nano_erg: var_depositedNanoErg,
             trusted: var_trusted,
+            priority: var_priority,
+            set_priority: var_setPriority,
         };
     }
 }
@@ -5821,6 +5857,11 @@ fn pde_ffi_dispatcher_sync_impl(
         50 => {
             wire__crate__api__celaut_home__celaut_set_node_trusted_impl(ptr, rust_vec_len, data_len)
         }
+        100 => wire__crate__api__celaut_home__celaut_set_node_priority_impl(
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
         56 => wire__crate__api__celaut_package__celaut_transfer_progress_impl(
             ptr,
             rust_vec_len,
@@ -6425,6 +6466,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::celaut_home::KnownNodeView {
             self.addresses.into_into_dart().into_dart(),
             self.deposited_nano_erg.into_into_dart().into_dart(),
             self.trusted.into_into_dart().into_dart(),
+            self.priority.into_into_dart().into_dart(),
+            self.set_priority.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -7688,6 +7731,8 @@ impl SseEncode for crate::api::celaut_home::KnownNodeView {
         <Vec<String>>::sse_encode(self.addresses, serializer);
         <u64>::sse_encode(self.deposited_nano_erg, serializer);
         <bool>::sse_encode(self.trusted, serializer);
+        <u8>::sse_encode(self.priority, serializer);
+        <u8>::sse_encode(self.set_priority, serializer);
     }
 }
 

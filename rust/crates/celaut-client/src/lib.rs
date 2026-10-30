@@ -39,7 +39,6 @@
 )]
 
 pub mod db;
-pub mod service_info;
 pub mod deposit;
 pub mod env;
 pub mod health;
@@ -52,6 +51,7 @@ pub mod pow;
 pub mod quotes;
 pub mod receipts;
 pub mod refusal;
+pub mod service_info;
 pub mod session;
 pub mod store;
 
@@ -60,12 +60,12 @@ use celaut_wire::gateway::{generate_client, get_peer_info, GenerateClientReply};
 use celaut_wire::{ConnectOptions, Connection, Transport, WireError};
 
 pub use db::{CelautData, CelautDb, DbError};
-pub use health::{Availability, Health};
-pub use refusal::Refusal;
 pub use deposit::{DepositBox, DepositError, ErgPayment};
+pub use health::{Availability, Health};
 pub use local_port::LocalPort;
 pub use peer::PeerError;
-pub use quotes::{quotes, quotes_for, QuoteFailure, QuoteSkip, Quotes};
+pub use quotes::{quotes, quotes_for, quotes_with, QuoteFailure, QuoteSkip, Quotes};
+pub use refusal::Refusal;
 pub use session::{NodeSession, StartedInstance};
 pub use store::{FilePeerStore, MemoryPeerStore, PeerStore, Seen, StoreError};
 
