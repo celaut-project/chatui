@@ -554,11 +554,13 @@ class _ChatKeyboardState extends State<ChatKeyboard> {
                     return;
                   }
                   // The values keep the order of the options. A box that would make the value
-                  // too long does not turn on.
-                  final on = !chosen.contains(value);
+                  // too long does not turn on. The values chosen now, not those of the last
+                  // build: a second tap can come before the next frame.
+                  final now = _chosen[item.name] ?? chosen;
+                  final on = !now.contains(value);
                   final next = [
                     for (final o in item.options)
-                      if (o.value == value ? on : chosen.contains(o.value)) o.value,
+                      if (o.value == value ? on : now.contains(o.value)) o.value,
                   ];
                   if (on && fitChosen(next).length != next.length) return;
                   _chosen[item.name] = next;
