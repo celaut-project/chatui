@@ -145,7 +145,10 @@ fixes:
    local_port.rs`). The first error (no connection, `Unavailable`) reset the page. Now the
    relay opens the stream again, up to 3 times with a wait of 0.25, 0.5 and 0.75 s, and
    sends again the bytes that it already sent (up to 1 MiB), as long as no byte came back.
-   A refusal of the node (token, balance, slot) is not retried.
+   Only a stream that never opened is opened again (no connection, a time limit, or a
+   failure before any byte of the request went out): an error after the request was sent
+   (`Unavailable`, a keepalive that timed out) ends the connection, because the service
+   may have run the request. A refusal of the node (token, balance, slot) is not retried.
 
 Not changed: the Dart `TunnelHttp` is only for the chat calls, and the web page opens in
 the system browser, so neither limits the page. `SOCKS_CHECK_TIMEOUT` (5 s) is for the

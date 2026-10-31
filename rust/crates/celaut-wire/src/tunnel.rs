@@ -21,6 +21,7 @@
 
 use std::collections::VecDeque;
 use std::str::FromStr;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 
 use bee_rpc::buffer::Buffer;
@@ -29,6 +30,7 @@ use celaut_proto::celaut::{ExecutionReceipt, TokenMessage};
 use prost::Message;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
+use tokio_stream::StreamExt;
 use tonic::codegen::http::uri::PathAndQuery;
 
 use crate::receipt::{self, Chain, DIRECTION_IN, DIRECTION_OUT, KIND_CLOSE};
@@ -526,14 +528,26 @@ async fn run(
         .await
         .map_err(|e| WireError::Connect(e.to_string()))?;
     let codec = tonic_prost::ProstCodec::<Buffer, Buffer>::default();
+    // Set when the transport takes the first Buffer of the request: from then on the node
+    // may have got bytes, and an error is not an open that failed.
+    let started = Arc::new(AtomicBool::new(false));
+    let flag = started.clone();
+    let body = ReceiverStream::new(buffer_rx).map(move |buffer| {
+        flag.store(true, Ordering::SeqCst);
+        buffer
+    });
     let mut response = client
-        .streaming(
-            tonic::Request::new(ReceiverStream::new(buffer_rx)),
-            path,
-            codec,
-        )
+        .streaming(tonic::Request::new(body), path, codec)
         .await
-        .map_err(status)?
+        .map_err(|e| {
+            // A link that failed before any byte of the request went out: the stream did
+            // not open. A refusal of the node (another code) stays a call error.
+            if !started.load(Ordering::SeqCst) && e.code() == tonic::Code::Unavailable {
+                WireError::Connect(format!("{:?}: {}", e.code(), e.message()))
+            } else {
+                status(e)
+            }
+        })?
         .into_inner();
 
     // Index 2 is accepted also when the client did not ask for it: a bee-rpc reader
