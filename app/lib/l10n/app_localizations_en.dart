@@ -771,6 +771,54 @@ class AppLocalizationsEn extends AppLocalizations {
   String get themeFrostHint => 'Cool white, slate-blue accent';
 
   @override
+  String get themeCyberpunkName => 'Cyberpunk';
+
+  @override
+  String get themeCyberpunkHint => 'Night violet, neon pink';
+
+  @override
+  String get themeAppleLightName => 'Apple Light';
+
+  @override
+  String get themeAppleLightHint => 'Clean white, system blue';
+
+  @override
+  String get themeAppleDarkName => 'Apple Dark';
+
+  @override
+  String get themeAppleDarkHint => 'True black, system blue';
+
+  @override
+  String get themeMaterialLightName => 'Material Light';
+
+  @override
+  String get themeMaterialLightHint => 'Soft lilac, Material purple';
+
+  @override
+  String get themeMaterialDarkName => 'Material Dark';
+
+  @override
+  String get themeMaterialDarkHint => 'Dark grey, lilac accent';
+
+  @override
+  String get themeNordName => 'Nord';
+
+  @override
+  String get themeNordHint => 'Arctic slate, ice blue';
+
+  @override
+  String get themeSolarizedName => 'Solarized';
+
+  @override
+  String get themeSolarizedHint => 'Warm paper, blue accent';
+
+  @override
+  String get themeDraculaName => 'Dracula';
+
+  @override
+  String get themeDraculaHint => 'Deep indigo, purple accent';
+
+  @override
   String get networkConnectedNode => 'Connected node';
 
   @override
