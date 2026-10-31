@@ -1412,6 +1412,102 @@ abstract class AppLocalizations {
   /// **'Cool white, slate-blue accent'**
   String get themeFrostHint;
 
+  /// No description provided for @themeCyberpunkName.
+  ///
+  /// In en, this message translates to:
+  /// **'Cyberpunk'**
+  String get themeCyberpunkName;
+
+  /// No description provided for @themeCyberpunkHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Night violet, neon pink'**
+  String get themeCyberpunkHint;
+
+  /// No description provided for @themeAppleLightName.
+  ///
+  /// In en, this message translates to:
+  /// **'Apple Light'**
+  String get themeAppleLightName;
+
+  /// No description provided for @themeAppleLightHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Clean white, system blue'**
+  String get themeAppleLightHint;
+
+  /// No description provided for @themeAppleDarkName.
+  ///
+  /// In en, this message translates to:
+  /// **'Apple Dark'**
+  String get themeAppleDarkName;
+
+  /// No description provided for @themeAppleDarkHint.
+  ///
+  /// In en, this message translates to:
+  /// **'True black, system blue'**
+  String get themeAppleDarkHint;
+
+  /// No description provided for @themeMaterialLightName.
+  ///
+  /// In en, this message translates to:
+  /// **'Material Light'**
+  String get themeMaterialLightName;
+
+  /// No description provided for @themeMaterialLightHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Soft lilac, Material purple'**
+  String get themeMaterialLightHint;
+
+  /// No description provided for @themeMaterialDarkName.
+  ///
+  /// In en, this message translates to:
+  /// **'Material Dark'**
+  String get themeMaterialDarkName;
+
+  /// No description provided for @themeMaterialDarkHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark grey, lilac accent'**
+  String get themeMaterialDarkHint;
+
+  /// No description provided for @themeNordName.
+  ///
+  /// In en, this message translates to:
+  /// **'Nord'**
+  String get themeNordName;
+
+  /// No description provided for @themeNordHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Arctic slate, ice blue'**
+  String get themeNordHint;
+
+  /// No description provided for @themeSolarizedName.
+  ///
+  /// In en, this message translates to:
+  /// **'Solarized'**
+  String get themeSolarizedName;
+
+  /// No description provided for @themeSolarizedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Warm paper, blue accent'**
+  String get themeSolarizedHint;
+
+  /// No description provided for @themeDraculaName.
+  ///
+  /// In en, this message translates to:
+  /// **'Dracula'**
+  String get themeDraculaName;
+
+  /// No description provided for @themeDraculaHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Deep indigo, purple accent'**
+  String get themeDraculaHint;
+
   /// No description provided for @networkConnectedNode.
   ///
   /// In en, this message translates to:
