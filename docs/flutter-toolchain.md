@@ -72,3 +72,13 @@ The tracked `jniLibs` were built with FRB 2.11.1 and are now stale: rebuild
 them with `scripts/build_android.sh` before running the app, and let
 `scripts/release_check.sh libs` confirm them before a release. The init-time
 content hash check would not catch the mismatch on its own.
+
+## Local toolchain in docker
+
+`docker/Dockerfile` carries the Flutter, Rust, protoc and codegen versions of CI,
+so nothing is installed locally. Change its `FLUTTER_VERSION`, `RUST_VERSION`,
+`CARGO_EXPAND_VERSION` and `FRB_VERSION` together with `.github/workflows/ci.yml`.
+Use it through `scripts/dev.sh`: `build`, `analyze`, `test`, `rust-test`, `gen`
+(FRB, chat proto and l10n), `check` (all of CI's checks, ending in a `git diff`
+that proves the generated files are current), `shell` and `run <cmd>`.
+Set `DOCKER=podman` to use podman.
