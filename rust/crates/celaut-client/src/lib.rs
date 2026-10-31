@@ -62,7 +62,7 @@ use celaut_wire::{ConnectOptions, Connection, Transport, WireError};
 pub use db::{CelautData, CelautDb, DbError};
 pub use deposit::{DepositBox, DepositError, ErgPayment};
 pub use health::{Availability, Health};
-pub use local_port::LocalPort;
+pub use local_port::{new_secret, LocalPort};
 pub use peer::PeerError;
 pub use quotes::{quotes, quotes_for, quotes_with, QuoteFailure, QuoteSkip, Quotes};
 pub use refusal::Refusal;
