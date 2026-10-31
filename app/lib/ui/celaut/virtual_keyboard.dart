@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../l10n/l10n.dart';
 
 const _lettersRows = ['qwertyuiop', 'asdfghjklñ', 'zxcvbnm'];
@@ -36,24 +38,120 @@ TextEditingValue deleteBackward(TextEditingValue v) {
   );
 }
 
+/// The text before the cursor of [v] ends a sentence (or is empty, or ends a line): the
+/// next letter starts with a capital.
+bool atSentenceStart(TextEditingValue v) {
+  final sel = v.selection;
+  final before = v.text.substring(0, sel.isValid ? sel.start : v.text.length);
+  return before.isEmpty || before.endsWith('\n') || RegExp(r'[.!?]\s+$').hasMatch(before);
+}
+
+/// How long a key waits before it repeats, and the pace of the repeat.
+const _repeatDelay = Duration(milliseconds: 400);
+const _repeatEvery = Duration(milliseconds: 60);
+
+/// Two taps on Shift this close lock the capitals.
+const _shiftDoubleTap = Duration(milliseconds: 350);
+
+const _keyHeight = 48.0;
+
+enum _Shift { off, once, lock }
+
 /// The keyboard of the app: letters, and numbers and symbols. It types in [controller], so
 /// the chat never needs the keyboard of the system. A key does not take the focus: the
 /// field that has it keeps it, and [focusNode] (if given) takes it when a key is tapped.
-/// With [maxLength], a key that would make the text longer does nothing.
+/// With [maxLength], a key that would make the text longer does nothing. Shift is for one
+/// letter, and two quick taps lock it. Backspace repeats while it is held. With
+/// [autoCapitalize], Shift is on where a sentence starts.
 class ChatVirtualKeyboard extends StatefulWidget {
-  const ChatVirtualKeyboard({super.key, required this.controller, this.focusNode, this.maxLength});
+  const ChatVirtualKeyboard({
+    super.key,
+    required this.controller,
+    this.focusNode,
+    this.maxLength,
+    this.autoCapitalize = false,
+  });
 
   final TextEditingController controller;
   final FocusNode? focusNode;
   final int? maxLength;
+  final bool autoCapitalize;
 
   @override
   State<ChatVirtualKeyboard> createState() => _ChatVirtualKeyboardState();
 }
 
 class _ChatVirtualKeyboardState extends State<ChatVirtualKeyboard> {
-  bool _shift = false;
+  _Shift _shift = _Shift.off;
+  DateTime? _shiftTapAt;
   bool _symbols = false;
+  Timer? _repeat;
+  late String _lastText;
+
+  bool get _upper => _shift != _Shift.off && !_symbols;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastText = widget.controller.text;
+    widget.controller.addListener(_onText);
+    if (widget.autoCapitalize && atSentenceStart(widget.controller.value)) _shift = _Shift.once;
+  }
+
+  @override
+  void didUpdateWidget(ChatVirtualKeyboard old) {
+    super.didUpdateWidget(old);
+    if (old.controller != widget.controller) {
+      old.controller.removeListener(_onText);
+      widget.controller.addListener(_onText);
+      _lastText = widget.controller.text;
+      _shift = widget.autoCapitalize && atSentenceStart(widget.controller.value) ? _Shift.once : _Shift.off;
+    }
+  }
+
+  @override
+  void dispose() {
+    _repeat?.cancel();
+    widget.controller.removeListener(_onText);
+    super.dispose();
+  }
+
+  /// A change of the text (not of the cursor) puts Shift on at the start of a sentence, and
+  /// takes it away anywhere else. A locked Shift stays.
+  void _onText() {
+    final text = widget.controller.text;
+    if (text == _lastText) return;
+    _lastText = text;
+    if (!widget.autoCapitalize || _shift == _Shift.lock) return;
+    final next = atSentenceStart(widget.controller.value) ? _Shift.once : _Shift.off;
+    if (next != _shift) setState(() => _shift = next);
+  }
+
+  void _tapShift() {
+    final now = DateTime.now();
+    final quick = _shiftTapAt != null && now.difference(_shiftTapAt!) < _shiftDoubleTap;
+    _shiftTapAt = now;
+    setState(() {
+      if (quick && _shift != _Shift.lock) {
+        _shift = _Shift.lock;
+      } else {
+        _shift = _shift == _Shift.off ? _Shift.once : _Shift.off;
+      }
+    });
+  }
+
+  /// Does [act] now, and again and again while the key stays down.
+  void _startRepeat(VoidCallback act) {
+    unawaited(HapticFeedback.selectionClick());
+    act();
+    _repeat?.cancel();
+    _repeat = Timer(_repeatDelay, () => _repeat = Timer.periodic(_repeatEvery, (_) => act()));
+  }
+
+  void _stopRepeat() {
+    _repeat?.cancel();
+    _repeat = null;
+  }
 
   void _apply(TextEditingValue v) {
     final max = widget.maxLength;
@@ -63,12 +161,27 @@ class _ChatVirtualKeyboardState extends State<ChatVirtualKeyboard> {
   }
 
   void _type(String s) {
+    final once = _shift == _Shift.once;
     _apply(insertAtSelection(widget.controller.value, s));
-    if (_shift) setState(() => _shift = false);
+    // With automatic capitals the change of the text decides what Shift does next.
+    if (once && !widget.autoCapitalize) setState(() => _shift = _Shift.off);
   }
 
-  Widget _key(String id, Widget child, VoidCallback onTap, {double flex = 1, String? label, bool on = false}) {
+  Widget _key(String id, Widget child, VoidCallback onTap, {double flex = 1, String? label, bool on = false, bool repeat = false}) {
     final scheme = Theme.of(context).colorScheme;
+    final ink = InkWell(
+      key: Key('vk-$id'),
+      canRequestFocus: false,
+      borderRadius: BorderRadius.circular(8),
+      // A key that repeats acts when it goes down, so the tap has nothing left to do.
+      onTap: repeat
+          ? () {}
+          : () {
+              unawaited(HapticFeedback.selectionClick());
+              onTap();
+            },
+      child: SizedBox(height: _keyHeight, child: Center(child: child)),
+    );
     return Expanded(
       flex: (flex * 10).round(),
       child: Padding(
@@ -80,13 +193,14 @@ class _ChatVirtualKeyboardState extends State<ChatVirtualKeyboard> {
           child: Material(
             color: on ? scheme.primaryContainer : scheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(8),
-            child: InkWell(
-              key: Key('vk-$id'),
-              canRequestFocus: false,
-              borderRadius: BorderRadius.circular(8),
-              onTap: onTap,
-              child: SizedBox(height: 58, child: Center(child: child)),
-            ),
+            child: repeat
+                ? Listener(
+                    onPointerDown: (_) => _startRepeat(onTap),
+                    onPointerUp: (_) => _stopRepeat(),
+                    onPointerCancel: (_) => _stopRepeat(),
+                    child: ink,
+                  )
+                : ink,
           ),
         ),
       ),
@@ -94,11 +208,11 @@ class _ChatVirtualKeyboardState extends State<ChatVirtualKeyboard> {
   }
 
   Widget _char(String c) {
-    final shown = _shift && !_symbols ? c.toUpperCase() : c;
+    final shown = _upper ? c.toUpperCase() : c;
     // The case comes from the state at the tap, not from the last build: a second tap can
     // come before the next frame, and Shift is for one letter only.
     return _key('char-$c', Text(shown, style: const TextStyle(fontSize: 24)),
-        () => _type(_shift && !_symbols ? c.toUpperCase() : c));
+        () => _type(_upper ? c.toUpperCase() : c));
   }
 
   @override
@@ -119,11 +233,11 @@ class _ChatVirtualKeyboardState extends State<ChatVirtualKeyboard> {
               if (_symbols)
                 const Spacer(flex: 15)
               else
-                _key('shift', const Icon(Icons.arrow_upward, size: 26), () => setState(() => _shift = !_shift),
-                    flex: 1.5, label: l10n.chatVkShift, on: _shift),
+                _key('shift', Icon(_shift == _Shift.lock ? Icons.keyboard_capslock : Icons.arrow_upward, size: 26),
+                    _tapShift, flex: 1.5, label: l10n.chatVkShift, on: _shift != _Shift.off),
               for (final c in rows[2].characters) _char(c),
               _key('backspace', const Icon(Icons.backspace_outlined, size: 26), () => _apply(deleteBackward(widget.controller.value)),
-                  flex: 1.5, label: l10n.chatVkBackspace),
+                  flex: 1.5, label: l10n.chatVkBackspace, repeat: true),
             ],
           ),
           Row(

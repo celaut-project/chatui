@@ -36,12 +36,14 @@ void main() {
   group('widget', () {
     late TextEditingController controller;
 
-    Future<void> pump(WidgetTester t, {int? maxLength}) async {
+    Future<void> pump(WidgetTester t, {int? maxLength, bool autoCapitalize = false}) async {
       controller = TextEditingController();
       addTearDown(controller.dispose);
       await t.pumpWidget(MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
-        home: Scaffold(body: ChatVirtualKeyboard(controller: controller, maxLength: maxLength)),
+        home: Scaffold(
+          body: ChatVirtualKeyboard(controller: controller, maxLength: maxLength, autoCapitalize: autoCapitalize),
+        ),
       ));
     }
 
@@ -75,6 +77,56 @@ void main() {
       await pump(t);
       await t.tap(find.byKey(const Key('vk-enter')));
       expect(controller.text, '\n');
+    });
+
+    testWidgets('two quick taps on shift lock the capitals, and a third unlocks them', (t) async {
+      await pump(t);
+      await t.tap(find.byKey(const Key('vk-shift')));
+      await t.tap(find.byKey(const Key('vk-shift')));
+      await t.pump();
+      await t.tap(find.byKey(const Key('vk-char-a')));
+      await t.tap(find.byKey(const Key('vk-char-b')));
+      expect(controller.text, 'AB');
+      await t.pump(const Duration(milliseconds: 400));
+      await t.tap(find.byKey(const Key('vk-shift')));
+      await t.pump();
+      await t.tap(find.byKey(const Key('vk-char-c')));
+      expect(controller.text, 'ABc');
+    });
+
+    testWidgets('with automatic capitals a sentence starts with a capital', (t) async {
+      await pump(t, autoCapitalize: true);
+      await t.tap(find.byKey(const Key('vk-char-h')));
+      await t.tap(find.byKey(const Key('vk-char-i')));
+      await t.tap(find.byKey(const Key('vk-char-.')));
+      await t.tap(find.byKey(const Key('vk-space')));
+      await t.tap(find.byKey(const Key('vk-char-o')));
+      await t.tap(find.byKey(const Key('vk-char-k')));
+      expect(controller.text, 'Hi. Ok');
+    });
+
+    testWidgets('backspace repeats while it is held, and stops when it is released', (t) async {
+      await pump(t);
+      controller.text = 'abcdefghij';
+      final g = await t.startGesture(t.getCenter(find.byKey(const Key('vk-backspace'))));
+      await t.pump();
+      expect(controller.text, 'abcdefghi');
+      await t.pump(const Duration(milliseconds: 400));
+      await t.pump(const Duration(milliseconds: 180));
+      expect(controller.text.length, lessThan(9));
+      await g.up();
+      final left = controller.text;
+      await t.pump(const Duration(milliseconds: 300));
+      expect(controller.text, left);
+    });
+
+    test('atSentenceStart', () {
+      expect(atSentenceStart(_v('', 0)), isTrue);
+      expect(atSentenceStart(_v('Hi. ', 4)), isTrue);
+      expect(atSentenceStart(_v('Hi\n', 3)), isTrue);
+      expect(atSentenceStart(_v('Hi', 2)), isFalse);
+      expect(atSentenceStart(_v('Hi.', 3)), isFalse);
+      expect(atSentenceStart(_v('Hi, ', 4)), isFalse);
     });
 
     testWidgets('maxLength stops the text, but backspace still works', (t) async {

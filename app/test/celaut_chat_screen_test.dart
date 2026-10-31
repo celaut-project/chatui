@@ -1502,6 +1502,92 @@ void main() {
       expect(find.byKey(const Key('chat-keyboard-dock')), findsOneWidget);
     });
 
+    testWidgets('a scroll towards the end does not hide the keyboard', (tester) async {
+      chat = _FakeChat(history: longChat());
+      await open(tester);
+      await tester.drag(find.byKey(const Key('chat-messages')), const Offset(0, 300));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('chat-input')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-virtual-keyboard')), findsOneWidget);
+      await tester.drag(find.byKey(const Key('chat-messages')), const Offset(0, -100));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-virtual-keyboard')), findsOneWidget);
+    });
+
+    testWidgets('a touch that moves the conversation a little does not hide the keyboard', (tester) async {
+      chat = _FakeChat(history: longChat());
+      await open(tester);
+      await tester.drag(find.byKey(const Key('chat-messages')), const Offset(0, 22));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-virtual-keyboard')), findsOneWidget);
+    });
+
+    testWidgets('a form that the scroll hid shows again at the end, and with a tap on its card', (tester) async {
+      chat = _FakeChat(history: longChat(withForm: true));
+      await open(tester);
+      await tester.drag(find.byKey(const Key('chat-messages')), const Offset(0, 300));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-keyboard-dock')), findsNothing);
+      await tester.drag(find.byKey(const Key('chat-messages')), const Offset(0, -2000));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-keyboard-dock')), findsOneWidget);
+      await tester.drag(find.byKey(const Key('chat-messages')), const Offset(0, 300));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-keyboard-dock')), findsNothing);
+      await tester.drag(find.byKey(const Key('chat-messages')), const Offset(0, -2000));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('chat-keyboard-reopen')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-keyboard-dock')), findsOneWidget);
+    });
+
+    testWidgets('Back hides the keyboard of the app first, and then leaves the chat', (tester) async {
+      await open(tester);
+      expect(find.byKey(const Key('chat-virtual-keyboard')), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-virtual-keyboard')), findsNothing);
+      expect(find.byKey(const Key('chat-input')), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-input')), findsNothing);
+    });
+
+    testWidgets('a tap on the conversation hides the keyboard of the app', (tester) async {
+      chat = _FakeChat(history: longChat());
+      await open(tester);
+      await tester.tapAt(tester.getCenter(find.byKey(const Key('chat-messages'))));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chat-virtual-keyboard')), findsNothing);
+    });
+
+    testWidgets('the first letter of the input is a capital', (tester) async {
+      await open(tester);
+      await tester.tap(find.byKey(const Key('vk-char-h')));
+      await tester.tap(find.byKey(const Key('vk-char-i')));
+      await tester.pump();
+      expect(tester.widget<TextField>(find.byKey(const Key('chat-input'))).controller!.text, 'Hi');
+    });
+
+    testWidgets('on a computer Enter sends and Shift+Enter makes a new line', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      await open(tester);
+      await tester.tap(find.byKey(const Key('chat-input')));
+      await tester.pump();
+      final input = tester.widget<TextField>(find.byKey(const Key('chat-input'))).controller!;
+      input.text = 'hello';
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pump();
+      expect(input.text, 'hello');
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      expect(input.text, isEmpty);
+    });
+
     testWidgets('with the keyboard of the system on, the input uses it, but not under a form', (tester) async {
       chatPrefs.systemKeyboard = true;
       await open(tester);

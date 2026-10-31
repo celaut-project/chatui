@@ -476,13 +476,25 @@ be under the input. Under the input it shows:
 | There is no form | The keyboard of the app: letters (with `ñ`), numbers and symbols, shift, Backspace, space and a new line. It types in the input of the conversation |
 | The user records audio | Nothing |
 
-When the user scrolls the conversation (a drag or a fling on the list of messages), what shows
-under the input hides: the form, or the keyboard of the app. This gives the list the room of
-the screen. They show again when the user taps the input, and when a new message comes (the
-service's, or the user's own). A tap on the card of the form of the last message (section above)
-opens a form that the user closed, not one that the scroll hid: for that the user taps the
-input. If the keyboard of the system is in use, a drag on the list also takes the focus from
-the input, and the keyboard of the system closes.
+What shows under the input (the form, or the keyboard of the app) hides in three cases, to give
+the list the room of the screen:
+
+- The user scrolls the conversation **towards the older messages** (a drag or a fling, of at least
+  a few pixels). A scroll towards the end does not hide it, and a touch that hardly moves the list
+  does not either.
+- The user taps the conversation (not a link or a button in it).
+- The user presses Back. The first Back only hides it; the next one leaves the chat.
+
+It shows again with a tap on the input, with a new message (the service's, or the user's own), and,
+for a form that is waiting, with a tap on its card (section above) or when the user scrolls back
+to the end of the conversation. It hides and shows with a short animation. If the keyboard of the
+system is in use, a drag or a tap on the list also takes the focus from the input, and the
+keyboard of the system closes.
+
+The keyboard of the app puts a capital at the start of a sentence (not in the fields of a form).
+Shift is for one letter, and two quick taps lock it. Backspace repeats while it is held, and each
+key gives a small vibration. On a computer, Enter sends and Shift+Enter makes a new line; on a
+phone Enter always makes a new line.
 
 The user can choose the keyboard of the system in the settings of the chat (**Use the system
 keyboard**, a setting for the whole app, off by default). Then the input uses the keyboard of
