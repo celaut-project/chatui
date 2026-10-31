@@ -12,6 +12,14 @@
 //! refusal of the node) closes the local connection and is kept in
 //! [`LocalPort::last_error`].
 //!
+//! A port can have a secret ([`LocalPort::bind_secured`]). Then each connection must
+//! start with the bytes of the secret, which the relay takes off and checks before it
+//! opens a stream: a connection that starts with anything else, that sends less, or that
+//! waits more than [`AUTH_TIMEOUT`] is closed and opens nothing (the node charges
+//! nothing). On a phone, loopback is shared by all the apps, so this keeps another app
+//! from using the stream of the instance. A port without a secret relays every
+//! connection, as before.
+//!
 //! The receipts of each stream go to the [`ReceiptSink`] of the port, if it has one.
 
 use std::collections::VecDeque;
@@ -26,6 +34,17 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
 use tokio::task::{JoinHandle, JoinSet};
 
+/// A random secret for [`LocalPort::bind_secured`]: 64 hex characters (256 bits).
+pub fn new_secret() -> String {
+    let mut bytes = [0u8; 32];
+    ring::rand::SecureRandom::fill(&ring::rand::SystemRandom::new(), &mut bytes)
+        .expect("the system has no random source");
+    hex::encode(bytes)
+}
+
+/// How long a connection of a secured port has to send its secret.
+pub const AUTH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
 #[derive(Debug, Default)]
 struct Shared {
     streams: AtomicU64,
@@ -39,6 +58,8 @@ struct Target {
     token: String,
     slot: u16,
     receipts: Option<ReceiptSink>,
+    /// The bytes that each connection must start with, if the port has a secret.
+    secret: Option<Vec<u8>>,
 }
 
 impl std::fmt::Debug for Target {
@@ -92,6 +113,20 @@ impl LocalPort {
         receipts: Option<ReceiptSink>,
         preferred: Option<u16>,
     ) -> std::io::Result<LocalPort> {
+        Self::bind_secured(opener, token, slot, receipts, preferred, None).await
+    }
+
+    /// Like [`LocalPort::bind_preferred`], but with a `secret` (see [`new_secret`]): each
+    /// connection must start with its bytes, or it is closed without opening a stream.
+    /// An empty secret is the same as none.
+    pub async fn bind_secured(
+        opener: Arc<dyn TunnelOpener>,
+        token: String,
+        slot: u16,
+        receipts: Option<ReceiptSink>,
+        preferred: Option<u16>,
+        secret: Option<String>,
+    ) -> std::io::Result<LocalPort> {
         let listener = match preferred {
             Some(p) => match TcpListener::bind(SocketAddr::from((Ipv4Addr::LOCALHOST, p))).await {
                 Ok(listener) => listener,
@@ -106,6 +141,7 @@ impl LocalPort {
             token,
             slot,
             receipts,
+            secret: secret.filter(|s| !s.is_empty()).map(String::into_bytes),
         });
         let task = tokio::spawn(accept(listener, target.clone(), shared.clone()));
         Ok(LocalPort {
@@ -202,16 +238,61 @@ fn is_transient(error: &celaut_wire::WireError) -> bool {
     }
 }
 
+/// Equal slices of the same length, in a time that does not depend on where they differ.
+fn same(a: &[u8], b: &[u8]) -> bool {
+    a.len() == b.len() && a.iter().zip(b).fold(0u8, |d, (x, y)| d | (x ^ y)) == 0
+}
+
+/// Read the secret from the start of the connection. True if it came whole and equal;
+/// what came after it is left in `rest`. False on the first byte that differs, or if
+/// the connection ends first.
+async fn read_secret(
+    reader: &mut tokio::net::tcp::OwnedReadHalf,
+    secret: &[u8],
+    buffer: &mut [u8],
+    rest: &mut Vec<u8>,
+) -> bool {
+    let mut got: Vec<u8> = Vec::with_capacity(secret.len());
+    while got.len() < secret.len() {
+        let n = match reader.read(buffer).await {
+            Ok(0) | Err(_) => return false,
+            Ok(n) => n,
+        };
+        got.extend_from_slice(&buffer[..n]);
+        let have = got.len().min(secret.len());
+        if !same(&got[..have], &secret[..have]) {
+            return false;
+        }
+    }
+    rest.extend_from_slice(&got[secret.len()..]);
+    true
+}
+
 async fn relay(socket: TcpStream, target: Arc<Target>, shared: Arc<Shared>) {
     let (mut reader, mut writer) = socket.into_split();
     let mut buffer = vec![0u8; MAX_PAYLOAD];
     // The stream opens (and the node charges it) when the first bytes come. A connection
     // that closes before that never opens one.
-    let first = match reader.read(&mut buffer).await {
-        Ok(0) | Err(_) => return,
-        Ok(n) => n,
-    };
-    let first_chunk = buffer[..first].to_vec();
+    let mut first_chunk = Vec::new();
+    // On a secured port the connection starts with the secret: take it off and check it
+    // before anything else.
+    if let Some(secret) = &target.secret {
+        let checked = tokio::time::timeout(
+            AUTH_TIMEOUT,
+            read_secret(&mut reader, secret, &mut buffer, &mut first_chunk),
+        )
+        .await;
+        if !matches!(checked, Ok(true)) {
+            return;
+        }
+    }
+    // The bytes after the secret may already be in `first_chunk`.
+    if first_chunk.is_empty() {
+        match reader.read(&mut buffer).await {
+            Ok(0) | Err(_) => return,
+            Ok(n) => first_chunk.extend_from_slice(&buffer[..n]),
+        }
+    }
     shared.streams.fetch_add(1, Ordering::Relaxed);
     let Tunnel {
         to_service,
