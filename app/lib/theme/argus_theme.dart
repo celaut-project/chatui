@@ -369,7 +369,7 @@ const materialLightPalette = PaletteSpec(
   id: 'material_light', name: 'Material Light', hint: 'Soft lilac, Material purple', brightness: Brightness.light,
   background: Color(0xFFFEF7FF), surface: Color(0xFFF3EDF7), surfaceHigh: Color(0xFFECE6F0), ink: Color(0xFF1D1B20), muted: Color(0xFF49454F),
   outline: Color(0xFFCAC4D0), cardBorder: Color(0xFFE7E0EC), chip: Color(0xFFE8DEF8),
-  accent: Color(0xFF6750A4), onAccent: Color(0xFFFFFFFF), accentText: Color(0xFF5A4398), sceneGlow: 0.4,
+  accent: Color(0xFF6750A4), onAccent: Color(0xFFFFFFFF), accentText: Color(0xFF5A4398), sceneGlow: 0.3,
 );
 
 const materialDarkPalette = PaletteSpec(
