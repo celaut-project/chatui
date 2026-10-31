@@ -223,6 +223,14 @@ class PaletteSpec {
         'ember' => appL10n.themeEmberName,
         'parchment' => appL10n.themeParchmentName,
         'frost' => appL10n.themeFrostName,
+        'cyberpunk' => appL10n.themeCyberpunkName,
+        'apple_light' => appL10n.themeAppleLightName,
+        'apple_dark' => appL10n.themeAppleDarkName,
+        'material_light' => appL10n.themeMaterialLightName,
+        'material_dark' => appL10n.themeMaterialDarkName,
+        'nord' => appL10n.themeNordName,
+        'solarized' => appL10n.themeSolarizedName,
+        'dracula' => appL10n.themeDraculaName,
         _ => _name,
       };
 
@@ -235,6 +243,14 @@ class PaletteSpec {
         'ember' => appL10n.themeEmberHint,
         'parchment' => appL10n.themeParchmentHint,
         'frost' => appL10n.themeFrostHint,
+        'cyberpunk' => appL10n.themeCyberpunkHint,
+        'apple_light' => appL10n.themeAppleLightHint,
+        'apple_dark' => appL10n.themeAppleDarkHint,
+        'material_light' => appL10n.themeMaterialLightHint,
+        'material_dark' => appL10n.themeMaterialDarkHint,
+        'nord' => appL10n.themeNordHint,
+        'solarized' => appL10n.themeSolarizedHint,
+        'dracula' => appL10n.themeDraculaHint,
         _ => _hint,
       };
   final Brightness brightness;
@@ -324,6 +340,68 @@ const frostPalette = PaletteSpec(
   accent: Color(0xFF4A6FA5), onAccent: Color(0xFFF7F9FD), accentText: Color(0xFF3C5D8C),
 );
 
+/// Cyberpunk: night violet under neon pink, with a cold white-blue type.
+const cyberpunkPalette = PaletteSpec(
+  id: 'cyberpunk', name: 'Cyberpunk', hint: 'Night violet, neon pink', brightness: Brightness.dark,
+  background: Color(0xFF0B0714), surface: Color(0xFF150E26), surfaceHigh: Color(0xFF1F1636), ink: Color(0xFFE8F4FF), muted: Color(0xFFA79BC9),
+  outline: Color(0xFF3A2A5E), cardBorder: Color(0xFF2B1F47), chip: Color(0xFF1A1230),
+  accent: Color(0xFFFF2E97), onAccent: Color(0xFF1A0010), accentText: Color(0xFFFF5CB0),
+);
+
+/// Apple: the grouped grey page and white cards of iOS, in its system blue. The blue as text
+/// is darker (#0062CC) than the system's (#007AFF), which reads 4.0:1 on white.
+const appleLightPalette = PaletteSpec(
+  id: 'apple_light', name: 'Apple Light', hint: 'Clean white, system blue', brightness: Brightness.light,
+  background: Color(0xFFF2F2F7), surface: Color(0xFFFFFFFF), surfaceHigh: Color(0xFFE5E5EA), ink: Color(0xFF1C1C1E), muted: Color(0xFF636366),
+  outline: Color(0xFFC6C6C8), cardBorder: Color(0xFFE5E5EA), chip: Color(0xFFE9E9EE),
+  accent: Color(0xFF007AFF), onAccent: Color(0xFFFFFFFF), accentText: Color(0xFF0062CC),
+);
+
+const appleDarkPalette = PaletteSpec(
+  id: 'apple_dark', name: 'Apple Dark', hint: 'True black, system blue', brightness: Brightness.dark,
+  background: Color(0xFF000000), surface: Color(0xFF1C1C1E), surfaceHigh: Color(0xFF2C2C2E), ink: Color(0xFFF2F2F7), muted: Color(0xFF98989F),
+  outline: Color(0xFF38383A), cardBorder: Color(0xFF2C2C2E), chip: Color(0xFF242426),
+  accent: Color(0xFF0A84FF), onAccent: Color(0xFF00152B), accentText: Color(0xFF4DA3FF),
+);
+
+/// Material 3, from Google's baseline scheme: the lilac surfaces and the purple primary.
+const materialLightPalette = PaletteSpec(
+  id: 'material_light', name: 'Material Light', hint: 'Soft lilac, Material purple', brightness: Brightness.light,
+  background: Color(0xFFFEF7FF), surface: Color(0xFFF3EDF7), surfaceHigh: Color(0xFFECE6F0), ink: Color(0xFF1D1B20), muted: Color(0xFF49454F),
+  outline: Color(0xFFCAC4D0), cardBorder: Color(0xFFE7E0EC), chip: Color(0xFFE8DEF8),
+  accent: Color(0xFF6750A4), onAccent: Color(0xFFFFFFFF), accentText: Color(0xFF5A4398), sceneGlow: 0.3,
+);
+
+const materialDarkPalette = PaletteSpec(
+  id: 'material_dark', name: 'Material Dark', hint: 'Dark grey, lilac accent', brightness: Brightness.dark,
+  background: Color(0xFF141218), surface: Color(0xFF211F26), surfaceHigh: Color(0xFF2B2930), ink: Color(0xFFE6E0E9), muted: Color(0xFFCAC4D0),
+  outline: Color(0xFF49454F), cardBorder: Color(0xFF36343B), chip: Color(0xFF332D41),
+  accent: Color(0xFFD0BCFF), onAccent: Color(0xFF381E72), accentText: Color(0xFFD0BCFF), sceneGlow: 0.7,
+);
+
+// Nord, Solarized and Dracula take less of the scene's glow, and Nord's page is darker than
+// the original #2E3440, so the balance and the colours of the states keep WCAG AA on them.
+const nordPalette = PaletteSpec(
+  id: 'nord', name: 'Nord', hint: 'Arctic slate, ice blue', brightness: Brightness.dark,
+  background: Color(0xFF242933), surface: Color(0xFF2F3542), surfaceHigh: Color(0xFF383F4F), ink: Color(0xFFECEFF4), muted: Color(0xFFAAB4C6),
+  outline: Color(0xFF4C566A), cardBorder: Color(0xFF434C5E), chip: Color(0xFF3B4252),
+  accent: Color(0xFF88C0D0), onAccent: Color(0xFF1F2733), accentText: Color(0xFF88C0D0), sceneGlow: 0.3,
+);
+
+const solarizedPalette = PaletteSpec(
+  id: 'solarized', name: 'Solarized', hint: 'Warm paper, blue accent', brightness: Brightness.light,
+  background: Color(0xFFFDF6E3), surface: Color(0xFFFEFBF0), surfaceHigh: Color(0xFFEEE8D5), ink: Color(0xFF073642), muted: Color(0xFF586E75),
+  outline: Color(0xFF93A1A1), cardBorder: Color(0xFFE4DDC8), chip: Color(0xFFEEE8D5),
+  accent: Color(0xFF268BD2), onAccent: Color(0xFF002B36), accentText: Color(0xFF1A6AA3),
+);
+
+const draculaPalette = PaletteSpec(
+  id: 'dracula', name: 'Dracula', hint: 'Deep indigo, purple accent', brightness: Brightness.dark,
+  background: Color(0xFF282A36), surface: Color(0xFF343746), surfaceHigh: Color(0xFF3E4154), ink: Color(0xFFF8F8F2), muted: Color(0xFFA6ACCD),
+  outline: Color(0xFF535770), cardBorder: Color(0xFF44475A), chip: Color(0xFF303243),
+  accent: Color(0xFFBD93F9), onAccent: Color(0xFF21222C), accentText: Color(0xFFBD93F9), sceneGlow: 0.3,
+);
+
 /// The Ergo part of the app (the wallet and what hangs from it): Ergo's black and orange.
 /// It is not in [allPalettes]: the user does not pick it, the app shows it whenever the
 /// wallet page is open, so the user can tell that this is Ergo and not Celaut.
@@ -334,7 +412,23 @@ const ergoPalette = PaletteSpec(
   accent: Color(0xFFFF5E18), onAccent: Color(0xFF1A0A02), accentText: Color(0xFFFF8A55),
 );
 
-const allPalettes = [watchfulPalette, ledgerPalette, obsidianPalette, harborPalette, emberPalette, parchmentPalette, frostPalette];
+const allPalettes = [
+  watchfulPalette,
+  ledgerPalette,
+  obsidianPalette,
+  harborPalette,
+  emberPalette,
+  parchmentPalette,
+  frostPalette,
+  cyberpunkPalette,
+  appleLightPalette,
+  appleDarkPalette,
+  materialLightPalette,
+  materialDarkPalette,
+  nordPalette,
+  solarizedPalette,
+  draculaPalette,
+];
 
 PaletteSpec paletteById(String? id, {required Brightness fallback}) {
   for (final p in allPalettes) {
