@@ -27,9 +27,13 @@ fn dir() -> PathBuf {
     d
 }
 
+/// A number that no other test of this process has. The clock was not enough: two tests that
+/// start together can read the same nanosecond, share a directory, and remove each other's
+/// files.
 fn rand_suffix() -> u64 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() as u64
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    NEXT.fetch_add(1, Ordering::Relaxed)
 }
 
 const SERVICE_ID: [u8; 32] = [7u8; 32];
