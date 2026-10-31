@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -462,11 +463,57 @@ class _ChatScreenState extends State<ChatScreen>
   /// the keyboard hides, and the list does not jump to its end under the finger of the user.
   bool _userScrolling = false;
 
-  bool _onUserScroll(UserScrollNotification n) {
+  /// How far the user scrolls before the keyboard hides or comes back, in pixels. A touch
+  /// that moves the list a little does nothing.
+  static const _keyboardTravel = 28.0;
+
+  /// How far the user has scrolled towards the older messages in this gesture, and towards
+  /// the end since the keyboard hid.
+  double _upTravel = 0;
+  double _downTravel = 0;
+
+  /// The form and the keyboard of the app hide. They show again with a tap on the input, on
+  /// the card of the form, a new message, or a scroll back to the end (the form only).
+  void _hideKeyboard() {
+    if (_keyboardHidden) return;
+    setState(() {
+      _keyboardHiddenAt = _lastSeq;
+      _downTravel = 0;
+    });
+  }
+
+  void _showKeyboard() {
+    if (_keyboardHidden) setState(() => _keyboardHiddenAt = null);
+  }
+
+  /// A scroll of the user towards the older messages hides the keyboard, as someone who
+  /// reads the past does not write. A scroll towards the end does not, and a form that the
+  /// scroll hid shows again when the user comes back to the end.
+  bool _onScroll(ScrollNotification n) {
     if (n.depth != 0) return false;
-    _userScrolling = n.direction != ScrollDirection.idle;
-    if (_userScrolling && !_keyboardHidden) setState(() => _keyboardHiddenAt = _lastSeq);
+    if (n is UserScrollNotification) {
+      _userScrolling = n.direction != ScrollDirection.idle;
+      if (!_userScrolling) _showFormAtEnd(n.metrics);
+    } else if (n is ScrollStartNotification) {
+      _upTravel = 0;
+    } else if (n is ScrollUpdateNotification && _userScrolling) {
+      final d = n.scrollDelta ?? 0;
+      if (d < 0) {
+        _upTravel -= d;
+        _downTravel = 0;
+      } else if (d > 0) {
+        _upTravel = 0;
+        _downTravel += d;
+      }
+      if (_upTravel >= _keyboardTravel) _hideKeyboard();
+    }
     return false;
+  }
+
+  void _showFormAtEnd(ScrollMetrics m) {
+    if (!_keyboardHidden || _downTravel < _keyboardTravel || _dockedKeyboard() == null) return;
+    if (m.maxScrollExtent - m.pixels > 24) return;
+    _showKeyboard();
   }
 
   /// The field of the form of message [seq] that has the focus, or null.
@@ -553,6 +600,20 @@ class _ChatScreenState extends State<ChatScreen>
     // The service has the message: read the answer soon, at the pace of a wait.
     _schedulePoll();
     _scrollToEnd();
+  }
+
+  /// On a computer Enter sends and Shift+Enter makes a new line. On a phone Enter is always
+  /// a new line, even with a keyboard of hardware. A key while the text is being composed
+  /// (an input method) belongs to the method.
+  KeyEventResult _onInputKey(FocusNode node, KeyEvent event) {
+    const desktop = {TargetPlatform.linux, TargetPlatform.windows, TargetPlatform.macOS};
+    if (!desktop.contains(defaultTargetPlatform)) return KeyEventResult.ignored;
+    final enter = event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.numpadEnter;
+    if (!enter || HardwareKeyboard.instance.isShiftPressed || _input.value.composing.isValid) {
+      return KeyEventResult.ignored;
+    }
+    if (event is KeyDownEvent) unawaited(_send());
+    return KeyEventResult.handled;
   }
 
   /// The keyboard of the system opens or closes, or the window changes its size: the list
@@ -950,6 +1011,8 @@ class _ChatScreenState extends State<ChatScreen>
     // system under it.
     final formExists = _dockedKeyboard() != null;
     final keyboard = _keyboardHidden ? null : _dockedKeyboard();
+    // What the app draws under the input. The system looks after its own keyboard.
+    final appKeyboardOpen = keyboard != null || (!chatPrefs.systemKeyboard && !_recording && !_keyboardHidden);
     final pinned =
         _pinnedSeq == null ? null : messages.where((m) => m.seq == _pinnedSeq).firstOrNull;
     final title = instanceTitle(_instance);
@@ -1172,12 +1235,14 @@ class _ChatScreenState extends State<ChatScreen>
                               icon: const Icon(Icons.attach_file),
                             ),
                           Expanded(
+                            child: Focus(
+                            onKeyEvent: _onInputKey,
                             child: TextField(
                               key: const Key('chat-input'),
                               controller: _input,
                               focusNode: _inputFocus,
                               onTap: () {
-                                if (_keyboardHidden) setState(() => _keyboardHiddenAt = null);
+                                _showKeyboard();
                               },
                               // The keyboard of the system shows only if the user chose it in
                               // the settings, and never while a form is under the input.
@@ -1197,6 +1262,7 @@ class _ChatScreenState extends State<ChatScreen>
                                 enabledBorder: InputBorder.none,
                                 focusedBorder: InputBorder.none,
                               ),
+                            ),
                             ),
                           ),
                           // As in a messenger: the microphone takes the place of Send while
@@ -1227,8 +1293,12 @@ class _ChatScreenState extends State<ChatScreen>
                         ],
                       ),
               ),
-              if (keyboard != null)
-                Column(
+              AnimatedSize(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                alignment: Alignment.topCenter,
+                child: keyboard != null
+                ? Column(
                   key: const Key('chat-keyboard-dock'),
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -1267,14 +1337,22 @@ class _ChatScreenState extends State<ChatScreen>
                       ),
                   ],
                 )
-              else if (!chatPrefs.systemKeyboard && !_recording && !_keyboardHidden)
-                ChatVirtualKeyboard(controller: _input, focusNode: _inputFocus),
+                : !chatPrefs.systemKeyboard && !_recording && !_keyboardHidden
+                    ? ChatVirtualKeyboard(controller: _input, focusNode: _inputFocus, autoCapitalize: true)
+                    : const SizedBox(width: double.infinity),
+              ),
             ],
           ),
         ),
       ),
     );
-    return Scaffold(
+    // Back closes the keyboard of the app first, and leaves the chat with the next one.
+    return PopScope(
+      canPop: !appKeyboardOpen,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _hideKeyboard();
+      },
+      child: Scaffold(
       body: ListenableBuilder(
         listenable: chatPrefs,
         builder: (context, _) {
@@ -1314,8 +1392,20 @@ class _ChatScreenState extends State<ChatScreen>
                     : _fadeEdges(
                         top: headerBottom + _bannerHeight,
                         bottom: _bottomHeight,
-                        child: NotificationListener<UserScrollNotification>(
-                        onNotification: _onUserScroll,
+                        child: NotificationListener<ScrollNotification>(
+                        onNotification: _onScroll,
+                        // A tap on the conversation takes the keyboard away, as it does
+                        // in a messenger: the keyboard of the system loses the focus, the
+                        // one of the app hides.
+                        child: GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onTap: () {
+                          if (chatPrefs.systemKeyboard) {
+                            _inputFocus.unfocus();
+                          } else {
+                            _hideKeyboard();
+                          }
+                        },
                         child: ListView.custom(
                         key: const Key('chat-messages'),
                         controller: _scroll,
@@ -1350,12 +1440,14 @@ class _ChatScreenState extends State<ChatScreen>
                                 onLoaded: _fileLoaded,
                                 onPin: _chat.canPin && m.id.isNotEmpty ? () => _togglePin(m) : null,
                                 onCopy: () => _copy(m),
-                                onReopenKeyboard: m.seq == _keyboardClosedSeq && i == messages.length - 1
-                                    ? () => setState(() {
-                                          _keyboardClosedSeq = null;
-                                          _formField = null;
-                                        })
-                                    : null,
+                                onReopenKeyboard:
+                                    (m.seq == _keyboardClosedSeq || _keyboardHidden) && i == messages.length - 1
+                                        ? () => setState(() {
+                                              _keyboardClosedSeq = null;
+                                              _keyboardHiddenAt = null;
+                                              _formField = null;
+                                            })
+                                        : null,
                               );
                               return m.pinned
                                   ? KeyedSubtree(
@@ -1382,6 +1474,7 @@ class _ChatScreenState extends State<ChatScreen>
                             );
                           },
                         ),
+                      ),
                       ),
                       ),
                       ),
@@ -1443,6 +1536,7 @@ class _ChatScreenState extends State<ChatScreen>
           );
         },
       ),
+    ),
     );
   }
 }
