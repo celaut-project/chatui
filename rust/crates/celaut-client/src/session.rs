@@ -9,11 +9,11 @@ use celaut_balancer::{amount, erg_rate};
 use celaut_proto::celaut::service::Api;
 use celaut_proto::celaut::{Configuration, EstimatedCost, ExecutionReceipt, Instance, Payment};
 use celaut_wire::gateway::{
-    generate_deposit_token, get_metrics, get_service_estimated_cost,
+    generate_deposit_token, get_client_metrics, get_metrics, get_service_estimated_cost,
     get_service_estimated_cost_with_service, get_service_raw, get_service_skippable,
     modify_deposit, payable, start_service, stop_service, ServiceRequest,
 };
-use celaut_wire::Transport;
+use celaut_wire::{Transport, WireError};
 
 use crate::deposit::{check_deposit_token, ErgPayment};
 use crate::{fetch_node_info_as, obtain_client_id, ClientError, NodeInfo, PeerStore};
@@ -282,14 +282,14 @@ impl<T: Transport> NodeSession<T> {
     /// `StopService`. Gives the refund in MU of the node: the unused balance of the
     /// instance, which goes back to this client.
     pub async fn stop(&self, token: &str) -> Result<u128, ClientError> {
-        let refund = stop_service(&self.transport, token).await?;
+        let refund = stop_service(&self.transport, token, &self.client_id).await?;
         Ok(amount(refund.amount.as_ref())?)
     }
 
     /// `ModifyDeposit`: move `mu` MU of the credit of this client on the node to the
     /// instance `token`. Nothing goes on a ledger. An error if the node did not move it.
     pub async fn top_up(&self, token: &str, mu: u128) -> Result<(), ClientError> {
-        let answer = modify_deposit(&self.transport, token, mu).await?;
+        let answer = modify_deposit(&self.transport, token, &self.client_id, mu).await?;
         if answer.success {
             Ok(())
         } else {
@@ -300,9 +300,12 @@ impl<T: Transport> NodeSession<T> {
         }
     }
 
-    /// `GetMetrics` for this client: its balance in MU of the node.
+    /// `GetClientMetrics` for this client: its balance in MU of the node. A node that
+    /// does not know the RPC is partially incompatible, and there is no fallback.
     pub async fn balance(&self) -> Result<u128, ClientError> {
-        let metrics = get_metrics(&self.transport, &self.client_id).await?;
+        let metrics = get_client_metrics(&self.transport, &self.client_id)
+            .await
+            .map_err(missing_client_metrics)?;
         Ok(amount(metrics.balance.as_ref())?)
     }
 
@@ -505,5 +508,45 @@ mod chat_slot_tests {
         };
         assert_eq!(started.chat_slots(), vec![8080]);
         assert_eq!(started.slots(), vec![8080]);
+    }
+}
+
+/// The texts of a node that has no `GetClientMetrics`: a gRPC "unimplemented" status or a
+/// bee-rpc "method not found".
+const MISSING_RPC_TEXTS: [&str; 3] = ["unimplemented", "method not found", "unknown method"];
+
+/// Says what is wrong when the node has no `GetClientMetrics`. It does not tell the user
+/// to update the node.
+fn missing_client_metrics(error: WireError) -> ClientError {
+    if let WireError::Call(text) = &error {
+        let lower = text.to_ascii_lowercase();
+        if MISSING_RPC_TEXTS.iter().any(|t| lower.contains(t)) {
+            return ClientError::Protocol(
+                "the node interface is partially incompatible: it has no GetClientMetrics"
+                    .to_string(),
+            );
+        }
+    }
+    error.into()
+}
+
+#[cfg(test)]
+mod missing_rpc_tests {
+    use super::*;
+
+    #[test]
+    fn a_node_with_no_get_client_metrics_is_called_partially_incompatible() {
+        let err = missing_client_metrics(WireError::Call(
+            "status: Unimplemented, message: \"Method not found: GetClientMetrics\"".into(),
+        ));
+        let text = err.to_string();
+        assert!(text.contains("partially incompatible"), "{text}");
+        assert!(!text.to_ascii_lowercase().contains("update"), "{text}");
+    }
+
+    #[test]
+    fn other_errors_pass_unchanged() {
+        let err = missing_client_metrics(WireError::Timeout);
+        assert!(matches!(err, ClientError::Wire(WireError::Timeout)));
     }
 }

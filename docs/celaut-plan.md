@@ -241,7 +241,8 @@ from the app, stop it, and see the refund.
 What M2 has (PR #11):
 
 - `celaut-wire`: GetServiceEstimatedCost, StartService (time limit 600 s),
-  StopService and GetMetrics. `ServiceRequest::parts` sends Client (1), RecursionGuard
+  StopService and GetMetrics (StopService and ModifyDeposit now send the `Client` at
+  index 2, and the client balance is GetClientMetrics; nodo#597). `ServiceRequest::parts` sends Client (1), RecursionGuard
   (2), Configuration (3, only if it has bytes) and the Hash (4), in this order.
   ServiceTunnel: `TokenMessage{token, slot}` at index 1, then the bytes at index 0 in
   pieces of 64 KiB. The end of the request half-closes the connection to the service.
@@ -271,7 +272,7 @@ Facts from nodo dev `ec1274d` (the node of the check):
   node quotes and charges that amount. This works because Configuration comes before
   the Hash.
 - StopService gives the unused balance of the instance back to the client at once, and
-  GetMetrics of the client shows it.
+  GetClientMetrics shows it.
 - GetMetrics with the token of a stopped instance is an error ("Invalid token"), not a
   balance of 0.
 

@@ -86,9 +86,10 @@ client). Auth "token" = possession of an instance token.
 | Payable | 1 `Payment`, 2 `Client` | 1 `buffer.Empty` | client |
 | GetServiceEstimatedCost | 1 Client, 2 RecursionGuard, 3 Configuration, 4 `Metadata.HashTag.Hash`, 5 Metadata, 6 Service | signal, then 1 `EstimatedCost` | client |
 | StartService | same as above | signal, then 1 `ServiceInstance` (with the start receipt, [receipts.md](receipts.md)) | client |
-| StopService | 1 `TokenMessage{instance token}` | 1 `Refund` | token |
-| ModifyDeposit | 1 `ModifyDepositInput` | 1 `ModifyDepositOutput` | token |
-| GetMetrics | 1 `TokenMessage{instance token or client_id}` | 1 `Metrics` | token |
+| StopService | 1 `TokenMessage{instance token}`, 2 `Client` (the father) | 1 `Refund` | token+client |
+| ModifyDeposit | 1 `ModifyDepositInput`, 2 `Client` (the father) | 1 `ModifyDepositOutput` | token+client |
+| GetMetrics | 1 `TokenMessage{instance token}` | 1 `Metrics` | token |
+| GetClientMetrics | 1 `Client` | 1 `Metrics` (free) | client |
 | GetResourceAvailability | 1 `ArchitectureResources`, 2 `Client` | 1 `ResourceAvailability` | client |
 | GetService | 1 Hash, 2 Client (send Client first) | 4 Hash, 5 Metadata, 6 Service | client |
 | ServiceTunnel | 1 `TokenMessage{token, slot, receipts}`, then 0 bytes | 0 bytes, 2 `ExecutionReceipt` | token |
@@ -207,7 +208,10 @@ Notes:
    check raise, and the node then refuses every deposit while that box is listed before
    the deposit box. And a node wallet with many boxes can depend on the paging of the
    explorer answer.
-7. Balance: `GetMetrics(TokenMessage{token=client_id})`.
+7. Balance: `GetClientMetrics(Client{client_id})`. It is free. `GetBalanceStatement` is not
+   the way to read it: each statement costs MU and writes a movement. The `client_id` is
+   the master secret: with it a caller can stop the instances of the client and move its
+   funds. A node with no `GetClientMetrics` is not supported.
 8. ServiceTunnel charges the instance: open fee 10 000 MU and 2 000 000 MU per GiB.
    StopService refunds the unused instance balance to the client.
 

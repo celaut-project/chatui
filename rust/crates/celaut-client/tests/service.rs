@@ -253,14 +253,21 @@ async fn stop_gives_the_refund_and_metrics_the_balance() {
     let token = TokenMessage::decode(parts[0].data.as_slice()).unwrap();
     assert_eq!(token.token, "instance-token");
     assert_eq!(token.slot, None);
+    // The father client goes at index 2.
+    assert_eq!(parts.len(), 2);
+    assert_eq!(parts[1].index, 2);
+    assert_eq!(
+        Client::decode(parts[1].data.as_slice()).unwrap().client_id,
+        s.client_id()
+    );
 
     assert_eq!(s.balance().await.unwrap(), 4_500_000);
     let (method, parts) = s.transport().request(3);
-    assert_eq!(method, "GetMetrics");
+    assert_eq!(method, "GetClientMetrics");
+    assert_eq!(parts.len(), 1);
+    assert_eq!(parts[0].index, 1);
     assert_eq!(
-        TokenMessage::decode(parts[0].data.as_slice())
-            .unwrap()
-            .token,
+        Client::decode(parts[0].data.as_slice()).unwrap().client_id,
         s.client_id()
     );
     assert_eq!(s.stop("other").await.unwrap(), 0);
@@ -288,8 +295,13 @@ async fn a_top_up_moves_credit_to_the_instance_with_modify_deposit() {
     s.top_up("instance-token", 250_000).await.unwrap();
     let (method, parts) = s.transport().request(2);
     assert_eq!(method, "ModifyDeposit");
-    assert_eq!(parts.len(), 1);
+    assert_eq!(parts.len(), 2);
     assert_eq!(parts[0].index, 1);
+    assert_eq!(parts[1].index, 2);
+    assert_eq!(
+        Client::decode(parts[1].data.as_slice()).unwrap().client_id,
+        s.client_id()
+    );
     let input = ModifyDepositInput::decode(parts[0].data.as_slice()).unwrap();
     assert_eq!(input.service_token, "instance-token");
     assert_eq!(input.difference.unwrap().n, "250000");

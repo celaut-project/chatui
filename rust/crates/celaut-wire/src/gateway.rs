@@ -267,22 +267,29 @@ fn token_part(token: &str) -> Vec<Part> {
 }
 
 /// `StopService`: stop the instance. The node gives the unused balance of the instance
-/// back to the client and answers with that amount.
+/// back to the client and answers with that amount. The call has the instance token
+/// (index 1) and the `Client` (index 2): the node accepts it only from the client that
+/// started the instance.
 ///
 /// A receiver drops an all-default message (it has no bytes), so no part means a
 /// refund of 0.
-pub async fn stop_service<T: Transport>(transport: &T, token: &str) -> Result<Refund, WireError> {
-    let answer = transport
-        .call("StopService", token_part(token), &[1])
-        .await?;
+pub async fn stop_service<T: Transport>(
+    transport: &T,
+    token: &str,
+    client_id: &str,
+) -> Result<Refund, WireError> {
+    let mut parts = token_part(token);
+    parts.push(client_part(2, client_id));
+    let answer = transport.call("StopService", parts, &[1]).await?;
     match answer.iter().find(|p| p.index == 1) {
         Some(part) => decode(part, "the Refund"),
         None => Ok(Refund::default()),
     }
 }
 
-/// `GetMetrics`: the balance of a client (`token` = client id) or of an instance
-/// (`token` = instance token). No part means a balance of 0, as in [`stop_service`].
+/// `GetMetrics`: the balance of an instance (`token` = instance token). No part means a
+/// balance of 0, as in [`stop_service`]. The balance of a client is
+/// [`get_client_metrics`].
 pub async fn get_metrics<T: Transport>(transport: &T, token: &str) -> Result<Metrics, WireError> {
     let answer = transport
         .call("GetMetrics", token_part(token), &[1])
@@ -293,14 +300,32 @@ pub async fn get_metrics<T: Transport>(transport: &T, token: &str) -> Result<Met
     }
 }
 
+/// `GetClientMetrics`: send the `Client` (index 1), get the `Metrics` (1) with the balance
+/// of the client. It is free. No part means a balance of 0.
+pub async fn get_client_metrics<T: Transport>(
+    transport: &T,
+    client_id: &str,
+) -> Result<Metrics, WireError> {
+    let answer = transport
+        .call("GetClientMetrics", vec![client_part(1, client_id)], &[1])
+        .await?;
+    match answer.iter().find(|p| p.index == 1) {
+        Some(part) => decode(part, "the Metrics"),
+        None => Ok(Metrics::default()),
+    }
+}
+
 /// `ModifyDeposit`: move `difference_mu` MU from the parent of the instance (the client
-/// that started it) to the instance of the token `token`. The node moves nothing if the
+/// that started it) to the instance of the token `token`. The call has the
+/// `ModifyDepositInput` (index 1) and the `Client` (2), which must be that parent. The
+/// node moves nothing if the
 /// parent has less (`nodo:src/manager/manager.py`, `modify_deposit`): then `success` is
 /// false and `message` says why. Nothing goes on a ledger: this moves credit that the
 /// client already has on the node.
 pub async fn modify_deposit<T: Transport>(
     transport: &T,
     token: &str,
+    client_id: &str,
     difference_mu: u128,
 ) -> Result<ModifyDepositOutput, WireError> {
     let input = ModifyDepositInput {
@@ -310,7 +335,14 @@ pub async fn modify_deposit<T: Transport>(
         service_token: token.to_string(),
     };
     let answer = transport
-        .call("ModifyDeposit", vec![Part::new(1, input.encode_to_vec())], &[1])
+        .call(
+            "ModifyDeposit",
+            vec![
+                Part::new(1, input.encode_to_vec()),
+                client_part(2, client_id),
+            ],
+            &[1],
+        )
         .await?;
     match answer.iter().find(|p| p.index == 1) {
         Some(part) => decode(part, "the ModifyDepositOutput"),
