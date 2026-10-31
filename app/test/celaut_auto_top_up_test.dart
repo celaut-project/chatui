@@ -121,6 +121,22 @@ void main() {
       expect(topUps, hasLength(2));
     });
 
+    test('an instance whose status cannot be read is asked again after ten minutes, not each minute', () async {
+      final e = engine();
+      db = [_instance('gone')];
+      // No balance for it: the fake status throws, as a node that does not answer.
+      plans['gone'] = _plan();
+      await e.check();
+      expect(asked, ['gone']);
+      clock = clock.add(const Duration(minutes: 1, seconds: 1));
+      await e.check();
+      expect(asked, hasLength(1));
+      clock = clock.add(const Duration(minutes: 9));
+      await e.check();
+      expect(asked, hasLength(2));
+      expect(topUps, isEmpty);
+    });
+
     test('the margin of the node is in the amount', () async {
       final e = engine();
       await e.save(threshold: const Duration(minutes: 15), chunk: const Duration(minutes: 10));

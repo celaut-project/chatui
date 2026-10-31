@@ -256,7 +256,9 @@ class AutoTopUp extends ChangeNotifier {
       try {
         await observe(i, await _status(i.instanceId));
       } on Object {
-        // The node does not answer: the list says so; the next check tries again.
+        // The node does not answer: the list says so. Ask again after the wait of a
+        // failure (ui.md section 4), not every minute.
+        _wait[i.instanceId] = _now().add(_afterFailure);
       }
     }
     _schedule();
