@@ -6689,7 +6689,8 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get celautNodesPriorityFullTrust => 'Prioridad: 100 de 100 (plena confianza)';
+  String get celautNodesPriorityFullTrust =>
+      'Prioridad: 100 de 100 (plena confianza)';
 
   @override
   String get celautNodesPriorityHint =>
@@ -6850,7 +6851,8 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get chatsGroupsDeleteBody => 'Las conversaciones del grupo no se eliminan: vuelven a la lista sin grupo.';
+  String get chatsGroupsDeleteBody =>
+      'Las conversaciones del grupo no se eliminan: vuelven a la lista sin grupo.';
 
   @override
   String get chatsGroupsMove => 'Mover a un grupo';
@@ -6868,5 +6870,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get chatSettingsGroupedView => 'Organizar en grupos';
 
   @override
-  String get chatSettingsGroupedViewSubtitle => 'Desactivado: una lista plana. Activado: grupos plegables. Mantén pulsada una conversación para moverla a un grupo.';
+  String get chatSettingsGroupedViewSubtitle =>
+      'Desactivado: una lista plana. Activado: grupos plegables. Mantén pulsada una conversación para moverla a un grupo.';
 }

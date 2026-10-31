@@ -44,9 +44,9 @@ void celautSetNodeTrusted({required String peerId, required bool trusted}) =>
       trusted: trusted,
     );
 
-/// Set the reputation of the node `peer_id`, from 0 to 100 (50 is neutral). The balancer adds
-/// it to the score of the quotes of the node, so a node of higher priority can win over a
-/// somewhat cheaper one. A number above 100 is an error. A node of full
+/// Give the node `peer_id` the reputation `priority`, from 0 to 100 (50 is neutral). The
+/// balancer adds it to the score of the quotes of the node, so a node of higher priority
+/// can win over a somewhat cheaper one. A number above 100 is an error. A node of full
 /// trust ([`celaut_set_node_trusted`]) counts as 100 whatever this number is.
 void celautSetNodePriority({required String peerId, required int priority}) =>
     RustLib.instance.api.crateApiCelautHomeCelautSetNodePriority(

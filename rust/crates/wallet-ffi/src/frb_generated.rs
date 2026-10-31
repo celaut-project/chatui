@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -751151911;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1984335807;
 
 // Section: executor
 
@@ -5694,84 +5694,84 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        51 => wire__crate__api__celaut_catalog__celaut_skill_services_impl(
+        52 => wire__crate__api__celaut_catalog__celaut_skill_services_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        52 => {
+        53 => {
             wire__crate__api__celaut_catalog__celaut_skills_impl(port, ptr, rust_vec_len, data_len)
         }
-        53 => wire__crate__api__celaut_service__celaut_start_service_impl(
+        54 => wire__crate__api__celaut_service__celaut_start_service_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        54 => wire__crate__api__celaut_service__celaut_stop_service_impl(
+        55 => wire__crate__api__celaut_service__celaut_stop_service_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        55 => wire__crate__api__celaut_service__celaut_top_up_instance_impl(
+        56 => wire__crate__api__celaut_service__celaut_top_up_instance_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        57 => wire__crate__api__create_encrypted_seed_impl(port, ptr, rust_vec_len, data_len),
-        58 => wire__crate__api__db_compute_summary_impl(port, ptr, rust_vec_len, data_len),
-        59 => wire__crate__api__derive_address_impl(port, ptr, rust_vec_len, data_len),
-        60 => {
+        58 => wire__crate__api__create_encrypted_seed_impl(port, ptr, rust_vec_len, data_len),
+        59 => wire__crate__api__db_compute_summary_impl(port, ptr, rust_vec_len, data_len),
+        60 => wire__crate__api__derive_address_impl(port, ptr, rust_vec_len, data_len),
+        61 => {
             wire__crate__api__describe_reduced_transaction_impl(port, ptr, rust_vec_len, data_len)
         }
-        61 => wire__crate__api__discover_addresses_impl(port, ptr, rust_vec_len, data_len),
-        62 => wire__crate__api__generate_mnemonic_impl(port, ptr, rust_vec_len, data_len),
-        63 => wire__crate__api__get_balance_impl(port, ptr, rust_vec_len, data_len),
-        64 => wire__crate__api__get_pending_transactions_impl(port, ptr, rust_vec_len, data_len),
-        65 => wire__crate__api__mempool__get_public_sync_inputs_impl(
+        62 => wire__crate__api__discover_addresses_impl(port, ptr, rust_vec_len, data_len),
+        63 => wire__crate__api__generate_mnemonic_impl(port, ptr, rust_vec_len, data_len),
+        64 => wire__crate__api__get_balance_impl(port, ptr, rust_vec_len, data_len),
+        65 => wire__crate__api__get_pending_transactions_impl(port, ptr, rust_vec_len, data_len),
+        66 => wire__crate__api__mempool__get_public_sync_inputs_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        66 => wire__crate__api__get_sync_inputs_impl(port, ptr, rust_vec_len, data_len),
-        67 => wire__crate__api__get_token_info_impl(port, ptr, rust_vec_len, data_len),
-        68 => wire__crate__api__get_transaction_history_impl(port, ptr, rust_vec_len, data_len),
-        69 => wire__crate__api__inspect_token_metadata_impl(port, ptr, rust_vec_len, data_len),
-        70 => {
+        67 => wire__crate__api__get_sync_inputs_impl(port, ptr, rust_vec_len, data_len),
+        68 => wire__crate__api__get_token_info_impl(port, ptr, rust_vec_len, data_len),
+        69 => wire__crate__api__get_transaction_history_impl(port, ptr, rust_vec_len, data_len),
+        70 => wire__crate__api__inspect_token_metadata_impl(port, ptr, rust_vec_len, data_len),
+        71 => {
             wire__crate__api__mempool__list_spendable_boxes_impl(port, ptr, rust_vec_len, data_len)
         }
-        71 => wire__crate__api__list_unspent_boxes_impl(port, ptr, rust_vec_len, data_len),
-        73 => wire__crate__api__preparation_details_impl(port, ptr, rust_vec_len, data_len),
-        74 => wire__crate__api__prepare_burn_impl(port, ptr, rust_vec_len, data_len),
-        75 => wire__crate__api__prepare_consolidate_impl(port, ptr, rust_vec_len, data_len),
-        76 => wire__crate__api__prepare_mint_impl(port, ptr, rust_vec_len, data_len),
-        77 => wire__crate__api__prepare_restructure_impl(port, ptr, rust_vec_len, data_len),
-        78 => wire__crate__api__prepare_send_impl(port, ptr, rust_vec_len, data_len),
-        79 => wire__crate__api__prepare_send_multi_impl(port, ptr, rust_vec_len, data_len),
-        80 => wire__crate__api__prepare_split_erg_impl(port, ptr, rust_vec_len, data_len),
-        81 => wire__crate__api__prepare_split_token_impl(port, ptr, rust_vec_len, data_len),
-        82 => wire__crate__api__probe_network_impl(port, ptr, rust_vec_len, data_len),
-        83 => {
+        72 => wire__crate__api__list_unspent_boxes_impl(port, ptr, rust_vec_len, data_len),
+        74 => wire__crate__api__preparation_details_impl(port, ptr, rust_vec_len, data_len),
+        75 => wire__crate__api__prepare_burn_impl(port, ptr, rust_vec_len, data_len),
+        76 => wire__crate__api__prepare_consolidate_impl(port, ptr, rust_vec_len, data_len),
+        77 => wire__crate__api__prepare_mint_impl(port, ptr, rust_vec_len, data_len),
+        78 => wire__crate__api__prepare_restructure_impl(port, ptr, rust_vec_len, data_len),
+        79 => wire__crate__api__prepare_send_impl(port, ptr, rust_vec_len, data_len),
+        80 => wire__crate__api__prepare_send_multi_impl(port, ptr, rust_vec_len, data_len),
+        81 => wire__crate__api__prepare_split_erg_impl(port, ptr, rust_vec_len, data_len),
+        82 => wire__crate__api__prepare_split_token_impl(port, ptr, rust_vec_len, data_len),
+        83 => wire__crate__api__probe_network_impl(port, ptr, rust_vec_len, data_len),
+        84 => {
             wire__crate__api__storage_rent__rent_parameters_impl(port, ptr, rust_vec_len, data_len)
         }
-        84 => wire__crate__api__send_erg_impl(port, ptr, rust_vec_len, data_len),
-        85 => wire__crate__api__set_network_impl(port, ptr, rust_vec_len, data_len),
-        87 => wire__crate__api__sign_preparation_impl(port, ptr, rust_vec_len, data_len),
-        88 => wire__crate__api__sign_reduced_transaction_impl(port, ptr, rust_vec_len, data_len),
-        90 => wire__crate__api__submit_signed_transaction_impl(port, ptr, rust_vec_len, data_len),
-        91 => wire__crate__api__unwrap_key_with_pin_impl(port, ptr, rust_vec_len, data_len),
-        92 => wire__crate__api__validate_ergo_address_impl(port, ptr, rust_vec_len, data_len),
-        93 => wire__crate__api__walk_singleton_lineage_impl(port, ptr, rust_vec_len, data_len),
-        94 => wire__crate__api__wallet_create_impl(port, ptr, rust_vec_len, data_len),
-        95 => wire__crate__api__wallet_is_unlocked_impl(port, ptr, rust_vec_len, data_len),
-        96 => wire__crate__api__wallet_lock_impl(port, ptr, rust_vec_len, data_len),
-        97 => wire__crate__api__wallet_owns_address_impl(port, ptr, rust_vec_len, data_len),
-        98 => wire__crate__api__wallet_restore_impl(port, ptr, rust_vec_len, data_len),
-        99 => wire__crate__api__wrap_key_with_pin_impl(port, ptr, rust_vec_len, data_len),
+        85 => wire__crate__api__send_erg_impl(port, ptr, rust_vec_len, data_len),
+        86 => wire__crate__api__set_network_impl(port, ptr, rust_vec_len, data_len),
+        88 => wire__crate__api__sign_preparation_impl(port, ptr, rust_vec_len, data_len),
+        89 => wire__crate__api__sign_reduced_transaction_impl(port, ptr, rust_vec_len, data_len),
+        91 => wire__crate__api__submit_signed_transaction_impl(port, ptr, rust_vec_len, data_len),
+        92 => wire__crate__api__unwrap_key_with_pin_impl(port, ptr, rust_vec_len, data_len),
+        93 => wire__crate__api__validate_ergo_address_impl(port, ptr, rust_vec_len, data_len),
+        94 => wire__crate__api__walk_singleton_lineage_impl(port, ptr, rust_vec_len, data_len),
+        95 => wire__crate__api__wallet_create_impl(port, ptr, rust_vec_len, data_len),
+        96 => wire__crate__api__wallet_is_unlocked_impl(port, ptr, rust_vec_len, data_len),
+        97 => wire__crate__api__wallet_lock_impl(port, ptr, rust_vec_len, data_len),
+        98 => wire__crate__api__wallet_owns_address_impl(port, ptr, rust_vec_len, data_len),
+        99 => wire__crate__api__wallet_restore_impl(port, ptr, rust_vec_len, data_len),
+        100 => wire__crate__api__wrap_key_with_pin_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -5854,24 +5854,24 @@ fn pde_ffi_dispatcher_sync_impl(
             rust_vec_len,
             data_len,
         ),
-        50 => {
+        50 => wire__crate__api__celaut_home__celaut_set_node_priority_impl(
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        51 => {
             wire__crate__api__celaut_home__celaut_set_node_trusted_impl(ptr, rust_vec_len, data_len)
         }
-        100 => wire__crate__api__celaut_home__celaut_set_node_priority_impl(
+        57 => wire__crate__api__celaut_package__celaut_transfer_progress_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        56 => wire__crate__api__celaut_package__celaut_transfer_progress_impl(
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        72 => {
+        73 => {
             wire__crate__api__storage_rent__output_rent_estimate_impl(ptr, rust_vec_len, data_len)
         }
-        86 => wire__crate__api__mempool__set_spend_unconfirmed_impl(ptr, rust_vec_len, data_len),
-        89 => wire__crate__api__mempool__spend_unconfirmed_impl(ptr, rust_vec_len, data_len),
+        87 => wire__crate__api__mempool__set_spend_unconfirmed_impl(ptr, rust_vec_len, data_len),
+        90 => wire__crate__api__mempool__spend_unconfirmed_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
