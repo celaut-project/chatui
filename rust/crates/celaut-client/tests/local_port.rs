@@ -59,6 +59,11 @@ struct FakeNode {
     /// How many of the first opens fail with "cannot connect", as a node that cannot be
     /// reached for a moment.
     unreachable: AtomicUsize,
+    /// How many of the first opens deliver the request to the service and then fail with
+    /// `Unavailable` before any answer, as a link that dies while the service works.
+    fail_after_request: AtomicUsize,
+    /// The chunks that reached the service, over all streams.
+    delivered: Arc<Mutex<Vec<Vec<u8>>>>,
 }
 
 impl TunnelOpener for FakeNode {
@@ -77,7 +82,21 @@ impl TunnelOpener for FakeNode {
             .unreachable
             .try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
             .is_ok();
+        let fail_after = self
+            .fail_after_request
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
+            .is_ok();
+        let delivered = self.delivered.clone();
         tokio::spawn(async move {
+            if fail_after {
+                if let Some(data) = to_rx.recv().await {
+                    delivered.lock().unwrap().push(data);
+                }
+                let _ = from_tx
+                    .send(Err(WireError::Call("Unavailable: transport error".into())))
+                    .await;
+                return;
+            }
             if unreachable {
                 let _ = from_tx
                     .send(Err(WireError::Connect("no route".to_string())))
@@ -92,6 +111,7 @@ impl TunnelOpener for FakeNode {
             let (mut reader, mut writer) = socket.into_split();
             tokio::spawn(async move {
                 while let Some(data) = to_rx.recv().await {
+                    delivered.lock().unwrap().push(data.clone());
                     writer.write_all(&data).await.unwrap();
                 }
                 let _ = writer.shutdown().await;
@@ -121,6 +141,8 @@ async fn node(refuse: Option<&str>) -> Arc<FakeNode> {
         opened: Mutex::new(Vec::new()),
         refuse: refuse.map(str::to_string),
         unreachable: AtomicUsize::new(0),
+        fail_after_request: AtomicUsize::new(0),
+        delivered: Arc::new(Mutex::new(Vec::new())),
     })
 }
 
@@ -347,4 +369,45 @@ async fn a_node_that_stays_unreachable_ends_the_connection_after_the_retries() {
     // The first open and three retries.
     assert_eq!(fake.opened.lock().unwrap().len(), 4);
     assert!(local.last_error().unwrap().contains("no route"));
+}
+
+#[tokio::test]
+async fn a_stream_that_failed_after_the_request_was_delivered_is_not_opened_again() {
+    let fake = node(None).await;
+    fake.fail_after_request.store(1, Ordering::SeqCst);
+    let local = LocalPort::bind(fake.clone(), "tok".into(), 3030, None)
+        .await
+        .unwrap();
+    let mut socket = TcpStream::connect(("127.0.0.1", local.port()))
+        .await
+        .unwrap();
+    socket
+        .write_all(b"POST /once HTTP/1.1\r\nhost: localhost\r\ncontent-length: 0\r\n\r\n")
+        .await
+        .unwrap();
+    let mut all = Vec::new();
+    let _ = tokio::time::timeout(Duration::from_secs(10), socket.read_to_end(&mut all))
+        .await
+        .expect("the local connection was not closed");
+    assert!(all.is_empty());
+    // One open, and the service got the request once: it is not sent again.
+    assert_eq!(fake.opened.lock().unwrap().len(), 1);
+    assert_eq!(fake.delivered.lock().unwrap().len(), 1);
+    assert!(local.last_error().unwrap().contains("Unavailable"));
+}
+
+#[tokio::test]
+async fn a_failed_open_is_retried_and_the_request_is_delivered_once() {
+    let fake = node(None).await;
+    fake.unreachable.store(1, Ordering::SeqCst);
+    let local = LocalPort::bind(fake.clone(), "tok".into(), 3030, None)
+        .await
+        .unwrap();
+    let mut socket = connect(local.port()).await;
+    let answer = tokio::time::timeout(Duration::from_secs(10), get(&mut socket, "/once"))
+        .await
+        .expect("no answer after the retry");
+    assert_eq!(answer, "1 /once");
+    assert_eq!(fake.opened.lock().unwrap().len(), 2);
+    assert_eq!(fake.delivered.lock().unwrap().len(), 1);
 }

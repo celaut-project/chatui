@@ -189,17 +189,15 @@ const OPEN_RETRIES: u32 = 3;
 const REPLAY_LIMIT: usize = 1 << 20;
 
 /// An error of the open of a stream that says nothing reached the service: no connection
-/// to the node (a broken link, a circuit of Tor that died), or a node that is
-/// unavailable. A refusal (wrong token, no balance) is not one: it would fail again.
+/// to the node (a broken link, a circuit of Tor that died), or a time limit before the
+/// node took the call. `celaut-wire` gives `Connect` also for an error of the call before
+/// any byte of the request went out. An error of a stream that was open (`Unavailable`, a
+/// transport error of the keepalive) is not one: the service may have the request and
+/// still work on it, so it is not sent again. A refusal (wrong token, no balance) is not
+/// one either: it would fail again.
 fn is_transient(error: &celaut_wire::WireError) -> bool {
     use celaut_wire::WireError;
-    match error {
-        WireError::Connect(_) | WireError::Timeout => true,
-        WireError::Call(text) => {
-            text.starts_with("Unavailable") || text.starts_with("Unknown: transport")
-        }
-        _ => false,
-    }
+    matches!(error, WireError::Connect(_) | WireError::Timeout)
 }
 
 async fn relay(socket: TcpStream, target: Arc<Target>, shared: Arc<Shared>) {
