@@ -241,6 +241,7 @@ async fn stop_gives_the_refund_and_metrics_the_balance() {
             1,
             &Metrics {
                 balance: mu("4500000"),
+                ..Default::default()
             },
         ),
         // A Refund with no amount has no bytes: nothing arrives, and that is 0.

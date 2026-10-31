@@ -632,9 +632,8 @@ pub struct Sysresources {
 /// A token, and a slot for some methods.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct TokenMessage {
-    /// The token. In StopService and ServiceTunnel: an instance token. In GetMetrics: an
-    /// instance token or a client_id. In the response of GenerateDepositToken: a new
-    /// deposit token.
+    /// The token. In StopService, GetMetrics and ServiceTunnel: an instance token. In the
+    /// response of GenerateDepositToken: a new deposit token.
     #[prost(string, tag = "1")]
     pub token: ::prost::alloc::string::String,
     /// In ServiceTunnel: the internal port, as a decimal number. It must be one of the
@@ -744,13 +743,19 @@ pub struct Payment {
     #[prost(message, optional, tag = "3")]
     pub amount: ::core::option::Option<Amount>,
 }
-/// The answer of GetMetrics.
+/// The answer of GetMetrics and of GetClientMetrics.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct Metrics {
-    /// The balance, in MU. For an instance token, the balance of the instance. For a
-    /// client_id, the balance of the client.
+    /// The balance, in MU. In the answer of GetMetrics, the balance of the instance. In
+    /// the answer of GetClientMetrics, the balance of the client.
     #[prost(message, optional, tag = "1")]
     pub balance: ::core::option::Option<Amount>,
+    /// True if the instance is suspended: its virtual machine is stopped and the node
+    /// keeps its disk, its address and its balance. The node does not charge an instance
+    /// while it is suspended. A deposit that pays one maintenance period starts it again.
+    /// False for a client_id, and for an instance that runs.
+    #[prost(bool, tag = "2")]
+    pub suspended: bool,
 }
 /// The request of GetBalanceStatement. The caller asks for a range of movements by their
 /// seq, and nothing about the range changes what the node has already signed: a movement
