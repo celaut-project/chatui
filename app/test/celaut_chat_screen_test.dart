@@ -17,6 +17,7 @@ import 'package:argus_wallet/l10n/l10n.dart';
 import 'package:argus_wallet/theme/argus_theme.dart';
 import 'package:argus_wallet/ui/celaut/chat_screen.dart';
 import 'package:argus_wallet/ui/celaut/instance_info_screen.dart';
+import 'package:flutter/foundation.dart' show debugDefaultTargetPlatformOverride;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -1428,7 +1429,8 @@ void main() {
       await tester.tap(find.byKey(const Key('vk-char-h')));
       await tester.tap(find.byKey(const Key('vk-char-i')));
       await tester.pump();
-      expect(tester.widget<TextField>(find.byKey(const Key('chat-input'))).controller!.text, 'hi');
+      // The first letter of a sentence is a capital.
+      expect(tester.widget<TextField>(find.byKey(const Key('chat-input'))).controller!.text, 'Hi');
     });
 
     testWidgets('a form shows under the input, instead of the keyboard of the app', (tester) async {
@@ -1523,7 +1525,7 @@ void main() {
       expect(find.byKey(const Key('chat-virtual-keyboard')), findsOneWidget);
     });
 
-    testWidgets('a form that the scroll hid shows again at the end, and with a tap on its card', (tester) async {
+    testWidgets('a form that the scroll hid shows again at the end', (tester) async {
       chat = _FakeChat(history: longChat(withForm: true));
       await open(tester);
       await tester.drag(find.byKey(const Key('chat-messages')), const Offset(0, 300));
@@ -1532,11 +1534,14 @@ void main() {
       await tester.drag(find.byKey(const Key('chat-messages')), const Offset(0, -2000));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('chat-keyboard-dock')), findsOneWidget);
-      await tester.drag(find.byKey(const Key('chat-messages')), const Offset(0, 300));
+    });
+
+    testWidgets('a form that a tap on the conversation hid opens with a tap on its card', (tester) async {
+      chat = _FakeChat(history: [const ChatMessage(seq: 0, role: 'user', text: 'hi'), form]);
+      await open(tester);
+      await tester.tapAt(tester.getTopLeft(find.byKey(const Key('chat-messages'))) + const Offset(200, 120));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('chat-keyboard-dock')), findsNothing);
-      await tester.drag(find.byKey(const Key('chat-messages')), const Offset(0, -2000));
-      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('chat-keyboard-reopen')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('chat-keyboard-dock')), findsOneWidget);
@@ -1572,20 +1577,23 @@ void main() {
 
     testWidgets('on a computer Enter sends and Shift+Enter makes a new line', (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.linux;
-      addTearDown(() => debugDefaultTargetPlatformOverride = null);
-      await open(tester);
-      await tester.tap(find.byKey(const Key('chat-input')));
-      await tester.pump();
-      final input = tester.widget<TextField>(find.byKey(const Key('chat-input'))).controller!;
-      input.text = 'hello';
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.pump();
-      expect(input.text, 'hello');
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-      await tester.pump();
-      expect(input.text, isEmpty);
+      try {
+        await open(tester);
+        await tester.tap(find.byKey(const Key('chat-input')));
+        await tester.pump();
+        final input = tester.widget<TextField>(find.byKey(const Key('chat-input'))).controller!;
+        input.text = 'hello';
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pump();
+        expect(input.text, 'hello');
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pump();
+        expect(input.text, isEmpty);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
     });
 
     testWidgets('with the keyboard of the system on, the input uses it, but not under a form', (tester) async {
