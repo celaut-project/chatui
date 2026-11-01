@@ -161,6 +161,14 @@ view is the Compute tab, not a first screen.
    cannot be stopped, so it cannot be deleted either. Should Stop mark such an instance
    stopped when the node answers that the token is unknown?
 
+   Decision (issue #73): no change in Stop. nodo answers `StopService` for a token that it
+   does not know, or that is already dead, with a refund of 0 and no error (`stop_instance`
+   returns nothing and the gateway sends `Refund(0)`), so `celaut_stop_service` already
+   marks the instance stopped, with no refund, and the user can then delete it. Only a
+   failure of the call itself (node not reachable, client unknown) leaves the row as it is.
+   The status read of such an instance fails, so `AutoTopUp.check()` waits ten minutes
+   before it asks again (`ui.md` section 4), as for any other failure.
+
 ## 7. Messages and files
 
 The screen is `ChatScreen`. The protocol is in [chat.md](chat.md). The picker is in
