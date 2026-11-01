@@ -11,6 +11,7 @@ import 'api/celaut_deposit.dart';
 import 'api/celaut_env.dart';
 import 'api/celaut_health.dart';
 import 'api/celaut_home.dart';
+import 'api/celaut_http.dart';
 import 'api/celaut_invite.dart';
 import 'api/celaut_network.dart';
 import 'api/celaut_package.dart';
@@ -118,6 +119,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double dco_decode_f_64(dynamic raw);
 
   @protected
+  HttpAnswer dco_decode_http_answer(dynamic raw);
+
+  @protected
+  HttpHeader dco_decode_http_header(dynamic raw);
+
+  @protected
   int dco_decode_i_32(dynamic raw);
 
   @protected
@@ -172,6 +179,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<EnvNameView> dco_decode_list_env_name_view(dynamic raw);
+
+  @protected
+  List<HttpHeader> dco_decode_list_http_header(dynamic raw);
 
   @protected
   List<InstanceListView> dco_decode_list_instance_list_view(dynamic raw);
@@ -500,6 +510,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double sse_decode_f_64(SseDeserializer deserializer);
 
   @protected
+  HttpAnswer sse_decode_http_answer(SseDeserializer deserializer);
+
+  @protected
+  HttpHeader sse_decode_http_header(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
@@ -566,6 +582,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<EnvNameView> sse_decode_list_env_name_view(SseDeserializer deserializer);
+
+  @protected
+  List<HttpHeader> sse_decode_list_http_header(SseDeserializer deserializer);
 
   @protected
   List<InstanceListView> sse_decode_list_instance_list_view(
@@ -978,6 +997,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_f_64(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_http_answer(HttpAnswer self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_http_header(HttpHeader self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
@@ -1064,6 +1089,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_env_name_view(
     List<EnvNameView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_http_header(
+    List<HttpHeader> self,
     SseSerializer serializer,
   );
 

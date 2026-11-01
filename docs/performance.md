@@ -178,6 +178,14 @@ closes the stream. The requests are serialized, so a slow answer holds the next 
 a page that loads many resources in parallel gets them one at a time on one stream. Not
 verified against a real node.
 
+Dart reaches it through `api/celaut_http.rs` (step 2 of #79): `celautHttpOpen(instanceId,
+slot)` gives a handle (a number that is never reused; the token stays in Rust),
+`celautHttpRequest(handle, method, pathAndQuery, headers, body)` gives the whole answer
+(status, headers, body), and `celautHttpClose(handle)` drops the tunnel and its stream
+(closing twice is fine; a request on a closed handle is an `InvalidInput` error). Close the
+handle when the page closes: the table of handles holds the tunnel until then, or until the
+instance is stopped or deleted. Answers with a streamed body are not exposed yet.
+
 Not changed: the Dart `TunnelHttp` is only for the chat calls, and the web page opens in
 the system browser, so neither limits the page. `SOCKS_CHECK_TIMEOUT` (5 s) is for the
 local proxy, not for the circuit.

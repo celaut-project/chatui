@@ -63,6 +63,10 @@ pub mod celaut_package;
 /// The execution receipts of the instances: what the app keeps, shows and exports.
 pub mod celaut_receipts;
 
+/// HTTP requests to a web slot of an instance through the tunnel, with no local port
+/// (step 2 of #79).
+pub mod celaut_http;
+
 fn err_str<E: Into<ArgusError>>(e: E) -> String {
     e.into().to_json_string()
 }

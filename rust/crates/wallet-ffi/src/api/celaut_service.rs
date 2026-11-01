@@ -582,7 +582,7 @@ fn stopped_instance() -> CelautError {
 
 /// The instance `instance_id` from the database, and a session on its node. A stopped
 /// instance has none: the node does not run it.
-async fn instance(instance_id: &str) -> Result<(Session, InstanceRecord), CelautError> {
+pub(crate) async fn instance(instance_id: &str) -> Result<(Session, InstanceRecord), CelautError> {
     let record = db()
         .read(|d| d.instances.get(instance_id).cloned())
         .ok_or_else(unknown_instance)?;
@@ -734,6 +734,7 @@ pub fn celaut_forget_instance(instance_id: String) -> Result<(), CelautError> {
         .map_err(storage_error)?;
     removed?;
     drop(state()?.ports.remove(&instance_id));
+    super::celaut_http::close_instance(&instance_id);
     Ok(())
 }
 
@@ -1074,6 +1075,7 @@ pub struct StopView {
 pub async fn celaut_stop_service(instance_id: String) -> Result<StopView, CelautError> {
     let (session, record) = instance(&instance_id).await?;
     drop(state()?.ports.remove(&instance_id));
+    super::celaut_http::close_instance(&instance_id);
     let refund = session.stop(&record.token).await.map_err(error_of)?;
     db().update(|d| {
         if let Some(r) = d.instances.get_mut(&instance_id) {
