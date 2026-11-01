@@ -6920,4 +6920,56 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get chatSettingsGroupedViewSubtitle =>
       'Desactivado: una lista plana. Activado: grupos plegables. Mantén pulsada una conversación para moverla a un grupo.';
+
+  @override
+  String get celautEnvAskSave => 'Guardar en mis variables';
+
+  @override
+  String celautEnvAskSaveHint(String name) {
+    return 'Se guarda como $name, con la marca de arriba.';
+  }
+
+  @override
+  String celautEnvAskSaveReplaces(String name) {
+    return 'Sustituye el valor que guardaste como $name.';
+  }
+
+  @override
+  String get celautEnvSaveFailed => 'El valor no se guardó en tus variables.';
+
+  @override
+  String get celautSecretAskTitle => 'Secreto para el servicio';
+
+  @override
+  String get celautSecretReviewNote =>
+      'El servicio y el nodo de esta instancia leen el valor. El valor no se guarda en la conversación.';
+
+  @override
+  String get celautSecretSend => 'Enviar';
+
+  @override
+  String get celautSecretSendAnyway => 'Enviar el valor';
+
+  @override
+  String chatSecretCardTitle(String name) {
+    return 'El servicio pide $name';
+  }
+
+  @override
+  String get chatSecretAnswer => 'Elegir un valor';
+
+  @override
+  String get chatSecretSent => 'Enviado';
+
+  @override
+  String get chatSecretSkipped => 'Omitido';
+
+  @override
+  String get chatSecretFailed =>
+      'La respuesta no llegó al servicio. Inténtalo de nuevo.';
+
+  @override
+  String chatSecretMissing(String name) {
+    return '$name ya no está en tus variables.';
+  }
 }

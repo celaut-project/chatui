@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -34,6 +35,12 @@ class FakeChatService {
 
   /// The next calls to `SetMessagePinned` fail with these errors, in order.
   final pinErrors = <GrpcError>[];
+
+  /// The answers to secret requests that the service took (section 6.9).
+  final secretAnswers = <AnswerSecretRequestRequest>[];
+
+  /// The next calls to `AnswerSecretRequest` fail with these errors, in order.
+  final secretErrors = <GrpcError>[];
 
   /// Each user message gets a whole answer `echo: <text>` at once.
   bool autoAnswer = false;
@@ -104,11 +111,12 @@ class FakeChatService {
     String reasoning = '',
     bool pinned = false,
     String? error,
+    List<ContentPart> extra = const [],
   }) {
     final m = Message(
       messageId: 'm${msgs.length + 1}',
       sequence: Int64(msgs.length + 1),
-      content: [if (text.isNotEmpty) ContentPart(text: TextContent(text: text))],
+      content: [if (text.isNotEmpty) ContentPart(text: TextContent(text: text)), ...extra],
       status: status,
       createdAt: Int64(_clock),
       updatedAt: Int64(_clock++),
@@ -470,6 +478,31 @@ class _Chat extends ChatServiceBase {
   @override
   Future<Conversation> getConversation(ServiceCall call, GetConversationRequest request) async =>
       Conversation();
+
+  @override
+  Future<AnswerSecretRequestResponse> answerSecretRequest(
+    ServiceCall call,
+    AnswerSecretRequestRequest request,
+  ) async {
+    if (f.secretErrors.isNotEmpty) throw f.secretErrors.removeAt(0);
+    final m = f.msgs.where((m) => m.messageId == request.messageId).firstOrNull;
+    final asked = m != null &&
+        m.content.any((p) => p.hasSecretRequest() && p.secretRequest.requestId == request.requestId);
+    if (!asked) throw chatError(StatusCode.notFound, 'not_found');
+    switch (request.whichAnswer()) {
+      case AnswerSecretRequestRequest_Answer.value:
+        if (request.value.isEmpty || request.value.contains('\u0000')) {
+          throw chatError(StatusCode.invalidArgument, 'bad_request');
+        }
+        if (utf8.encode(request.value).length > 8192) throw chatError(StatusCode.invalidArgument, 'too_large');
+      case AnswerSecretRequestRequest_Answer.skipped:
+        if (!request.skipped) throw chatError(StatusCode.invalidArgument, 'bad_request');
+      case AnswerSecretRequestRequest_Answer.notSet:
+        throw chatError(StatusCode.invalidArgument, 'bad_request');
+    }
+    f.secretAnswers.add(request);
+    return AnswerSecretRequestResponse();
+  }
 
   @override
   Future<Message> setMessagePinned(ServiceCall call, SetMessagePinnedRequest request) async {

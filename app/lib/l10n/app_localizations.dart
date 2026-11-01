@@ -10954,6 +10954,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Off: one flat list. On: collapsible groups. Long-press a conversation to move it to a group.'**
   String get chatSettingsGroupedViewSubtitle;
+
+  /// No description provided for @celautEnvAskSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save in my variables'**
+  String get celautEnvAskSave;
+
+  /// No description provided for @celautEnvAskSaveHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved as {name}, with the mark above.'**
+  String celautEnvAskSaveHint(String name);
+
+  /// No description provided for @celautEnvAskSaveReplaces.
+  ///
+  /// In en, this message translates to:
+  /// **'Replaces the value that you saved as {name}.'**
+  String celautEnvAskSaveReplaces(String name);
+
+  /// No description provided for @celautEnvSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The value was not saved in your variables.'**
+  String get celautEnvSaveFailed;
+
+  /// No description provided for @celautSecretAskTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Secret for the service'**
+  String get celautSecretAskTitle;
+
+  /// No description provided for @celautSecretReviewNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The service and the node of this instance read the value. The value is not kept in the conversation.'**
+  String get celautSecretReviewNote;
+
+  /// No description provided for @celautSecretSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get celautSecretSend;
+
+  /// No description provided for @celautSecretSendAnyway.
+  ///
+  /// In en, this message translates to:
+  /// **'Send the value'**
+  String get celautSecretSendAnyway;
+
+  /// No description provided for @chatSecretCardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The service asks for {name}'**
+  String chatSecretCardTitle(String name);
+
+  /// No description provided for @chatSecretAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a value'**
+  String get chatSecretAnswer;
+
+  /// No description provided for @chatSecretSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent'**
+  String get chatSecretSent;
+
+  /// No description provided for @chatSecretSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped'**
+  String get chatSecretSkipped;
+
+  /// No description provided for @chatSecretFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The answer did not reach the service. Try again.'**
+  String get chatSecretFailed;
+
+  /// No description provided for @chatSecretMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is not in your variables any more.'**
+  String chatSecretMissing(String name);
 }
 
 class _AppLocalizationsDelegate

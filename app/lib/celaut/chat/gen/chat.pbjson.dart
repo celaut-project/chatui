@@ -558,6 +558,36 @@ final $typed_data.Uint8List protocolErrorDescriptor = $convert.base64Decode(
     'Cg1Qcm90b2NvbEVycm9yEhIKBGNvZGUYASABKAlSBGNvZGUSGAoHbWVzc2FnZRgCIAEoCVIHbW'
     'Vzc2FnZRIeCghldmVudF9pZBgDIAEoCUgAUgdldmVudElkiAEBQgsKCV9ldmVudF9pZA==');
 
+@$core.Deprecated('Use answerSecretRequestRequestDescriptor instead')
+const AnswerSecretRequestRequest$json = {
+  '1': 'AnswerSecretRequestRequest',
+  '2': [
+    {'1': 'message_id', '3': 1, '4': 1, '5': 9, '10': 'messageId'},
+    {'1': 'request_id', '3': 2, '4': 1, '5': 9, '10': 'requestId'},
+    {'1': 'value', '3': 3, '4': 1, '5': 9, '9': 0, '10': 'value'},
+    {'1': 'skipped', '3': 4, '4': 1, '5': 8, '9': 0, '10': 'skipped'},
+  ],
+  '8': [
+    {'1': 'answer'},
+  ],
+};
+
+/// Descriptor for `AnswerSecretRequestRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List answerSecretRequestRequestDescriptor =
+    $convert.base64Decode(
+        'ChpBbnN3ZXJTZWNyZXRSZXF1ZXN0UmVxdWVzdBIdCgptZXNzYWdlX2lkGAEgASgJUgltZXNzYW'
+        'dlSWQSHQoKcmVxdWVzdF9pZBgCIAEoCVIJcmVxdWVzdElkEhYKBXZhbHVlGAMgASgJSABSBXZh'
+        'bHVlEhoKB3NraXBwZWQYBCABKAhIAFIHc2tpcHBlZEIICgZhbnN3ZXI=');
+
+@$core.Deprecated('Use answerSecretRequestResponseDescriptor instead')
+const AnswerSecretRequestResponse$json = {
+  '1': 'AnswerSecretRequestResponse',
+};
+
+/// Descriptor for `AnswerSecretRequestResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List answerSecretRequestResponseDescriptor =
+    $convert.base64Decode('ChtBbnN3ZXJTZWNyZXRSZXF1ZXN0UmVzcG9uc2U=');
+
 @$core.Deprecated('Use contentPartDescriptor instead')
 const ContentPart$json = {
   '1': 'ContentPart',
@@ -607,6 +637,15 @@ const ContentPart$json = {
       '9': 0,
       '10': 'structured'
     },
+    {
+      '1': 'secret_request',
+      '3': 6,
+      '4': 1,
+      '5': 11,
+      '6': '.SecretRequest',
+      '9': 0,
+      '10': 'secretRequest'
+    },
   ],
   '8': [
     {'1': 'kind'},
@@ -618,8 +657,27 @@ final $typed_data.Uint8List contentPartDescriptor = $convert.base64Decode(
     'CgtDb250ZW50UGFydBIiCgR0ZXh0GAEgASgLMgwuVGV4dENvbnRlbnRIAFIEdGV4dBIkCgRmaW'
     'xlGAIgASgLMg4uRmlsZVJlZmVyZW5jZUgAUgRmaWxlEiUKBWltYWdlGAMgASgLMg0uSW1hZ2VD'
     'b250ZW50SABSBWltYWdlEiUKBWF1ZGlvGAQgASgLMg0uQXVkaW9Db250ZW50SABSBWF1ZGlvEj'
-    'QKCnN0cnVjdHVyZWQYBSABKAsyEi5TdHJ1Y3R1cmVkQ29udGVudEgAUgpzdHJ1Y3R1cmVkQgYK'
-    'BGtpbmQ=');
+    'QKCnN0cnVjdHVyZWQYBSABKAsyEi5TdHJ1Y3R1cmVkQ29udGVudEgAUgpzdHJ1Y3R1cmVkEjcK'
+    'DnNlY3JldF9yZXF1ZXN0GAYgASgLMg4uU2VjcmV0UmVxdWVzdEgAUg1zZWNyZXRSZXF1ZXN0Qg'
+    'YKBGtpbmQ=');
+
+@$core.Deprecated('Use secretRequestDescriptor instead')
+const SecretRequest$json = {
+  '1': 'SecretRequest',
+  '2': [
+    {'1': 'request_id', '3': 1, '4': 1, '5': 9, '10': 'requestId'},
+    {'1': 'name', '3': 2, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'prose', '3': 3, '4': 1, '5': 9, '9': 0, '10': 'prose', '17': true},
+  ],
+  '8': [
+    {'1': '_prose'},
+  ],
+};
+
+/// Descriptor for `SecretRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List secretRequestDescriptor = $convert.base64Decode(
+    'Cg1TZWNyZXRSZXF1ZXN0Eh0KCnJlcXVlc3RfaWQYASABKAlSCXJlcXVlc3RJZBISCgRuYW1lGA'
+    'IgASgJUgRuYW1lEhkKBXByb3NlGAMgASgJSABSBXByb3NliAEBQggKBl9wcm9zZQ==');
 
 @$core.Deprecated('Use textContentDescriptor instead')
 const TextContent$json = {
