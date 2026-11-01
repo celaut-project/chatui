@@ -95,6 +95,16 @@ class ChatServiceClient extends $grpc.Client {
     return $createUnaryCall(_$getCapabilities, request, options: options);
   }
 
+  /// Revisión 6 (ronda 8, borrador).
+  /// Responde a una petición de secreto (SecretRequest) con un valor
+  /// o con una omisión. El valor no entra en el historial (chat.md, 6.9).
+  $grpc.ResponseFuture<$0.AnswerSecretRequestResponse> answerSecretRequest(
+    $0.AnswerSecretRequestRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$answerSecretRequest, request, options: options);
+  }
+
   // method descriptors
 
   static final _$sendMessage =
@@ -131,6 +141,11 @@ class ChatServiceClient extends $grpc.Client {
           '/ChatService/GetCapabilities',
           ($0.GetCapabilitiesRequest value) => value.writeToBuffer(),
           $0.Capabilities.fromBuffer);
+  static final _$answerSecretRequest = $grpc.ClientMethod<
+          $0.AnswerSecretRequestRequest, $0.AnswerSecretRequestResponse>(
+      '/ChatService/AnswerSecretRequest',
+      ($0.AnswerSecretRequestRequest value) => value.writeToBuffer(),
+      $0.AnswerSecretRequestResponse.fromBuffer);
 }
 
 @$pb.GrpcServiceName('ChatService')
@@ -193,6 +208,15 @@ abstract class ChatServiceBase extends $grpc.Service {
         ($core.List<$core.int> value) =>
             $0.GetCapabilitiesRequest.fromBuffer(value),
         ($0.Capabilities value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.AnswerSecretRequestRequest,
+            $0.AnswerSecretRequestResponse>(
+        'AnswerSecretRequest',
+        answerSecretRequest_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.AnswerSecretRequestRequest.fromBuffer(value),
+        ($0.AnswerSecretRequestResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.Message> sendMessage_Pre($grpc.ServiceCall $call,
@@ -245,6 +269,15 @@ abstract class ChatServiceBase extends $grpc.Service {
 
   $async.Future<$0.Capabilities> getCapabilities(
       $grpc.ServiceCall call, $0.GetCapabilitiesRequest request);
+
+  $async.Future<$0.AnswerSecretRequestResponse> answerSecretRequest_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.AnswerSecretRequestRequest> $request) async {
+    return answerSecretRequest($call, await $request);
+  }
+
+  $async.Future<$0.AnswerSecretRequestResponse> answerSecretRequest(
+      $grpc.ServiceCall call, $0.AnswerSecretRequestRequest request);
 }
 
 @$pb.GrpcServiceName('FileService')

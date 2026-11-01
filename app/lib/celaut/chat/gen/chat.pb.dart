@@ -1492,7 +1492,181 @@ class ProtocolError extends $pb.GeneratedMessage {
   void clearEventId() => $_clearField(3);
 }
 
-enum ContentPart_Kind { text, file, image, audio, structured, notSet }
+enum AnswerSecretRequestRequest_Answer { value, skipped, notSet }
+
+class AnswerSecretRequestRequest extends $pb.GeneratedMessage {
+  factory AnswerSecretRequestRequest({
+    $core.String? messageId,
+    $core.String? requestId,
+    $core.String? value,
+    $core.bool? skipped,
+  }) {
+    final result = AnswerSecretRequestRequest._();
+    if (messageId != null) result.messageId = messageId;
+    if (requestId != null) result.requestId = requestId;
+    if (value != null) result.value = value;
+    if (skipped != null) result.skipped = skipped;
+    return result;
+  }
+
+  AnswerSecretRequestRequest._();
+
+  factory AnswerSecretRequestRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      AnswerSecretRequestRequest()..mergeFromBuffer(data, registry);
+  factory AnswerSecretRequestRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      AnswerSecretRequestRequest()..mergeFromJson(json, registry);
+
+  static const $core.Map<$core.int, AnswerSecretRequestRequest_Answer>
+      _AnswerSecretRequestRequest_AnswerByTag = {
+    3: AnswerSecretRequestRequest_Answer.value,
+    4: AnswerSecretRequestRequest_Answer.skipped,
+    0: AnswerSecretRequestRequest_Answer.notSet
+  };
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'AnswerSecretRequestRequest',
+      createEmptyInstance: AnswerSecretRequestRequest.$_createMessage)
+    ..oo(0, [3, 4])
+    ..aOS(1, _omitFieldNames ? '' : 'messageId')
+    ..aOS(2, _omitFieldNames ? '' : 'requestId')
+    ..aOS(3, _omitFieldNames ? '' : 'value')
+    ..aOB(4, _omitFieldNames ? '' : 'skipped')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  AnswerSecretRequestRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  AnswerSecretRequestRequest copyWith(
+          void Function(AnswerSecretRequestRequest) updates) =>
+      super.copyWith(
+              (message) => updates(message as AnswerSecretRequestRequest))
+          as AnswerSecretRequestRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use AnswerSecretRequestRequest() / AnswerSecretRequestRequest.new instead')
+  static AnswerSecretRequestRequest create() => AnswerSecretRequestRequest._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      AnswerSecretRequestRequest._();
+  @$core.override
+  AnswerSecretRequestRequest createEmptyInstance() =>
+      AnswerSecretRequestRequest._();
+  @$core.pragma('dart2js:noInline')
+  static AnswerSecretRequestRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<AnswerSecretRequestRequest>(
+          AnswerSecretRequestRequest.$_createMessage);
+  static AnswerSecretRequestRequest? _defaultInstance;
+
+  @$pb.TagNumber(3)
+  @$pb.TagNumber(4)
+  AnswerSecretRequestRequest_Answer whichAnswer() =>
+      _AnswerSecretRequestRequest_AnswerByTag[$_whichOneof(0)]!;
+  @$pb.TagNumber(3)
+  @$pb.TagNumber(4)
+  void clearAnswer() => $_clearField($_whichOneof(0));
+
+  /// message_id del mensaje que contiene el SecretRequest.
+  @$pb.TagNumber(1)
+  $core.String get messageId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set messageId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasMessageId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearMessageId() => $_clearField(1);
+
+  /// request_id del SecretRequest.
+  @$pb.TagNumber(2)
+  $core.String get requestId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set requestId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasRequestId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearRequestId() => $_clearField(2);
+
+  /// Texto de la variable: UTF-8, de 1 a 8 192 bytes, sin byte NUL.
+  @$pb.TagNumber(3)
+  $core.String get value => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set value($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasValue() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearValue() => $_clearField(3);
+
+  /// true para omitir la petición.
+  @$pb.TagNumber(4)
+  $core.bool get skipped => $_getBF(3);
+  @$pb.TagNumber(4)
+  set skipped($core.bool value) => $_setBool(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasSkipped() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearSkipped() => $_clearField(4);
+}
+
+/// Sin campos: la respuesta solo confirma que el servicio tiene el valor
+/// o la omisión. Nunca devuelve el valor.
+class AnswerSecretRequestResponse extends $pb.GeneratedMessage {
+  factory AnswerSecretRequestResponse() => AnswerSecretRequestResponse._();
+
+  AnswerSecretRequestResponse._();
+
+  factory AnswerSecretRequestResponse.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      AnswerSecretRequestResponse()..mergeFromBuffer(data, registry);
+  factory AnswerSecretRequestResponse.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      AnswerSecretRequestResponse()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'AnswerSecretRequestResponse',
+      createEmptyInstance: AnswerSecretRequestResponse.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  AnswerSecretRequestResponse clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  AnswerSecretRequestResponse copyWith(
+          void Function(AnswerSecretRequestResponse) updates) =>
+      super.copyWith(
+              (message) => updates(message as AnswerSecretRequestResponse))
+          as AnswerSecretRequestResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use AnswerSecretRequestResponse() / AnswerSecretRequestResponse.new instead')
+  static AnswerSecretRequestResponse create() =>
+      AnswerSecretRequestResponse._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      AnswerSecretRequestResponse._();
+  @$core.override
+  AnswerSecretRequestResponse createEmptyInstance() =>
+      AnswerSecretRequestResponse._();
+  @$core.pragma('dart2js:noInline')
+  static AnswerSecretRequestResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<AnswerSecretRequestResponse>(
+          AnswerSecretRequestResponse.$_createMessage);
+  static AnswerSecretRequestResponse? _defaultInstance;
+}
+
+enum ContentPart_Kind {
+  text,
+  file,
+  image,
+  audio,
+  structured,
+  secretRequest,
+  notSet
+}
 
 class ContentPart extends $pb.GeneratedMessage {
   factory ContentPart({
@@ -1501,6 +1675,7 @@ class ContentPart extends $pb.GeneratedMessage {
     ImageContent? image,
     AudioContent? audio,
     StructuredContent? structured,
+    SecretRequest? secretRequest,
   }) {
     final result = ContentPart._();
     if (text != null) result.text = text;
@@ -1508,6 +1683,7 @@ class ContentPart extends $pb.GeneratedMessage {
     if (image != null) result.image = image;
     if (audio != null) result.audio = audio;
     if (structured != null) result.structured = structured;
+    if (secretRequest != null) result.secretRequest = secretRequest;
     return result;
   }
 
@@ -1526,12 +1702,13 @@ class ContentPart extends $pb.GeneratedMessage {
     3: ContentPart_Kind.image,
     4: ContentPart_Kind.audio,
     5: ContentPart_Kind.structured,
+    6: ContentPart_Kind.secretRequest,
     0: ContentPart_Kind.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'ContentPart',
       createEmptyInstance: ContentPart.$_createMessage)
-    ..oo(0, [1, 2, 3, 4, 5])
+    ..oo(0, [1, 2, 3, 4, 5, 6])
     ..aOM<TextContent>(1, _omitFieldNames ? '' : 'text',
         subBuilder: TextContent.$_createMessage)
     ..aOM<FileReference>(2, _omitFieldNames ? '' : 'file',
@@ -1542,6 +1719,8 @@ class ContentPart extends $pb.GeneratedMessage {
         subBuilder: AudioContent.$_createMessage)
     ..aOM<StructuredContent>(5, _omitFieldNames ? '' : 'structured',
         subBuilder: StructuredContent.$_createMessage)
+    ..aOM<SecretRequest>(6, _omitFieldNames ? '' : 'secretRequest',
+        subBuilder: SecretRequest.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1571,12 +1750,14 @@ class ContentPart extends $pb.GeneratedMessage {
   @$pb.TagNumber(3)
   @$pb.TagNumber(4)
   @$pb.TagNumber(5)
+  @$pb.TagNumber(6)
   ContentPart_Kind whichKind() => _ContentPart_KindByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(1)
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
   @$pb.TagNumber(4)
   @$pb.TagNumber(5)
+  @$pb.TagNumber(6)
   void clearKind() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -1633,6 +1814,102 @@ class ContentPart extends $pb.GeneratedMessage {
   void clearStructured() => $_clearField(5);
   @$pb.TagNumber(5)
   StructuredContent ensureStructured() => $_ensure(4);
+
+  /// Revisión 6 (ronda 8, borrador). Solo en un mensaje del asistente COMPLETED.
+  @$pb.TagNumber(6)
+  SecretRequest get secretRequest => $_getN(5);
+  @$pb.TagNumber(6)
+  set secretRequest(SecretRequest value) => $_setField(6, value);
+  @$pb.TagNumber(6)
+  $core.bool hasSecretRequest() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearSecretRequest() => $_clearField(6);
+  @$pb.TagNumber(6)
+  SecretRequest ensureSecretRequest() => $_ensure(5);
+}
+
+/// Revisión 6 (ronda 8, borrador). Petición de un secreto por nombre (chat.md, 5.6).
+class SecretRequest extends $pb.GeneratedMessage {
+  factory SecretRequest({
+    $core.String? requestId,
+    $core.String? name,
+    $core.String? prose,
+  }) {
+    final result = SecretRequest._();
+    if (requestId != null) result.requestId = requestId;
+    if (name != null) result.name = name;
+    if (prose != null) result.prose = prose;
+    return result;
+  }
+
+  SecretRequest._();
+
+  factory SecretRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SecretRequest()..mergeFromBuffer(data, registry);
+  factory SecretRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SecretRequest()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SecretRequest',
+      createEmptyInstance: SecretRequest.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'requestId')
+    ..aOS(2, _omitFieldNames ? '' : 'name')
+    ..aOS(3, _omitFieldNames ? '' : 'prose')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SecretRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SecretRequest copyWith(void Function(SecretRequest) updates) =>
+      super.copyWith((message) => updates(message as SecretRequest))
+          as SecretRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use SecretRequest() / SecretRequest.new instead')
+  static SecretRequest create() => SecretRequest._();
+  static $pb.GeneratedMessage $_createMessage() => SecretRequest._();
+  @$core.override
+  SecretRequest createEmptyInstance() => SecretRequest._();
+  @$core.pragma('dart2js:noInline')
+  static SecretRequest getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<SecretRequest>(
+          SecretRequest.$_createMessage);
+  static SecretRequest? _defaultInstance;
+
+  /// Identifica la petición en la instancia. 1 a 64 caracteres: A-Z, a-z, 0-9, - y _.
+  @$pb.TagNumber(1)
+  $core.String get requestId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set requestId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasRequestId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRequestId() => $_clearField(1);
+
+  /// Nombre de la variable que el servicio pide. 1 a 128 caracteres: A-Z, a-z, 0-9 y _.
+  @$pb.TagNumber(2)
+  $core.String get name => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set name($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasName() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearName() => $_clearField(2);
+
+  /// Texto para el usuario que explica por qué hace falta. Vacío equivale a ausente.
+  @$pb.TagNumber(3)
+  $core.String get prose => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set prose($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasProse() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearProse() => $_clearField(3);
 }
 
 class TextContent extends $pb.GeneratedMessage {
