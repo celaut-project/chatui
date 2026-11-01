@@ -5009,5 +5009,47 @@
   "chatsGroupsUngrouped": "No group",
   "chatSettingsListGroup": "Chat list",
   "chatSettingsGroupedView": "Organize in groups",
-  "chatSettingsGroupedViewSubtitle": "Off: one flat list. On: collapsible groups. Long-press a conversation to move it to a group."
+  "chatSettingsGroupedViewSubtitle": "Off: one flat list. On: collapsible groups. Long-press a conversation to move it to a group.",
+  "celautEnvAskSave": "Save in my variables",
+  "celautEnvAskSaveHint": "Saved as {name}, with the mark above.",
+  "@celautEnvAskSaveHint": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "celautEnvAskSaveReplaces": "Replaces the value that you saved as {name}.",
+  "@celautEnvAskSaveReplaces": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "celautEnvSaveFailed": "The value was not saved in your variables.",
+  "celautSecretAskTitle": "Secret for the service",
+  "celautSecretReviewNote": "The service and the node of this instance read the value. The value is not kept in the conversation.",
+  "celautSecretSend": "Send",
+  "celautSecretSendAnyway": "Send the value",
+  "chatSecretCardTitle": "The service asks for {name}",
+  "@chatSecretCardTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatSecretAnswer": "Choose a value",
+  "chatSecretSent": "Sent",
+  "chatSecretSkipped": "Skipped",
+  "chatSecretFailed": "The answer did not reach the service. Try again.",
+  "chatSecretMissing": "{name} is not in your variables any more.",
+  "@chatSecretMissing": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -6844,4 +6844,57 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get chatSettingsGroupedViewSubtitle =>
       'Off: one flat list. On: collapsible groups. Long-press a conversation to move it to a group.';
+
+  @override
+  String get celautEnvAskSave => 'Save in my variables';
+
+  @override
+  String celautEnvAskSaveHint(String name) {
+    return 'Saved as $name, with the mark above.';
+  }
+
+  @override
+  String celautEnvAskSaveReplaces(String name) {
+    return 'Replaces the value that you saved as $name.';
+  }
+
+  @override
+  String get celautEnvSaveFailed =>
+      'The value was not saved in your variables.';
+
+  @override
+  String get celautSecretAskTitle => 'Secret for the service';
+
+  @override
+  String get celautSecretReviewNote =>
+      'The service and the node of this instance read the value. The value is not kept in the conversation.';
+
+  @override
+  String get celautSecretSend => 'Send';
+
+  @override
+  String get celautSecretSendAnyway => 'Send the value';
+
+  @override
+  String chatSecretCardTitle(String name) {
+    return 'The service asks for $name';
+  }
+
+  @override
+  String get chatSecretAnswer => 'Choose a value';
+
+  @override
+  String get chatSecretSent => 'Sent';
+
+  @override
+  String get chatSecretSkipped => 'Skipped';
+
+  @override
+  String get chatSecretFailed =>
+      'The answer did not reach the service. Try again.';
+
+  @override
+  String chatSecretMissing(String name) {
+    return '$name is not in your variables any more.';
+  }
 }

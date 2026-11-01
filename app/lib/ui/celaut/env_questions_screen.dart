@@ -23,10 +23,19 @@ class EnvFromContainer extends EnvAnswer {
 /// value is not sensitive unless the user says so (`docs/celaut/env-variables.md`, section
 /// 3.2).
 class EnvTyped extends EnvAnswer {
-  const EnvTyped(this.text, {this.sensitive = false});
+  const EnvTyped(this.text, {this.sensitive = false, this.save = false});
   final String text;
   final bool sensitive;
+
+  /// Save the value in the container, under the name of the variable, when the user
+  /// confirms (decided 2026-11-01, `docs/celaut/env-variables.md`, section 3).
+  final bool save;
 }
+
+/// What the questions are for: the variables of a launch, or one secret that a service asks
+/// for in the chat (`docs/celaut/chat.md`, section 5.6). Only the texts of the title, the
+/// review and its buttons change.
+enum EnvQuestionsPurpose { launch, chat }
 
 /// The variable is not given: it is not in the configuration.
 class EnvSkipped extends EnvAnswer {
@@ -65,6 +74,7 @@ class EnvQuestionsScreen extends StatefulWidget {
     required this.declared,
     this.networks = const [],
     this.nodes = const [],
+    this.purpose = EnvQuestionsPurpose.launch,
     EnvStore? store,
   }) : _store = store;
 
@@ -75,6 +85,7 @@ class EnvQuestionsScreen extends StatefulWidget {
 
   /// The nodes that can get the start request, best first ([envTargetNodes]).
   final List<EnvTargetNode> nodes;
+  final EnvQuestionsPurpose purpose;
   final EnvStore? _store;
 
   @override
@@ -89,6 +100,7 @@ class _EnvQuestionsScreenState extends State<EnvQuestionsScreen> {
   bool _typing = false;
   bool _hidden = true;
   bool _typedSensitive = false;
+  bool _typedSave = false;
   String? _typedError;
   final _typedCtrl = TextEditingController();
 
@@ -106,6 +118,7 @@ class _EnvQuestionsScreenState extends State<EnvQuestionsScreen> {
       _typing = false;
       _hidden = true;
       _typedSensitive = false;
+      _typedSave = false;
       _typedError = null;
       _typedCtrl.clear();
     });
@@ -186,7 +199,28 @@ class _EnvQuestionsScreenState extends State<EnvQuestionsScreen> {
       setState(() => _typedError = envProblemText(context.l10n, problem));
       return;
     }
-    _answer(EnvTyped(_typedCtrl.text, sensitive: _typedSensitive));
+    _answer(EnvTyped(_typedCtrl.text, sensitive: _typedSensitive, save: _typedSave));
+  }
+
+  bool get _chat => widget.purpose == EnvQuestionsPurpose.chat;
+
+  /// Save the typed values that the user asked to keep, then give the choices. A value that
+  /// cannot be saved is still used; the user sees that it was not saved.
+  void _confirm(List<EnvChoice> choices) {
+    var failed = false;
+    for (var i = 0; i < widget.declared.length; i++) {
+      final answer = _answers[i];
+      if (answer is! EnvTyped || !answer.save) continue;
+      try {
+        _store.set(widget.declared[i].name, answer.text, sensitive: answer.sensitive);
+      } catch (_) {
+        failed = true;
+      }
+    }
+    if (failed) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(context.l10n.celautEnvSaveFailed)));
+    }
+    Navigator.pop(context, choices);
   }
 
   String _describe(AppLocalizations l, EnvAnswer? a) => switch (a) {
@@ -212,7 +246,7 @@ class _EnvQuestionsScreenState extends State<EnvQuestionsScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(l.celautEnvAskTitle),
+          title: Text(_chat ? l.celautSecretAskTitle : l.celautEnvAskTitle),
           leading: IconButton(
             key: const Key('env-cancel'),
             tooltip: l.commonCancel,
@@ -306,6 +340,19 @@ class _EnvQuestionsScreenState extends State<EnvQuestionsScreen> {
             onChanged: (v) => setState(() => _typedSensitive = v),
             title: Text(l.celautEnvSensitive),
             subtitle: Text(l.celautEnvSensitiveHint, style: TextStyle(fontSize: 12.5, color: colors.muted)),
+          ),
+          SwitchListTile(
+            key: const Key('env-typed-save'),
+            contentPadding: EdgeInsets.zero,
+            value: _typedSave,
+            onChanged: (v) => setState(() => _typedSave = v),
+            title: Text(l.celautEnvAskSave),
+            subtitle: Text(
+              _containerViews().any((n) => n.name == v.name)
+                  ? l.celautEnvAskSaveReplaces(v.name)
+                  : l.celautEnvAskSaveHint(v.name),
+              style: TextStyle(fontSize: 12.5, color: colors.muted),
+            ),
           ),
           const SizedBox(height: 8),
           FilledButton(key: const Key('env-typed-use'), onPressed: _useTyped, child: Text(l.celautEnvAskUse)),
@@ -429,7 +476,11 @@ class _EnvQuestionsScreenState extends State<EnvQuestionsScreen> {
           ),
         ),
       const SizedBox(height: 8),
-      Text(l.celautEnvReviewNote, key: const Key('env-review-note'), style: TextStyle(fontSize: 12.5, color: colors.muted)),
+      Text(
+        _chat ? l.celautSecretReviewNote : l.celautEnvReviewNote,
+        key: const Key('env-review-note'),
+        style: TextStyle(fontSize: 12.5, color: colors.muted),
+      ),
       const SizedBox(height: 16),
       if (warnings.egress) ...[
         // The values can leave the node: Deny is the default, and it sends nothing.
@@ -442,14 +493,14 @@ class _EnvQuestionsScreenState extends State<EnvQuestionsScreen> {
         TextButton(
           key: const Key('env-run'),
           style: TextButton.styleFrom(foregroundColor: rustFor(context)),
-          onPressed: () => Navigator.pop(context, choices),
-          child: Text(l.celautEnvRunAnyway),
+          onPressed: () => _confirm(choices),
+          child: Text(_chat ? l.celautSecretSendAnyway : l.celautEnvRunAnyway),
         ),
       ] else
         FilledButton(
           key: const Key('env-run'),
-          onPressed: () => Navigator.pop(context, choices),
-          child: Text(l.celautEnvRun),
+          onPressed: () => _confirm(choices),
+          child: Text(_chat ? l.celautSecretSend : l.celautEnvRun),
         ),
       TextButton(
         key: const Key('env-back'),

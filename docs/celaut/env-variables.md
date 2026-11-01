@@ -205,6 +205,7 @@ The node holds them in the file `/__config__` of the instance (`ConfigurationFil
 | `EnvRecord.sensitive`, `NodeRecord.trusted` | `rust/crates/celaut-client/src/db.rs` |
 | `celaut_env_set(name, value, sensitive)`, `celaut_env_set_sensitive` | `rust/crates/wallet-ffi/src/api/celaut_env.rs` |
 | `KnownNodeView.trusted`, `celaut_set_node_trusted`; the switch on the node card | `rust/crates/wallet-ffi/src/api/celaut_home.rs`, `app/lib/ui/celaut/known_nodes_screen.dart` |
+| The switch "Save in my variables" of a typed value (`EnvTyped.save`), and the questions for one secret of the chat (`EnvQuestionsPurpose.chat`) | `app/lib/ui/celaut/env_questions_screen.dart` |
 | Strings in English and Spanish | `app/lib/l10n/app_en.arb`, `app_es.arb` (`celautEnv*`) |
 
 A launch from the screen "Celaut service" of the Compute section has no question: it starts
@@ -244,8 +245,8 @@ The checks are in `celaut-client` (`env.rs`, `db.rs`, `service_info.rs`), `walle
   wanted before the services declare their variables.
 - Do the eye and the edit of a value need the unlock of the wallet (`wallet_unlock.dart`)?
   The code says no, as the database is encrypted already.
-- Save a typed value into the container from the question (section 3). Decided 2026-11-01;
-  the code is not built yet.
+- Save a typed value into the container from the question (section 3). Decided 2026-11-01,
+  built in 0.1.30 (`EnvTyped.save`, the switch `env-typed-save`).
 - Section 3.2, for Josemi: the defaults (container sensitive, typed not); Deny ends the launch
   (an alternative: Deny goes back to the questions, so the user can skip the value); a tag with
   operator seeds shows as "on the node"; "Run only on trusted nodes" for a launch with

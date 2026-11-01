@@ -516,7 +516,7 @@ action that has a cost, unless the label says it.
 
 A service can ask the user for a secret, for example an API key, by name. The user gives the
 value from the variables of the app, or skips the request. The value goes to the service in
-`AnswerSecretRequest` (section 6.9). The value is never in a message. This section is a draft (revision 6, round 8). It is not in `chat.proto` yet. Josemi's decisions of 2026-11-01 are in it.
+`AnswerSecretRequest` (section 6.9). The value is never in a message. This section is revision 6, round 8. `chat.proto` has its messages, and chatui implements it from version 0.1.30. Josemi's decisions of 2026-11-01 are in it.
 
 A `SecretRequest` has these fields:
 
@@ -1239,8 +1239,9 @@ storage of the app are not part of this document ([ui-chat-first.md](ui-chat-fir
   The values are not shown. With an empty container, the selector says where to add variables.
 - A typed value can be saved in the container with a name (section 5.6). The switch **Sensitive**
   of the question becomes the sensitive mark of the new entry.
-- Rust resolves the chosen entry, so the value does not pass through Dart (`env-variables.md`,
-  section 4). The client sends the value, or the skip, with `AnswerSecretRequest` only. It never
+- The client reads the value of the chosen entry from the container only after the user
+  confirms, and only for the call. The chat client is in Dart, so the value is in the memory of
+  Dart during the call; it is not kept after it. The client sends the value, or the skip, with `AnswerSecretRequest` only. It never
   sends a secret as an event of `Connect`.
 - Before the client sends a sensitive value (the mark of an entry, or the switch of a typed value),
   it shows the warning of section 5.6. The warning applies when the node of the instance is not
@@ -1617,4 +1618,4 @@ more than 30 seconds. The service must follow these rules:
 | 6 (round 5) | 2026-10-24 | `Hash.type` is required: `chat.proto` has `bytes type = 1;` (it was `optional`, and the field number is the same). The `type` is explicit in each `Hash` of each call. The rule "reuse the last `type` of the stream" is gone. An empty `type` is the same as a missing `type`: `bad_request` in each call that takes a `Hash`, `QueryFiles` too. A `type` that is not empty and not known is an unknown algorithm. A SHA3-256 hash with a `value` that is not 32 bytes is `bad_request` in `QueryFiles` too. Test 48b is removed (its number stays). Tests 48, 49, 55b and 71 are changed, and test 49a is new |
 | 6 (round 6) | 2026-10-29 | New section 5.5 and a line in the decisions table: the keyboard block (```` ```keyboard ````). It is a client feature, as the HTML block, and the wire does not change. Keys can send at once (`data-send`), and the block can have fields (`input` with `data-name`) that a `{name}` in a `data-say` uses |
 | 6 (round 7) | 2026-10-29 | Section 5.5: the fields of a keyboard block can be of the types `date`, `time`, `range`, `checkbox` and `select` (one option, or many with `multiple`), with new attributes (`type`, `min`, `max`, `step`, `value`, `checked`, `data-off`, `multiple`, `selected`, and the `option` element). New limits: 32 options in a `select`, 80 characters in the label of an option. Where chatui shows the form, the keyboard of the app, the setting of the keyboard of the system, and how to open a closed form. The options of a `select` show as chips side by side, in a wheel. The wire does not change |
-| 6 (round 8) | 2026-11-01 | Draft: secret requests. New part `secret_request` (sections 5.1 and 5.6), new call `AnswerSecretRequest` (section 6.9), new reasons in section 9, new rules for the client (section 10), and tests 75 to 82. Decided on the same day: typed values and saving in the container, a wait with no time limit, requests only in `COMPLETED` messages, and the warnings for sensitive values. A service that does not send secret requests keeps the wire of revision 6. `chat.proto` does not have the new messages yet |
+| 6 (round 8) | 2026-11-01 | Draft: secret requests. New part `secret_request` (sections 5.1 and 5.6), new call `AnswerSecretRequest` (section 6.9), new reasons in section 9, new rules for the client (section 10), and tests 75 to 82. Decided on the same day: typed values and saving in the container, a wait with no time limit, requests only in `COMPLETED` messages, and the warnings for sensitive values. A service that does not send secret requests keeps the wire of revision 6. `chat.proto` has the new messages, and chatui implements them from version 0.1.30 |

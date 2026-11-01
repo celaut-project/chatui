@@ -48,6 +48,34 @@ class ChatAttachment {
   }
 }
 
+/// A request of the service for a secret, by name (`docs/celaut/chat.md`, section 5.6).
+/// The user answers it with a value or a skip ([ChatClient.answerSecretRequest]).
+class ChatSecretRequest {
+  const ChatSecretRequest({required this.requestId, required this.name, this.prose = ''});
+
+  final String requestId;
+
+  /// The name of the variable that the service asks for, for example `ANTHROPIC_API_KEY`.
+  final String name;
+
+  /// Why the service needs it. Empty if the service gave no text.
+  final String prose;
+
+  static final _id = RegExp(r'^[A-Za-z0-9_-]{1,64}$');
+  static final _name = RegExp(r'^[A-Za-z_][A-Za-z0-9_]{0,127}$');
+
+  /// The request of [part], or null if a field breaks the rules of section 5.6: the client
+  /// cannot answer it, so it does not show it.
+  static ChatSecretRequest? of(pb.SecretRequest part) {
+    if (!_id.hasMatch(part.requestId) || !_name.hasMatch(part.name)) return null;
+    return ChatSecretRequest(
+      requestId: part.requestId,
+      name: part.name,
+      prose: ChatClient._cutUtf8(part.prose, 1024),
+    );
+  }
+}
+
 /// A file that the user sends with a message.
 class OutgoingAttachment {
   const OutgoingAttachment({
@@ -86,6 +114,7 @@ class ChatMessage {
     this.updatedAt = 0,
     this.createdAt = 0,
     this.error,
+    this.secretRequests = const [],
   });
 
   /// The values of [status] (`docs/celaut/chat.md`, section 5.2). `streaming` is a message
@@ -137,6 +166,10 @@ class ChatMessage {
   /// from [text] or from `metadata`.
   final String? error;
 
+  /// The secrets that the service asks for in this message (section 5.6). Only a done
+  /// assistant message has them.
+  final List<ChatSecretRequest> secretRequests;
+
   bool get fromUser => role == 'user';
 
   /// An answer that grows: its [text] and [reasoning] are not final yet.
@@ -166,6 +199,7 @@ class ChatMessage {
         updatedAt: updatedAt ?? this.updatedAt,
         createdAt: createdAt,
         error: error ?? this.error,
+        secretRequests: secretRequests,
       );
 }
 
@@ -662,6 +696,7 @@ class ChatClient extends ChangeNotifier {
     }
     final text = StringBuffer();
     final attachments = <ChatAttachment>[];
+    final secrets = <ChatSecretRequest>[];
     for (final part in m.content) {
       switch (part.whichKind()) {
         case pb.ContentPart_Kind.text:
@@ -670,6 +705,11 @@ class ChatClient extends ChangeNotifier {
           attachments.add(_attachment('image', part.image.file));
         case pb.ContentPart_Kind.audio:
           attachments.add(_attachment('audio', part.audio.file));
+        // Only a COMPLETED assistant message can ask (section 5.6); elsewhere it is ignored.
+        case pb.ContentPart_Kind.secretRequest
+            when m.fromService && m.status == pb.MessageStatus.MESSAGE_STATUS_COMPLETED:
+          final request = ChatSecretRequest.of(part.secretRequest);
+          if (request != null) secrets.add(request);
         default:
           break;
       }
@@ -690,17 +730,19 @@ class ChatClient extends ChangeNotifier {
       updatedAt: m.updatedAt.toInt(),
       createdAt: m.createdAt.toInt(),
       error: _errorOf(m.error),
+      secretRequests: secrets,
     );
   }
 
   /// `error` of a message, or null if it is empty. At most 1 024 bytes are expected
   /// (section 5.2); a longer text is cut so that the screen stays small.
-  static String? _errorOf(String error) {
-    if (error.isEmpty) return null;
-    final raw = utf8.encode(error);
-    if (raw.length <= 1024) return error;
-    // Cut by UTF-8 bytes, not inside a character.
-    var end = 1024;
+  static String? _errorOf(String error) => error.isEmpty ? null : _cutUtf8(error, 1024);
+
+  /// [text] cut to [max] bytes of UTF-8, not inside a character.
+  static String _cutUtf8(String text, int max) {
+    final raw = utf8.encode(text);
+    if (raw.length <= max) return text;
+    var end = max;
     while (end > 0 && (raw[end] & 0xC0) == 0x80) {
       end--;
     }
@@ -1343,5 +1385,26 @@ class ChatClient extends ChangeNotifier {
     }
     _onPinned(raw.messageId, raw.pinned, raw.updatedAt.toInt());
     _notify();
+  }
+
+  /// The most bytes of the value of a secret (section 6.9).
+  static const maxSecretBytes = 8192;
+
+  /// Answer the secret [request] of [message] (`AnswerSecretRequest`, section 6.9): with
+  /// [value], or with a skip if [value] is null. The value goes only in this call: it is not
+  /// kept, and it is never in a message, a log or the text of an error. The client does not
+  /// send the answer again by itself; the caller tells the user if it fails.
+  Future<void> answerSecretRequest(ChatMessage message, ChatSecretRequest request, {String? value}) async {
+    if (value != null &&
+        (value.isEmpty || value.contains('\u0000') || utf8.encode(value).length > maxSecretBytes)) {
+      throw const ChatException(ChatErrorKind.badRequest);
+    }
+    final call = pb.AnswerSecretRequestRequest(messageId: message.id, requestId: request.requestId);
+    if (value != null) {
+      call.value = value;
+    } else {
+      call.skipped = true;
+    }
+    await _guard(() => _chat.answerSecretRequest(call, options: _unaryOptions));
   }
 }

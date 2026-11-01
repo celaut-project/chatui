@@ -2176,5 +2176,19 @@
   "chatsGroupsUngrouped": "Sin grupo",
   "chatSettingsListGroup": "Lista de chats",
   "chatSettingsGroupedView": "Organizar en grupos",
-  "chatSettingsGroupedViewSubtitle": "Desactivado: una lista plana. Activado: grupos plegables. Mantén pulsada una conversación para moverla a un grupo."
+  "chatSettingsGroupedViewSubtitle": "Desactivado: una lista plana. Activado: grupos plegables. Mantén pulsada una conversación para moverla a un grupo.",
+  "celautEnvAskSave": "Guardar en mis variables",
+  "celautEnvAskSaveHint": "Se guarda como {name}, con la marca de arriba.",
+  "celautEnvAskSaveReplaces": "Sustituye el valor que guardaste como {name}.",
+  "celautEnvSaveFailed": "El valor no se guardó en tus variables.",
+  "celautSecretAskTitle": "Secreto para el servicio",
+  "celautSecretReviewNote": "El servicio y el nodo de esta instancia leen el valor. El valor no se guarda en la conversación.",
+  "celautSecretSend": "Enviar",
+  "celautSecretSendAnyway": "Enviar el valor",
+  "chatSecretCardTitle": "El servicio pide {name}",
+  "chatSecretAnswer": "Elegir un valor",
+  "chatSecretSent": "Enviado",
+  "chatSecretSkipped": "Omitido",
+  "chatSecretFailed": "La respuesta no llegó al servicio. Inténtalo de nuevo.",
+  "chatSecretMissing": "{name} ya no está en tus variables."
 }

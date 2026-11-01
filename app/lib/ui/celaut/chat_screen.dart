@@ -8,7 +8,10 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../bridge/api/celaut.dart';
+import '../../bridge/api/celaut_env.dart' show DeclaredVariableView, EnvChoice;
+import '../../bridge/api/celaut_home.dart' show celautKnownNodes;
 import '../../bridge/api/celaut_service.dart';
+import '../../bridge/api/celaut_service_info.dart';
 import '../../celaut/attachment_picker.dart';
 import '../../celaut/audio_recorder.dart';
 import '../../celaut/celaut_format.dart';
@@ -19,17 +22,23 @@ import '../../celaut/chat_prefs.dart';
 import '../../celaut/chat_segments.dart';
 import '../../celaut/conversation_keep_alive.dart';
 import '../../celaut/conversations.dart';
+import '../../celaut/egress.dart';
+import '../../celaut/env_store.dart';
+import '../../celaut/host_port.dart';
 import '../../celaut/payers.dart';
 import '../../celaut/pinned_position.dart';
+import '../../celaut/secret_answers.dart';
 import '../../celaut/typewriter.dart';
 import '../../l10n/l10n.dart';
 import '../../theme/argus_theme.dart';
 import 'chat_floating.dart';
+import 'env_questions_screen.dart';
 import 'html_widget.dart';
 import 'instance_actions.dart';
 import 'instance_info_screen.dart';
 import 'keyboard_widget.dart';
 import 'open_web.dart';
+import 'service_info_screen.dart' show readServiceInfo;
 import 'virtual_keyboard.dart';
 
 /// The conversation with a running instance that follows the chat convention
@@ -71,7 +80,26 @@ class ChatScreen extends StatefulWidget {
     this.recorder,
     this.notifier,
     this.watcher,
+    this.inspect,
+    this.trustedNodes,
+    this.envStore,
+    this.secretAnswers,
   });
+
+  /// Reads the networks of the service of the instance, before a secret goes to it
+  /// (`docs/celaut/chat.md`, section 5.6). Null: [readServiceInfo]. Tests give their own.
+  final Future<ServiceInfoView> Function(String serviceIdHex, NodeAddress? node)? inspect;
+
+  /// The peer ids of the nodes that the user marked as fully trusted, in lower case. Null:
+  /// the known nodes of the app. Tests give their own.
+  final Set<String> Function()? trustedNodes;
+
+  /// The container of environment variables. Null: the one of the app. Tests give their own.
+  final EnvStore? envStore;
+
+  /// The answers to the secret requests of this conversation. Null: the ones stored for the
+  /// instance. Tests give their own.
+  final SecretAnswers? secretAnswers;
 
   /// Records the voice messages. Null: the microphone of the phone, made when the user
   /// first taps the record button. Tests give their own.
@@ -161,6 +189,11 @@ class _ChatScreenState extends State<ChatScreen>
   late final ConversationKeepAlive _keepAlive = widget.keepAlive ?? ChannelConversationKeepAlive();
   late final ConversationNotes _notes = widget.notes ?? conversationNotes;
   late final ChatDoneWatcher _watcher = widget.watcher ?? chatDoneWatcher;
+  late final SecretAnswers _secretAnswers = widget.secretAnswers ?? SecretAnswers(widget.instance.instanceId);
+  late final EnvStore _envStore = widget.envStore ?? EnvStore();
+
+  /// The secret requests whose answer is on its way.
+  final _answering = <String>{};
 
   /// The instance stopped from this screen: the watcher has nothing to read.
   bool _stoppedHere = false;
@@ -289,6 +322,9 @@ class _ChatScreenState extends State<ChatScreen>
     // The screen reads the chat now: a watch that a former screen left stops.
     _watcher.release(_id);
     _open();
+    _secretAnswers.load().then((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   /// A running instance can have messages already: read them, then the cost.
@@ -887,7 +923,7 @@ class _ChatScreenState extends State<ChatScreen>
 
   /// The message has something to show: text, reasoning or a file.
   static bool _hasContent(ChatMessage m) =>
-      m.text.isNotEmpty || m.reasoning.isNotEmpty || m.attachments.isNotEmpty;
+      m.text.isNotEmpty || m.reasoning.isNotEmpty || m.attachments.isNotEmpty || m.secretRequests.isNotEmpty;
 
   /// Pin or unpin [m]. The client changes the message at once and gives it back if the
   /// call fails: the user sees the reason.
@@ -899,6 +935,98 @@ class _ChatScreenState extends State<ChatScreen>
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(_errorText(e.kind, pin: true))));
+    }
+  }
+
+  /// A network that stands for the networks of a service that the app cannot read: the
+  /// warnings count it as egress to any address, so a value never goes with no warning.
+  static const _unknownNetworks = [NetworkView(tags: ['*'], prose: '', formal: '', protocolStack: [])];
+
+  /// The networks that the service of the instance declares (`docs/celaut/env-variables.md`,
+  /// section 3.1), read from the library file or from the node of the instance.
+  Future<List<NetworkView>> _serviceNetworks() async {
+    final i = widget.instance;
+    try {
+      final parsed = parseHostPort(i.address).value;
+      final node = parsed == null ? null : NodeAddress(host: parsed.host, port: parsed.port);
+      final info = await (widget.inspect ?? readServiceInfo)(i.serviceId, node);
+      if (!info.truncated) return info.networks;
+    } catch (_) {
+      // Unreadable: warn as for any address.
+    }
+    return _unknownNetworks;
+  }
+
+  bool _nodeTrusted() {
+    final peer = widget.instance.peerId.toLowerCase();
+    try {
+      final trusted = widget.trustedNodes?.call() ??
+          {for (final n in celautKnownNodes()) if (n.trusted) n.peerId.toLowerCase()};
+      return trusted.contains(peer);
+    } catch (_) {
+      // No database: the node is not trusted, so the questions warn.
+      return false;
+    }
+  }
+
+  void _notice(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  /// Answer the secret request [r] of [m] (`docs/celaut/chat.md`, section 5.6): the
+  /// questions of a launch for one variable, with the warnings of a sensitive value, then
+  /// `AnswerSecretRequest`. Closing the questions, or Deny, sends nothing. The value is read
+  /// only here, and is not kept.
+  Future<void> _answerSecret(ChatMessage m, ChatSecretRequest r) async {
+    if (!_answering.add(r.requestId)) return;
+    setState(() {});
+    final l = context.l10n;
+    try {
+      final networks = await _serviceNetworks();
+      if (!mounted) return;
+      final i = widget.instance;
+      final choices = await Navigator.of(context).push<List<EnvChoice>>(
+        MaterialPageRoute(
+          builder: (_) => EnvQuestionsScreen(
+            declared: [DeclaredVariableView(name: r.name, tags: const [], prose: r.prose)],
+            networks: networks,
+            nodes: [EnvTargetNode(peerId: i.peerId, address: i.address, trusted: _nodeTrusted())],
+            purpose: EnvQuestionsPurpose.chat,
+            store: _envStore,
+          ),
+        ),
+      );
+      if (choices == null || !mounted) return;
+      String? value;
+      if (choices.isNotEmpty) {
+        final c = choices.first;
+        final container = c.container;
+        if (container != null) {
+          String? saved;
+          try {
+            saved = _envStore.value(container);
+          } catch (_) {
+            saved = null;
+          }
+          if (saved == null) {
+            _notice(l.chatSecretMissing(container));
+            return;
+          }
+          value = saved;
+        } else {
+          value = c.text;
+        }
+      }
+      await _chat.answerSecretRequest(m, r, value: value);
+      await _secretAnswers.set(r.requestId, value == null ? SecretAnswer.skipped : SecretAnswer.sent);
+    } on ChatException {
+      _notice(l.chatSecretFailed);
+    } finally {
+      _answering.remove(r.requestId);
+      if (mounted) setState(() {});
     }
   }
 
@@ -1440,6 +1568,9 @@ class _ChatScreenState extends State<ChatScreen>
                                 onLoaded: _fileLoaded,
                                 onPin: _chat.canPin && m.id.isNotEmpty ? () => _togglePin(m) : null,
                                 onCopy: () => _copy(m),
+                                secretAnswer: _secretAnswers.of,
+                                answering: _answering,
+                                onSecret: (r) => _answerSecret(m, r),
                                 onReopenKeyboard:
                                     (m.seq == _keyboardClosedSeq || _keyboardHidden) && i == messages.length - 1
                                         ? () => setState(() {
@@ -1734,6 +1865,9 @@ class _Bubble extends StatelessWidget {
     required this.onPin,
     required this.onCopy,
     this.onReopenKeyboard,
+    this.secretAnswer,
+    this.answering = const {},
+    this.onSecret,
   });
 
   final ChatMessage message;
@@ -1762,6 +1896,15 @@ class _Bubble extends StatelessWidget {
   /// Opens the keyboard of this message again, after the user closed it. Null while the
   /// keyboard is open or this is not the last message.
   final VoidCallback? onReopenKeyboard;
+
+  /// The answer that the user gave to a secret request, by `request_id`.
+  final SecretAnswer? Function(String requestId)? secretAnswer;
+
+  /// The secret requests whose answer is on its way.
+  final Set<String> answering;
+
+  /// Opens the questions for a secret request of the message.
+  final void Function(ChatSecretRequest request)? onSecret;
 
   /// The menu of a long press on the message, anywhere on it: copy, select the text, and
   /// pin or unpin. The text of a bubble is not selectable by itself, so that a long press
@@ -1903,6 +2046,15 @@ class _Bubble extends StatelessWidget {
                   // Not selectable: a long press opens the menu, which can select the text.
                   selectable: false,
                 ),
+              for (final r in message.secretRequests)
+                _SecretCard(
+                  key: Key('chat-secret-${r.requestId}'),
+                  request: r,
+                  answer: secretAnswer?.call(r.requestId),
+                  busy: answering.contains(r.requestId),
+                  onTap: onSecret == null ? null : () => onSecret!(r),
+                  scheme: scheme,
+                ),
               if (message.isFailed || message.isCancelled)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
@@ -1942,6 +2094,75 @@ class _Bubble extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// A secret that the service asks for (`docs/celaut/chat.md`, section 5.6): its name, why
+/// the service needs it, and a button that opens the questions. After the answer, it says
+/// "Sent" or "Skipped", never the value.
+class _SecretCard extends StatelessWidget {
+  const _SecretCard({
+    super.key,
+    required this.request,
+    required this.answer,
+    required this.busy,
+    required this.onTap,
+    required this.scheme,
+  });
+
+  final ChatSecretRequest request;
+  final SecretAnswer? answer;
+  final bool busy;
+  final VoidCallback? onTap;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final muted = TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant);
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: scheme.outline),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.key_outlined, size: 18, color: scheme.onSurfaceVariant),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  l.chatSecretCardTitle(request.name),
+                  style: TextStyle(fontWeight: FontWeight.w600, color: scheme.onSurface),
+                ),
+              ),
+            ],
+          ),
+          if (request.prose.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(request.prose, style: muted),
+          ],
+          const SizedBox(height: 8),
+          switch (answer) {
+            SecretAnswer.sent => Text(l.chatSecretSent, key: const Key('chat-secret-sent'), style: muted),
+            SecretAnswer.skipped => Text(l.chatSecretSkipped, key: const Key('chat-secret-skipped'), style: muted),
+            null => busy
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                : OutlinedButton.icon(
+                    key: const Key('chat-secret-answer'),
+                    onPressed: onTap,
+                    icon: const Icon(Icons.inventory_2_outlined, size: 18),
+                    label: Text(l.chatSecretAnswer),
+                  ),
+          },
+        ],
       ),
     );
   }
