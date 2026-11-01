@@ -73,8 +73,10 @@ The formats are shown, not checked: the app cannot read a `formal` that it does 
 so any choice is accepted if the value is valid text for the node. A declaration for binary
 data cannot be filled. The user can skip it.
 
-Typed values are not saved. A switch "Save in my variables" with a name is a second step
-and not part of this design.
+Typed values are not saved, unless the user says so. A switch "Save in my variables" with a
+name saves the value in the container (decided 2026-11-01, as for the chat: the switch "Sensitive"
+of the question becomes the sensitive mark of the new entry). The same question appears in the
+chat for a service that asks for a secret (`chat.md`, section 5.6).
 
 ### 3.1 Where a service can send what it is given (2026-10-26)
 
@@ -242,7 +244,8 @@ The checks are in `celaut-client` (`env.rs`, `db.rs`, `service_info.rs`), `walle
   wanted before the services declare their variables.
 - Do the eye and the edit of a value need the unlock of the wallet (`wallet_unlock.dart`)?
   The code says no, as the database is encrypted already.
-- Save a typed value into the container from the question (section 3). Not built.
+- Save a typed value into the container from the question (section 3). Decided 2026-11-01;
+  the code is not built yet.
 - Section 3.2, for Josemi: the defaults (container sensitive, typed not); Deny ends the launch
   (an alternative: Deny goes back to the questions, so the user can skip the value); a tag with
   operator seeds shows as "on the node"; "Run only on trusted nodes" for a launch with

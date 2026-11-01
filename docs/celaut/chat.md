@@ -102,6 +102,7 @@ if the text of the row is not in conflict with a newer row.
 | Keyboard controls and keyboard of the app | 2026-10-29 | A field of a keyboard block can be a calendar (`type="date"`), a clock (`type="time"`), a slider (`type="range"`), a checkbox (`type="checkbox"`) or a list of options (`select`, one or many with `multiple`), as well as one line of text. The value of each one is text, and a `{name}` in a `data-say` is that text: the wire does not change. In chatui the form shows **under** the input (not above it), the chat does not open the keyboard of the system, and under the input it shows the form or, if there is none, a keyboard of the app. A setting (off by default) lets the user choose the keyboard of the system. A closed form opens again with a tap on its card (section 5.5) |
 | Attachments | 2026-10-22 | A message can have image files and audio files. The client shows the attach button only for the kinds that the service accepts. The files stay in memory only |
 | Recorded audio | 2026-10-24 | A client can record sound and send it as `audio/wav`. A service that accepts `audio` must accept `audio/wav` |
+| Secret requests | 2026-11-01 | The service can ask the user for a secret by name, for example an API key. The app shows the selector of environment variables (`env-variables.md`, section 3), with a typed value and **Skip**. The user can save a typed value in the container. The service waits until the user answers. The value goes to the service in `AnswerSecretRequest`, and never in a message, an event or the history. The app warns before a sensitive value goes out (sections 5.6 and 6.9) |
 | Version | 2026-10-14 | The tag has no version. The interface only grows with new optional fields (section 11) |
 
 ## 3. Declaration in the service interface
@@ -244,6 +245,7 @@ Rules:
 | `audio` (`AudioContent`) | A sound. `file` is a `FileReference`. `transcript` and `duration_ms` are optional |
 | `file` (`FileReference`) | Another file. A client of revision 6 does not send it. A service can send it. A client can show it as a file to share |
 | `structured` (`StructuredContent`) | Data with a media type. A client that does not know the media type ignores the part. Revision 6 defines no use for it |
+| `secret_request` (`SecretRequest`) | A request for a secret value, by name. Only an assistant message with `status` `COMPLETED` has it (section 5.6). A client that does not know it ignores it |
 | (not set) | A part of a newer revision. The client ignores it |
 
 A `FileReference` in a message must have:
@@ -509,6 +511,52 @@ client does not send the value anywhere but in that message.
 A service must write a `data-say` that is a full and safe user message, because the user can
 send it with one tap (and with no tap to check it, if the key has `data-send`). A `data-say` must not make the user send private data, or confirm an
 action that has a cost, unless the label says it.
+
+### 5.6 Secret requests
+
+A service can ask the user for a secret, for example an API key, by name. The user gives the
+value from the variables of the app, or skips the request. The value goes to the service in
+`AnswerSecretRequest` (section 6.9). The value is never in a message. This section is a draft (revision 6, round 8). It is not in `chat.proto` yet. Josemi's decisions of 2026-11-01 are in it.
+
+A `SecretRequest` has these fields:
+
+| Field | Type | Rule |
+|---|---|---|
+| `request_id` | string | 1 to 64 characters from `A-Z`, `a-z`, `0-9`, `-` and `_`. It is unique in the instance |
+| `name` | string | The name of the variable that the service asks for. 1 to 128 characters from `A-Z`, `a-z`, `0-9` and `_`. It does not start with a digit. The client finds the entries of the container with this name. The client must not read a meaning from it |
+| `prose` | string, optional | A text for the user that says why the service needs the value. UTF-8, 1 024 bytes or less. An empty string is the same as absent |
+
+**Where the request goes.** The service puts the part in an assistant message with `status`
+`COMPLETED`. The service must not put the part in an open message, and must not put it in a
+user message. The answer to the request is a new assistant message, and not a change of the
+message that asked. The `reply_to_message_id` of that answer is the `message_id` of the message
+that has the request. This is the only case in which `reply_to_message_id` is not the
+`message_id` of a user message.
+
+**The value is not in the history.** The service must not write the value into a message, an
+event, `metadata`, a log, a file, the text of an error or a `ProtocolError`. The service must
+not send the value in any call. The service keeps the value in memory, and only as long as it
+needs it. The client cannot check what the service does with the value (section 6.9).
+
+**Waiting.** The service waits for the user's answer, a value or a skip, with no time limit. The service must not end the wait by time. A request ends only with the instance: when the instance stops, the request is void.
+
+**Skipped.** A skipped request has no value. The service must go on without the value, or end the answer with a text that says it cannot do the task without it.
+
+**Answered once.** A request has one answer: a value, or a skip. The first answer counts. A
+later `AnswerSecretRequest` for the same `request_id` gets `OK` with no change. The service
+does not compare the value with the first one. This is the same rule as the key of a send
+(section 6.1).
+
+**State.** The service does not send the state of a request. The client keeps the state of each
+request (section 10). The state has the name and the word "sent" or "skipped", never the value.
+
+**Where the value goes.** The node of the instance gets the value, as it gets the values of a launch (`env-variables.md`, section 4). A service that declares a network with egress can send the value outside the node.
+
+**Warnings.** The client warns before it sends a value that is sensitive (the mark of the entry, or the switch of a typed value). The warning applies when the node of the instance is not fully trusted, or when the service declares any network. With egress, the warning is the red card of `env-variables.md`, section 3.2, and **Deny** is the default. In the other cases it is the normal warning, and it names the reason. A value that is not sensitive gets no warning (section 10).
+
+**Typed values and saving (decided 2026-11-01).** The user can type a value in the chat. The question has the switch **Sensitive**, off by default, as in `env-variables.md`, section 3.2. A typed value is not kept, unless the user saves it. The user can save it in the container with a name, and the switch of the question becomes the sensitive mark of the entry.
+
+**Open message (decided 2026-11-01).** A request is only in a `COMPLETED` message.
 
 ## 6. Calls
 
@@ -979,6 +1027,38 @@ must ignore it.
 
 An empty `conversation_id` has the same meaning as an absent one.
 
+### 6.9 Answer a secret request
+
+```
+rpc AnswerSecretRequest(AnswerSecretRequestRequest) returns (AnswerSecretRequestResponse);
+```
+
+| Field | Rule |
+|---|---|
+| `message_id` | The `message_id` of the message that has the `SecretRequest` |
+| `request_id` | The `request_id` of the `SecretRequest` |
+| `value` or `skipped` | Exactly one. `value` is the text of the variable: UTF-8, 1 to 8 192 bytes, with no NUL byte. `skipped` is `true` for a skip |
+
+The response has no field.
+
+The service must check the request in this order and stop at the first failure:
+
+| Step | Check | Failure |
+|---|---|---|
+| 1 | `message_id` is a message of the instance, and the message has a `SecretRequest` with `request_id` | `NOT_FOUND`, reason `not_found` |
+| 2 | Exactly one of `value` and `skipped` is set. `skipped` with the value `false` is not a skip | `INVALID_ARGUMENT`, reason `bad_request` |
+| 3 | `value`, if set, is not empty, is valid UTF-8, and has no NUL byte | `INVALID_ARGUMENT`, reason `bad_request` |
+| 4 | `value`, if set, is 8 192 bytes or less | `INVALID_ARGUMENT`, reason `too_large` |
+| 5 | The service can keep the value, or the skip | `INTERNAL`, reason `service_error`. The service changes nothing |
+
+If the request was answered before, the service replies `OK` and changes nothing (section 5.6,
+"Answered once"). If the checks pass, the service keeps the value or the skip, and continues the
+work that waits for it.
+
+The service must answer this call at any time, also while it makes an answer. It must reply in
+30 seconds or less. It must not change `latest`. It must not reply with the value. The call is
+not an event of `Connect`, and it has no `event_id`.
+
 ## 7. Limits
 
 The values of this table are defaults. A service can set other values for the text, the files
@@ -1038,7 +1118,7 @@ user. It is optional.
 | `INVALID_ARGUMENT` | `unsupported_media` | A `mime_type` is not accepted, or the service accepts text only. The service changed nothing | `unsupportedMedia` |
 | `INVALID_ARGUMENT` | `too_large` | The text, a file or a request is above the limit of the service | `badRequest` |
 | `INVALID_ARGUMENT` | `hash_mismatch` | The bytes of an upload do not have the hash or the size that the client gave | `badRequest` |
-| `NOT_FOUND` | `not_found` | A message, a conversation or a file does not exist | `badRequest` |
+| `NOT_FOUND` | `not_found` | A message, a conversation, a file or a secret request does not exist | `badRequest` |
 | `FAILED_PRECONDITION` | `file_missing` | A message references a file that the service does not have. The client uploads it and sends again (section 6.4) | `badRequest` |
 | `FAILED_PRECONDITION` | `bad_state` | The call is not valid in this state: the first event of `Connect` is not `subscribe`, or the answer is final | `badRequest` |
 | `RESOURCE_EXHAUSTED` | `history_full` | The history does not have room for more messages. The client tells the user to start a new instance. A service must not use it for a file | `historyFull` |
@@ -1066,6 +1146,8 @@ The status `INVALID_ARGUMENT` with the reason `bad_request` is for one of these 
 - An `event_id` is not valid, or it was used before in the same stream.
 - A hash of a `QueryFiles`, `DownloadFile` or `UploadFile` call has no `type` (an empty `type`), or the first message of an
   `UploadFile` stream is not a `FileReference`.
+
+The status `INVALID_ARGUMENT` with the reason `bad_request` is also for `AnswerSecretRequest` with no answer, with both answers, with an empty `value`, or with a `value` that is not valid UTF-8 or has a NUL byte (section 6.9). The status `INVALID_ARGUMENT` with the reason `too_large` is also for a `value` above 8 192 bytes.
 
 `ProtocolError.code` in a `Connect` stream has the same names as `chat-reason`, and
 `ProtocolError.message` is a text for the user. `ProtocolError.event_id` is the `event_id` of
@@ -1151,6 +1233,24 @@ storage of the app are not part of this document ([ui-chat-first.md](ui-chat-fir
 - The client must show `reasoning` apart from the text. It must not mix them.
 - The client must follow section 6.3 after a lost connection, and section 6.5 after a lost
   stream.
+- The client shows a `secret_request` part as a card in the conversation, with its `name` and
+  `prose`. A tap on the card opens the selector of `env-variables.md`, section 3: the entries of
+  the container, with the entries of the same name first, a field for a typed value, and **Skip**.
+  The values are not shown. With an empty container, the selector says where to add variables.
+- A typed value can be saved in the container with a name (section 5.6). The switch **Sensitive**
+  of the question becomes the sensitive mark of the new entry.
+- Rust resolves the chosen entry, so the value does not pass through Dart (`env-variables.md`,
+  section 4). The client sends the value, or the skip, with `AnswerSecretRequest` only. It never
+  sends a secret as an event of `Connect`.
+- Before the client sends a sensitive value (the mark of an entry, or the switch of a typed value),
+  it shows the warning of section 5.6. The warning applies when the node of the instance is not
+  fully trusted, or when the service declares any network. With egress, the warning is the red
+  card of `env-variables.md`, section 3.2, and **Deny** is the default. Deny sends nothing. A value
+  that is not sensitive gets no warning.
+- After the answer, the card shows "Sent: NAME" or "Skipped". The state is kept by the client.
+  The client never writes the value into a message, a log, the text of the input or an error.
+- If `AnswerSecretRequest` ends with an error, the client tells the user. It does not send the
+  answer again by itself.
 - The client must ignore a message, an event and a `ContentPart` that it does not know.
 
 ## 11. Conformance
@@ -1273,6 +1373,14 @@ has it empty.
 | 73 | `FileService` on a service that accepts no attachment (only if it does not implement `FileService`) | `UNIMPLEMENTED` for each call |
 | 73a | `SendMessage` with a message that is above the receive limit of the gRPC layer, 4 MiB + 1 byte (optional) | `RESOURCE_EXHAUSTED` with no `chat-reason`. The service does not stop |
 | 74 | A call to a method that `chat.proto` does not define | `UNIMPLEMENTED` |
+| 75 | `GetMessages` after the service asks for a secret, with `name` `TEST_SECRET` (only for a service that sends secret requests) | An assistant message with a `secret_request` part that has `request_id` and `name`. Its `status` is `COMPLETED`. The part has no value |
+| 76 | `AnswerSecretRequest` with the message and the `request_id` of test 75, and `value` `test-value` | `OK`. The service continues the work that waits for the value. Its new assistant message has `reply_to_message_id` equal to the `message_id` of test 75 |
+| 77 | `GetMessages`, the replay of `Connect` and the logs of the service, after test 76 | The text `test-value` is in none of them |
+| 78 | `AnswerSecretRequest` with `skipped` `true` for a second request | `OK`. The service goes on with no value, or ends the answer with a text |
+| 79 | `AnswerSecretRequest` for test 76 again, with `value` `other-value` | `OK`, and no change. The service does not use `other-value` |
+| 80 | `AnswerSecretRequest` with an unknown `request_id`; with a valid `request_id` and no answer; with both answers; with an empty `value`; with a `value` that has a NUL byte | `NOT_FOUND` for the first. `bad_request` for each of the others. The service changes nothing |
+| 81 | `AnswerSecretRequest` with a `value` of 8 193 bytes | `INVALID_ARGUMENT`, reason `too_large` |
+| 82 | `AnswerSecretRequest` while the service makes an answer | `OK` at once |
 
 Tests 20, 21, 23 and 38 apply to a service that streams or takes time to answer. A service
 that does not do these things can skip them. For a service that sends the whole answer, test
@@ -1283,6 +1391,8 @@ optional. A service can fail on request only if it has a way to make it fail, fo
 a test mode. A service with a large history limit does not fill the history in a test. Tests
 48 to 72 (with the tests that have a letter) apply to a service that accepts attachments. A service that accepts text only runs
 tests 48, 48a, 49, 49a, 50, 57, 66, 71 and 73.
+
+Tests 75 to 82 apply to a service that sends secret requests. A service that does not send them can skip them.
 
 ## 12. Changes to the interface
 
@@ -1507,3 +1617,4 @@ more than 30 seconds. The service must follow these rules:
 | 6 (round 5) | 2026-10-24 | `Hash.type` is required: `chat.proto` has `bytes type = 1;` (it was `optional`, and the field number is the same). The `type` is explicit in each `Hash` of each call. The rule "reuse the last `type` of the stream" is gone. An empty `type` is the same as a missing `type`: `bad_request` in each call that takes a `Hash`, `QueryFiles` too. A `type` that is not empty and not known is an unknown algorithm. A SHA3-256 hash with a `value` that is not 32 bytes is `bad_request` in `QueryFiles` too. Test 48b is removed (its number stays). Tests 48, 49, 55b and 71 are changed, and test 49a is new |
 | 6 (round 6) | 2026-10-29 | New section 5.5 and a line in the decisions table: the keyboard block (```` ```keyboard ````). It is a client feature, as the HTML block, and the wire does not change. Keys can send at once (`data-send`), and the block can have fields (`input` with `data-name`) that a `{name}` in a `data-say` uses |
 | 6 (round 7) | 2026-10-29 | Section 5.5: the fields of a keyboard block can be of the types `date`, `time`, `range`, `checkbox` and `select` (one option, or many with `multiple`), with new attributes (`type`, `min`, `max`, `step`, `value`, `checked`, `data-off`, `multiple`, `selected`, and the `option` element). New limits: 32 options in a `select`, 80 characters in the label of an option. Where chatui shows the form, the keyboard of the app, the setting of the keyboard of the system, and how to open a closed form. The options of a `select` show as chips side by side, in a wheel. The wire does not change |
+| 6 (round 8) | 2026-11-01 | Draft: secret requests. New part `secret_request` (sections 5.1 and 5.6), new call `AnswerSecretRequest` (section 6.9), new reasons in section 9, new rules for the client (section 10), and tests 75 to 82. Decided on the same day: typed values and saving in the container, a wait with no time limit, requests only in `COMPLETED` messages, and the warnings for sensitive values. A service that does not send secret requests keeps the wire of revision 6. `chat.proto` does not have the new messages yet |
