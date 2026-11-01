@@ -34,7 +34,7 @@ struct Shared {
 
 /// What a connection needs to open its stream. The opener can be replaced while the port
 /// stays (see [`LocalPort::set_opener`]).
-struct Target {
+pub(crate) struct Target {
     opener: Mutex<Arc<dyn TunnelOpener>>,
     token: String,
     slot: u16,
@@ -50,7 +50,26 @@ impl std::fmt::Debug for Target {
 }
 
 impl Target {
-    fn open(&self) -> Tunnel {
+    pub(crate) fn new(
+        opener: Arc<dyn TunnelOpener>,
+        token: String,
+        slot: u16,
+        receipts: Option<ReceiptSink>,
+    ) -> Target {
+        Target {
+            opener: Mutex::new(opener),
+            token,
+            slot,
+            receipts,
+        }
+    }
+
+    /// Open the next streams with `opener`.
+    pub(crate) fn set_opener(&self, opener: Arc<dyn TunnelOpener>) {
+        *self.opener.lock().unwrap_or_else(|e| e.into_inner()) = opener;
+    }
+
+    pub(crate) fn open(&self) -> Tunnel {
         let opener = self
             .opener
             .lock()
@@ -101,12 +120,7 @@ impl LocalPort {
         };
         let port = listener.local_addr()?.port();
         let shared = Arc::new(Shared::default());
-        let target = Arc::new(Target {
-            opener: Mutex::new(opener),
-            token,
-            slot,
-            receipts,
-        });
+        let target = Arc::new(Target::new(opener, token, slot, receipts));
         let task = tokio::spawn(accept(listener, target.clone(), shared.clone()));
         Ok(LocalPort {
             port,
@@ -120,7 +134,7 @@ impl LocalPort {
     /// one broke). The connections that are open keep their streams. The last error is
     /// cleared: it was of the old opener.
     pub fn set_opener(&self, opener: Arc<dyn TunnelOpener>) {
-        *self.target.opener.lock().unwrap_or_else(|e| e.into_inner()) = opener;
+        self.target.set_opener(opener);
         if let Ok(mut last) = self.shared.last_error.lock() {
             *last = None;
         }
@@ -174,7 +188,7 @@ async fn accept(listener: TcpListener, target: Arc<Target>, shared: Arc<Shared>)
 }
 
 /// Aborts a task when dropped.
-struct AbortOnDrop(JoinHandle<()>);
+pub(crate) struct AbortOnDrop(pub(crate) JoinHandle<()>);
 
 impl Drop for AbortOnDrop {
     fn drop(&mut self) {
@@ -195,7 +209,7 @@ const REPLAY_LIMIT: usize = 1 << 20;
 /// transport error of the keepalive) is not one: the service may have the request and
 /// still work on it, so it is not sent again. A refusal (wrong token, no balance) is not
 /// one either: it would fail again.
-fn is_transient(error: &celaut_wire::WireError) -> bool {
+pub(crate) fn is_transient(error: &celaut_wire::WireError) -> bool {
     use celaut_wire::WireError;
     matches!(error, WireError::Connect(_) | WireError::Timeout)
 }

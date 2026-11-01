@@ -42,6 +42,7 @@ pub mod db;
 pub mod deposit;
 pub mod env;
 pub mod health;
+pub mod http_tunnel;
 pub mod invite;
 pub mod local_port;
 pub mod overview;
@@ -62,6 +63,9 @@ use celaut_wire::{ConnectOptions, Connection, Transport, WireError};
 pub use db::{CelautData, CelautDb, DbError};
 pub use deposit::{DepositBox, DepositError, ErgPayment};
 pub use health::{Availability, Health};
+pub use http_tunnel::{
+    HttpResponse, HttpTunnel, HttpTunnelError, Limits, ResponseBody, StreamedResponse,
+};
 pub use local_port::LocalPort;
 pub use peer::PeerError;
 pub use quotes::{quotes, quotes_for, quotes_with, QuoteFailure, QuoteSkip, Quotes};

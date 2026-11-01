@@ -150,6 +150,34 @@ fixes:
    (`Unavailable`, a keepalive that timed out) ends the connection, because the service
    may have run the request. A refusal of the node (token, balance, slot) is not retried.
 
+### HTTP over the tunnel with no local port (`celaut-client/src/http_tunnel.rs`)
+
+`HttpTunnel` sends HTTP/1.1 requests to a slot of an instance through the `ServiceTunnel`
+and gives back status, headers and body. It listens on nothing, so no other process can
+reach the instance through it. What the node charges:
+
+- **One `TUNNEL_OPEN_MU` per stream, and one stream per `HttpTunnel`**, not per request or
+  per resource: the requests go one after the other on the same stream (keep-alive).
+  `streams_opened()` counts the opens. The stream opens with the first request.
+- **Another open** when the stream is closed: the service closed the connection
+  (`Connection: close`, an idle timeout of the service), the node dropped the stream, a
+  request failed or timed out, or a streamed body was dropped before its end. A stale
+  stream found closed before a request costs one open.
+- **A request is sent again only when it surely never reached the service**: nothing of it
+  was written, or the stream failed to open (no connection, a time limit) before any byte
+  came back (up to 3 more opens, as the local port). A request that went out on a stream
+  that then failed is not sent again, so the service never runs it twice (PR #77). The
+  caller decides whether to repeat it.
+- The bytes of the requests and answers are charged as for the local port; the HTTP
+  framing adds a few hundred bytes of headers per request.
+
+Limits (`Limits`, defaults in the module): head of an answer 64 KiB and 100 headers, body
+64 MiB (a `Content-Length` over it fails before the body is read), 120 s to the head of
+the answer, 60 s with no byte of the body. A request over a limit fails with an error and
+closes the stream. The requests are serialized, so a slow answer holds the next request:
+a page that loads many resources in parallel gets them one at a time on one stream. Not
+verified against a real node.
+
 Not changed: the Dart `TunnelHttp` is only for the chat calls, and the web page opens in
 the system browser, so neither limits the page. `SOCKS_CHECK_TIMEOUT` (5 s) is for the
 local proxy, not for the circuit.

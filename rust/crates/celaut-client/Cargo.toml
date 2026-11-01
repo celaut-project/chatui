@@ -11,6 +11,13 @@ celaut-wire = { workspace = true }
 celaut-balancer = { workspace = true }
 bee-rpc = { workspace = true }
 prost = "0.14"
+# HTTP/1.1 over a tunnel stream (http_tunnel.rs). All of them are already in the tree
+# (tonic, reqwest); only features are asked here, no new crate.
+http = "1"
+bytes = "1"
+http-body-util = "0.1"
+hyper = { version = "1", default-features = false, features = ["client", "http1"] }
+hyper-util = { version = "0.1", default-features = false, features = ["tokio"] }
 tokio-stream = { version = "0.1", default-features = false }
 futures = { workspace = true }
 blake2 = "0.11"
